@@ -1,0 +1,131 @@
+
+> equipo03@1.0.0 test
+> jest --verbose
+
+PASS __tests__/modules/geolocation/domain/value-objects/Aforo.vo.test.ts
+  Aforo Value Object
+    create()
+      ✓ debe crear aforo válido (15 ms)
+      ✓ debe lanzar error si máximo es 0 (20 ms)
+      ✓ debe lanzar error si máximo es negativo
+      ✓ debe lanzar error si actual es negativo (1 ms)
+      ✓ debe lanzar error si actual supera máximo
+    cuposDisponibles
+      ✓ debe calcular cupos disponibles
+      ✓ debe ser 0 cuando está lleno (1 ms)
+    hayCuposDisponibles
+      ✓ debe ser true cuando hay cupos
+      ✓ debe ser false cuando está lleno (1 ms)
+    porcentajeOcupacion
+      ✓ debe calcular porcentaje correctamente (12 ms)
+      ✓ debe ser 0 cuando está vacío (1 ms)
+      ✓ debe ser 100 cuando está lleno
+      ✓ debe redondear correctamente (2 ms)
+    nivelOcupacion
+      ✓ debe ser "bajo" cuando < 60% (1 ms)
+      ✓ debe ser "bajo" cuando es 59% (2 ms)
+      ✓ debe ser "medio" cuando es 60% (1 ms)
+      ✓ debe ser "medio" cuando es 85%
+      ✓ debe ser "alto" cuando > 85%
+      ✓ debe ser "alto" cuando está lleno
+    textoFormateado
+      ✓ debe formatear como "actual/maximo"
+    equals
+      ✓ debe ser igual a otro aforo con mismos valores
+      ✓ no debe ser igual a otro aforo con valores diferentes
+
+PASS __tests__/modules/geolocation/domain/value-objects/Distancia.vo.test.ts
+  Distancia Value Object
+    create()
+      ✓ debe crear distancia válida en metros (8 ms)
+      ✓ debe lanzar error con distancia negativa (13 ms)
+      ✓ debe aceptar distancia 0 (1 ms)
+    km
+      ✓ debe convertir metros a kilómetros
+      ✓ debe retornar 0 km para 0 metros
+    kmFija
+      ✓ debe formatear con 1 decimal
+      ✓ debe redondear correctamente
+    kmCorta
+      ✓ debe mostrar metros para distancias < 1km
+      ✓ debe mostrar km para distancias >= 1km
+      ✓ debe redondear metros a entero
+    legible
+      ✓ debe retornar "metros" para distancias cortas
+      ✓ debe retornar "kilómetros" para distancias largas (1 ms)
+    comparaciones
+      ✓ esMenorQue debe funcionar correctamente (2 ms)
+      ✓ esMayorQue debe funcionar correctamente (1 ms)
+      ✓ equals debe funcionar correctamente (1 ms)
+
+PASS __tests__/modules/geolocation/domain/value-objects/Coordenadas.vo.test.ts
+  Coordenadas Value Object
+    create()
+      ✓ debe crear coordenadas válidas (8 ms)
+      ✓ debe crear coordenadas con accuracy
+      ✓ debe asignar timestamp automáticamente (1 ms)
+      ✓ debe lanzar error con latitude > 90 (15 ms)
+      ✓ debe lanzar error con latitude < -90
+      ✓ debe lanzar error con longitude > 180 (1 ms)
+      ✓ debe lanzar error con longitude < -180 (2 ms)
+      ✓ debe aceptar valores límite válidos (1 ms)
+      ✓ debe lanzar error con accuracy negativa (1 ms)
+    toGeolibFormat()
+      ✓ debe retornar formato compatible con geolib (2 ms)
+    toMapCoordinate()
+      ✓ debe retornar formato compatible con react-native-maps (1 ms)
+    equals()
+      ✓ debe ser igual a coordenadas con mismos valores
+      ✓ no debe ser igual a coordenadas diferentes
+    toString()
+      ✓ debe formatear coordenadas como string legible
+
+PASS __tests__/modules/geolocation/domain/entities/Sede.entity.test.ts
+  Sede Entity
+    create()
+      ✓ debe crear sede válida (6 ms)
+      ✓ debe lanzar error con nombre vacío (7 ms)
+      ✓ debe lanzar error con nombre de solo espacios (1 ms)
+    estaDisponible
+      ✓ debe ser true cuando hay cupos
+      ✓ debe ser false cuando está lleno
+    tieneServicio()
+      ✓ debe encontrar un servicio existente
+      ✓ debe ser case-insensitive (1 ms)
+      ✓ debe retornar false para servicio inexistente
+    toDTO()
+      ✓ debe convertir a DTO plano correctamente (1 ms)
+    coordenadas
+      ✓ debe retornar las coordenadas de la sede (1 ms)
+    id
+      ✓ debe retornar el identificador
+
+FAIL __tests__/modules/geolocation/application/ObtenerSedesCercanas.use-case.test.ts
+  ● Test suite failed to run
+
+    [96m__tests__/modules/geolocation/application/ObtenerSedesCercanas.use-case.test.ts[0m:[93m8[0m:[93m45[0m - [91merror[0m[90m TS2307: [0mCannot find module '../../../../../src/modules/geolocation/application/ports/input/ObtenerSedesCercanas.use-case' or its corresponding type declarations.
+
+    [7m8[0m import { ObtenerSedesCercanasUseCase } from '../../../../../src/modules/geolocation/application/ports/input/ObtenerSedesCercanas.use-case';
+    [7m [0m [91m                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    [96m__tests__/modules/geolocation/application/ObtenerSedesCercanas.use-case.test.ts[0m:[93m9[0m:[93m40[0m - [91merror[0m[90m TS2307: [0mCannot find module '../../../../__mocks__/MockGeolocationService' or its corresponding type declarations.
+
+    [7m9[0m import { MockGeolocationService } from '../../../../__mocks__/MockGeolocationService';
+    [7m [0m [91m                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    [96m__tests__/modules/geolocation/application/ObtenerSedesCercanas.use-case.test.ts[0m:[93m10[0m:[93m37[0m - [91merror[0m[90m TS2307: [0mCannot find module '../../../../__mocks__/MockSedesApiService' or its corresponding type declarations.
+
+    [7m10[0m import { MockSedesApiService } from '../../../../__mocks__/MockSedesApiService';
+    [7m  [0m [91m                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    [96m__tests__/modules/geolocation/application/ObtenerSedesCercanas.use-case.test.ts[0m:[93m11[0m:[93m44[0m - [91merror[0m[90m TS2307: [0mCannot find module '../../../../../src/modules/geolocation/domain/errors/UbicacionNoDisponible.error' or its corresponding type declarations.
+
+    [7m11[0m import { UbicacionNoDisponibleError } from '../../../../../src/modules/geolocation/domain/errors/UbicacionNoDisponible.error';
+    [7m  [0m [91m                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    [96m__tests__/modules/geolocation/application/ObtenerSedesCercanas.use-case.test.ts[0m:[93m126[0m:[93m9[0m - [91merror[0m[90m TS2307: [0mCannot find module '../../../../../src/modules/geolocation/domain/value-objects/Coordenadas.vo' or its corresponding type declarations.
+
+    [7m126[0m         '../../../../../src/modules/geolocation/domain/value-objects/Coordenadas.vo'
+    [7m   [0m [91m        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+Test Suites: 1 failed, 4 passed, 5 total
+Tests:       62 passed, 62 total
+Snapshots:   0 total
+Time:        4.759 s, estimated 8 s
+Ran all test suites.

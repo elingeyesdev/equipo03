@@ -1,0 +1,13 @@
+{
+  "name": "gymsync-monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "mobile": "npm run start --workspace=@gymsync/mobile",
+    "web": "npm run dev --workspace=@gymsync/web",
+    "test:core": "npm test --workspace=@gymsync/core"
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "GymSync",
+    "slug": "gymsync",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1a1a2e"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "GymSync necesita tu ubicación para mostrarte las sedes de gimnasio más cercanas.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "GymSync necesita tu ubicación para mostrarte las sedes de gimnasio más cercanas."
+      },
+      "bundleIdentifier": "com.gymsync.equipo03"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1a1a2e"
+      },
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ],
+      "package": "com.gymsync.equipo03"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "GymSync necesita tu ubicación para mostrarte sedes cercanas."
+        }
+      ],
+      "expo-asset"
+    ]
+  }
+}
