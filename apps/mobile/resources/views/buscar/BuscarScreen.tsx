@@ -20,7 +20,7 @@ const { width } = Dimensions.get('window');
 const GRID_GAP = 10;
 const GRID_ITEM = (width - 40 - GRID_GAP) / 2;
 
-type NavigationProp = NativeStackNavigationProp<BuscarStackParamList, 'BuscarHome'>;
+type NavigationProp = NativeStackNavigationProp<BuscarStackParamList, 'Regresar'>;
 
 const CATEGORIAS = [
   { label: 'Aerobicos', icon: 'run-fast', color: '#e94560' },

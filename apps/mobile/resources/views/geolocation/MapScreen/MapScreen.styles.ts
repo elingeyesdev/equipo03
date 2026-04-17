@@ -24,6 +24,27 @@ export const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
     zIndex: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerTextCol: {
+    flex: 1,
+  },
+  catalogTopButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 217, 255, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 217, 255, 0.3)',
+  },
+  catalogTopButtonText: {
+    color: '#00D9FF',
+    fontSize: 11,
+    fontWeight: 'bold',
+    marginTop: 2,
   },
   headerTitle: {
     fontSize: 24,
@@ -54,5 +75,28 @@ export const styles = StyleSheet.create({
   attributionText: {
     fontSize: 10,
     color: '#666',
+  },
+  filterFab: {
+    position: 'absolute',
+    bottom: 170, // Por encima del GPS ReCenter
+    right: 20,
+    backgroundColor: '#1C1C1E',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 8,
+    zIndex: 20,
+  },
+  gpsFab: {
+    position: 'absolute',
+    bottom: 100,
+    right: 20,
+    zIndex: 20,
   },
 });

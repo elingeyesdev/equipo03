@@ -10,7 +10,8 @@ import { Sede } from '@gymsync/core';
 import { Coordenadas } from '@gymsync/core';
 import { SedeConDistancia, ObtenerSedesCercanasUseCase } from '@gymsync/core';
 import { CalcularRutaUseCase } from '@gymsync/core';
-import { FiltrarSedesUseCase, FiltrosCatalogo } from '@gymsync/core';
+import { FiltrarSedesUseCase } from '@gymsync/core';
+import { useFilterStore } from '../../../../app/Providers/geolocation/stores/FilterStore';
 
 interface MapScreenState {
   // Estado
@@ -21,8 +22,6 @@ interface MapScreenState {
   error: string | null;
   radioKm: number;
   isListView: boolean;
-  filtros: FiltrosCatalogo;
-
   // Acciones
   setUserLocation: (location: Coordenadas) => void;
   setSedesConDistancia: (sedes: SedeConDistancia[]) => void;
@@ -32,7 +31,6 @@ interface MapScreenState {
   setError: (error: string | null) => void;
   setRadioKm: (radio: number) => void;
   toggleListView: () => void;
-  setFiltros: (nuevosFiltros: Partial<FiltrosCatalogo>) => void;
   reset: () => void;
 }
 
@@ -45,7 +43,6 @@ export const useMapScreenStore = create<MapScreenState>((set) => ({
   error: null,
   radioKm: 10,
   isListView: false,
-  filtros: {},
 
   // Acciones
   setUserLocation: (location) => set({ userLocation: location }),
@@ -56,7 +53,6 @@ export const useMapScreenStore = create<MapScreenState>((set) => ({
   setError: (error) => set({ error }),
   setRadioKm: (radio) => set({ radioKm: radio }),
   toggleListView: () => set((state) => ({ isListView: !state.isListView })),
-  setFiltros: (nuevos) => set((state) => ({ filtros: { ...state.filtros, ...nuevos } })),
   reset: () => set({
     userLocation: null,
     sedesConDistancia: [],
@@ -64,7 +60,6 @@ export const useMapScreenStore = create<MapScreenState>((set) => ({
     loading: false,
     error: null,
     isListView: false,
-    filtros: {},
   }),
 }));
 
@@ -87,11 +82,9 @@ export const MapScreenController = (
     });
 
     if (result.isRight()) {
-      const sedes = result.value;
+      const { sedes, ubicacion } = result.value;
       store.setSedesConDistancia(sedes);
-
-      // Extraer ubicación del usuario del primer resultado si existe
-      // (la ubicación se obtuvo internamente en el use case)
+      store.setUserLocation(ubicacion);
     } else {
       store.setError(result.value.mensajeUsuario ?? result.value.message);
     }
@@ -111,9 +104,11 @@ export const MapScreenController = (
     cargarSedesCercanas();
   };
 
+  const { filtros } = useFilterStore();
+
   // Computado: Sedes destiladas a traves de los filtros
   const sedesObj = store.sedesConDistancia.map(s => s.sede);
-  const sedesFiltradasObj = filtrarSedesUseCase.execute(sedesObj, store.filtros);
+  const sedesFiltradasObj = filtrarSedesUseCase.execute(sedesObj, filtros);
   const sedesFiltradas = store.sedesConDistancia.filter(s => 
     sedesFiltradasObj.some((filtrada: Sede) => filtrada.id.value === s.sede.id.value)
   );

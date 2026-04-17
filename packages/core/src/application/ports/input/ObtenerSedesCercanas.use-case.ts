@@ -27,6 +27,11 @@ export type SedeConDistancia = {
   distancia: Distancia;
 };
 
+export type ObtenerSedesResponse = {
+  sedes: SedeConDistancia[];
+  ubicacion: Coordenadas;
+};
+
 export class ObtenerSedesCercanasUseCase {
   constructor(
     private readonly geolocationService: IGeolocationService,
@@ -35,7 +40,7 @@ export class ObtenerSedesCercanasUseCase {
 
   async execute(
     request: ObtenerSedesCercanasRequest = {}
-  ): Promise<Either<UbicacionNoDisponibleError, SedeConDistancia[]>> {
+  ): Promise<Either<UbicacionNoDisponibleError, ObtenerSedesResponse>> {
     const radioKm = request.radioKm ?? 10;
     const maxResultados = request.maxResultados ?? 20;
 
@@ -79,7 +84,10 @@ export class ObtenerSedesCercanasUseCase {
       .sort((a, b) => a.distancia.metros - b.distancia.metros)
       .slice(0, maxResultados);
 
-    return right(resultado);
+    return right({
+      sedes: resultado,
+      ubicacion: userCoords,
+    });
   }
 
   /**
@@ -109,6 +117,9 @@ export class ObtenerSedesCercanasUseCase {
       .sort((a, b) => a.distancia.metros - b.distancia.metros)
       .slice(0, maxResultados);
 
-    return right(resultado);
+    return right({
+      sedes: resultado,
+      ubicacion: coordenadas,
+    });
   }
 }

@@ -10,8 +10,8 @@ import { Coordenadas } from '../value-objects/Coordenadas.vo';
 import { Aforo } from '../value-objects/Aforo.vo';
 import { HorariosSede, HorariosMap } from '../value-objects/HorariosSede.vo';
 
-export type ServicioSede = 'Musculación' | 'Crossfit' | 'Yoga' | 'Pilates' | 'Zumba' | 'Natación' | 'Ciclismo' | 'Artes Marciales';
-export type BeneficioSede = 'WiFi' | 'Duchas' | 'Parqueo' | 'Cafetería' | 'Armarios' | 'Fisioterapia' | 'Sauna';
+export type ServicioSede = 'Musculación' | 'Crossfit' | 'Yoga' | 'Pilates' | 'Zumba' | 'Natación' | 'Ciclismo' | 'Artes Marciales' | (string & {});
+export type BeneficioSede = 'WiFi' | 'Duchas' | 'Parqueo' | 'Cafetería' | 'Armarios' | 'Fisioterapia' | 'Sauna' | (string & {});
 
 export type SedeProps = {
   id: Identifier;
@@ -23,6 +23,8 @@ export type SedeProps = {
   servicios?: ServicioSede[];
   beneficios?: BeneficioSede[];
   imagenUrl?: string;
+  rating?: number;
+  resenasCount?: number;
   telefono?: string;
 };
 
@@ -38,6 +40,8 @@ export interface SedeDTO {
   servicios?: string[];
   beneficios?: string[];
   imagenUrl?: string;
+  rating?: number;
+  resenasCount?: number;
   telefono?: string;
 }
 
@@ -64,6 +68,8 @@ export class Sede {
   get servicios(): ServicioSede[] { return this.props.servicios ?? []; }
   get beneficios(): BeneficioSede[] { return this.props.beneficios ?? []; }
   get imagenUrl(): string | undefined { return this.props.imagenUrl; }
+  get rating(): number | undefined { return this.props.rating; }
+  get resenasCount(): number | undefined { return this.props.resenasCount; }
   get telefono(): string | undefined { return this.props.telefono; }
 
   // === Métodos de dominio ===
@@ -106,6 +112,8 @@ export class Sede {
       servicios: this.props.servicios,
       beneficios: this.props.beneficios,
       imagenUrl: this.props.imagenUrl,
+      rating: this.props.rating,
+      resenasCount: this.props.resenasCount,
       telefono: this.props.telefono,
     };
   }
