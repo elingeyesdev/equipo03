@@ -15,23 +15,40 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BuscarStackParamList } from '../../../routes/BuscarStack';
 import MapView, { UrlTile } from 'react-native-maps';
 import { OSMConfig } from '../../../app/Providers/geolocation/config/osm.config';
+import { useFilterStore } from '../../../app/Providers/geolocation/stores/FilterStore';
+import { useMapScreenStore } from '../../../app/Http/Controllers/geolocation/MapScreen.Controller';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 const GRID_GAP = 10;
 const GRID_ITEM = (width - 40 - GRID_GAP) / 2;
 
 type NavigationProp = NativeStackNavigationProp<BuscarStackParamList, 'Regresar'>;
 
 const CATEGORIAS = [
-  { label: 'Aerobicos', icon: 'run-fast', color: '#e94560' },
-  { label: 'Aparatos', icon: 'weight-lifter', color: '#f05b22' },
-  { label: 'Boxeo', icon: 'boxing-glove', color: '#9b5de5' },
-  { label: 'Calistenia', icon: 'human-handsup', color: '#00b4d8' },
+  { label: 'Aerobicos', icon: 'heart-pulse', color: '#e94560', query: 'Zumba' }, // Match approx con los servicios
+  { label: 'Aparatos', icon: 'dumbbell', color: '#f05b22', query: 'Musculación' },
+  { label: 'Boxeo', icon: 'boxing-glove', color: '#9b5de5', query: 'Artes Marciales' },
+  { label: 'Calistenia', icon: 'arm-flex', color: '#00b4d8', query: 'Crossfit' },
 ];
 
 export const BuscarScreen = () => {
   const [query, setQuery] = useState('');
   const navigation = useNavigation<NavigationProp>();
+  
+  const resetFiltros = useFilterStore(state => state.resetFiltros);
+  const setFiltros = useFilterStore(state => state.setFiltros);
+
+  const handleCategoryPress = (categoryQuery: string) => {
+    resetFiltros();
+    // Añadir el servicio a los filtros
+    setFiltros({ servicios: [categoryQuery as any] });
+    
+    // Forzar que el catálogo se abra en lugar de solo mapa
+    useMapScreenStore.setState({ isListView: true });
+    
+    // Navegar
+    navigation.navigate('Mapa');
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -64,13 +81,17 @@ export const BuscarScreen = () => {
         {/* Explorar cerca de ti — abre el mapa real */}
         <View style={styles.sectionRow}>
           <MaterialCommunityIcons name="map-marker" size={22} color="#f05b22" />
-          <Text style={styles.sectionTitle}>Explorar cerca de ti</Text>
+          <Text style={styles.sectionTitle}>Encuentra sedes aquí</Text>
         </View>
 
         <TouchableOpacity
           style={styles.mapPlaceholderWrapper}
           activeOpacity={0.8}
-          onPress={() => navigation.navigate('Mapa')}
+          onPress={() => {
+            // Asegurarse de abrir como mapa real sin ListView forzado, o mantener estado actual
+            useMapScreenStore.setState({ isListView: false });
+            navigation.navigate('Mapa');
+          }}
         >
           <View pointerEvents="none" style={styles.mapPlaceholder}>
             <MapView
@@ -100,9 +121,14 @@ export const BuscarScreen = () => {
 
         <View style={styles.categoriesGrid}>
           {CATEGORIAS.map((cat, idx) => (
-            <TouchableOpacity key={idx} style={styles.categoryCard} activeOpacity={0.8}>
+            <TouchableOpacity 
+              key={idx} 
+              style={styles.categoryCard} 
+              activeOpacity={0.8}
+              onPress={() => handleCategoryPress(cat.query)}
+            >
               <View style={[styles.categoryIconBg, { backgroundColor: cat.color + '22' }]}>
-                <MaterialCommunityIcons name={cat.icon as any} size={52} color={cat.color} />
+                <MaterialCommunityIcons name={cat.icon as any} size={28} color={cat.color} />
               </View>
               <Text style={styles.categoryLabel}>{cat.label}</Text>
             </TouchableOpacity>
@@ -178,7 +204,7 @@ const styles = StyleSheet.create({
   mapPlaceholderWrapper: {
     marginHorizontal: 20,
     marginTop: 12,
-    height: 180,
+    height: height * 0.6,
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
@@ -219,7 +245,7 @@ const styles = StyleSheet.create({
   },
   categoryCard: {
     width: GRID_ITEM,
-    height: GRID_ITEM,
+    height: 110,
     backgroundColor: '#1c1c1e',
     borderRadius: 16,
     justifyContent: 'center',
@@ -227,9 +253,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   categoryIconBg: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,

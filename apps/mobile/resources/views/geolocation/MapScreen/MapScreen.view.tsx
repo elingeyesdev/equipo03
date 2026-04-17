@@ -6,7 +6,7 @@
  */
 
 import React, { useRef, useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Marker, UrlTile } from 'react-native-maps';
 import MapView from 'react-native-maps';
@@ -96,15 +96,22 @@ export const MapScreenView: React.FC<MapScreenViewProps> = ({
 
 
 
-  if (isListView) {
-    return (
-      <SedesCatalog 
-        sedes={sedes} 
-        onSelectSede={onMarkerPress} 
-        onCerrarCatalogo={onToggleListView} 
-      />
-    );
-  }
+  const handleSelectSedeFromCatalog = (sede: Sede) => {
+    onMarkerPress(sede);
+    onToggleListView();
+
+    // Pequeño retardo para asegurar fluidez en el cierre del catálogo
+    setTimeout(() => {
+      if (mapRef.current && sede.coordenadas) {
+        mapRef.current.animateToRegion({
+          latitude: sede.coordenadas.latitude,
+          longitude: sede.coordenadas.longitude,
+          latitudeDelta: 0.015,
+          longitudeDelta: 0.015,
+        }, 1000);
+      }
+    }, 300);
+  };
 
   // Encontrar la distancia para la sede seleccionada
   const selectedSedeDistancia = selectedSede
@@ -113,85 +120,97 @@ export const MapScreenView: React.FC<MapScreenViewProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerTextCol}>
-          <Text style={styles.headerTitle}>Filtros Activos</Text>
-          <Text style={styles.headerSubtitle}>
-            {sedes.length} {sedes.length === 1 ? 'resultado' : 'resultados'}
-          </Text>
+      {/* Contenedor del Mapa - Siempre montado debajo */}
+      <View style={StyleSheet.absoluteFillObject}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerTextCol}>
+            <Text style={styles.headerTitle}>Filtros Activos</Text>
+            <Text style={styles.headerSubtitle}>
+              {sedes.length} {sedes.length === 1 ? 'resultado' : 'resultados'}
+            </Text>
+          </View>
+          <TouchableOpacity style={styles.catalogTopButton} onPress={onToggleListView} activeOpacity={0.8}>
+            <MaterialCommunityIcons name="view-carousel-outline" size={24} color="#00D9FF" />
+            <Text style={styles.catalogTopButtonText}>Catálogo</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.catalogTopButton} onPress={onToggleListView} activeOpacity={0.8}>
-          <MaterialCommunityIcons name="view-carousel-outline" size={24} color="#00D9FF" />
-          <Text style={styles.catalogTopButtonText}>Catálogo</Text>
+
+        {/* Mapa con OpenStreetMap */}
+        <MapView
+          ref={mapRef}
+          style={styles.map}
+          initialRegion={center}
+          showsUserLocation={true}
+          showsMyLocationButton={false}
+          showsCompass={true}
+          rotateEnabled={true}
+          zoomEnabled={true}
+          pitchEnabled={false}
+        >
+          {/* Tiles de OpenStreetMap */}
+          <UrlTile
+            urlTemplate={OSMConfig.tileUrlTemplate}
+            maximumZ={OSMConfig.tiles.maximumZ}
+            flipY={OSMConfig.tiles.flipY}
+            tileSize={OSMConfig.tiles.tileSize}
+          />
+
+          {/* Marcador del usuario */}
+          {userLocation && (
+            <Marker
+              coordinate={userLocation.toMapCoordinate()}
+              title="Tu ubicación"
+              pinColor="#4A90D9"
+              zIndex={1000}
+            />
+          )}
+
+          {/* Marcadores de sedes */}
+          {sedes.map(({ sede, distancia }) => (
+            <SedeMarker
+              key={sede.id.value}
+              sede={sede}
+              distancia={distancia}
+              onPress={() => onMarkerPress(sede)}
+            />
+          ))}
+        </MapView>
+
+        {/* Atribución OSM */}
+        <View style={styles.attribution}>
+          <Text style={styles.attributionText}>{OSMConfig.attribution}</Text>
+        </View>
+
+        {/* Filter FAB */}
+        <TouchableOpacity style={styles.filterFab} onPress={() => setFilterVisible(true)}>
+          <MaterialCommunityIcons name="filter-variant" size={24} color="#00D9FF" />
         </TouchableOpacity>
-      </View>
 
-      {/* Mapa con OpenStreetMap */}
-      <MapView
-        ref={mapRef}
-        style={styles.map}
-        initialRegion={center}
-        showsUserLocation={true}
-        showsMyLocationButton={false}
-        showsCompass={true}
-        rotateEnabled={true}
-        zoomEnabled={true}
-        pitchEnabled={false}
-      >
-        {/* Tiles de OpenStreetMap */}
-        <UrlTile
-          urlTemplate={OSMConfig.tileUrlTemplate}
-          maximumZ={OSMConfig.tiles.maximumZ}
-          flipY={OSMConfig.tiles.flipY}
-          tileSize={OSMConfig.tiles.tileSize}
-        />
+        {/* GPS FAB */}
+        <GPSReCenterButton style={styles.gpsFab} onPress={handleReCenter} />
 
-        {/* Marcador del usuario */}
-        {userLocation && (
-          <Marker
-            coordinate={userLocation.toMapCoordinate()}
-            title="Tu ubicación"
-            pinColor="#4A90D9"
-            zIndex={1000}
+        {/* Modal de información de sede */}
+        {selectedSede && selectedSedeDistancia && !isListView && (
+          <SedeInfoModalView
+            sede={selectedSede}
+            distancia={selectedSedeDistancia}
+            visible={!!selectedSede}
+            onClose={onModalClose}
+            onNavigate={() => onNavigate(selectedSede)}
           />
         )}
-
-        {/* Marcadores de sedes */}
-        {sedes.map(({ sede, distancia }) => (
-          <SedeMarker
-            key={sede.id.value}
-            sede={sede}
-            distancia={distancia}
-            onPress={() => onMarkerPress(sede)}
-          />
-        ))}
-      </MapView>
-
-      {/* Atribución OSM */}
-      <View style={styles.attribution}>
-        <Text style={styles.attributionText}>{OSMConfig.attribution}</Text>
       </View>
 
-      {/* Botón flotante eliminado por nuevo diseño top-right */}
-
-      {/* Filter FAB */}
-      <TouchableOpacity style={styles.filterFab} onPress={() => setFilterVisible(true)}>
-        <MaterialCommunityIcons name="filter-variant" size={24} color="#00D9FF" />
-      </TouchableOpacity>
-
-      {/* GPS FAB */}
-      <GPSReCenterButton style={styles.gpsFab} onPress={handleReCenter} />
-
-      {/* Modal de información de sede */}
-      {selectedSede && selectedSedeDistancia && (
-        <SedeInfoModalView
-          sede={selectedSede}
-          distancia={selectedSedeDistancia}
-          visible={!!selectedSede}
-          onClose={onModalClose}
-          onNavigate={() => onNavigate(selectedSede)}
-        />
+      {/* Catálogo Superpuesto */}
+      {isListView && (
+        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#0A0A0A', zIndex: 100, elevation: 100 }]}>
+          <SedesCatalog 
+            sedes={sedes} 
+            onSelectSede={handleSelectSedeFromCatalog} 
+            onCerrarCatalogo={onToggleListView} 
+          />
+        </View>
       )}
 
       {/* Modal de Filtros */}
