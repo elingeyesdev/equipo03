@@ -32,6 +32,8 @@ export class UbicacionNoDisponibleError extends Error {
         return 'Por favor activa el GPS para encontrar sedes cercanas.';
       case 'TIMEOUT':
         return 'No pudimos obtener tu ubicación. Verifica tu conexión GPS e intenta de nuevo.';
+      case 'API_ERROR':
+        return `Error de conexión: ${this.message}`;
       default:
         return 'No pudimos obtener tu ubicación. Intenta de nuevo.';
     }

@@ -68,8 +68,9 @@ export class ObtenerSedesCercanasUseCase {
 
     if (sedesResult.isLeft()) {
       return left(new UbicacionNoDisponibleError(
-        'Error al obtener sedes del servidor',
-        sedesResult.value
+        sedesResult.value.message,
+        sedesResult.value,
+        'API_ERROR'
       ));
     }
 

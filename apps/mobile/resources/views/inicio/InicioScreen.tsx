@@ -16,41 +16,7 @@ import { AlertaBanner } from '../alertas/AlertaBanner';
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.42;
 
-// ── Mock data ──
-const GIMNASIOS = [
-  {
-    id: '1',
-    nombre: 'AES GYM',
-    direccion: 'Calle Beni, Santa Cruz de la Sierra',
-    rating: 4.8,
-    color: '#1a1a2e',
-    icon: 'dumbbell' as const,
-  },
-  {
-    id: '2',
-    nombre: 'ZEUS GYM',
-    direccion: 'Calle Laureles, Santa Cruz de la Sierra',
-    rating: 4.8,
-    color: '#162447',
-    icon: 'weight-lifter' as const,
-  },
-  {
-    id: '3',
-    nombre: 'SmartFit',
-    direccion: 'Avenida Al de la Sierra',
-    rating: 4.5,
-    color: '#1b1b2f',
-    icon: 'lightning-bolt' as const,
-  },
-  {
-    id: '4',
-    nombre: 'CrossFit Box',
-    direccion: 'Av. Bush, 3er Anillo',
-    rating: 4.7,
-    color: '#0f3460',
-    icon: 'arm-flex' as const,
-  },
-];
+// ── No mock data needed for gyms anymore ──
 
 const GALLERY_ICONS: Array<{ icon: string; color: string }> = [
   { icon: 'run', color: '#e94560' },
@@ -64,7 +30,44 @@ const GALLERY_ICONS: Array<{ icon: string; color: string }> = [
   { icon: 'gymnastics', color: '#06d6a0' },
 ];
 
+import { SedeConDistancia } from '@gymsync/core';
+import { GeolocationModule } from '../../../app/Providers/GeolocationModule.container';
+
 export const InicioScreen = () => {
+  const [sedes, setSedes] = useState<SedeConDistancia[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSedes = async () => {
+      try {
+        const { obtenerSedesCercanasUseCase } = GeolocationModule.provideUseCases();
+        const result = await obtenerSedesCercanasUseCase.execute({ maxResultados: 5, radioKm: 15 });
+        if (result.isRight()) {
+          setSedes(result.value.sedes);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSedes();
+  }, []);
+
+  const getRandomColor = (index: number) => {
+    const colors = ['#1a1a2e', '#162447', '#1b1b2f', '#0f3460'];
+    return colors[index % colors.length];
+  };
+
+  const getIconForGym = (servicios: string[]) => {
+    if (!servicios || servicios.length === 0) return 'dumbbell';
+    const s = servicios[0].toLowerCase();
+    if (s.includes('crossfit')) return 'arm-flex';
+    if (s.includes('yoga')) return 'yoga';
+    if (s.includes('natación')) return 'swim';
+    return 'dumbbell';
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
@@ -93,28 +96,38 @@ export const InicioScreen = () => {
           </View>
         </View>
 
-        <FlatList
-          data={GIMNASIOS}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.carouselContainer}
-          renderItem={({ item }) => (
-            <TouchableOpacity style={styles.gymCard} activeOpacity={0.8}>
-              <View style={[styles.gymCardImage, { backgroundColor: item.color }]}>
-                <MaterialCommunityIcons name={item.icon as any} size={48} color="#fff" />
-              </View>
-              <Text style={styles.gymName}>{item.nombre}</Text>
-              <Text style={styles.gymAddress} numberOfLines={2}>
-                {item.direccion}
-              </Text>
-              <View style={styles.ratingRow}>
-                <Text style={styles.ratingText}>{item.rating}</Text>
-                <MaterialCommunityIcons name="star" size={14} color="#f05b22" />
-              </View>
-            </TouchableOpacity>
-          )}
-        />
+        {loading ? (
+          <View style={{ padding: 20 }}>
+            <Text style={{ color: '#aaa' }}>Buscando sedes cercanas...</Text>
+          </View>
+        ) : sedes.length === 0 ? (
+          <View style={{ padding: 20 }}>
+            <Text style={{ color: '#aaa' }}>No se encontraron sedes cercanas.</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={sedes}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(item) => item.sede.id.value.toString()}
+            contentContainerStyle={styles.carouselContainer}
+            renderItem={({ item, index }) => (
+              <TouchableOpacity style={styles.gymCard} activeOpacity={0.8}>
+                <View style={[styles.gymCardImage, { backgroundColor: getRandomColor(index) }]}>
+                  <MaterialCommunityIcons name={getIconForGym(item.sede.servicios) as any} size={48} color="#fff" />
+                </View>
+                <Text style={styles.gymName} numberOfLines={1}>{item.sede.nombre}</Text>
+                <Text style={styles.gymAddress} numberOfLines={2}>
+                  {item.sede.direccion}
+                </Text>
+                <View style={styles.ratingRow}>
+                  <Text style={styles.ratingText}>{item.sede.rating || 'N/A'}</Text>
+                  <MaterialCommunityIcons name="star" size={14} color="#f05b22" />
+                </View>
+              </TouchableOpacity>
+            )}
+          />
+        )}
 
         {/* ── Tus primeros pasos con GymSync ── */}
         <View style={styles.onboardSection}>

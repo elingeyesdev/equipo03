@@ -21,7 +21,7 @@ export class AxiosSedesApiAdapter implements ISedesApiService {
 
   async obtenerSedes(params: SedesQueryParams): Promise<Either<Error, Sede[]>> {
     try {
-      const response = await this.client.get('/api/v1/sedes', {
+      const response = await this.client.get('/api/gyms', {
         params: {
           lat: params.userLat,
           lng: params.userLng,
@@ -29,7 +29,10 @@ export class AxiosSedesApiAdapter implements ISedesApiService {
         },
       });
 
-      const sedes = response.data.map((dto: Record<string, unknown>) =>
+      // El backend NestJS usa un TransformInterceptor que envuelve la respuesta en { success: true, data: [...] }
+      const payload = response.data.data || response.data;
+
+      const sedes = payload.map((dto: Record<string, unknown>) =>
         SedeDTOMapper.toDomain(dto)
       );
 
@@ -44,8 +47,9 @@ export class AxiosSedesApiAdapter implements ISedesApiService {
 
   async obtenerSedePorId(id: string): Promise<Either<Error, Sede>> {
     try {
-      const response = await this.client.get(`/api/v1/sedes/${id}`);
-      const sede = SedeDTOMapper.toDomain(response.data);
+      const response = await this.client.get(`/api/gyms/${id}`);
+      const payload = response.data.data || response.data;
+      const sede = SedeDTOMapper.toDomain(payload);
       return right(sede);
     } catch (error: unknown) {
       const message = error instanceof Error
