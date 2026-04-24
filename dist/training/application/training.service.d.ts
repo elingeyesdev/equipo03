@@ -1,0 +1,32 @@
+import { Repository } from 'typeorm';
+import { UserTraining } from '../domain/user-training.entity';
+import { UserTrainingGoals } from '../domain/user-training-goals.entity';
+import { UserTrainingPreferences } from '../domain/user-training-preferences.entity';
+import { UserTrainingRestriction } from '../domain/user-training-restriction.entity';
+import { EmergencyContact } from '../domain/emergency-contact.entity';
+import { WorkoutSession } from '../domain/workout-session.entity';
+import { WorkoutSet } from '../domain/workout-set.entity';
+export declare class TrainingService {
+    private utRepo;
+    private goalsRepo;
+    private prefsRepo;
+    private restRepo;
+    private ecRepo;
+    private sessionsRepo;
+    private setsRepo;
+    constructor(utRepo: Repository<UserTraining>, goalsRepo: Repository<UserTrainingGoals>, prefsRepo: Repository<UserTrainingPreferences>, restRepo: Repository<UserTrainingRestriction>, ecRepo: Repository<EmergencyContact>, sessionsRepo: Repository<WorkoutSession>, setsRepo: Repository<WorkoutSet>);
+    createTrainingProfile(userId: number, goals?: any, prefs?: any): Promise<UserTraining>;
+    getTrainingProfile(userId: number): Promise<UserTraining>;
+    createRestriction(data: Partial<UserTrainingRestriction>): Promise<UserTrainingRestriction>;
+    findRestriction(userId: number): Promise<UserTrainingRestriction | null>;
+    createEmergencyContact(data: Partial<EmergencyContact>): Promise<EmergencyContact>;
+    findEmergencyContacts(userId: number): Promise<EmergencyContact[]>;
+    removeEmergencyContact(id: number): Promise<import("typeorm").DeleteResult>;
+    createSession(data: any): Promise<WorkoutSession>;
+    findAllSessions(): Promise<WorkoutSession[]>;
+    findSessionsByUser(userId: number): Promise<WorkoutSession[]>;
+    findOneSession(id: number): Promise<WorkoutSession>;
+    updateSession(id: number, data: any): Promise<WorkoutSession>;
+    addSet(sessionId: number, data: any): Promise<WorkoutSet[]>;
+    removeSession(id: number): Promise<import("typeorm").DeleteResult>;
+}

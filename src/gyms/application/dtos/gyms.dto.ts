@@ -1,0 +1,150 @@
+import { IsString, IsOptional, IsInt, IsBoolean, IsNumber, IsArray, ValidateNested, Min, Max } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+
+// ── Sub-DTOs ─────────────────────────────────────────────────────────────────
+
+export class CreateGymLocationDto {
+  @ApiProperty({ example: 'Av. Monseñor Rivero #300, Santa Cruz' })
+  @IsString()
+  address: string;
+
+  @ApiProperty({ example: 'Santa Cruz de la Sierra' })
+  @IsString()
+  city: string;
+
+  @ApiProperty({ example: -17.7833 })
+  @IsNumber()
+  latitude: number;
+
+  @ApiProperty({ example: -63.1821 })
+  @IsNumber()
+  longitude: number;
+}
+
+export class CreateGymScheduleDto {
+  @ApiProperty({ example: 'LUNES', description: 'LUNES | MARTES | MIERCOLES | JUEVES | VIERNES | SABADO | DOMINGO' })
+  @IsString()
+  dayOfWeek: string;
+
+  @ApiProperty({ example: '06:00', description: 'Hora apertura (HH:mm)' })
+  @IsString()
+  opensAt: string;
+
+  @ApiProperty({ example: '22:00', description: 'Hora cierre (HH:mm)' })
+  @IsString()
+  closesAt: string;
+
+  @ApiPropertyOptional({ example: false })
+  @IsOptional()
+  @IsBoolean()
+  isHoliday?: boolean;
+}
+
+// ── Main DTOs ─────────────────────────────────────────────────────────────────
+
+export class CreateGymDto {
+  @ApiProperty({ example: 'Corpus Gym - Sede Centro' })
+  @IsString()
+  name: string;
+
+  @ApiPropertyOptional({ example: 'Gimnasio premium con área de CrossFit, piscina y spa en el centro de Santa Cruz' })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiProperty({ example: 150, description: 'Capacidad máxima de personas simultáneas' })
+  @IsInt()
+  maxCapacity: number;
+
+  @ApiPropertyOptional({
+    type: CreateGymLocationDto,
+    example: {
+      address: 'Av. Monseñor Rivero #300, Santa Cruz',
+      city: 'Santa Cruz de la Sierra',
+      latitude: -17.7833,
+      longitude: -63.1821,
+    },
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CreateGymLocationDto)
+  location?: CreateGymLocationDto;
+
+  @ApiPropertyOptional({
+    type: [CreateGymScheduleDto],
+    example: [
+      { dayOfWeek: 'LUNES', opensAt: '06:00', closesAt: '22:00' },
+      { dayOfWeek: 'MARTES', opensAt: '06:00', closesAt: '22:00' },
+      { dayOfWeek: 'SABADO', opensAt: '07:00', closesAt: '20:00' },
+    ],
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateGymScheduleDto)
+  schedules?: CreateGymScheduleDto[];
+}
+
+export class UpdateGymDto {
+  @ApiPropertyOptional({ example: 'Corpus Gym - Sede Norte' })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiPropertyOptional({ example: 'Nueva descripción actualizada del gimnasio' })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiPropertyOptional({ example: 200 })
+  @IsOptional()
+  @IsInt()
+  maxCapacity?: number;
+
+  @ApiPropertyOptional({ example: true, description: 'true = abierto, false = cerrado' })
+  @IsOptional()
+  @IsBoolean()
+  isOpen?: boolean;
+}
+
+export class CreateGymScheduleInputDto {
+  @ApiProperty({ example: 'MIERCOLES' })
+  @IsString()
+  dayOfWeek: string;
+
+  @ApiProperty({ example: '06:00' })
+  @IsString()
+  opensAt: string;
+
+  @ApiProperty({ example: '22:00' })
+  @IsString()
+  closesAt: string;
+
+  @ApiPropertyOptional({ example: false })
+  @IsOptional()
+  @IsBoolean()
+  isHoliday?: boolean;
+}
+
+export class UpdateGymLocationDto {
+  @ApiPropertyOptional({ example: 'Av. Banzer Km 7, Santa Cruz' })
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @ApiPropertyOptional({ example: 'Santa Cruz de la Sierra' })
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @ApiPropertyOptional({ example: -17.7650 })
+  @IsOptional()
+  @IsNumber()
+  latitude?: number;
+
+  @ApiPropertyOptional({ example: -63.1950 })
+  @IsOptional()
+  @IsNumber()
+  longitude?: number;
+}

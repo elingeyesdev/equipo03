@@ -1,0 +1,362 @@
+{
+  "info": {
+    "name": "GymSync API",
+    "_postman_id": "gymsync-api-collection",
+    "description": "Colección completa de la API de GymSync — NestJS + TypeORM + PostgreSQL",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3000/api" },
+    { "key": "token", "value": "" },
+    { "key": "user_id", "value": "" },
+    { "key": "gym_id", "value": "" },
+    { "key": "branch_id", "value": "" },
+    { "key": "exercise_id", "value": "" },
+    { "key": "routine_id", "value": "" },
+    { "key": "session_id", "value": "" },
+    { "key": "metric_id", "value": "" },
+    { "key": "membership_id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var res = pm.response.json();",
+                  "if (res.data && res.data.accessToken) {",
+                  "  pm.collectionVariables.set('token', res.data.accessToken);",
+                  "  pm.collectionVariables.set('user_id', res.data.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"juan.perez@gmail.com\",\n  \"password\": \"SecurePass123!\",\n  \"firstName\": \"Juan\",\n  \"lastName\": \"Pérez\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/register", "host": ["{{base_url}}"], "path": ["auth", "register"] }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var res = pm.response.json();",
+                  "if (res.data && res.data.accessToken) {",
+                  "  pm.collectionVariables.set('token', res.data.accessToken);",
+                  "  pm.collectionVariables.set('user_id', res.data.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"juan.perez@gmail.com\",\n  \"password\": \"SecurePass123!\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"maria.lopez@gmail.com\",\n  \"password\": \"Pass456!\",\n  \"firstName\": \"María\",\n  \"lastName\": \"López\",\n  \"phone\": \"+591 70098765\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/users", "host": ["{{base_url}}"], "path": ["users"] }
+          }
+        },
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/users", "host": ["{{base_url}}"], "path": ["users"] }
+          }
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/users/{{user_id}}", "host": ["{{base_url}}"], "path": ["users", "{{user_id}}"] }
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"+591 70012345\"\n}" },
+            "url": { "raw": "{{base_url}}/users/{{user_id}}", "host": ["{{base_url}}"], "path": ["users", "{{user_id}}"] }
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/users/{{user_id}}", "host": ["{{base_url}}"], "path": ["users", "{{user_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gyms",
+      "item": [
+        {
+          "name": "Create Gym",
+          "event": [{ "listen": "test", "script": { "exec": ["var res = pm.response.json();", "if (res.data) pm.collectionVariables.set('gym_id', res.data.id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"FitLife Bolivia\",\n  \"description\": \"Cadena de gimnasios premium en Santa Cruz\",\n  \"ownerId\": \"{{user_id}}\"\n}" },
+            "url": { "raw": "{{base_url}}/gyms", "host": ["{{base_url}}"], "path": ["gyms"] }
+          }
+        },
+        {
+          "name": "Get All Gyms",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/gyms", "host": ["{{base_url}}"], "path": ["gyms"] } }
+        },
+        {
+          "name": "Get Gym by ID",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/gyms/{{gym_id}}", "host": ["{{base_url}}"], "path": ["gyms", "{{gym_id}}"] } }
+        }
+      ]
+    },
+    {
+      "name": "Branches",
+      "item": [
+        {
+          "name": "Create Branch",
+          "event": [{ "listen": "test", "script": { "exec": ["var res = pm.response.json();", "if (res.data) pm.collectionVariables.set('branch_id', res.data.id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"gymId\": \"{{gym_id}}\",\n  \"name\": \"Sede Centro\",\n  \"address\": \"Av. Monseñor Rivero #300\",\n  \"latitude\": -17.7833,\n  \"longitude\": -63.1821,\n  \"maxCapacity\": 150,\n  \"services\": [\"Musculación\", \"Cardio\", \"CrossFit\"],\n  \"amenities\": [\"Estacionamiento\", \"Duchas\", \"WiFi\"],\n  \"schedule\": {\n    \"lunes\": { \"apertura\": \"06:00\", \"cierre\": \"22:00\" },\n    \"martes\": { \"apertura\": \"06:00\", \"cierre\": \"22:00\" }\n  }\n}" },
+            "url": { "raw": "{{base_url}}/branches", "host": ["{{base_url}}"], "path": ["branches"] }
+          }
+        },
+        {
+          "name": "Get All Branches",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/branches", "host": ["{{base_url}}"], "path": ["branches"] } }
+        },
+        {
+          "name": "Get Branches by Gym",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/branches/gym/{{gym_id}}", "host": ["{{base_url}}"], "path": ["branches", "gym", "{{gym_id}}"] } }
+        },
+        {
+          "name": "Update Occupancy",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"currentOccupancy\": 45\n}" },
+            "url": { "raw": "{{base_url}}/branches/{{branch_id}}/occupancy", "host": ["{{base_url}}"], "path": ["branches", "{{branch_id}}", "occupancy"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Exercises",
+      "item": [
+        {
+          "name": "Create Exercise",
+          "event": [{ "listen": "test", "script": { "exec": ["var res = pm.response.json();", "if (res.data) pm.collectionVariables.set('exercise_id', res.data.id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Press de Banca\",\n  \"description\": \"Ejercicio compuesto para pectorales\",\n  \"muscleGroup\": \"Pecho\",\n  \"difficulty\": \"INTERMEDIO\",\n  \"equipmentRequired\": \"Barra, Banco plano\"\n}" },
+            "url": { "raw": "{{base_url}}/exercises", "host": ["{{base_url}}"], "path": ["exercises"] }
+          }
+        },
+        {
+          "name": "Get All Exercises",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/exercises", "host": ["{{base_url}}"], "path": ["exercises"] } }
+        },
+        {
+          "name": "Filter by Muscle Group",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/exercises?muscleGroup=Pecho", "host": ["{{base_url}}"], "path": ["exercises"], "query": [{ "key": "muscleGroup", "value": "Pecho" }] } }
+        }
+      ]
+    },
+    {
+      "name": "Routines",
+      "item": [
+        {
+          "name": "Create Routine with Exercises",
+          "event": [{ "listen": "test", "script": { "exec": ["var res = pm.response.json();", "if (res.data) pm.collectionVariables.set('routine_id', res.data.id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"userId\": \"{{user_id}}\",\n  \"name\": \"Rutina Push - Día A\",\n  \"description\": \"Pecho, hombros y tríceps\",\n  \"objective\": \"GANANCIA_MUSCULAR\",\n  \"difficulty\": \"INTERMEDIO\",\n  \"exercises\": [\n    { \"exerciseId\": \"{{exercise_id}}\", \"sets\": 4, \"reps\": 10, \"restSeconds\": 90, \"orderIndex\": 0 }\n  ]\n}" },
+            "url": { "raw": "{{base_url}}/routines", "host": ["{{base_url}}"], "path": ["routines"] }
+          }
+        },
+        {
+          "name": "Get User Routines",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/routines/user/{{user_id}}", "host": ["{{base_url}}"], "path": ["routines", "user", "{{user_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Training",
+      "item": [
+        {
+          "name": "Start Session",
+          "event": [{ "listen": "test", "script": { "exec": ["var res = pm.response.json();", "if (res.data) pm.collectionVariables.set('session_id', res.data.id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"userId\": \"{{user_id}}\",\n  \"routineId\": \"{{routine_id}}\",\n  \"branchId\": \"{{branch_id}}\"\n}" },
+            "url": { "raw": "{{base_url}}/training", "host": ["{{base_url}}"], "path": ["training"] }
+          }
+        },
+        {
+          "name": "Add Exercise Log",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"exerciseId\": \"{{exercise_id}}\",\n  \"setsCompleted\": 4,\n  \"repsCompleted\": 10,\n  \"weightKg\": 80.5\n}" },
+            "url": { "raw": "{{base_url}}/training/{{session_id}}/logs", "host": ["{{base_url}}"], "path": ["training", "{{session_id}}", "logs"] }
+          }
+        },
+        {
+          "name": "Finish Session",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"COMPLETED\",\n  \"durationMinutes\": 65,\n  \"caloriesBurned\": 350\n}" },
+            "url": { "raw": "{{base_url}}/training/{{session_id}}", "host": ["{{base_url}}"], "path": ["training", "{{session_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Metrics",
+      "item": [
+        {
+          "name": "Record Metric",
+          "event": [{ "listen": "test", "script": { "exec": ["var res = pm.response.json();", "if (res.data) pm.collectionVariables.set('metric_id', res.data.id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"userId\": \"{{user_id}}\",\n  \"weightKg\": 75.5,\n  \"heightCm\": 175,\n  \"bodyFatPercentage\": 18.5,\n  \"experienceLevel\": \"INTERMEDIO\",\n  \"objectives\": [\"Ganancia muscular\"],\n  \"medicalRestrictions\": []\n}" },
+            "url": { "raw": "{{base_url}}/metrics", "host": ["{{base_url}}"], "path": ["metrics"] }
+          }
+        },
+        {
+          "name": "Get User Metrics History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/metrics/user/{{user_id}}", "host": ["{{base_url}}"], "path": ["metrics", "user", "{{user_id}}"] }
+          }
+        },
+        {
+          "name": "Get Latest Metric",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/metrics/user/{{user_id}}/latest", "host": ["{{base_url}}"], "path": ["metrics", "user", "{{user_id}}", "latest"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Memberships",
+      "item": [
+        {
+          "name": "Create Membership",
+          "event": [{ "listen": "test", "script": { "exec": ["var res = pm.response.json();", "if (res.data) pm.collectionVariables.set('membership_id', res.data.id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"userId\": \"{{user_id}}\",\n  \"gymId\": \"{{gym_id}}\",\n  \"planName\": \"Plan Premium Mensual\",\n  \"price\": 250.00,\n  \"startDate\": \"2026-04-01\",\n  \"endDate\": \"2026-05-01\"\n}" },
+            "url": { "raw": "{{base_url}}/memberships", "host": ["{{base_url}}"], "path": ["memberships"] }
+          }
+        },
+        {
+          "name": "Get User Memberships",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/memberships/user/{{user_id}}", "host": ["{{base_url}}"], "path": ["memberships", "user", "{{user_id}}"] }
+          }
+        },
+        {
+          "name": "Update Membership Status",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"CANCELLED\"\n}" },
+            "url": { "raw": "{{base_url}}/memberships/{{membership_id}}", "host": ["{{base_url}}"], "path": ["memberships", "{{membership_id}}"] }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  # ── PostgreSQL Database ──────────────────────────────────────
+  db:
+    image: postgres:15-alpine
+    container_name: gymsync_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-12345}
+      POSTGRES_DB: ${DB_DATABASE:-bdd_gym_sync}
+    ports:
+      - '${DB_PORT:-5432}:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── NestJS API ───────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gymsync_api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-12345}
+      DB_DATABASE: ${DB_DATABASE:-bdd_gym_sync}
+      JWT_SECRET: ${JWT_SECRET:-gymsync_jwt_secret_2026}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-24h}
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3000
+    ports:
+      - '${PORT:-3000}:3000'
+
+volumes:
+  pgdata:
+    driver: local
