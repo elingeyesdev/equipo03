@@ -3,9 +3,10 @@ import { WebGeolocationAdapter } from './infrastructure/WebGeolocation.adapter';
 import { ObtenerSedesCercanasUseCase, Sede, Coordenadas, Aforo, HorariosSede, Identifier, right } from '@gymsync/core';
 import type { ISedesApiService, Either } from '@gymsync/core';
 import { PerfilManager } from './components/PerfilManager/PerfilManager';
+import { AuditoriaDashboard } from './components/AuditoriaAccesos/AuditoriaDashboard';
 import './App.css';
 
-type ActiveTab = 'SEDES' | 'PERFIL';
+type ActiveTab = 'SEDES' | 'PERFIL' | 'AUDITORIA';
 
 // Mock de Sedes inyectado puramente para la demo Visual de la Web
 class WebMockSedesApi implements ISedesApiService {
@@ -97,10 +98,18 @@ function App() {
         >
           👤 Gestor de Perfiles
         </button>
+        <button 
+          className={`nav-tab ${activeTab === 'AUDITORIA' ? 'active' : ''}`}
+          onClick={() => setActiveTab('AUDITORIA')}
+        >
+          🛡️ Auditoría
+        </button>
       </nav>
 
       <main className="web-main">
-        {activeTab === 'PERFIL' ? (
+        {activeTab === 'AUDITORIA' ? (
+          <AuditoriaDashboard />
+        ) : activeTab === 'PERFIL' ? (
           <PerfilManager />
         ) : (
           <>
@@ -112,7 +121,7 @@ function App() {
                 <div className="status-badge">📍 Coordenadas de red detectadas: {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)}</div>
                 <div className="catalog-grid">
                   {sedes.map(({ sede, distancia }) => (
-                    <div key={sede.id.toValue()} className="sede-card">
+                    <div key={sede.id.value} className="sede-card">
                       <div className="card-header">
                         <h2>{sede.nombre}</h2>
                         <span className={`aforo-badge ${sede.aforo.porcentajeOcupacion > 80 ? 'high' : 'normal'}`}>

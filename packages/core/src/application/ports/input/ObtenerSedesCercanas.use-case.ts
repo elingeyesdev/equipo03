@@ -97,7 +97,7 @@ export class ObtenerSedesCercanasUseCase {
   async executeConCoordenadas(
     coordenadas: Coordenadas,
     request: ObtenerSedesCercanasRequest = {}
-  ): Promise<Either<Error, SedeConDistancia[]>> {
+  ): Promise<Either<Error, ObtenerSedesResponse>> {
     const radioKm = request.radioKm ?? 10;
     const maxResultados = request.maxResultados ?? 20;
 

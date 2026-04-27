@@ -1,0 +1,176 @@
+.dashboard-layout {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+  background-color: #0A0A0A;
+  color: #FFFFFF;
+  font-family: 'Inter', -apple-system, sans-serif;
+  overflow: hidden;
+}
+
+.layout-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  color: #00D9FF;
+  background-color: #0A0A0A;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 250px;
+  background-color: #1C1C1E;
+  border-right: 1px solid #3A3A3C;
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem 1rem;
+  flex-shrink: 0;
+  z-index: 20;
+}
+
+.brand {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-bottom: 2.5rem;
+  padding-left: 0.5rem;
+  letter-spacing: -0.5px;
+}
+
+.brand span {
+  color: #00D9FF;
+}
+
+.nav-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex-grow: 1;
+}
+
+.nav-item {
+  text-decoration: none;
+  color: #8E8E93;
+  padding: 0.85rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all 0.2s;
+}
+
+.nav-item:hover {
+  background-color: rgba(255,255,255,0.05);
+  color: #FFFFFF;
+}
+
+.nav-item.active {
+  background-color: rgba(0, 217, 255, 0.1);
+  color: #00D9FF;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid #3A3A3C;
+  text-align: center;
+}
+
+.version {
+  font-size: 0.75rem;
+  color: #8E8E93;
+}
+
+/* Main Content */
+.main-content {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Header */
+.top-header {
+  height: 70px;
+  background-color: #1C1C1E;
+  border-bottom: 1px solid #3A3A3C;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 2rem;
+  flex-shrink: 0;
+}
+
+.header-search input {
+  width: 300px;
+  background-color: #0A0A0A;
+  border: 1px solid #3A3A3C;
+  padding: 0.6rem 1rem;
+  border-radius: 6px;
+  color: #FFFFFF;
+  outline: none;
+  font-size: 0.9rem;
+}
+
+.header-search input:focus {
+  border-color: #00D9FF;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid #3A3A3C;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.user-role {
+  font-size: 0.75rem;
+  color: #8E8E93;
+  text-transform: uppercase;
+}
+
+.btn-logout {
+  background: transparent;
+  border: 1px solid #3A3A3C;
+  color: #8E8E93;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.btn-logout:hover {
+  background-color: rgba(255, 94, 0, 0.1);
+  color: #FF5E00;
+  border-color: #FF5E00;
+}
+
+/* Page Container */
+.page-container {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 2rem;
+  background-color: #0A0A0A;
+}
