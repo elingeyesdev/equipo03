@@ -14,26 +14,89 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CheckinsService = void 0;
 const common_1 = require("@nestjs/common");
+const core_1 = require("@nestjs/core");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const check_in_entity_1 = require("../domain/check-in.entity");
+const gym_scope_1 = require("../../common/security/gym-scope");
 let CheckinsService = class CheckinsService {
     repo;
-    constructor(repo) {
+    request;
+    constructor(repo, request) {
         this.repo = repo;
+        this.request = request;
+    }
+    getManagerGymId() {
+        return (0, gym_scope_1.getManagerGymId)(this.request);
+    }
+    ensureManagerCanAccessGym(gymId) {
+        const managerGymId = this.getManagerGymId();
+        if (managerGymId !== null && managerGymId !== gymId) {
+            throw new common_1.ForbiddenException('No tiene permisos para acceder a otra sucursal');
+        }
     }
     create(data) { return this.repo.save(this.repo.create(data)); }
-    findAll() { return this.repo.find({ relations: ['user', 'gym'], order: { checkInTime: 'DESC' } }); }
-    findByUser(userId) { return this.repo.find({ where: { userId }, relations: ['gym'], order: { checkInTime: 'DESC' } }); }
-    findByGym(gymId) { return this.repo.find({ where: { gymId }, relations: ['user'], order: { checkInTime: 'DESC' } }); }
-    async findOne(id) { const c = await this.repo.findOne({ where: { id }, relations: ['user', 'gym'] }); if (!c)
-        throw new common_1.NotFoundException(`Check-in ${id} no encontrado`); return c; }
+    findAll() {
+        const managerGymId = this.getManagerGymId();
+        const qb = this.repo
+            .createQueryBuilder('checkIn')
+            .leftJoinAndSelect('checkIn.user', 'user')
+            .leftJoinAndSelect('checkIn.gym', 'gym')
+            .orderBy('checkIn.check_in_time', 'DESC');
+        if (managerGymId !== null) {
+            qb.andWhere('checkIn.gym_id = :gymId', { gymId: managerGymId });
+        }
+        return qb.getMany();
+    }
+    findByUser(userId) {
+        const managerGymId = this.getManagerGymId();
+        const qb = this.repo
+            .createQueryBuilder('checkIn')
+            .leftJoinAndSelect('checkIn.gym', 'gym')
+            .where('checkIn.user_id = :userId', { userId })
+            .orderBy('checkIn.check_in_time', 'DESC');
+        if (managerGymId !== null) {
+            qb.andWhere('checkIn.gym_id = :gymId', { gymId: managerGymId });
+        }
+        return qb.getMany();
+    }
+    findByGym(gymId) {
+        this.ensureManagerCanAccessGym(gymId);
+        return this.repo
+            .createQueryBuilder('checkIn')
+            .leftJoinAndSelect('checkIn.user', 'user')
+            .where('checkIn.gym_id = :gymId', { gymId })
+            .orderBy('checkIn.check_in_time', 'DESC')
+            .getMany();
+    }
+    async findOne(id) {
+        const managerGymId = this.getManagerGymId();
+        const qb = this.repo
+            .createQueryBuilder('checkIn')
+            .leftJoinAndSelect('checkIn.user', 'user')
+            .leftJoinAndSelect('checkIn.gym', 'gym')
+            .where('checkIn.id = :id', { id });
+        if (managerGymId !== null) {
+            qb.andWhere('checkIn.gym_id = :gymId', { gymId: managerGymId });
+        }
+        const c = await qb.getOne();
+        if (c)
+            return c;
+        if (managerGymId !== null) {
+            const exists = await this.repo.exist({ where: { id } });
+            if (exists) {
+                throw new common_1.ForbiddenException('No tiene permisos para acceder a este check-in');
+            }
+        }
+        throw new common_1.NotFoundException(`Check-in ${id} no encontrado`);
+    }
     async checkOut(id) { const c = await this.findOne(id); c.checkOutTime = new Date(); return this.repo.save(c); }
 };
 exports.CheckinsService = CheckinsService;
 exports.CheckinsService = CheckinsService = __decorate([
-    (0, common_1.Injectable)(),
+    (0, common_1.Injectable)({ scope: common_1.Scope.REQUEST }),
     __param(0, (0, typeorm_1.InjectRepository)(check_in_entity_1.CheckIn)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __param(1, (0, common_1.Inject)(core_1.REQUEST)),
+    __metadata("design:paramtypes", [typeorm_2.Repository, Object])
 ], CheckinsService);
 //# sourceMappingURL=checkins.service.js.map
