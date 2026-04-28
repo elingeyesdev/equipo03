@@ -1,0 +1,117 @@
+/**
+ * AuthContext — Context de autenticación para la app móvil
+ * 
+ * Proporciona:
+ * - Estado de autenticación (usuario, token)
+ * - Funciones login/logout
+ * - Hook useAuth para acceder desde componentes
+ */
+
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import type { AutenticacionContext } from '@gymsync/core';
+import { AuthService } from './AuthService';
+
+interface AuthContextType {
+  isAuthenticated: boolean;
+  user: AutenticacionContext | null;
+  isLoading: boolean;
+  error: string | null;
+  login: (email: string, password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
+  clearError: () => void;
+}
+
+const AuthContextInstance = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<AutenticacionContext | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  /**
+   * Al montar el componente, restaurar la sesión si existe
+   */
+  useEffect(() => {
+    const restoreSession = async () => {
+      try {
+        const currentUser = await AuthService.getCurrentUser();
+        if (currentUser) {
+          setUser(currentUser);
+        }
+      } catch (e) {
+        console.error('[AuthContext] Error restaurando sesión:', e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    restoreSession();
+  }, []);
+
+  const login = async (email: string, password: string): Promise<boolean> => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await AuthService.login(email, password);
+
+      if (result.success && result.user) {
+        setUser(result.user);
+        return true;
+      } else {
+        setError(result.error || 'Error al iniciar sesión');
+        return false;
+      }
+    } catch (err: any) {
+      const message = err?.message || 'Error desconocido';
+      setError(message);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const logout = async (): Promise<void> => {
+    setIsLoading(true);
+    try {
+      await AuthService.logout();
+      setUser(null);
+      setError(null);
+    } catch (err: any) {
+      console.error('[AuthContext] Error en logout:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const clearError = () => {
+    setError(null);
+  };
+
+  const value: AuthContextType = {
+    isAuthenticated: !!user,
+    user,
+    isLoading,
+    error,
+    login,
+    logout,
+    clearError,
+  };
+
+  return (
+    <AuthContextInstance.Provider value={value}>
+      {children}
+    </AuthContextInstance.Provider>
+  );
+};
+
+/**
+ * Hook para acceder al contexto de autenticación
+ */
+export const useAuth = (): AuthContextType => {
+  const context = useContext(AuthContextInstance);
+  if (context === undefined) {
+    throw new Error('useAuth debe ser usado dentro de un AuthProvider');
+  }
+  return context;
+};
