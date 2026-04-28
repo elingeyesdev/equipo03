@@ -18,7 +18,7 @@ class WebMockSedesApi implements ISedesApiService {
         direccion: 'Av. Silicon Valley, Cyberspace',
         coordenadas: Coordenadas.create({ latitude: -17.76, longitude: -63.19 }),
         aforo: Aforo.create({ maximo: 200, actual: 40 }),
-        horarios: HorariosSede.create({ lunes: { apertura: '05:00', cierre: '23:00' }}),
+        horarios: HorariosSede.create({ lunes: { apertura: '05:00', cierre: '23:00' } }),
         servicios: ['Musculación', 'Spinning'],
         beneficios: ['WiFi 6', 'Sauna'],
         telefono: '777-1234'
@@ -29,7 +29,7 @@ class WebMockSedesApi implements ISedesApiService {
         direccion: '127.0.0.1 Localhost',
         coordenadas: Coordenadas.create({ latitude: -17.80, longitude: -63.18 }),
         aforo: Aforo.create({ maximo: 50, actual: 48 }),
-        horarios: HorariosSede.create({ lunes: { apertura: '06:00', cierre: '22:00' }}),
+        horarios: HorariosSede.create({ lunes: { apertura: '06:00', cierre: '22:00' } }),
         servicios: ['Crossfit'],
         beneficios: ['Duchas'],
         telefono: '777-0000'
@@ -55,7 +55,7 @@ function App() {
         const geoAdapter = new WebGeolocationAdapter();
         const apiAdapter = new WebMockSedesApi();
         const useCase = new ObtenerSedesCercanasUseCase(geoAdapter, apiAdapter);
-        
+
         await geoAdapter.solicitarPermiso();
         const locationResult = await geoAdapter.obtenerUbicacionActual();
         if (locationResult.isRight()) {
@@ -86,19 +86,19 @@ function App() {
       </header>
 
       <nav className="web-nav">
-        <button 
+        <button
           className={`nav-tab ${activeTab === 'SEDES' ? 'active' : ''}`}
           onClick={() => setActiveTab('SEDES')}
         >
           📍 Sedes Cercanas
         </button>
-        <button 
+        <button
           className={`nav-tab ${activeTab === 'PERFIL' ? 'active' : ''}`}
           onClick={() => setActiveTab('PERFIL')}
         >
           👤 Gestor de Perfiles
         </button>
-        <button 
+        <button
           className={`nav-tab ${activeTab === 'AUDITORIA' ? 'active' : ''}`}
           onClick={() => setActiveTab('AUDITORIA')}
         >
@@ -115,7 +115,7 @@ function App() {
           <>
             {loading && <div className="loader">Sincronizando coordenadas globales...</div>}
             {error && <div className="error-box">🚨 {error}</div>}
-            
+
             {!loading && !error && userLocation && (
               <>
                 <div className="status-badge">📍 Coordenadas de red detectadas: {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)}</div>
