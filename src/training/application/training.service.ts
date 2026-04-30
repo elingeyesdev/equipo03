@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, ForbiddenException, NotFoundException, Scope } from '@nestjs/common';
+import { REQUEST } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DeepPartial } from 'typeorm';
 import { UserTraining } from '../domain/user-training.entity';
@@ -8,8 +9,9 @@ import { UserTrainingRestriction } from '../domain/user-training-restriction.ent
 import { EmergencyContact } from '../domain/emergency-contact.entity';
 import { WorkoutSession } from '../domain/workout-session.entity';
 import { WorkoutSet } from '../domain/workout-set.entity';
+import { getManagerGymId, type RequestWithUser } from '../../common/security/gym-scope';
 
-@Injectable()
+@Injectable({ scope: Scope.REQUEST })
 export class TrainingService {
   constructor(
     @InjectRepository(UserTraining) private utRepo: Repository<UserTraining>,
@@ -19,7 +21,12 @@ export class TrainingService {
     @InjectRepository(EmergencyContact) private ecRepo: Repository<EmergencyContact>,
     @InjectRepository(WorkoutSession) private sessionsRepo: Repository<WorkoutSession>,
     @InjectRepository(WorkoutSet) private setsRepo: Repository<WorkoutSet>,
+    @Inject(REQUEST) private readonly request: RequestWithUser,
   ) {}
+
+  private managerGymId(): number | null {
+    return getManagerGymId(this.request);
+  }
 
   // ── User Training Profile ────────────────────────
   async createTrainingProfile(userId: number, goals?: any, prefs?: any) {
@@ -45,25 +52,104 @@ export class TrainingService {
 
   // ── Workout Sessions ─────────────────────────────
   async createSession(data: any) {
+    const mg = this.managerGymId();
     const { sets, ...sData } = data;
-    const sessionData: DeepPartial<WorkoutSession> = sData;
+    const sessionData: DeepPartial<WorkoutSession> = { ...sData };
+
+    if (mg !== null) {
+      if (sessionData.gymId !== undefined && sessionData.gymId !== null && Number(sessionData.gymId) !== mg) {
+        throw new ForbiddenException('No puede registrar sesiones para otra sucursal');
+      }
+      sessionData.gymId = mg;
+    }
+
     const session = await this.sessionsRepo.save(this.sessionsRepo.create(sessionData));
-    if (sets?.length) { const items = sets.map((s: any) => this.setsRepo.create({ ...s, sessionId: session.id } as DeepPartial<WorkoutSet>)); await this.setsRepo.save(items); }
+    if (sets?.length) {
+      const items = sets.map((s: any) => this.setsRepo.create({ ...s, sessionId: session.id } as DeepPartial<WorkoutSet>));
+      await this.setsRepo.save(items);
+    }
     return this.findOneSession(session.id);
   }
-  findAllSessions() { return this.sessionsRepo.find({ relations: ['routine', 'user', 'gym', 'sets', 'sets.routineExercise'], order: { startedAt: 'DESC' } }); }
-  findSessionsByUser(userId: number) { return this.sessionsRepo.find({ where: { userId }, relations: ['routine', 'gym', 'sets'], order: { startedAt: 'DESC' } }); }
-  async findOneSession(id: number) {
-    const s = await this.sessionsRepo.findOne({ where: { id }, relations: ['routine', 'user', 'gym', 'sets', 'sets.routineExercise'] });
-    if (!s) throw new NotFoundException(`Sesión ${id} no encontrada`);
-    return s;
+
+  findAllSessions() {
+    const mg = this.managerGymId();
+    const qb = this.sessionsRepo.createQueryBuilder('session')
+      .leftJoinAndSelect('session.routine', 'routine')
+      .leftJoinAndSelect('session.user', 'user')
+      .leftJoinAndSelect('session.gym', 'gym')
+      .leftJoinAndSelect('session.sets', 'sets')
+      .leftJoinAndSelect('sets.routineExercise', 'routineExercise')
+      .orderBy('session.started_at', 'DESC');
+
+    if (mg !== null) {
+      qb.andWhere('session.gym_id = :gymId', { gymId: mg });
+    }
+
+    return qb.getMany();
   }
+
+  findSessionsByUser(userId: number) {
+    const mg = this.managerGymId();
+    const qb = this.sessionsRepo.createQueryBuilder('session')
+      .leftJoinAndSelect('session.routine', 'routine')
+      .leftJoinAndSelect('session.gym', 'gym')
+      .leftJoinAndSelect('session.sets', 'sets')
+      .where('session.user_id = :userId', { userId })
+      .orderBy('session.started_at', 'DESC');
+
+    if (mg !== null) {
+      qb.andWhere('session.gym_id = :gymId', { gymId: mg });
+    }
+
+    return qb.getMany();
+  }
+
+  async findOneSession(id: number) {
+    const mg = this.managerGymId();
+    const qb = this.sessionsRepo.createQueryBuilder('session')
+      .leftJoinAndSelect('session.routine', 'routine')
+      .leftJoinAndSelect('session.user', 'user')
+      .leftJoinAndSelect('session.gym', 'gym')
+      .leftJoinAndSelect('session.sets', 'sets')
+      .leftJoinAndSelect('sets.routineExercise', 'routineExercise')
+      .where('session.id = :id', { id });
+
+    if (mg !== null) {
+      qb.andWhere('session.gym_id = :gymId', { gymId: mg });
+    }
+
+    const s = await qb.getOne();
+    if (s) return s;
+
+    if (mg !== null) {
+      const exists = await this.sessionsRepo.exist({ where: { id } });
+      if (exists) throw new ForbiddenException('No tiene permisos para acceder a esta sesión');
+    }
+
+    throw new NotFoundException(`Sesión ${id} no encontrada`);
+  }
+
   async updateSession(id: number, data: any) {
     const s = await this.findOneSession(id);
+    const mg = this.managerGymId();
+
+    if (mg !== null && data.gymId !== undefined && data.gymId !== null && Number(data.gymId) !== mg) {
+      throw new ForbiddenException('No puede mover la sesión a otra sucursal');
+    }
+
     if (data.status === 'COMPLETED' && !s.finishedAt) s.finishedAt = new Date();
     Object.assign(s, data);
     return this.sessionsRepo.save(s);
   }
-  addSet(sessionId: number, data: any) { return this.setsRepo.save(this.setsRepo.create({ ...data, sessionId })); }
-  removeSession(id: number) { return this.sessionsRepo.delete(id); }
+
+  async addSet(sessionId: number, data: any) {
+    await this.findOneSession(sessionId);
+    return this.setsRepo.save(this.setsRepo.create({ ...data, sessionId }));
+  }
+
+  async removeSession(id: number) {
+    await this.findOneSession(id);
+    return this.sessionsRepo.delete(id);
+  }
 }
+

@@ -40,12 +40,31 @@ let GymsService = class GymsService {
         }
         return this.findOne(gym.id);
     }
-    findAll() { return this.gymsRepo.find({ relations: ['location', 'schedules'], where: { isActive: true } }); }
+    async findAll() {
+        const gyms = await this.gymsRepo.find({ relations: ['location', 'schedules'], where: { isActive: true } });
+        return gyms.map(gym => this.mapGymToDto(gym));
+    }
     async findOne(id) {
         const gym = await this.gymsRepo.findOne({ where: { id }, relations: ['location', 'schedules', 'activities'] });
         if (!gym)
             throw new common_1.NotFoundException(`Gimnasio ${id} no encontrado`);
-        return gym;
+        return this.mapGymToDto(gym);
+    }
+    mapGymToDto(gym) {
+        if (gym.location) {
+            gym.location.latitude = Number(gym.location.latitude);
+            gym.location.longitude = Number(gym.location.longitude);
+        }
+        return {
+            ...gym,
+            aforoActual: Math.floor(Math.random() * ((gym.maxCapacity || 100) / 2)),
+            imagenUrl: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?q=80&w=1000&auto=format&fit=crop',
+            rating: Number((Math.random() * (5.0 - 4.0) + 4.0).toFixed(1)),
+            resenasCount: Math.floor(Math.random() * 500) + 50,
+            servicios: ['Musculación', 'Cardio', 'Zumba'],
+            beneficios: ['Duchas', 'AC', 'Estacionamiento'],
+            telefono: '+591 3 3456789',
+        };
     }
     async update(id, data) {
         const gym = await this.findOne(id);

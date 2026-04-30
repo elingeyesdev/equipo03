@@ -2,11 +2,14 @@ import { Repository } from 'typeorm';
 import { SubscriptionPlan } from '../domain/subscription-plan.entity';
 import { UserSubscription } from '../domain/user-subscription.entity';
 import { SubscriptionPayment } from '../domain/subscription-payment.entity';
+import { type RequestWithUser } from '../../common/security/gym-scope';
 export declare class SubscriptionsService {
     private plansRepo;
     private subsRepo;
     private paymentsRepo;
-    constructor(plansRepo: Repository<SubscriptionPlan>, subsRepo: Repository<UserSubscription>, paymentsRepo: Repository<SubscriptionPayment>);
+    private readonly request;
+    constructor(plansRepo: Repository<SubscriptionPlan>, subsRepo: Repository<UserSubscription>, paymentsRepo: Repository<SubscriptionPayment>, request: RequestWithUser);
+    private managerGymId;
     createPlan(data: Partial<SubscriptionPlan>): Promise<SubscriptionPlan>;
     findAllPlans(): Promise<SubscriptionPlan[]>;
     findOnePlan(id: number): Promise<SubscriptionPlan>;

@@ -6,6 +6,7 @@ import { UserTrainingRestriction } from '../domain/user-training-restriction.ent
 import { EmergencyContact } from '../domain/emergency-contact.entity';
 import { WorkoutSession } from '../domain/workout-session.entity';
 import { WorkoutSet } from '../domain/workout-set.entity';
+import { type RequestWithUser } from '../../common/security/gym-scope';
 export declare class TrainingService {
     private utRepo;
     private goalsRepo;
@@ -14,7 +15,9 @@ export declare class TrainingService {
     private ecRepo;
     private sessionsRepo;
     private setsRepo;
-    constructor(utRepo: Repository<UserTraining>, goalsRepo: Repository<UserTrainingGoals>, prefsRepo: Repository<UserTrainingPreferences>, restRepo: Repository<UserTrainingRestriction>, ecRepo: Repository<EmergencyContact>, sessionsRepo: Repository<WorkoutSession>, setsRepo: Repository<WorkoutSet>);
+    private readonly request;
+    constructor(utRepo: Repository<UserTraining>, goalsRepo: Repository<UserTrainingGoals>, prefsRepo: Repository<UserTrainingPreferences>, restRepo: Repository<UserTrainingRestriction>, ecRepo: Repository<EmergencyContact>, sessionsRepo: Repository<WorkoutSession>, setsRepo: Repository<WorkoutSet>, request: RequestWithUser);
+    private managerGymId;
     createTrainingProfile(userId: number, goals?: any, prefs?: any): Promise<UserTraining>;
     getTrainingProfile(userId: number): Promise<UserTraining>;
     createRestriction(data: Partial<UserTrainingRestriction>): Promise<UserTrainingRestriction>;

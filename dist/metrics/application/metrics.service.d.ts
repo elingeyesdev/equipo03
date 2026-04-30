@@ -1,8 +1,11 @@
 import { Repository } from 'typeorm';
 import { PhysicalMetricsHistory } from '../domain/physical-metrics-history.entity';
+import { type RequestWithUser } from '../../common/security/gym-scope';
 export declare class MetricsService {
     private repo;
-    constructor(repo: Repository<PhysicalMetricsHistory>);
+    private readonly request;
+    constructor(repo: Repository<PhysicalMetricsHistory>, request: RequestWithUser);
+    private managerGymId;
     create(data: Partial<PhysicalMetricsHistory>): Promise<PhysicalMetricsHistory>;
     findAll(): Promise<PhysicalMetricsHistory[]>;
     findByUser(userId: number): Promise<PhysicalMetricsHistory[]>;
