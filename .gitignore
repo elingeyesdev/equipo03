@@ -20,3 +20,4 @@ apps/mobile/.expo/
 
 # Build info
 *.tsbuildinfo
+seed-errors*.txt
