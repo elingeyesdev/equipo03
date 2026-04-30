@@ -1,1 +1,15 @@
-"node_modules\n/dist\n.env" 
+# Dependencias
+node_modules/
+
+# Archivos de compilación
+/dist
+/build
+
+# Variables de entorno (¡NUNCA subir contraseñas o claves!)
+.env
+.env.local
+.env.*.local
+
+# Expo cache
+.expo/
+apps/mobile/.expo/
