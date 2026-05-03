@@ -11,6 +11,8 @@ import {
   SubscriptionStatus
 } from './reservation.types';
 
+import { useAuthStore } from '../../auth/store/auth.store';
+
 // Creamos un cliente dedicado para reservas usando la configuración base
 const reservationClient = axios.create({
   baseURL: Env.API_BASE_URL,
@@ -21,15 +23,14 @@ const reservationClient = axios.create({
   },
 });
 
-// Interceptor para logs y tokens (El token de auth debe inyectarse en el Store global)
+// Interceptor para logs y tokens (Inyecta el token de Zustand automáticamente)
 reservationClient.interceptors.request.use(
   (config) => {
-    // TODO: Inyectar token JWT desde tu sistema de estado/auth actual (Zustand)
-    // Ejemplo:
-    // const token = useAuthStore.getState().token;
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
+    // Inyectamos el token dinámicamente desde nuestro nuevo AuthStore
+    const token = useAuthStore.getState().accessToken;
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     
     if (Env.isDevelopment) {
       console.log(`[API RESERVACIONES] ${config.method?.toUpperCase()} ${config.url}`, config.params || '');
