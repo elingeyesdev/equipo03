@@ -40,12 +40,12 @@ INSERT INTO users (id, email, password_hash) VALUES
 (1, 'ana@ejemplo.com', '$2b$10$brwOuyJMK3wAtuAhwhPOMu7/x5SHWZF30pgiWv52C2j2CNYL7dNKi'),
 (2, 'carlos@ejemplo.com', '$2b$10$brwOuyJMK3wAtuAhwhPOMu7/x5SHWZF30pgiWv52C2j2CNYL7dNKi');
 
--- 5. Insertar Perfiles de Usuario (first_name, last_name)
-INSERT INTO user_profiles (user_id, first_name, last_name, gender) VALUES 
-(99, 'Admin', 'Global', 'Other'),
-(100, 'Gerente', 'SmartFit', 'Male'),
-(1, 'Ana', 'García', 'Female'),
-(2, 'Carlos', 'Ruiz', 'Male');
+-- 5. Insertar Perfiles de Usuario (first_name, last_name, ci)
+INSERT INTO user_profiles (user_id, first_name, last_name, gender, ci) VALUES 
+(99, 'Admin', 'Global', 'Other', '0000000'),
+(100, 'Gerente', 'SmartFit', 'Male', '1111111'),
+(1, 'Ana', 'García', 'Female', '88776655'),
+(2, 'Carlos', 'Ruiz', 'Male', '12345678');
 
 -- 6. Asignar Roles
 INSERT INTO user_roles (user_id, role_id, gym_id) VALUES 
