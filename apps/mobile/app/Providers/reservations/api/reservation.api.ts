@@ -1,37 +1,32 @@
 /**
  * Cliente Axios para el Módulo de Reservas
+ * Endpoints sincronizados con el Swagger de GymSync API v1.0.0
  */
 import axios from 'axios';
 import { Env } from '../../geolocation/config/environment';
-import { 
-  ScheduleSlot, 
-  CreateReservationPayload, 
-  ReservationResponse, 
+import {
+  GymActivity,
+  CreateReservationPayload,
+  ReservationResponse,
   UserReservation,
-  SubscriptionStatus
+  SubscriptionStatus,
 } from './reservation.types';
-
 import { AuthService } from '../../auth/AuthService';
 
-// Creamos un cliente dedicado para reservas usando la configuración base
 const reservationClient = axios.create({
   baseURL: Env.API_BASE_URL,
   timeout: Env.API_TIMEOUT_MS || 10000,
   headers: {
     'Content-Type': 'application/json',
-    'Accept': 'application/json',
+    Accept: 'application/json',
   },
 });
 
-// Interceptor para logs y tokens (Inyecta el token de AsyncStorage automáticamente)
+// Interceptor: inyecta el JWT en cada petición
 reservationClient.interceptors.request.use(
   async (config) => {
-    // Inyectamos el token dinámicamente desde nuestro AuthService (AsyncStorage)
     const token = await AuthService.getToken();
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    
+    if (token) config.headers.Authorization = `Bearer ${token}`;
     if (Env.isDevelopment) {
       console.log(`[API RESERVACIONES] ${config.method?.toUpperCase()} ${config.url}`, config.params || '');
     }
@@ -41,36 +36,94 @@ reservationClient.interceptors.request.use(
 );
 
 export const reservationApi = {
-  
-  // 1. Obtener estado de la suscripción del usuario logueado
-  getSubscriptionStatus: async (): Promise<SubscriptionStatus> => {
-    const response = await reservationClient.get('/api/users/me/subscription');
-    return response.data?.data ? response.data.data : response.data;
-  },
 
-  // 2. Obtener los horarios de una actividad específica en una fecha
-  getSchedules: async (activityId: number, date: string): Promise<ScheduleSlot[]> => {
-    const response = await reservationClient.get(`/api/gym-activities/${activityId}/schedules`, {
-      params: { date }
+  /**
+   * GET /api/activities?gymId=:gymId
+   * gymId es un query param REQUERIDO según el Swagger.
+   */
+  getGymActivities: async (gymId: number): Promise<GymActivity[]> => {
+    const response = await reservationClient.get('/api/activities', {
+      params: { gymId },
     });
-    return response.data?.data ? response.data.data : response.data;
+    const data = response.data?.data ?? response.data;
+    const all: GymActivity[] = Array.isArray(data) ? data : [];
+    return all.filter((a) => a.isActive !== false);
   },
 
-  // 3. Crear la reserva
+  /**
+   * GET /api/activities/{id}/schedules
+   * Horarios de una actividad específica.
+   */
+  getActivitySchedules: async (activityId: number) => {
+    const response = await reservationClient.get(`/api/activities/${activityId}/schedules`);
+    return response.data?.data ?? response.data;
+  },
+
+  /**
+   * POST /api/reservations
+   * Crear una nueva reserva.
+   */
   createReservation: async (payload: CreateReservationPayload): Promise<ReservationResponse> => {
     const response = await reservationClient.post('/api/reservations', payload);
-    return response.data?.data ? response.data.data : response.data;
+    return response.data?.data ?? response.data;
   },
 
-  // 4. Obtener el historial de reservas del usuario
+  /**
+   * GET /api/reservations/user/{userId}
+   * El backend devuelve los datos anidados:
+   *   reservation.gymActivitySchedule.gymActivity.name  → nombre de actividad
+   *   reservation.gymActivitySchedule.startTime         → hora inicio
+   *   reservation.gymActivitySchedule.dayOfWeek         → día
+   */
   getMyReservations: async (): Promise<UserReservation[]> => {
-    const response = await reservationClient.get('/reservations/me');
-    return response.data?.data ? response.data.data : response.data;
+    const user = await AuthService.getCurrentUser();
+    if (!user?.userId) return [];
+    const response = await reservationClient.get(`/api/reservations/user/${user.userId}`);
+    const raw = response.data?.data ?? response.data;
+    const list: any[] = Array.isArray(raw) ? raw : [];
+
+    return list.map((r) => {
+      const schedule = r.gymActivitySchedule;
+      const activity = schedule?.gymActivity;
+      return {
+        id: r.id,
+        status: r.status,
+        reservationDate: r.reservationDate,
+        qrToken: r.qrToken ?? undefined,
+        cancelledAt: r.cancelledAt ?? null,
+        canCancel: !r.cancelledAt,
+        // Datos reales del backend — sin mocks
+        activityName: activity?.name,
+        activityDescription: activity?.description,
+        gymId: activity?.gymId,
+        startTime: schedule?.startTime,
+        endTime: schedule?.endTime,
+        dayOfWeek: schedule?.dayOfWeek,
+      };
+    });
   },
 
-  // 5. Cancelar una reserva
+  /**
+   * PUT /api/reservations/{id}/cancel
+   * Cancelar una reserva (PUT, no POST).
+   */
   cancelReservation: async (reservationId: number): Promise<{ success: boolean }> => {
-    const response = await reservationClient.post(`/reservations/${reservationId}/cancel`);
-    return response.data?.data ? response.data.data : response.data;
-  }
+    const response = await reservationClient.put(`/api/reservations/${reservationId}/cancel`);
+    return response.data?.data ?? response.data;
+  },
+
+  /**
+   * GET /api/subscriptions/user/{userId}
+   * Estado de suscripción del usuario.
+   */
+  getSubscriptionStatus: async (): Promise<SubscriptionStatus> => {
+    const user = await AuthService.getCurrentUser();
+    if (!user?.userId) throw new Error('Usuario no autenticado');
+    const response = await reservationClient.get(`/api/subscriptions/user/${user.userId}`);
+    // El endpoint devuelve un array, tomamos la más reciente
+    const data = response.data?.data ?? response.data;
+    const subs = Array.isArray(data) ? data : [data];
+    const active = subs.find((s: any) => s.status === 'ACTIVO' || s.isActive) ?? subs[0];
+    return active;
+  },
 };

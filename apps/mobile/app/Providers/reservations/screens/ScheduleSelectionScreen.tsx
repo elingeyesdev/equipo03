@@ -1,144 +1,280 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert } from 'react-native';
+/**
+ * ScheduleSelectionScreen — Pantalla de selección de actividades y horarios.
+ *
+ * Flujo:
+ * 1. Muestra las actividades disponibles del gimnasio seleccionado.
+ * 2. Cada actividad muestra su único día disponible iluminado (el resto gris).
+ * 3. Al seleccionar una actividad, aparece el resumen + botón de confirmar.
+ * 4. Al confirmar, navega directamente a "Mis Reservas".
+ */
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Modal,
+} from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
-import { DateStripSelector } from '../components/DateStripSelector';
-import { ScheduleSlot } from '../components/ScheduleSlot';
-import { ReservationConfirmModal } from '../components/ReservationConfirmModal';
-import { useSchedulesQuery } from '../hooks/useSchedulesQuery';
+import { useGymActivitiesQuery, GymActivityUI, DAY_LABELS } from '../hooks/useGymActivitiesQuery';
 import { useCreateReservationMutation } from '../hooks/useCreateReservationMutation';
-import { useSubscriptionGuard } from '../hooks/useSubscriptionGuard';
-import { ERROR_MAP } from '../api/reservation.types';
-import { format } from 'date-fns';
+import { ERROR_MAP, DayOfWeek } from '../api/reservation.types';
+import { AuthService } from '../../auth/AuthService';
+import { format, nextDay, setDay, startOfWeek } from 'date-fns';
 
-// Props para la navegación (Deberías agregar esto a tu RootStackParamList)
 type RootStackParamList = {
-  ScheduleSelection: { activityId: number; gymName: string; defaultDate?: string };
-  ReservationSuccess: { qrToken: string; activityName: string };
+  ScheduleSelection: { gymId: number; gymName: string };
+  MisReservas: undefined;
 };
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ScheduleSelection'>;
 
+// Mapa de abreviatura del backend a índice JS (0=Dom, 1=Lun, ...)
+const DAY_INDEX: Record<DayOfWeek, number> = {
+  DOM: 0, LUN: 1, MAR: 2, MIE: 3, JUE: 4, VIE: 5, SAB: 6,
+};
+
+// Calcula la próxima fecha para un dayOfWeek dado (incluye hoy si corresponde)
+const getNextDateForDay = (day: DayOfWeek): string => {
+  const today = new Date();
+  const targetDayIndex = DAY_INDEX[day];
+  const todayIndex = today.getDay();
+  let daysAhead = targetDayIndex - todayIndex;
+  if (daysAhead < 0) daysAhead += 7;
+  const targetDate = new Date(today);
+  targetDate.setDate(today.getDate() + daysAhead);
+  return format(targetDate, 'yyyy-MM-dd');
+};
+
+const ALL_DAYS: DayOfWeek[] = ['LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB', 'DOM'];
+
 export const ScheduleSelectionScreen = ({ route, navigation }: Props) => {
-  const { activityId, gymName, defaultDate } = route.params;
-  
-  const [selectedDate, setSelectedDate] = useState<Date>(
-    defaultDate ? new Date(defaultDate) : new Date()
-  );
-  
-  const [selectedSlotId, setSelectedSlotId] = useState<number | null>(null);
-  const [isModalVisible, setIsModalVisible] = useState(false);
+  const { gymId, gymName } = route.params;
 
-  // Hooks de lógica
-  const { isActive, isLoading: isCheckingSub } = useSubscriptionGuard();
-  
-  // BYPASS TEMPORAL: Como tu backend aún no tiene la tabla de suscripciones,
-  // forzaremos a que siempre sea true para que puedas probar el flujo.
-  const canReserve = true; 
-
-  const { data: schedules, isLoading: isLoadingSchedules } = useSchedulesQuery(
-    activityId, 
-    format(selectedDate, 'yyyy-MM-dd')
-  );
+  const [selectedActivity, setSelectedActivity] = useState<GymActivityUI | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+  const { data: activities, isLoading, error } = useGymActivitiesQuery(gymId);
   const createMutation = useCreateReservationMutation();
 
-  const handleConfirmReservation = async () => {
-    if (!selectedSlotId) return;
-    
+  // Animar el checkmark cuando showSuccess cambia a true
+  useEffect(() => {
+    if (showSuccess) {
+      Animated.parallel([
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          useNativeDriver: true,
+          bounciness: 18,
+          speed: 6,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      // Navegar al tab Reservas después de 1.8s
+      const timer = setTimeout(() => {
+        setShowSuccess(false);
+        scaleAnim.setValue(0);
+        opacityAnim.setValue(0);
+        // getParent() sube al Tab Navigator desde el Stack
+        (navigation as any).getParent()?.navigate('Reservas');
+      }, 1800);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccess]);
+
+  const handleConfirm = async () => {
+    if (!selectedActivity?.availableSchedule) return;
+
+    const schedule = selectedActivity.availableSchedule;
+    const reservationDate = getNextDateForDay(schedule.dayOfWeek);
+
     try {
-      const response = await createMutation.mutateAsync({
-        gymActivityScheduleId: selectedSlotId,
-        reservationDate: format(selectedDate, 'yyyy-MM-dd')
-      });
-      
-      setIsModalVisible(false);
-      // Navegar a la pantalla de éxito pasando el QR Token
-      navigation.navigate('ReservationSuccess', { 
-        qrToken: response.qrToken || 'TOKEN_FALLBACK_123',
-        activityName: gymName
-      });
-      
+      // Obtener el userId del usuario logueado — requerido por el backend
+      const currentUser = await AuthService.getCurrentUser();
+      if (!currentUser?.userId) {
+        Alert.alert('Error', 'No se pudo obtener tu sesión. Vuelve a iniciar sesión.');
+        return;
+      }
+
+      const payload = {
+        userId: Number(currentUser.userId),
+        gymActivityScheduleId: schedule.id,
+        reservationDate,
+        status: 'CONFIRMED',
+      };
+      console.log('[Reserva] Enviando payload:', JSON.stringify(payload));
+      await createMutation.mutateAsync(payload);
+
+      // Mostrar animación de éxito antes de navegar
+      setShowSuccess(true);
     } catch (error: any) {
-      setIsModalVisible(false);
-      const errCode = error.response?.data?.code || 'ERROR_UNKNOWN';
-      Alert.alert('Error', ERROR_MAP[errCode] || 'No se pudo completar la reserva.');
+      // ── DEBUG: ver qué responde exactamente el backend ──────────────
+      console.error('[Reserva] Error completo:', JSON.stringify({
+        status:  error?.response?.status,
+        data:    error?.response?.data,
+        message: error?.message,
+      }, null, 2));
+      // ─────────────────────────────────────────────────────────────────
+      const errCode = error?.response?.data?.code || error?.response?.data?.message || 'ERROR_UNKNOWN';
+      Alert.alert(
+        'Error al reservar',
+        ERROR_MAP[errCode] ?? error?.response?.data?.message ?? 'No se pudo completar la reserva.',
+      );
     }
   };
 
-  if (isCheckingSub) {
-    return <View style={styles.loadingCenter}><ActivityIndicator size="large" color={Colors.primary} /></View>;
+  if (isLoading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+        <Text style={styles.loadingText}>Cargando actividades...</Text>
+      </View>
+    );
+  }
+
+  if (error || !activities?.length) {
+    return (
+      <View style={styles.center}>
+        <MaterialCommunityIcons name="calendar-remove" size={48} color={Colors.textSoft} />
+        <Text style={styles.emptyText}>No hay actividades disponibles en este gimnasio.</Text>
+      </View>
+    );
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.headerTitle}>Horarios disponibles</Text>
-      <Text style={styles.headerSubtitle}>{gymName}</Text>
 
-      {/* Selector de Fechas */}
-      <DateStripSelector 
-        selectedDate={selectedDate} 
-        onSelectDate={(date) => {
-          setSelectedDate(date);
-          setSelectedSlotId(null); // Resetear selección al cambiar de día
-        }} 
-      />
+      {/* ── Modal de éxito con animación de checkmark ── */}
+      <Modal visible={showSuccess} transparent animationType="none">
+        <View style={styles.successOverlay}>
+          <Animated.View
+            style={[
+              styles.successCard,
+              { transform: [{ scale: scaleAnim }], opacity: opacityAnim },
+            ]}
+          >
+            <View style={styles.checkCircle}>
+              <MaterialCommunityIcons name="check-bold" size={56} color="#fff" />
+            </View>
+            <Text style={styles.successTitle}>¡Reserva confirmada!</Text>
+            <Text style={styles.successSubtitle}>
+              Actividad agregada a Mis Reservas
+            </Text>
+          </Animated.View>
+        </View>
+      </Modal>
 
-      {/* Lista de Slots */}
-      <View style={styles.content}>
-        {!canReserve && (
-          <View style={styles.warningBox}>
-            <Text style={styles.warningText}>
-              Necesitas una membresía activa para poder reservar.
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <Text style={styles.sectionTitle}>Elige una actividad</Text>
+        <Text style={styles.sectionSubtitle}>{gymName}</Text>
+
+        {activities.map((activity) => {
+          const isSelected = selectedActivity?.id === activity.id;
+          const schedule = activity.availableSchedule;
+
+          return (
+            <TouchableOpacity
+              key={activity.id}
+              style={[styles.activityCard, isSelected && styles.activityCardSelected]}
+              onPress={() => setSelectedActivity(isSelected ? null : activity)}
+              activeOpacity={0.8}
+            >
+              {/* Cabecera de la actividad */}
+              <View style={styles.activityHeader}>
+                <View style={styles.activityInfo}>
+                  <Text style={[styles.activityName, isSelected && styles.activityNameSelected]}>
+                    {activity.name}
+                  </Text>
+                  <Text style={styles.activityDesc}>{activity.description}</Text>
+                </View>
+                <View style={[styles.durationBadge, isSelected && styles.durationBadgeSelected]}>
+                  <Text style={[styles.durationText, isSelected && styles.durationTextSelected]}>
+                    {activity.defaultDurationMin} min
+                  </Text>
+                </View>
+              </View>
+
+              {/* Selector de días — solo el día disponible está iluminado */}
+              <View style={styles.daysRow}>
+                {ALL_DAYS.map((day) => {
+                  const isAvailableDay = schedule?.dayOfWeek === day;
+                  return (
+                    <View
+                      key={day}
+                      style={[
+                        styles.dayPill,
+                        isAvailableDay && styles.dayPillActive,
+                        isAvailableDay && isSelected && styles.dayPillActiveSelected,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.dayPillText,
+                          isAvailableDay && styles.dayPillTextActive,
+                          isAvailableDay && isSelected && styles.dayPillTextSelected,
+                        ]}
+                      >
+                        {day}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+
+              {/* Horario disponible */}
+              {schedule && (
+                <View style={styles.scheduleRow}>
+                  <MaterialCommunityIcons name="clock-outline" size={14} color={isSelected ? Colors.primary : Colors.textSoft} />
+                  <Text style={[styles.scheduleText, isSelected && styles.scheduleTextSelected]}>
+                    {schedule.startTime.substring(0, 5)} – {schedule.endTime.substring(0, 5)}
+                  </Text>
+                  <Text style={styles.scheduleDay}>
+                    · {activity.availableDayLabel}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
+      {/* Fase 2: Resumen + Botón de confirmación */}
+      {selectedActivity?.availableSchedule && (
+        <View style={styles.bottomBar}>
+          <View style={styles.summaryBox}>
+            <Text style={styles.summaryActivityName} numberOfLines={1}>
+              {selectedActivity.name}
+            </Text>
+            <Text style={styles.summaryDetails}>
+              {selectedActivity.availableDayLabel} · {selectedActivity.availableSchedule.startTime.substring(0, 5)} – {selectedActivity.availableSchedule.endTime.substring(0, 5)}
             </Text>
           </View>
-        )}
 
-        {isLoadingSchedules ? (
-          <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 40 }} />
-        ) : schedules?.length === 0 ? (
-          <Text style={styles.emptyText}>No hay horarios disponibles para este día.</Text>
-        ) : (
-          <FlatList
-            data={schedules}
-            keyExtractor={(item) => item.id.toString()}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 100 }}
-            renderItem={({ item }) => (
-              <ScheduleSlot
-                slot={item}
-                isSelected={selectedSlotId === item.id}
-                onSelect={() => {
-                  setSelectedSlotId(item.id);
-                }}
-              />
-            )}
-          />
-        )}
-      </View>
-
-      {/* Botón Flotante de Reservar */}
-      {selectedSlotId && canReserve && (
-        <View style={styles.bottomBar}>
-          <TouchableOpacity 
-            style={styles.reserveButton}
-            onPress={() => setIsModalVisible(true)}
+          <TouchableOpacity
+            style={[styles.confirmButton, createMutation.isPending && styles.confirmButtonLoading]}
+            onPress={handleConfirm}
+            disabled={createMutation.isPending}
+            activeOpacity={0.85}
           >
-            <Text style={styles.reserveButtonText}>Reservar Cupo</Text>
+            {createMutation.isPending ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <Text style={styles.confirmButtonText}>Confirmar Reserva</Text>
+            )}
           </TouchableOpacity>
         </View>
       )}
-
-      {/* Modal de Confirmación */}
-      <ReservationConfirmModal
-        visible={isModalVisible}
-        isLoading={createMutation.isPending}
-        onCancel={() => setIsModalVisible(false)}
-        onConfirm={handleConfirmReservation}
-        activityName={gymName}
-        timeString={
-          schedules?.find(s => s.id === selectedSlotId)?.startTime.substring(0, 5) || ''
-        }
-      />
     </View>
   );
 };
@@ -148,67 +284,238 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  loadingCenter: {
+  center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: Colors.background,
+    gap: 12,
+    padding: 24,
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: Colors.text,
-    paddingHorizontal: 16,
-    paddingTop: 20,
-  },
-  headerSubtitle: {
-    fontSize: 14,
+  loadingText: {
     color: Colors.textSoft,
-    paddingHorizontal: 16,
-    marginBottom: 10,
-  },
-  content: {
-    flex: 1,
-    padding: 16,
-  },
-  warningBox: {
-    backgroundColor: 'rgba(255, 69, 58, 0.1)',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.danger,
-    marginBottom: 16,
-  },
-  warningText: {
-    color: Colors.danger,
-    textAlign: 'center',
-    fontWeight: '600',
+    fontSize: 14,
+    marginTop: 8,
   },
   emptyText: {
     color: Colors.textSoft,
+    fontSize: 15,
     textAlign: 'center',
-    marginTop: 40,
-    fontSize: 16,
+    marginTop: 8,
   },
+  scrollContent: {
+    padding: 16,
+    // Espacio para: bottomBar cuando está visible (~150px) + tab bar flotante (101px)
+    paddingBottom: 260,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: Colors.text,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    color: Colors.textSoft,
+    marginBottom: 20,
+  },
+
+  // --- Tarjeta de Actividad ---
+  activityCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+  },
+  activityCardSelected: {
+    borderColor: Colors.primary,
+    backgroundColor: 'rgba(255, 94, 0, 0.08)',
+  },
+  activityHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 14,
+  },
+  activityInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  activityName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  activityNameSelected: {
+    color: Colors.primary,
+  },
+  activityDesc: {
+    fontSize: 12,
+    color: Colors.textSoft,
+  },
+  durationBadge: {
+    backgroundColor: Colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  durationBadgeSelected: {
+    backgroundColor: 'rgba(255, 94, 0, 0.2)',
+  },
+  durationText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textSoft,
+  },
+  durationTextSelected: {
+    color: Colors.primary,
+  },
+
+  // --- Fila de días ---
+  daysRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 12,
+  },
+  dayPill: {
+    flex: 1,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: Colors.background,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  dayPillActive: {
+    backgroundColor: 'rgba(0, 217, 255, 0.12)',
+    borderColor: Colors.secondary,
+  },
+  dayPillActiveSelected: {
+    backgroundColor: 'rgba(255, 94, 0, 0.18)',
+    borderColor: Colors.primary,
+  },
+  dayPillText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: Colors.border,
+  },
+  dayPillTextActive: {
+    color: Colors.secondary,
+  },
+  dayPillTextSelected: {
+    color: Colors.primary,
+  },
+
+  // --- Horario ---
+  scheduleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  scheduleText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.textSoft,
+  },
+  scheduleTextSelected: {
+    color: Colors.primary,
+  },
+  scheduleDay: {
+    fontSize: 13,
+    color: Colors.textSoft,
+  },
+
+  // --- Barra inferior ---
   bottomBar: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 20,
+    padding: 16,
+    // Tab Bar flotante: bottom(24) + height(65) + margen(12) = 101px
+    paddingBottom: 101,
     backgroundColor: Colors.surface,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
+    gap: 12,
   },
-  reserveButton: {
+  summaryBox: {
+    paddingHorizontal: 4,
+  },
+  summaryActivityName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  summaryDetails: {
+    fontSize: 13,
+    color: Colors.textSoft,
+  },
+  confirmButton: {
     backgroundColor: Colors.primary,
+    borderRadius: 14,
     paddingVertical: 16,
-    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmButtonLoading: {
+    opacity: 0.7,
+  },
+  confirmButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+
+  // ── Animación de éxito ──────────────────────────────────────
+  successOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  reserveButtonText: {
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: 'bold',
+  successCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 24,
+    paddingVertical: 40,
+    paddingHorizontal: 48,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 20,
+    gap: 16,
+  },
+  checkCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#22C55E', // verde vivo
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#22C55E',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  successTitle: {
+    color: Colors.text,
+    fontSize: 22,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  successSubtitle: {
+    color: Colors.textSoft,
+    fontSize: 15,
+    textAlign: 'center',
+    lineHeight: 22,
   },
 });

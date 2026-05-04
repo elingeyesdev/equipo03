@@ -1,5 +1,6 @@
 /**
  * Interfaces y tipos estrictos para el Módulo de Reservas
+ * Sincronizados con el modelo real de la API de GymSync.
  */
 
 export interface SubscriptionStatus {
@@ -9,26 +10,49 @@ export interface SubscriptionStatus {
   isActive: boolean;
 }
 
-export interface ScheduleSlot {
+// Días de la semana tal como los devuelve el backend
+export type DayOfWeek = 'LUN' | 'MAR' | 'MIE' | 'JUE' | 'VIE' | 'SAB' | 'DOM';
+
+export interface GymActivitySchedule {
   id: number;
-  gymId?: number;
-  dayOfWeek: string;
+  gymActivityId: number;
+  instructorId: number;
+  dayOfWeek: DayOfWeek;
   startTime: string; // "HH:mm:ss"
   endTime: string;
   maxAttendees: number;
-  activeReservations: number;
-  instructorName?: string;
+  isRecurring: boolean;
 }
 
-// Payload adaptado a la DB (3FN, sin gymId redundante)
+export interface GymActivity {
+  id: number;
+  gymId: number;
+  name: string;
+  description: string;
+  defaultDurationMin: number;
+  isActive: boolean;
+  gym: {
+    id: number;
+    name: string;
+    description: string;
+    maxCapacity: number;
+    isActive: boolean;
+    isOpen: boolean;
+  };
+  schedules: GymActivitySchedule[];
+}
+
+// Payload exacto según el CreateReservationDto del Swagger
 export interface CreateReservationPayload {
-  gymActivityScheduleId: number;
-  reservationDate: string; // Formato: "YYYY-MM-DD"
+  userId: number;                // REQUERIDO por el backend
+  gymActivityScheduleId: number; // ID del horario de la actividad
+  reservationDate: string;       // Formato: "YYYY-MM-DD"
+  status?: string;               // Opcional: "CONFIRMED" (default del backend)
 }
 
 export interface ReservationResponse {
   id: number;
-  status: 'CONFIRMADA' | 'CANCELADA' | 'PENDING';
+  status: 'CONFIRMADA' | 'CANCELADA' | 'PENDING' | 'CONFIRMED';
   qrToken?: string;
   createdAt: string;
   reservationDate: string;
@@ -37,12 +61,19 @@ export interface ReservationResponse {
 
 export interface UserReservation {
   id: number;
-  status: 'CONFIRMADA' | 'CANCELADA' | 'USADA';
+  status: 'CONFIRMADA' | 'CANCELADA' | 'USADA' | 'CONFIRMED';
   reservationDate: string;
-  gymName: string;
-  scheduleTime: string;
   qrToken?: string;
-  canCancel: boolean;
+  cancelledAt?: string | null;
+  canCancel?: boolean;
+  // Mapeados desde gymActivitySchedule.gymActivity
+  activityName?: string;
+  activityDescription?: string;
+  gymId?: number;
+  gymName?: string;        // No viene en el response, se deja vacío
+  startTime?: string;      // "HH:mm:ss"
+  endTime?: string;
+  dayOfWeek?: string;      // "SAB", "LUN", etc.
 }
 
 // Mapa de errores personalizado para la UI

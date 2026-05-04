@@ -4,14 +4,15 @@ import { BuscarScreen } from '../resources/views/buscar/BuscarScreen';
 import { MapScreenContainer } from '../resources/views/geolocation/MapScreen/MapScreen.container';
 import { HistorialScreen } from '../resources/views/buscar/HistorialScreen';
 import { ScheduleSelectionScreen } from '../app/Providers/reservations/screens/ScheduleSelectionScreen';
-import { ReservationSuccessScreen } from '../app/Providers/reservations/screens/ReservationSuccessScreen';
+import { MisReservasScreen } from '../app/Providers/reservations/screens/MisReservasScreen';
 
 export type BuscarStackParamList = {
   BuscarHome: undefined;
   Mapa: undefined;
   Historial: undefined;
-  ScheduleSelection: { activityId: number; gymName: string; defaultDate?: string };
-  ReservationSuccess: { qrToken: string; activityName: string };
+  // gymId en lugar de activityId — el endpoint real es /api/gyms/:gymId/activities
+  ScheduleSelection: { gymId: number; gymName: string };
+  MisReservas: undefined;
 };
 
 const Stack = createNativeStackNavigator<BuscarStackParamList>();
@@ -56,11 +57,13 @@ export const BuscarStack = () => {
         }}
       />
       <Stack.Screen
-        name="ReservationSuccess"
-        component={ReservationSuccessScreen}
+        name="MisReservas"
+        component={MisReservasScreen}
         options={{
-          headerShown: false,
-          gestureEnabled: false,
+          headerShown: true,
+          title: 'Mis Reservas',
+          headerStyle: { backgroundColor: '#1E1E1E' },
+          headerTintColor: '#fff',
         }}
       />
     </Stack.Navigator>

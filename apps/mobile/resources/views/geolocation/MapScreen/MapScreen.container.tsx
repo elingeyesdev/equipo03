@@ -46,8 +46,8 @@ export const MapScreenContainer: React.FC = () => {
       onReserve={(sede) => {
         viewModel.cerrarModalSede();
         navigation.navigate('ScheduleSelection', {
-          activityId: Number(sede.id.value) || 1, // Fallback mientras se crea selector de actividades
-          gymName: sede.nombre
+          gymId: Number(sede.id.value), // ID real del gimnasio en el backend
+          gymName: sede.nombre,
         });
       }}
     />

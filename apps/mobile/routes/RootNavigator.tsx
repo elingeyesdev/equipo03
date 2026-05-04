@@ -8,6 +8,7 @@ import { BuscarStack } from './BuscarStack';
 import { InicioScreen } from '../resources/views/inicio/InicioScreen';
 import { LoginScreen } from '../resources/views/auth/LoginScreen';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MisReservasScreen } from '../app/Providers/reservations/screens/MisReservasScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -55,9 +56,11 @@ const AppTabs = () => {
     >
       <Tab.Screen name="Inicio" component={InicioScreen} />
       <Tab.Screen name="Buscar" component={BuscarStack} />
-      <Tab.Screen name="Reservas">
-        {() => <PlaceholderScreen name="Reservas" />}
-      </Tab.Screen>
+      <Tab.Screen
+        name="Mis Reservas"
+        component={MisReservasScreen}
+        options={{ headerShown: false }}
+      />
       <Tab.Screen name="Perfil" component={PerfilStack} />
     </Tab.Navigator>
   );

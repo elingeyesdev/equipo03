@@ -6,12 +6,12 @@ export const useCreateReservationMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: CreateReservationPayload) => reservationApi.createReservation(payload),
+    mutationFn: (payload: CreateReservationPayload) =>
+      reservationApi.createReservation(payload),
     onSuccess: () => {
-      // Magia de React Query: Cuando la reserva tiene éxito, 
-      // invalidamos la caché para que se refresquen los horarios y la UI de cupos.
-      queryClient.invalidateQueries({ queryKey: ['schedules'] });
+      // Invalidar caché para que MisReservas se refresque automáticamente
       queryClient.invalidateQueries({ queryKey: ['my-reservations'] });
+      queryClient.invalidateQueries({ queryKey: ['gym-activities'] });
     },
   });
 };
