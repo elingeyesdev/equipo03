@@ -17,7 +17,7 @@ export const PerfilMenuScreen = () => {
     { icon: 'medical-bag', label: 'Mis restricciones medicas', action: () => navigation.navigate('Manager') },
     { icon: 'bell-ring', label: 'Alertas de salud', action: () => navigation.navigate('AlertasConfig') },
     { icon: 'clock-outline', label: 'Mi historial de actividad', action: () => {} },
-    { icon: 'cog-outline', label: 'Ajustes', action: () => {} },
+    { icon: 'cog-outline', label: 'Ajustes', action: () => navigation.navigate('Ajustes' as any) },
   ];
 
   return (
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   header: {
     alignItems: 'center',

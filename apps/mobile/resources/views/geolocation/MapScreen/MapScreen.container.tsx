@@ -10,8 +10,15 @@ import { useDependencyInjection } from '../../../../app/Shared/hooks/useDependen
 import { MapScreenView } from './MapScreen.view';
 import { MapScreenController } from '../../../../app/Http/Controllers/geolocation/MapScreen.Controller';
 
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { BuscarStackParamList } from '../../../../routes/BuscarStack';
+
+type NavigationProp = NativeStackNavigationProp<BuscarStackParamList, 'Mapa'>;
+
 export const MapScreenContainer: React.FC = () => {
   const { obtenerSedesCercanasUseCase, calcularRutaUseCase, filtrarSedesUseCase } = useDependencyInjection();
+  const navigation = useNavigation<NavigationProp>();
   
   const viewModel = MapScreenController(
     obtenerSedesCercanasUseCase,
@@ -36,6 +43,13 @@ export const MapScreenContainer: React.FC = () => {
       onModalClose={viewModel.cerrarModalSede}
       onNavigate={viewModel.comoLlegar}
       onRetry={viewModel.reintentarCarga}
+      onReserve={(sede) => {
+        viewModel.cerrarModalSede();
+        navigation.navigate('ScheduleSelection', {
+          activityId: Number(sede.id.value) || 1, // Fallback mientras se crea selector de actividades
+          gymName: sede.nombre
+        });
+      }}
     />
   );
 };

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import QRCode from 'react-native-qrcode-svg';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Colors } from '../../theme/colors';
+import { Colors } from '../theme/colors';
 
 type RootStackParamList = {
   ReservationSuccess: { qrToken: string; activityName: string };

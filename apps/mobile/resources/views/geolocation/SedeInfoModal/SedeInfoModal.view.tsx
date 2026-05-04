@@ -25,6 +25,7 @@ type SedeInfoModalViewProps = {
   visible: boolean;
   onClose: () => void;
   onNavigate: () => void;
+  onReserve?: () => void;
 };
 
 export const SedeInfoModalView: React.FC<SedeInfoModalViewProps> = ({
@@ -33,6 +34,7 @@ export const SedeInfoModalView: React.FC<SedeInfoModalViewProps> = ({
   visible,
   onClose,
   onNavigate,
+  onReserve,
 }) => {
   return (
     <Modal
@@ -142,15 +144,26 @@ export const SedeInfoModalView: React.FC<SedeInfoModalViewProps> = ({
           </ScrollView>
 
           {/* Botón de acción */}
-          <View style={styles.actionBar}>
+          <View style={[styles.actionBar, { flexDirection: 'row', gap: 12 }]}>
             <TouchableOpacity
-              style={styles.navigateButton}
+              style={[styles.navigateButton, { flex: 1, backgroundColor: 'transparent', borderWidth: 1, borderColor: '#00D9FF' }]}
               onPress={onNavigate}
               activeOpacity={0.8}
               accessibilityLabel={`Navegar a ${sede.nombre}`}
             >
-              <Text style={styles.navigateButtonText}>🧭 Cómo llegar</Text>
+              <Text style={[styles.navigateButtonText, { color: '#00D9FF' }]}>🧭 Cómo llegar</Text>
             </TouchableOpacity>
+
+            {onReserve && (
+              <TouchableOpacity
+                style={[styles.navigateButton, { flex: 1, backgroundColor: '#FF5E00' }]}
+                onPress={onReserve}
+                activeOpacity={0.8}
+                accessibilityLabel={`Reservar en ${sede.nombre}`}
+              >
+                <Text style={[styles.navigateButtonText, { color: '#FFF' }]}>📅 Reservar</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </View>

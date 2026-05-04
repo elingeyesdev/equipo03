@@ -11,7 +11,7 @@ import {
   SubscriptionStatus
 } from './reservation.types';
 
-import { useAuthStore } from '../../auth/store/auth.store';
+import { AuthService } from '../../auth/AuthService';
 
 // Creamos un cliente dedicado para reservas usando la configuración base
 const reservationClient = axios.create({
@@ -23,11 +23,11 @@ const reservationClient = axios.create({
   },
 });
 
-// Interceptor para logs y tokens (Inyecta el token de Zustand automáticamente)
+// Interceptor para logs y tokens (Inyecta el token de AsyncStorage automáticamente)
 reservationClient.interceptors.request.use(
-  (config) => {
-    // Inyectamos el token dinámicamente desde nuestro nuevo AuthStore
-    const token = useAuthStore.getState().accessToken;
+  async (config) => {
+    // Inyectamos el token dinámicamente desde nuestro AuthService (AsyncStorage)
+    const token = await AuthService.getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -44,13 +44,13 @@ export const reservationApi = {
   
   // 1. Obtener estado de la suscripción del usuario logueado
   getSubscriptionStatus: async (): Promise<SubscriptionStatus> => {
-    const response = await reservationClient.get('/subscriptions/me');
+    const response = await reservationClient.get('/api/users/me/subscription');
     return response.data?.data ? response.data.data : response.data;
   },
 
   // 2. Obtener los horarios de una actividad específica en una fecha
   getSchedules: async (activityId: number, date: string): Promise<ScheduleSlot[]> => {
-    const response = await reservationClient.get(`/activities/${activityId}/schedules`, {
+    const response = await reservationClient.get(`/api/gym-activities/${activityId}/schedules`, {
       params: { date }
     });
     return response.data?.data ? response.data.data : response.data;
@@ -58,7 +58,7 @@ export const reservationApi = {
 
   // 3. Crear la reserva
   createReservation: async (payload: CreateReservationPayload): Promise<ReservationResponse> => {
-    const response = await reservationClient.post('/reservations', payload);
+    const response = await reservationClient.post('/api/reservations', payload);
     return response.data?.data ? response.data.data : response.data;
   },
 

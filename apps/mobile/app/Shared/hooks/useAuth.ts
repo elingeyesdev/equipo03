@@ -5,4 +5,4 @@
  * const { user, isAuthenticated, login, logout } = useAuth();
  */
 
-export { useAuth } from '../Providers/auth/AuthContext';
+export { useAuth } from '../../Providers/auth/AuthContext';

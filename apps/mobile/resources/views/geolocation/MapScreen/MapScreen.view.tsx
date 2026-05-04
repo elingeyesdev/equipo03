@@ -35,6 +35,7 @@ type MapScreenViewProps = {
   onMarkerPress: (sede: Sede) => void;
   onModalClose: () => void;
   onNavigate: (sede: Sede) => void;
+  onReserve: (sede: Sede) => void;
   onRetry: () => void;
 };
 
@@ -49,6 +50,7 @@ export const MapScreenView: React.FC<MapScreenViewProps> = ({
   onMarkerPress,
   onModalClose,
   onNavigate,
+  onReserve,
   onRetry,
 }) => {
   const mapRef = useRef<MapView>(null);
@@ -198,6 +200,7 @@ export const MapScreenView: React.FC<MapScreenViewProps> = ({
             visible={!!selectedSede}
             onClose={onModalClose}
             onNavigate={() => onNavigate(selectedSede)}
+            onReserve={() => onReserve(selectedSede)}
           />
         )}
       </View>

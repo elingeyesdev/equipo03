@@ -1,12 +1,16 @@
 import React from 'react';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { ActivityIndicator, View, Text } from 'react-native';
+import { useAuth } from '../app/Shared/hooks/useAuth';
 import { PerfilStack } from './PerfilStack';
 import { BuscarStack } from './BuscarStack';
 import { InicioScreen } from '../resources/views/inicio/InicioScreen';
+import { LoginScreen } from '../resources/views/auth/LoginScreen';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { View, Text } from 'react-native';
 
 const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
 
 const PlaceholderScreen = ({ name }: { name: string }) => (
   <View style={{ flex: 1, backgroundColor: '#000000', justifyContent: 'center', alignItems: 'center' }}>
@@ -14,7 +18,7 @@ const PlaceholderScreen = ({ name }: { name: string }) => (
   </View>
 );
 
-export const RootNavigator = () => {
+const AppTabs = () => {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -58,3 +62,32 @@ export const RootNavigator = () => {
     </Tab.Navigator>
   );
 };
+
+const AuthStack = () => {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        animation: 'none',
+      }}
+    >
+      <Stack.Screen name="Login" component={LoginScreen} />
+    </Stack.Navigator>
+  );
+};
+
+export const RootNavigator = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
+        <ActivityIndicator size="large" color="#f05b22" />
+      </View>
+    );
+  }
+
+  return isAuthenticated ? <AppTabs /> : <AuthStack />;
+};
+
+export default RootNavigator;
