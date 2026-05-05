@@ -58,6 +58,7 @@ export class AuthService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.log('[AuthService] Error del servidor:', JSON.stringify(errorData, null, 2));
         const errorMsg = errorData?.message || `HTTP ${response.status}`;
         return { success: false, error: errorMsg };
       }
