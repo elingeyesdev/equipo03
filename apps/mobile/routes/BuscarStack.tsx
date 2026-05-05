@@ -32,6 +32,7 @@ export const BuscarStack = () => {
         options={{
           headerShown: true,
           title: 'Sedes Cercanas',
+          headerBackTitle: 'Regresar',
           headerStyle: { backgroundColor: '#1E1E1E' },
           headerTintColor: '#fff',
         }}
