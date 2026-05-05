@@ -65,7 +65,7 @@ BEGIN
   FOR i IN 1..50 LOOP
     v_gym_id := floor(random() * 5) + 1;
     v_user_id := floor(random() * 2) + 1;
-    IF random() > 0.1 THEN v_status := 'COMPLETED'; ELSE v_status := 'DENIED'; END IF;
+    IF random() > 0.1 THEN v_status := 'AUTORIZADO'; ELSE v_status := 'DENEGADO'; END IF;
 
     INSERT INTO check_ins (user_id, gym_id, check_in_time, method, status)
     VALUES (v_user_id, v_gym_id, CURRENT_TIMESTAMP - (random() * interval '7 days'), 'QR', v_status);

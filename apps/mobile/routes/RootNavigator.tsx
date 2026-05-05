@@ -9,6 +9,7 @@ import { InicioScreen } from '../resources/views/inicio/InicioScreen';
 import { LoginScreen } from '../resources/views/auth/LoginScreen';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { MisReservasScreen } from '../app/Providers/reservations/screens/MisReservasScreen';
+import { AuditHistoryScreen } from '../resources/views/audit/AuditHistoryScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -20,6 +21,8 @@ const PlaceholderScreen = ({ name }: { name: string }) => (
 );
 
 const AppTabs = () => {
+  const { user } = useAuth();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -49,6 +52,7 @@ const AppTabs = () => {
           else if (route.name === 'Buscar') iconName = 'magnify';
           else if (route.name === 'Reservas') iconName = 'calendar';
           else if (route.name === 'Perfil') iconName = 'account';
+          else if (route.name === 'Auditoría') iconName = 'clipboard-text-outline';
 
           return <MaterialCommunityIcons name={iconName} size={28} color={color} />;
         },
@@ -61,6 +65,9 @@ const AppTabs = () => {
         component={MisReservasScreen}
         options={{ headerShown: false }}
       />
+      {user?.role === 'GERENTE' && (
+        <Tab.Screen name="Auditoría" component={AuditHistoryScreen} />
+      )}
       <Tab.Screen name="Perfil" component={PerfilStack} />
     </Tab.Navigator>
   );
