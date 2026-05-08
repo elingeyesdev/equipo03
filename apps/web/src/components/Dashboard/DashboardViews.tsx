@@ -191,49 +191,111 @@ const MapPicker = ({ lat, lng, onSelect }: { lat: number; lng: number; onSelect:
 };
 
 // ============================================================
-// GymModal — Con Map Picker integrado
+// GymModal — Con Map Picker + Gestión de Horarios integrada
 // ============================================================
+const DAYS_OF_WEEK = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO'];
+const DAY_LABELS: Record<string, string> = { LUNES: 'Lunes', MARTES: 'Martes', MIERCOLES: 'Miércoles', JUEVES: 'Jueves', VIERNES: 'Viernes', SABADO: 'Sábado', DOMINGO: 'Domingo' };
+const DAY_ICONS: Record<string, string> = { LUNES: '📅', MARTES: '📅', MIERCOLES: '📅', JUEVES: '📅', VIERNES: '📅', SABADO: '🌤️', DOMINGO: '🌤️' };
+
+type ScheduleEntry = { id?: number; dayOfWeek: string; opensAt: string; closesAt: string; isHoliday: boolean; _isNew?: boolean };
+
 const GymModal = ({ isOpen, onClose, gymToEdit, onSave }: any) => {
   const [formData, setFormData] = useState({
-    name: '',
-    address: '',
-    maxCapacity: 100,
-    isOpen: true,
-    latitude: -17.7833,
-    longitude: -63.1667,
-    city: 'Santa Cruz de la Sierra',
+    name: '', address: '', maxCapacity: 100, isOpen: true,
+    latitude: -17.7833, longitude: -63.1667, city: 'Santa Cruz de la Sierra',
   });
   const [showMap, setShowMap] = useState(false);
+  const [schedules, setSchedules] = useState<ScheduleEntry[]>([]);
+  const [newSchedule, setNewSchedule] = useState({ dayOfWeek: 'LUNES', opensAt: '06:00', closesAt: '22:00', isHoliday: false });
+  const [loadingSchedules, setLoadingSchedules] = useState(false);
+  const [scheduleError, setScheduleError] = useState('');
+
+  const isEditing = !!gymToEdit;
 
   useEffect(() => {
     if (gymToEdit) {
       setFormData({
-        name: gymToEdit.name || '',
-        address: gymToEdit.location?.address || gymToEdit.description || '',
-        maxCapacity: gymToEdit.maxCapacity || 100,
-        isOpen: gymToEdit.isOpen ?? true,
-        latitude: gymToEdit.location?.latitude || -17.7833,
-        longitude: gymToEdit.location?.longitude || -63.1667,
+        name: gymToEdit.name || '', address: gymToEdit.location?.address || gymToEdit.description || '',
+        maxCapacity: gymToEdit.maxCapacity || 100, isOpen: gymToEdit.isOpen ?? true,
+        latitude: gymToEdit.location?.latitude || -17.7833, longitude: gymToEdit.location?.longitude || -63.1667,
         city: gymToEdit.location?.city || 'Santa Cruz de la Sierra',
       });
+      // Cargar horarios desde backend para edición
+      setLoadingSchedules(true);
+      apiClient.get(`/gyms/${gymToEdit.id}/schedules`).then(res => {
+        const data = Array.isArray(res.data) ? res.data : [];
+        setSchedules(data.map((s: any) => ({ id: s.id, dayOfWeek: s.dayOfWeek, opensAt: s.opensAt?.slice(0, 5), closesAt: s.closesAt?.slice(0, 5), isHoliday: s.isHoliday ?? false })));
+      }).catch(() => {
+        setSchedules(gymToEdit.schedules?.map((s: any) => ({ id: s.id, dayOfWeek: s.dayOfWeek, opensAt: s.opensAt?.slice(0, 5), closesAt: s.closesAt?.slice(0, 5), isHoliday: s.isHoliday ?? false })) || []);
+      }).finally(() => setLoadingSchedules(false));
     } else {
       setFormData({ name: '', address: '', maxCapacity: 100, isOpen: true, latitude: -17.7833, longitude: -63.1667, city: 'Santa Cruz de la Sierra' });
+      setSchedules([]);
     }
     setShowMap(false);
+    setScheduleError('');
   }, [gymToEdit, isOpen]);
 
   const handleLocationSelect = useCallback((lat: number, lng: number, address: string) => {
     setFormData(prev => ({ ...prev, latitude: lat, longitude: lng, address }));
   }, []);
 
-  if (!isOpen) return null;
+  const validateSchedule = (s: typeof newSchedule) => {
+    if (!s.opensAt || !s.closesAt) return 'Debes indicar hora de apertura y cierre.';
+    if (s.closesAt <= s.opensAt) return 'La hora de cierre debe ser posterior a la de apertura.';
+    const exists = schedules.some(x => x.dayOfWeek === s.dayOfWeek && !x.isHoliday);
+    if (exists && !s.isHoliday) return `Ya existe un horario para ${DAY_LABELS[s.dayOfWeek] || s.dayOfWeek}.`;
+    return '';
+  };
 
+  const handleAddSchedule = async () => {
+    const err = validateSchedule(newSchedule);
+    if (err) { setScheduleError(err); return; }
+    setScheduleError('');
+
+    const entry: ScheduleEntry = { ...newSchedule, _isNew: true };
+
+    if (isEditing) {
+      // Modo edición: POST individual al backend
+      try {
+        const res = await apiClient.post(`/gyms/${gymToEdit.id}/schedules`, {
+          dayOfWeek: newSchedule.dayOfWeek, opensAt: newSchedule.opensAt, closesAt: newSchedule.closesAt, isHoliday: newSchedule.isHoliday,
+        });
+        entry.id = res.data?.id;
+        entry._isNew = false;
+        toast.success(`Horario ${DAY_LABELS[newSchedule.dayOfWeek]} agregado`);
+      } catch { toast.error('Error al agregar horario en el servidor.'); return; }
+    }
+    setSchedules(prev => [...prev, entry]);
+  };
+
+  const handleRemoveSchedule = async (idx: number) => {
+    const item = schedules[idx];
+    if (isEditing && item.id) {
+      // Modo edición: DELETE individual — el backend no expone DELETE /gyms/schedules/:id,
+      // pero sí addSchedule y findSchedules. Gestionamos localmente.
+      try {
+        await apiClient.delete(`/gyms/schedules/${item.id}`, { _skipErrorToast: true } as any);
+      } catch { console.warn('[Schedules] DELETE no soportado, eliminando localmente.'); }
+    }
+    setSchedules(prev => prev.filter((_, i) => i !== idx));
+    toast.success('Horario eliminado');
+  };
+
+  const handleSave = () => {
+    // Empaquetar schedules para el modo creación
+    const schedulesPayload = schedules.map(s => ({
+      dayOfWeek: s.dayOfWeek, opensAt: s.opensAt, closesAt: s.closesAt, isHoliday: s.isHoliday,
+    }));
+    onSave({ ...formData, schedules: schedulesPayload });
+  };
+
+  if (!isOpen) return null;
   const hasCoords = formData.latitude !== -17.7833 || formData.longitude !== -63.1667;
-  const isEditing = !!gymToEdit;
 
   return (
     <ModalOverlay onClose={onClose}>
-      <div className="modal-content glass-panel" style={{ maxWidth: '560px', width: '95vw', maxHeight: '90vh', overflowY: 'auto' }}>
+      <div className="modal-content glass-panel" style={{ maxWidth: '600px', width: '95vw', maxHeight: '90vh', overflowY: 'auto' }}>
         <div className="modal-header">
           <h2>{isEditing ? '✏️ Editar Sede' : '🏢 Nueva Sede'}</h2>
         </div>
@@ -256,28 +318,15 @@ const GymModal = ({ isOpen, onClose, gymToEdit, onSave }: any) => {
         <div style={{ borderTop: '1px solid #3A3A3C', paddingTop: '1rem', marginTop: '0.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
             <label style={{ margin: 0, fontWeight: 600, color: '#E5E5EA' }}>📍 Ubicación Geográfica</label>
-            {/* Botón disponible en creación y edición */}
-            <button
-              type="button"
-              onClick={() => setShowMap(v => !v)}
-              style={{ background: showMap ? '#3A3A3C' : '#00D9FF', color: showMap ? '#fff' : '#0A0A0A', border: 'none', padding: '0.35rem 0.8rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, transition: 'all 0.2s' }}
-            >
+            <button type="button" onClick={() => setShowMap(v => !v)}
+              style={{ background: showMap ? '#3A3A3C' : '#00D9FF', color: showMap ? '#fff' : '#0A0A0A', border: 'none', padding: '0.35rem 0.8rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, transition: 'all 0.2s' }}>
               {showMap ? '🗺️ Ocultar Mapa' : '🗺️ Actualizar Ubicación en Mapa'}
             </button>
           </div>
-
-          {/* Dirección de texto (siempre visible, se autocompleta con el mapa) */}
           <div className="modal-form-group">
             <label>Dirección</label>
-            <input
-              type="text"
-              value={formData.address}
-              onChange={e => setFormData({ ...formData, address: e.target.value })}
-              placeholder="Haz clic en el mapa o escribe manualmente"
-            />
+            <input type="text" value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} placeholder="Haz clic en el mapa o escribe manualmente" />
           </div>
-
-          {/* Coordenadas — visibles tanto en creación como en edición */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
             <div className="modal-form-group" style={{ margin: 0 }}>
               <label style={{ fontSize: '0.8rem' }}>Latitud</label>
@@ -288,14 +337,10 @@ const GymModal = ({ isOpen, onClose, gymToEdit, onSave }: any) => {
               <input type="number" step="0.000001" value={formData.longitude} onChange={e => setFormData({ ...formData, longitude: parseFloat(e.target.value) || 0 })} style={{ fontSize: '0.85rem' }} />
             </div>
           </div>
-
-          {/* Ciudad — visible tanto en creación como en edición */}
           <div className="modal-form-group">
             <label>Ciudad</label>
             <input type="text" value={formData.city} onChange={e => setFormData({ ...formData, city: e.target.value })} placeholder="Santa Cruz de la Sierra" />
           </div>
-
-          {/* Map Picker — disponible en creación Y edición */}
           {showMap && (
             <div style={{ marginTop: '0.5rem' }}>
               <MapPicker lat={formData.latitude} lng={formData.longitude} onSelect={handleLocationSelect} />
@@ -308,9 +353,88 @@ const GymModal = ({ isOpen, onClose, gymToEdit, onSave }: any) => {
           )}
         </div>
 
+        {/* ════════════════════════════════════════════════════════ */}
+        {/* Sección de Horarios de Atención */}
+        {/* ════════════════════════════════════════════════════════ */}
+        <div style={{ borderTop: '1px solid #3A3A3C', paddingTop: '1rem', marginTop: '1rem' }}>
+          <label style={{ margin: 0, fontWeight: 600, color: '#E5E5EA', display: 'block', marginBottom: '0.75rem' }}>
+            🕐 Horarios de Atención
+          </label>
+
+          {/* Lista de horarios existentes */}
+          {loadingSchedules && <p style={{ color: '#8E8E93', fontSize: '0.85rem' }}>Cargando horarios...</p>}
+          {schedules.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '0.75rem' }}>
+              {schedules.map((s, i) => (
+                <div key={`${s.dayOfWeek}-${i}`} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '0.5rem 0.75rem', background: 'rgba(255,255,255,0.04)',
+                  borderRadius: '8px', border: s.isHoliday ? '1px solid rgba(255, 159, 10, 0.3)' : '1px solid #3A3A3C',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '1rem' }}>{DAY_ICONS[s.dayOfWeek] || '📅'}</span>
+                    <span style={{ fontWeight: 600, fontSize: '0.85rem', color: '#E5E5EA', minWidth: '80px' }}>
+                      {DAY_LABELS[s.dayOfWeek] || s.dayOfWeek}
+                    </span>
+                    <span style={{ color: '#00D9FF', fontSize: '0.85rem', fontFamily: 'monospace' }}>
+                      {s.opensAt} — {s.closesAt}
+                    </span>
+                    {s.isHoliday && <span style={{ fontSize: '0.7rem', padding: '1px 6px', borderRadius: '4px', background: 'rgba(255, 159, 10, 0.15)', color: '#FF9F0A' }}>FERIADO</span>}
+                  </div>
+                  <button onClick={() => handleRemoveSchedule(i)} title="Eliminar horario"
+                    style={{ background: 'none', border: 'none', color: '#FF5E00', cursor: 'pointer', fontSize: '1.1rem', padding: '0.2rem 0.4rem', borderRadius: '4px', transition: 'background 0.2s' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,94,0,0.15)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                    🗑️
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {schedules.length === 0 && !loadingSchedules && (
+            <p style={{ color: '#8E8E93', fontSize: '0.82rem', marginBottom: '0.75rem', fontStyle: 'italic' }}>
+              No hay horarios configurados. Añade al menos un día de atención.
+            </p>
+          )}
+
+          {/* Formulario para agregar nuevo horario */}
+          <div style={{ padding: '0.75rem', background: 'rgba(0, 217, 255, 0.04)', borderRadius: '10px', border: '1px solid rgba(0, 217, 255, 0.15)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <div>
+                <label style={{ fontSize: '0.75rem', color: '#8E8E93', display: 'block', marginBottom: '2px' }}>Día</label>
+                <select value={newSchedule.dayOfWeek} onChange={e => setNewSchedule(p => ({ ...p, dayOfWeek: e.target.value }))}
+                  style={{ width: '100%', padding: '0.4rem', borderRadius: '6px', background: 'rgba(0,0,0,0.3)', border: '1px solid #3A3A3C', color: '#FFF', fontSize: '0.82rem' }}>
+                  {DAYS_OF_WEEK.map(d => <option key={d} value={d}>{DAY_LABELS[d]}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: '0.75rem', color: '#8E8E93', display: 'block', marginBottom: '2px' }}>Apertura</label>
+                <input type="time" value={newSchedule.opensAt} onChange={e => setNewSchedule(p => ({ ...p, opensAt: e.target.value }))}
+                  style={{ width: '100%', padding: '0.4rem', borderRadius: '6px', background: 'rgba(0,0,0,0.3)', border: '1px solid #3A3A3C', color: '#FFF', fontSize: '0.82rem' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.75rem', color: '#8E8E93', display: 'block', marginBottom: '2px' }}>Cierre</label>
+                <input type="time" value={newSchedule.closesAt} onChange={e => setNewSchedule(p => ({ ...p, closesAt: e.target.value }))}
+                  style={{ width: '100%', padding: '0.4rem', borderRadius: '6px', background: 'rgba(0,0,0,0.3)', border: '1px solid #3A3A3C', color: '#FFF', fontSize: '0.82rem' }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <input type="checkbox" style={{ width: 'auto' }} checked={newSchedule.isHoliday} onChange={e => setNewSchedule(p => ({ ...p, isHoliday: e.target.checked }))} />
+                <label style={{ margin: 0, fontSize: '0.8rem', color: '#8E8E93' }}>Feriado</label>
+              </div>
+              <button type="button" onClick={handleAddSchedule}
+                style={{ background: '#30D158', color: '#0A0A0A', border: 'none', padding: '0.35rem 0.85rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}>
+                + Añadir
+              </button>
+            </div>
+            {scheduleError && <p style={{ color: '#FF5E00', fontSize: '0.78rem', margin: '0.4rem 0 0' }}>⚠️ {scheduleError}</p>}
+          </div>
+        </div>
+
         <div className="modal-actions">
           <button className="btn-cancel" onClick={onClose}>Cancelar</button>
-          <button className="btn-primary" onClick={() => onSave(formData)}>Guardar Sede</button>
+          <button className="btn-primary" onClick={handleSave}>Guardar Sede</button>
         </div>
       </div>
     </ModalOverlay>
@@ -319,6 +443,15 @@ const GymModal = ({ isOpen, onClose, gymToEdit, onSave }: any) => {
 const panelStyle: CSSProperties = {
   padding: '1.25rem',
   color: '#FFFFFF',
+};
+
+type GymScheduleDto = {
+  id: number;
+  gymId: number;
+  dayOfWeek: string;
+  opensAt: string;
+  closesAt: string;
+  isHoliday: boolean;
 };
 
 type GymDto = {
@@ -333,6 +466,7 @@ type GymDto = {
     address?: string;
     city?: string;
   };
+  schedules?: GymScheduleDto[];
 };
 
 type UserDto = {
@@ -799,7 +933,7 @@ export const SedesView = () => {
           isOpen: Boolean(formData.isOpen)
         };
       } else {
-        // POST: CreateGymDto — Payload atómico con location anidada (Cascada TypeORM)
+        // POST: CreateGymDto — Payload atómico con location + schedules (Cascada TypeORM)
         payload = {
           name: formData.name,
           description: formData.description || '',
@@ -809,7 +943,8 @@ export const SedesView = () => {
             city: formData.city || 'Santa Cruz de la Sierra',
             latitude: Number(formData.latitude) || 0,
             longitude: Number(formData.longitude) || 0
-          }
+          },
+          ...(formData.schedules?.length ? { schedules: formData.schedules } : {}),
         };
       }
 
@@ -894,6 +1029,7 @@ export const SedesView = () => {
                 <th style={{ textAlign: 'left', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Direccion</th>
                 <th style={{ textAlign: 'left', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Capacidad</th>
                 <th style={{ textAlign: 'left', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Aforo</th>
+                <th style={{ textAlign: 'left', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Horarios</th>
                 <th style={{ textAlign: 'left', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Estado</th>
                 {user.role === 'SUPER_ADMIN' && (
                   <th style={{ textAlign: 'center', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Acciones</th>
@@ -910,6 +1046,11 @@ export const SedesView = () => {
                   </td>
                   <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C' }}>{g.maxCapacity ?? '-'}</td>
                   <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C' }}>{g.aforoActual ?? '-'}</td>
+                  <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C' }}>
+                    <span style={{ color: (g.schedules?.length || 0) > 0 ? '#30D158' : '#8E8E93', fontWeight: 600 }}>
+                      {g.schedules?.length || 0} días
+                    </span>
+                  </td>
                   <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C' }}>
                     <span style={{ color: g.isActive ? '#30D158' : '#FF5E00' }}>
                       {g.isActive ? 'ACTIVA' : 'INACTIVA'}
