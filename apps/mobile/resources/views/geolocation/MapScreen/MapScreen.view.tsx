@@ -10,6 +10,8 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Marker, UrlTile } from 'react-native-maps';
 import MapView from 'react-native-maps';
+import { useFilterStore } from '../../../../app/Providers/geolocation/stores/FilterStore';
+
 import { SedeMarker } from '../SedeMarker/SedeMarker.component';
 import { SedeInfoModalView } from '../SedeInfoModal/SedeInfoModal.view';
 import { SedesCatalog } from '../SedesCatalog/SedesCatalog.view';
@@ -61,6 +63,11 @@ export const MapScreenView: React.FC<MapScreenViewProps> = ({
     setToastConfig({ message, type, key: Date.now() });
     setTimeout(() => setToastConfig(null), 3500);
   };
+
+  const { filtros, toggleServicio, toggleBeneficio } = useFilterStore();
+  
+  const activeFiltersCount = (filtros.servicios?.length || 0) + (filtros.beneficios?.length || 0);
+
 
   if (loading && sedes.length === 0) {
     return <LoadingOverlay message="Buscando sedes cercanas..." />;
@@ -124,19 +131,42 @@ export const MapScreenView: React.FC<MapScreenViewProps> = ({
     <View style={styles.container}>
       {/* Contenedor del Mapa - Siempre montado debajo */}
       <View style={StyleSheet.absoluteFillObject}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerTextCol}>
-            <Text style={styles.headerTitle}>Filtros Activos</Text>
-            <Text style={styles.headerSubtitle}>
-              {sedes.length} {sedes.length === 1 ? 'resultado' : 'resultados'}
-            </Text>
+        {/* Floating Header with Semi-Transparent Glass Effect */}
+        <View style={styles.headerContainer} pointerEvents="box-none">
+          <View style={styles.headerBlur}>
+            <View style={styles.headerRow}>
+              <View style={styles.headerTextCol}>
+                <Text style={styles.headerTitle}>Sedes Cercanas</Text>
+                <Text style={styles.headerSubtitle}>
+                  {sedes.length} {sedes.length === 1 ? 'resultado encontrado' : 'resultados encontrados'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Active Filter Chips */}
+            {activeFiltersCount > 0 && (
+              <View style={styles.activeFiltersRow}>
+                {filtros.servicios?.map(servicio => (
+                  <TouchableOpacity key={servicio} style={styles.activeFilterChip} onPress={() => toggleServicio(servicio)}>
+                    <Text style={styles.activeFilterText}>{servicio}</Text>
+                    <MaterialCommunityIcons name="close" size={14} color="#FFF" />
+                  </TouchableOpacity>
+                ))}
+                {filtros.beneficios?.map(beneficio => (
+                  <TouchableOpacity key={beneficio} style={styles.activeFilterChip} onPress={() => toggleBeneficio(beneficio)}>
+                    <Text style={styles.activeFilterText}>{beneficio}</Text>
+                    <MaterialCommunityIcons name="close" size={14} color="#FFF" />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
-          <TouchableOpacity style={styles.catalogTopButton} onPress={onToggleListView} activeOpacity={0.8}>
-            <MaterialCommunityIcons name="view-carousel-outline" size={24} color="#00D9FF" />
-            <Text style={styles.catalogTopButtonText}>Catálogo</Text>
-          </TouchableOpacity>
         </View>
+
+        {/* FAB de Catálogo */}
+        <TouchableOpacity style={styles.catalogFab} onPress={onToggleListView} activeOpacity={0.8}>
+          <MaterialCommunityIcons name="view-list" size={24} color="#1C1C1E" />
+        </TouchableOpacity>
 
         {/* Mapa con OpenStreetMap */}
         <MapView

@@ -22,7 +22,7 @@ const { width, height } = Dimensions.get('window');
 const GRID_GAP = 10;
 const GRID_ITEM = (width - 40 - GRID_GAP) / 2;
 
-type NavigationProp = NativeStackNavigationProp<BuscarStackParamList, 'Regresar'>;
+type NavigationProp = NativeStackNavigationProp<BuscarStackParamList, 'BuscarHome'>;
 
 const CATEGORIAS = [
   { label: 'Aerobicos', icon: 'heart-pulse', color: '#e94560', query: 'Zumba' }, // Match approx con los servicios

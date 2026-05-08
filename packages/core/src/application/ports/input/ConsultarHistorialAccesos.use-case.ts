@@ -2,7 +2,7 @@ import type { IAccessApiService, AccesoQueryParams } from '../output/IAccessApiS
 import type { Acceso } from '../../../domain/entities/Acceso.entity';
 import { Either, left } from '../../../shared/kernel/Either';
 
-export type UserRole = 'SUPER_ADMIN' | 'GERENTE' | 'USER';
+export type UserRole = 'SUPER_ADMIN' | 'GERENTE' | 'ENTRENADOR' | 'NUTRICIONISTA' | 'CLIENTE' | 'USER';
 
 export interface AutenticacionContext {
   userId: string;
