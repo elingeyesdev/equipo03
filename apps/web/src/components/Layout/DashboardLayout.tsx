@@ -55,6 +55,11 @@ export const DashboardLayout = () => {
               🏢 Sedes
             </NavLink>
           )}
+          {user?.role === 'SUPER_ADMIN' && (
+            <NavLink to="/dashboard/roles" onClick={closeSidebar} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
+              🔑 Roles
+            </NavLink>
+          )}
           {(user?.role === 'SUPER_ADMIN' || user?.role === 'ENTRENADOR' || user?.role === 'NUTRICIONISTA' || user?.role === 'CLIENTE') && (
             <NavLink to="/dashboard/rutinas" onClick={closeSidebar} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
               🏋️ Rutinas

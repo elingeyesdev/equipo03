@@ -81,6 +81,10 @@ export const createApiClient = (): AxiosInstance => {
       return response;
     },
     (error) => {
+      if (error.config?._skipErrorToast) {
+        return Promise.reject(error);
+      }
+
       console.error('[Web API Error]', error.message);
       
       if (error.response) {
