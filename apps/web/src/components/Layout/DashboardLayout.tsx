@@ -1,12 +1,18 @@
 import React, { useState } from 'react';
 import { Outlet, Navigate, useNavigate, NavLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotifications } from '../../hooks/useNotifications';
 import './DashboardLayout.css';
 
 export const DashboardLayout = () => {
   const { isAuthenticated, user, logout, isLoading } = useAuth();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // 🔌 Activar canal de notificaciones en tiempo real (Socket.io)
+  // Se auto-une a la sala correcta según el rol (room_gym_{id} o room_admin_all)
+  useNotifications();
+
 
   if (isLoading) return <div className="layout-loading">Verificando sesión...</div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;

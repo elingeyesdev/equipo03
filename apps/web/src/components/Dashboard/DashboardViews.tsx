@@ -1,8 +1,16 @@
 import { Navigate } from 'react-router-dom';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import type { CSSProperties } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
+// Leaflet — Map Picker (tiles gratuitas de OpenStreetMap, sin API Key)
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({ iconUrl: markerIcon, iconRetinaUrl: markerIcon2x, shadowUrl: markerShadow });
 
 // --- MODAL COMPONENTS ---
 const ModalOverlay = ({ children, onClose }: any) => (
@@ -97,53 +105,213 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave }: any) => {
   );
 };
 
+
+// ============================================================
+// LOCATION PICKER — Mapa interactivo con Leaflet + OpenStreetMap
+// ============================================================
+const MapPicker = ({ lat, lng, onSelect }: { lat: number; lng: number; onSelect: (lat: number, lng: number, address: string) => void }) => {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const leafletMap = useRef<L.Map | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
+  const [geocoding, setGeocoding] = useState(false);
+
+  const reverseGeocode = useCallback(async (latitude: number, longitude: number) => {
+    setGeocoding(true);
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+        { headers: { 'Accept-Language': 'es' } }
+      );
+      const data = await res.json();
+      const address = data.display_name || `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+      onSelect(latitude, longitude, address);
+    } catch {
+      onSelect(latitude, longitude, `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+    } finally {
+      setGeocoding(false);
+    }
+  }, [onSelect]);
+
+  useEffect(() => {
+    if (!mapRef.current || leafletMap.current) return;
+
+    const initialLat = lat || -17.7833;
+    const initialLng = lng || -63.1667;
+
+    const map = L.map(mapRef.current, { zoomControl: true }).setView([initialLat, initialLng], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19,
+    }).addTo(map);
+
+    const marker = L.marker([initialLat, initialLng], { draggable: true }).addTo(map);
+    marker.bindPopup('📍 Arrastra para ajustar la ubicación').openPopup();
+
+    marker.on('dragend', () => {
+      const pos = marker.getLatLng();
+      reverseGeocode(pos.lat, pos.lng);
+    });
+
+    map.on('click', (e: L.LeafletMouseEvent) => {
+      marker.setLatLng(e.latlng);
+      reverseGeocode(e.latlng.lat, e.latlng.lng);
+    });
+
+    leafletMap.current = map;
+    markerRef.current = marker;
+
+    return () => {
+      map.remove();
+      leafletMap.current = null;
+    };
+  }, []);
+
+  // Actualizar posición del marcador cuando cambian las props externas
+  useEffect(() => {
+    if (markerRef.current && lat && lng) {
+      markerRef.current.setLatLng([lat, lng]);
+      leafletMap.current?.setView([lat, lng], 14);
+    }
+  }, [lat, lng]);
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <div ref={mapRef} style={{ height: '260px', borderRadius: '10px', border: '1px solid #3A3A3C', overflow: 'hidden', zIndex: 0 }} />
+      {geocoding && (
+        <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.7)', color: '#00D9FF', padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', zIndex: 1000 }}>
+          🔍 Obteniendo dirección...
+        </div>
+      )}
+      <p style={{ margin: '6px 0 0', fontSize: '0.75rem', color: '#8E8E93' }}>
+        📌 Haz clic en el mapa o arrastra el marcador para seleccionar la ubicación exacta
+      </p>
+    </div>
+  );
+};
+
+// ============================================================
+// GymModal — Con Map Picker integrado
+// ============================================================
 const GymModal = ({ isOpen, onClose, gymToEdit, onSave }: any) => {
   const [formData, setFormData] = useState({
-    name: '', address: '', maxCapacity: 100, isActive: true, isOpen: true
+    name: '',
+    address: '',
+    maxCapacity: 100,
+    isOpen: true,
+    latitude: -17.7833,
+    longitude: -63.1667,
+    city: 'Santa Cruz de la Sierra',
   });
-  
+  const [showMap, setShowMap] = useState(false);
+
   useEffect(() => {
     if (gymToEdit) {
       setFormData({
         name: gymToEdit.name || '',
         address: gymToEdit.location?.address || gymToEdit.description || '',
         maxCapacity: gymToEdit.maxCapacity || 100,
-        isActive: gymToEdit.isActive ?? true,
-        isOpen: gymToEdit.isOpen ?? true
+        isOpen: gymToEdit.isOpen ?? true,
+        latitude: gymToEdit.location?.latitude || -17.7833,
+        longitude: gymToEdit.location?.longitude || -63.1667,
+        city: gymToEdit.location?.city || 'Santa Cruz de la Sierra',
       });
     } else {
-      setFormData({ name: '', address: '', maxCapacity: 100, isActive: true, isOpen: true });
+      setFormData({ name: '', address: '', maxCapacity: 100, isOpen: true, latitude: -17.7833, longitude: -63.1667, city: 'Santa Cruz de la Sierra' });
     }
+    setShowMap(false);
   }, [gymToEdit, isOpen]);
+
+  const handleLocationSelect = useCallback((lat: number, lng: number, address: string) => {
+    setFormData(prev => ({ ...prev, latitude: lat, longitude: lng, address }));
+  }, []);
 
   if (!isOpen) return null;
 
+  const hasCoords = formData.latitude !== -17.7833 || formData.longitude !== -63.1667;
+  const isEditing = !!gymToEdit;
+
   return (
     <ModalOverlay onClose={onClose}>
-      <div className="modal-content glass-panel">
+      <div className="modal-content glass-panel" style={{ maxWidth: '560px', width: '95vw', maxHeight: '90vh', overflowY: 'auto' }}>
         <div className="modal-header">
-          <h2>{gymToEdit ? 'Editar Sede' : 'Nueva Sede'}</h2>
+          <h2>{isEditing ? '✏️ Editar Sede' : '🏢 Nueva Sede'}</h2>
         </div>
+
+        {/* Campos básicos */}
         <div className="modal-form-group">
           <label>Nombre de la Sede</label>
-          <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="Ej. Sucursal Centro" />
-        </div>
-        <div className="modal-form-group">
-          <label>Dirección o Descripción</label>
-          <input type="text" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} placeholder="Calle Principal 123" />
+          <input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="Ej. Sucursal Centro" />
         </div>
         <div className="modal-form-group">
           <label>Capacidad Máxima (Aforo)</label>
-          <input type="number" value={formData.maxCapacity} onChange={e => setFormData({...formData, maxCapacity: parseInt(e.target.value) || 0})} />
+          <input type="number" value={formData.maxCapacity} onChange={e => setFormData({ ...formData, maxCapacity: parseInt(e.target.value) || 0 })} />
         </div>
         <div className="modal-form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <input type="checkbox" style={{ width: 'auto' }} checked={formData.isActive} onChange={e => setFormData({...formData, isActive: e.target.checked})} />
-          <label style={{ margin: 0 }}>Sede Activa en el Sistema</label>
-        </div>
-        <div className="modal-form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <input type="checkbox" style={{ width: 'auto' }} checked={formData.isOpen} onChange={e => setFormData({...formData, isOpen: e.target.checked})} />
+          <input type="checkbox" style={{ width: 'auto' }} checked={formData.isOpen} onChange={e => setFormData({ ...formData, isOpen: e.target.checked })} />
           <label style={{ margin: 0 }}>Sede Abierta al Público</label>
         </div>
+
+        {/* Sección de Ubicación */}
+        <div style={{ borderTop: '1px solid #3A3A3C', paddingTop: '1rem', marginTop: '0.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+            <label style={{ margin: 0, fontWeight: 600, color: '#E5E5EA' }}>📍 Ubicación Geográfica</label>
+            {!isEditing && (
+              <button
+                type="button"
+                onClick={() => setShowMap(v => !v)}
+                style={{ background: showMap ? '#3A3A3C' : '#00D9FF', color: showMap ? '#fff' : '#0A0A0A', border: 'none', padding: '0.35rem 0.8rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, transition: 'all 0.2s' }}
+              >
+                {showMap ? '🗺️ Ocultar Mapa' : '🗺️ Abrir Selector de Mapa'}
+              </button>
+            )}
+          </div>
+
+          {/* Dirección de texto (siempre visible, se autocompleta con el mapa) */}
+          <div className="modal-form-group">
+            <label>Dirección</label>
+            <input
+              type="text"
+              value={formData.address}
+              onChange={e => setFormData({ ...formData, address: e.target.value })}
+              placeholder="Haz clic en el mapa o escribe manualmente"
+            />
+          </div>
+
+          {/* Coordenadas (solo lectura, pobladas por el mapa) */}
+          {!isEditing && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+              <div className="modal-form-group" style={{ margin: 0 }}>
+                <label style={{ fontSize: '0.8rem' }}>Latitud</label>
+                <input type="number" step="0.000001" value={formData.latitude} onChange={e => setFormData({ ...formData, latitude: parseFloat(e.target.value) || 0 })} style={{ fontSize: '0.85rem' }} />
+              </div>
+              <div className="modal-form-group" style={{ margin: 0 }}>
+                <label style={{ fontSize: '0.8rem' }}>Longitud</label>
+                <input type="number" step="0.000001" value={formData.longitude} onChange={e => setFormData({ ...formData, longitude: parseFloat(e.target.value) || 0 })} style={{ fontSize: '0.85rem' }} />
+              </div>
+            </div>
+          )}
+
+          {/* Ciudad */}
+          {!isEditing && (
+            <div className="modal-form-group">
+              <label>Ciudad</label>
+              <input type="text" value={formData.city} onChange={e => setFormData({ ...formData, city: e.target.value })} placeholder="Santa Cruz de la Sierra" />
+            </div>
+          )}
+
+          {/* Map Picker — renderizado solo en modo creación */}
+          {!isEditing && showMap && (
+            <div style={{ marginTop: '0.5rem' }}>
+              <MapPicker lat={formData.latitude} lng={formData.longitude} onSelect={handleLocationSelect} />
+              {hasCoords && (
+                <div style={{ marginTop: '0.5rem', padding: '0.5rem 0.75rem', background: 'rgba(0, 217, 255, 0.08)', borderRadius: '6px', border: '1px solid rgba(0, 217, 255, 0.2)', fontSize: '0.8rem', color: '#00D9FF' }}>
+                  ✅ Coordenadas seleccionadas: {formData.latitude.toFixed(5)}, {formData.longitude.toFixed(5)}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         <div className="modal-actions">
           <button className="btn-cancel" onClick={onClose}>Cancelar</button>
           <button className="btn-primary" onClick={() => onSave(formData)}>Guardar Sede</button>

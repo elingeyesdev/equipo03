@@ -15,10 +15,10 @@ export class SedeDTOMapper {
   static toDomain(dto: Record<string, unknown>): Sede {
     // Maneja tanto el formato flat (Mock) como el formato anidado (Backend Real)
     const location = dto.location as any || {};
-    const address = location.address || dto.direccion;
-    const lat = location.latitude ?? dto.latitude;
-    const lng = location.longitude ?? dto.longitude;
-    const maxCap = dto.maxCapacity ?? dto.aforoMaximo;
+    const address = location.address || dto.direccion || 'Dirección no especificada';
+    const lat = location.latitude ?? dto.latitude ?? 0;
+    const lng = location.longitude ?? dto.longitude ?? 0;
+    const maxCap = dto.maxCapacity ?? dto.capacity ?? dto.aforoMaximo ?? 100;
     const actualCap = dto.aforoActual ?? 0;
     
     // Mapeo simple de schedules del backend a HorariosMap
