@@ -18,6 +18,7 @@ interface AuthContextType {
   error: string | null;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
+  updateProfile: (data: any) => void;
   clearError: () => void;
 }
 
@@ -84,6 +85,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const updateProfile = (data: any) => {
+    if (user) {
+      setUser({
+        ...user,
+        profile: {
+          ...(user.profile || {}),
+          ...data
+        }
+      });
+    }
+  };
+
   const clearError = () => {
     setError(null);
   };
@@ -95,6 +108,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     error,
     login,
     logout,
+    updateProfile,
     clearError,
   };
 

@@ -11,8 +11,8 @@ export const styles = StyleSheet.create({
   },
   modalContainer: {
     backgroundColor: '#1C1C1E', // Superficie SyncPro
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
     maxHeight: '80%',
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
     paddingHorizontal: 24,
@@ -73,12 +73,17 @@ export const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#3A3A3C',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     backgroundColor: '#0A0A0A',
   },
   chipActive: {
-    backgroundColor: 'rgba(255, 94, 0, 0.12)', // Naranja con opacidad
+    backgroundColor: 'rgba(255, 94, 0, 0.15)', // Naranja con opacidad
     borderColor: '#FF5E00', // Naranja Acción
+    shadowColor: '#FF5E00',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 4,
   },
   chipText: {
     color: '#888888',

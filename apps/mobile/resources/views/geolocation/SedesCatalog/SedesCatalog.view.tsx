@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ImageBackground, SafeAreaView, Platform, ScrollView } from 'react-native';
 import { SedeConDistancia, Sede } from '@gymsync/core';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useFilterStore } from '../../../../app/Providers/geolocation/stores/FilterStore';
+import { FilterBottomSheet } from '../UI/FilterBottomSheet/FilterBottomSheet.component';
 
 interface SedesCatalogProps {
   sedes: SedeConDistancia[];
@@ -14,6 +16,11 @@ export const SedesCatalog: React.FC<SedesCatalogProps> = ({
   onSelectSede,
   onCerrarCatalogo
 }) => {
+  const [filterVisible, setFilterVisible] = React.useState(false);
+  const { filtros, toggleServicio, toggleBeneficio } = useFilterStore();
+  
+  const activeFiltersCount = (filtros.servicios?.length || 0) + (filtros.beneficios?.length || 0);
+
 
   const renderAforoBar = (actual: number, maximo: number) => {
     const percentage = Math.min((actual / maximo) * 100, 100);
@@ -45,15 +52,14 @@ export const SedesCatalog: React.FC<SedesCatalogProps> = ({
         imageStyle={{ borderRadius: 28 }}
       >
         <View style={styles.cardOverlay}>
-          {/* Header Info */}
           <View style={styles.topRow}>
             <View style={styles.ratingBadge}>
-              <MaterialCommunityIcons name="star" size={16} color="#FFD700" />
+              <MaterialCommunityIcons name="star" size={14} color="#FFD700" />
               <Text style={styles.ratingText}>{item.sede.rating?.toFixed(1) || '4.5'}</Text>
               <Text style={styles.reviewCountText}>({item.sede.resenasCount || 100})</Text>
             </View>
             <View style={styles.distanceBadge}>
-              <MaterialCommunityIcons name="map-marker-distance" size={14} color="#00D9FF" />
+              <MaterialCommunityIcons name="map-marker-distance" size={12} color="#00D9FF" />
               <Text style={styles.distanceText}>{item.distancia.kmCorta}</Text>
             </View>
           </View>
@@ -61,24 +67,21 @@ export const SedesCatalog: React.FC<SedesCatalogProps> = ({
           <View style={styles.bottomContent}>
              <Text style={styles.title} numberOfLines={1}>{item.sede.nombre}</Text>
              <Text style={styles.addressText} numberOfLines={1}>
-               <MaterialCommunityIcons name="map-marker" size={14} color="#888" /> {item.sede.direccion}
+               <MaterialCommunityIcons name="map-marker" size={12} color="#888" /> {item.sede.direccion}
              </Text>
              
-             {/* Servicios Chips Premium */}
-             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
-                <View style={styles.chipsContainer}>
-                  {item.sede.servicios.slice(0, 4).map((servicio, index) => (
-                    <View key={index} style={styles.chip}>
-                      <Text style={styles.chipText}>{servicio}</Text>
-                    </View>
-                  ))}
-                  {item.sede.servicios.length > 4 && (
-                    <View style={styles.chipMore}>
-                      <Text style={styles.chipMoreText}>+{item.sede.servicios.length - 4}</Text>
-                    </View>
-                  )}
-                </View>
-             </ScrollView>
+             <View style={styles.chipsContainer}>
+               {item.sede.servicios.slice(0, 3).map((servicio, index) => (
+                 <View key={index} style={styles.chip}>
+                   <Text style={styles.chipText}>{servicio}</Text>
+                 </View>
+               ))}
+               {item.sede.servicios.length > 3 && (
+                 <View style={styles.chipMore}>
+                   <Text style={styles.chipMoreText}>+{item.sede.servicios.length - 3}</Text>
+                 </View>
+               )}
+             </View>
 
              {renderAforoBar(item.sede.aforo.actual, item.sede.aforo.maximo)}
           </View>
@@ -90,13 +93,33 @@ export const SedesCatalog: React.FC<SedesCatalogProps> = ({
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.topBar}>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={styles.magazineLabel}>GYMSYNC PREMIUM</Text>
           <Text style={styles.headerTitle}>Explorar Sedes</Text>
+          
+          {/* Active Filter Chips in Catalog */}
+          {activeFiltersCount > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.activeFiltersScroll}>
+              <View style={styles.activeFiltersRow}>
+                {filtros.servicios?.map(servicio => (
+                  <TouchableOpacity key={servicio} style={styles.activeFilterChip} onPress={() => toggleServicio(servicio)}>
+                    <Text style={styles.activeFilterText}>{servicio}</Text>
+                    <MaterialCommunityIcons name="close" size={14} color="#FFF" />
+                  </TouchableOpacity>
+                ))}
+                {filtros.beneficios?.map(beneficio => (
+                  <TouchableOpacity key={beneficio} style={styles.activeFilterChip} onPress={() => toggleBeneficio(beneficio)}>
+                    <Text style={styles.activeFilterText}>{beneficio}</Text>
+                    <MaterialCommunityIcons name="close" size={14} color="#FFF" />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          )}
         </View>
         <TouchableOpacity style={styles.closeButton} onPress={onCerrarCatalogo} activeOpacity={0.8}>
           <MaterialCommunityIcons name="map-outline" size={18} color="#FF5E00" style={{marginRight: 4}} />
-          <Text style={styles.closeButtonText}>Ir al Mapa</Text>
+          <Text style={styles.closeButtonText}>Mapa</Text>
         </TouchableOpacity>
       </View>
 
@@ -114,6 +137,25 @@ export const SedesCatalog: React.FC<SedesCatalogProps> = ({
           </View>
         }
       />
+
+      {/* Filter FAB for Catalog */}
+      <TouchableOpacity 
+        style={styles.filterFab} 
+        onPress={() => setFilterVisible(true)}
+        activeOpacity={0.8}
+      >
+        <MaterialCommunityIcons name="tune-variant" size={24} color="#FFF" />
+        {activeFiltersCount > 0 && (
+          <View style={styles.filterBadge}>
+            <Text style={styles.filterBadgeText}>{activeFiltersCount}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+
+      <FilterBottomSheet 
+        visible={filterVisible} 
+        onClose={() => setFilterVisible(false)} 
+      />
     </SafeAreaView>
   );
 };
@@ -126,7 +168,7 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingHorizontal: 24,
     paddingVertical: 18,
     borderBottomWidth: 1,
@@ -160,20 +202,80 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 14,
   },
+  activeFiltersScroll: {
+    marginTop: 12,
+    flexGrow: 0,
+  },
+  activeFiltersRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingRight: 20,
+  },
+  activeFilterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  activeFilterText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '600',
+    marginRight: 6,
+  },
+  filterFab: {
+    position: 'absolute',
+    bottom: 30,
+    right: 24,
+    backgroundColor: '#FF5E00',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#FF5E00',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 10,
+    zIndex: 110,
+  },
+  filterBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#00D9FF',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FF5E00',
+  },
+  filterBadgeText: {
+    color: '#1C1C1E',
+    fontSize: 11,
+    fontWeight: '900',
+  },
   listContainer: {
     padding: 20,
     paddingBottom: 40,
   },
   card: {
     width: '100%',
-    height: 380,
-    marginBottom: 24,
-    borderRadius: 28,
+    height: 250, // Much smaller to fit 2 vertically
+    marginBottom: 16,
+    borderRadius: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 15,
-    elevation: 12,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 8,
   },
   cardImage: {
     width: '100%',
@@ -182,10 +284,10 @@ const styles = StyleSheet.create({
   },
   cardOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    borderRadius: 28,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 24,
     justifyContent: 'space-between',
-    padding: 20,
+    padding: 14,
   },
   topRow: {
     flexDirection: 'row',
@@ -202,13 +304,13 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     color: '#FFF',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 'bold',
     marginLeft: 4,
   },
   reviewCountText: {
     color: '#A0A0A0',
-    fontSize: 12,
+    fontSize: 11,
     marginLeft: 4,
   },
   distanceBadge: {
@@ -228,42 +330,40 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   bottomContent: {
-    backgroundColor: 'rgba(20, 20, 22, 0.85)',
-    borderRadius: 20,
-    padding: 16,
+    backgroundColor: 'rgba(20, 20, 22, 0.9)',
+    borderRadius: 16,
+    padding: 12,
   },
   title: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '900',
     color: '#FFFFFF',
-    marginBottom: 4,
+    marginBottom: 2,
     letterSpacing: -0.3,
   },
   addressText: {
-    fontSize: 13,
+    fontSize: 11,
     color: '#B0B0B0',
-    marginBottom: 14,
+    marginBottom: 8,
     fontWeight: '500',
-  },
-  chipsScroll: {
-    marginBottom: 16,
   },
   chipsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
+    marginBottom: 10,
   },
   chip: {
     backgroundColor: 'rgba(0, 217, 255, 0.1)',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderWidth: 1,
     borderColor: 'rgba(0, 217, 255, 0.3)',
   },
   chipText: {
     color: '#00D9FF',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
   },
   chipMore: {

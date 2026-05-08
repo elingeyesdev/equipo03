@@ -66,7 +66,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else if (email.includes('gerente@')) {
         extractedRole = 'GERENTE';
         extractedGymId = extractedGymId || '1'; // Sede por defecto si falla el backend
-      } 
+      } else if (email.includes('entrenador@')) {
+        extractedRole = 'ENTRENADOR';
+        extractedGymId = extractedGymId || '1';
+      } else if (email.includes('nutricionista@')) {
+        extractedRole = 'NUTRICIONISTA';
+        extractedGymId = extractedGymId || '1';
+      } else if (email.includes('cliente@')) {
+        extractedRole = 'CLIENTE';
+        extractedGymId = extractedGymId || '1';
+      }
       // 2. Extraer del JWT o User Data
       else {
         if (jwtPayload.role) extractedRole = jwtPayload.role;
@@ -76,8 +85,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       
       extractedRole = String(extractedRole).toUpperCase();
-      const normalizedRole: UserRole =
-        extractedRole === 'SUPER_ADMIN' || extractedRole === 'GERENTE' ? extractedRole : 'USER';
+      
+      const validRoles: UserRole[] = ['SUPER_ADMIN', 'GERENTE', 'ENTRENADOR', 'NUTRICIONISTA', 'CLIENTE', 'USER'];
+      const normalizedRole: UserRole = validRoles.includes(extractedRole as UserRole) 
+        ? (extractedRole as UserRole) 
+        : 'USER';
 
       // Si userData no trae ID, usamos el sub/id del token (estándar JWT)
       const finalUserId = userData.id || jwtPayload.sub || jwtPayload.id || '99';

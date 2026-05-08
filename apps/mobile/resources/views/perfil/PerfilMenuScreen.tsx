@@ -4,14 +4,25 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { PerfilStackParamList } from '../../../routes/PerfilStack';
+import { useAuth } from '../../../app/Shared/hooks/useAuth';
 
 type NavigationProp = NativeStackNavigationProp<PerfilStackParamList, 'Menu'>;
 
 export const PerfilMenuScreen = () => {
   const navigation = useNavigation<NavigationProp>();
+  const { user } = useAuth();
+
+  // Datos dinámicos del usuario
+  const displayName = user?.profile?.username || user?.profile?.firstName || user?.email?.split('@')[0] || 'Usuario';
+  const avatarIcon = user?.profile?.avatarIcon || 'face-man-profile';
+  const sports = user?.profile?.favoriteSports || 'Sin deportes favoritos';
 
   const menuItems = [
-    { icon: 'account', label: 'Mis datos personales', action: () => {} },
+    { 
+      icon: 'account', 
+      label: 'Mis datos personales', 
+      action: () => navigation.navigate('DatosPersonales') 
+    },
     { icon: 'human-handsup', label: 'Mis datos físicos', action: () => navigation.navigate('Manager') },
     { icon: 'trophy', label: 'Mis objetivos', action: () => {} },
     { icon: 'medical-bag', label: 'Mis restricciones medicas', action: () => navigation.navigate('Manager') },
@@ -27,11 +38,16 @@ export const PerfilMenuScreen = () => {
         {/* Profile Header */}
         <View style={styles.header}>
           <View style={styles.avatarContainer}>
-            <MaterialCommunityIcons name="face-man-profile" size={60} color="#ccc" />
+            <MaterialCommunityIcons name={avatarIcon as any} size={60} color="#f05b22" />
           </View>
-          <Text style={styles.name}>Julian Thorne</Text>
-          <TouchableOpacity style={styles.progressBtn}>
-            <Text style={styles.progressBtnText}>Ver mi progreso</Text>
+          <Text style={styles.name}>{displayName}</Text>
+          <Text style={styles.sportsText}>{sports}</Text>
+          
+          <TouchableOpacity 
+            style={styles.progressBtn}
+            onPress={() => navigation.navigate('DatosPersonales')}
+          >
+            <Text style={styles.progressBtnText}>Editar Perfil</Text>
           </TouchableOpacity>
         </View>
 
@@ -40,7 +56,7 @@ export const PerfilMenuScreen = () => {
           {menuItems.map((item, index) => (
             <TouchableOpacity key={index} style={styles.menuItem} onPress={item.action}>
               <View style={styles.menuItemLeft}>
-                <MaterialCommunityIcons name={item.icon as any} size={24} color="#ccc" style={styles.menuIcon} />
+                <MaterialCommunityIcons name={item.icon as any} size={24} color="#f05b22" style={styles.menuIcon} />
                 <Text style={styles.menuLabel}>{item.label}</Text>
               </View>
               <MaterialCommunityIcons name="chevron-right" size={24} color="#666" />
@@ -64,27 +80,48 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     paddingVertical: 40,
+    backgroundColor: '#0a0a0a',
+    borderBottomWidth: 1,
+    borderBottomColor: '#111',
   },
   avatarContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#1E1E1E',
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: '#161618',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#333',
+    shadowColor: '#f05b22',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
   },
   name: {
     color: '#ffffff',
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 12,
+    fontSize: 26,
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+  sportsText: {
+    color: '#666',
+    fontSize: 14,
+    marginBottom: 20,
+    fontStyle: 'italic',
   },
   progressBtn: {
     backgroundColor: '#f05b22',
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 25,
+    borderRadius: 25,
+    shadowColor: '#f05b22',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 8,
   },
   progressBtnText: {
     color: '#ffffff',
@@ -92,25 +129,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   menuContainer: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
+    marginTop: 10,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
+    paddingVertical: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#222222',
+    borderBottomColor: '#161618',
   },
   menuItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   menuIcon: {
-    marginRight: 16,
+    marginRight: 20,
   },
   menuLabel: {
     color: '#ffffff',
     fontSize: 16,
+    fontWeight: '500',
   },
 });
