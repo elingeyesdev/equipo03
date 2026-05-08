@@ -272,14 +272,16 @@ const GymModal = ({ isOpen, onClose, gymToEdit, onSave }: any) => {
   const handleRemoveSchedule = async (idx: number) => {
     const item = schedules[idx];
     if (isEditing && item.id) {
-      // Modo edición: DELETE individual — el backend no expone DELETE /gyms/schedules/:id,
-      // pero sí addSchedule y findSchedules. Gestionamos localmente.
       try {
-        await apiClient.delete(`/gyms/schedules/${item.id}`, { _skipErrorToast: true } as any);
-      } catch { console.warn('[Schedules] DELETE no soportado, eliminando localmente.'); }
+        await apiClient.delete(`/gyms/schedules/${item.id}`);
+        toast.success('Horario eliminado del servidor');
+      } catch {
+        toast.error('Error al eliminar horario del servidor.');
+        return;
+      }
     }
     setSchedules(prev => prev.filter((_, i) => i !== idx));
-    toast.success('Horario eliminado');
+    if (!isEditing) toast.success('Horario removido');
   };
 
   const handleSave = () => {
