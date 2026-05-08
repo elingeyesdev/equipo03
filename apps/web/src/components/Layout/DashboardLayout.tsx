@@ -35,9 +35,14 @@ export const DashboardLayout = () => {
             👥 Usuarios
           </NavLink>
           {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE') && (
-            <NavLink to="/dashboard/sedes" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
-              🏢 Sedes
-            </NavLink>
+            <>
+              <NavLink to="/dashboard/sedes" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
+                🏢 Sedes
+              </NavLink>
+              <NavLink to="/dashboard/reservas" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
+                📅 Reservas
+              </NavLink>
+            </>
           )}
         </nav>
         <div className="sidebar-footer">

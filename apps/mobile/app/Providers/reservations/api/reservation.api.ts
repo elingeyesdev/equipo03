@@ -25,12 +25,28 @@ const reservationClient = axios.create({
 // Interceptor: inyecta el JWT en cada petición
 reservationClient.interceptors.request.use(
   async (config) => {
-    const token = await AuthService.getToken();
-    if (token) config.headers.Authorization = `Bearer ${token}`;
-    if (Env.isDevelopment) {
-      console.log(`[API RESERVACIONES] ${config.method?.toUpperCase()} ${config.url}`, config.params || '');
+    try {
+      const token = await AuthService.getToken();
+      if (token) config.headers.Authorization = `Bearer ${token}`;
+      if (Env.isDevelopment) {
+        console.log(`[API RESERVACIONES] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`, {
+          hasToken: !!token,
+          userId: config.url?.split('/').pop()
+        });
+      }
+      return config;
+    } catch (error: any) {
+      if (Env.isDevelopment) {
+        console.error('[API RESERVACIONES ERROR]', {
+          message: error.message,
+          code: error.code,
+          status: error.response?.status,
+          data: error.response?.data,
+          url: error.config?.url
+        });
+      }
+      throw error;
     }
-    return config;
   },
   (error) => Promise.reject(error)
 );

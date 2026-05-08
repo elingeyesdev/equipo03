@@ -11,9 +11,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { AutenticacionContext, UserRole } from '@gymsync/core';
 
+import { Env } from '../geolocation/config/environment';
+
 const AUTH_STORAGE_KEY = '@gymsync_user';
 const TOKEN_STORAGE_KEY = '@gymsync_token';
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://10.26.0.47:3000';
+const API_BASE_URL = Env.API_BASE_URL;
 
 export interface LoginRequest {
   email: string;

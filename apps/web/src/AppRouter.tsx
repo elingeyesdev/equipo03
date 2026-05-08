@@ -5,6 +5,7 @@ import { LoginScreen } from './components/Auth/LoginScreen';
 import { DashboardLayout } from './components/Layout/DashboardLayout';
 import { AuditoriaView } from './components/Auditoria/AuditoriaView';
 import { ResumenView, UsuariosView, SedesView } from './components/Dashboard/DashboardViews';
+import { ReservasView } from './components/Reservas/ReservasView';
 
 export const AppRouter = () => {
   return (
@@ -18,6 +19,7 @@ export const AppRouter = () => {
             <Route path="auditoria" element={<AuditoriaView />} />
             <Route path="usuarios" element={<UsuariosView />} />
             <Route path="sedes" element={<SedesView />} />
+            <Route path="reservas" element={<ReservasView />} />
             <Route index element={<Navigate to="auditoria" replace />} />
           </Route>
 
