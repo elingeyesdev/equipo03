@@ -5,7 +5,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { LoginScreen } from './components/Auth/LoginScreen';
 import { DashboardLayout } from './components/Layout/DashboardLayout';
 import { AuditoriaView } from './components/Auditoria/AuditoriaView';
-import { ResumenView, UsuariosView, SedesView, RutinasView } from './components/Dashboard/DashboardViews';
+import { ResumenView, UsuariosView, SedesView, RutinasView, RolesView } from './components/Dashboard/DashboardViews';
 import { RoleGuard } from './components/Auth/RoleGuard';
 import { ReservasPlaceholder, MedidasPlaceholder } from './components/Dashboard/Placeholders';
 
@@ -47,6 +47,13 @@ export const AppRouter = () => {
             <Route path="sedes" element={
               <RoleGuard allowedRoles={['SUPER_ADMIN']}>
                 <SedesView />
+              </RoleGuard>
+            } />
+
+            {/* Roles: Solo SUPER_ADMIN */}
+            <Route path="roles" element={
+              <RoleGuard allowedRoles={['SUPER_ADMIN']}>
+                <RolesView />
               </RoleGuard>
             } />
 
