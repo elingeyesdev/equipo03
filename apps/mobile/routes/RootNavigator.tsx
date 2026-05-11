@@ -50,7 +50,7 @@ const AppTabs = () => {
           let iconName: any = 'home';
           if (route.name === 'Inicio') iconName = 'home';
           else if (route.name === 'Buscar') iconName = 'magnify';
-          else if (route.name === 'Reservas') iconName = 'calendar';
+          else if (route.name === 'Mis Reservas') iconName = 'calendar';
           else if (route.name === 'Perfil') iconName = 'account';
           else if (route.name === 'Auditoría') iconName = 'clipboard-text-outline';
 

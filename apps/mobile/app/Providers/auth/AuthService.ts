@@ -3,17 +3,19 @@
  * 
  * Maneja:
  * - Login/Logout
- * - Almacenamiento de token en AsyncStorage
+ * - Almacenamiento de token en SecureStore (encriptado)
  * - Decodificación de JWT
  * - Extracción de rol y gym_id
  */
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import type { AutenticacionContext, UserRole } from '@gymsync/core';
 
-const AUTH_STORAGE_KEY = '@gymsync_user';
-const TOKEN_STORAGE_KEY = '@gymsync_token';
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://10.26.0.47:3000';
+import { Env } from '../geolocation/config/environment';
+
+const AUTH_STORAGE_KEY = 'gymsync.user';
+const TOKEN_STORAGE_KEY = 'gymsync.token';
+const API_BASE_URL = Env.API_BASE_URL;
 
 export interface LoginRequest {
   email: string;
@@ -118,9 +120,9 @@ export class AuthService {
         gymId: extractedGymId,
       };
 
-      // Guardar en AsyncStorage
-      await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(autenticacionContext));
-      await AsyncStorage.setItem(TOKEN_STORAGE_KEY, jwtToken);
+      // Guardar en SecureStore (encriptado)
+      await SecureStore.setItemAsync(AUTH_STORAGE_KEY, JSON.stringify(autenticacionContext));
+      await SecureStore.setItemAsync(TOKEN_STORAGE_KEY, jwtToken);
 
       console.log('[AuthService] Login exitoso:', autenticacionContext);
       return { success: true, user: autenticacionContext };
@@ -136,7 +138,7 @@ export class AuthService {
    */
   static async getCurrentUser(): Promise<AutenticacionContext | null> {
     try {
-      const stored = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
+      const stored = await SecureStore.getItemAsync(AUTH_STORAGE_KEY);
       return stored ? JSON.parse(stored) : null;
     } catch (e) {
       console.error('[AuthService] Error recuperando usuario:', e);
@@ -149,7 +151,7 @@ export class AuthService {
    */
   static async getToken(): Promise<string | null> {
     try {
-      return await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+      return await SecureStore.getItemAsync(TOKEN_STORAGE_KEY);
     } catch (e) {
       console.error('[AuthService] Error recuperando token:', e);
       return null;
@@ -161,8 +163,8 @@ export class AuthService {
    */
   static async logout(): Promise<void> {
     try {
-      await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
-      await AsyncStorage.removeItem(TOKEN_STORAGE_KEY);
+      await SecureStore.deleteItemAsync(AUTH_STORAGE_KEY);
+      await SecureStore.deleteItemAsync(TOKEN_STORAGE_KEY);
       console.log('[AuthService] Logout completado');
     } catch (e) {
       console.error('[AuthService] Error en logout:', e);

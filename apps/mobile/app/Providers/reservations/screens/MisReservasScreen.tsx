@@ -14,6 +14,7 @@ import {
   Modal,
   Pressable,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
@@ -190,7 +191,7 @@ export const MisReservasScreen = () => {
       <Modal
         visible={!!qrReservation}
         transparent
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => setQrReservation(null)}
       >
         <Pressable style={styles.modalOverlay} onPress={() => setQrReservation(null)}>
@@ -202,21 +203,14 @@ export const MisReservasScreen = () => {
               {qrReservation?.activityName ?? 'Actividad'} · {qrReservation?.reservationDate}
             </Text>
 
-            {qrReservation?.qrToken ? (
-              <View style={styles.qrWrapper}>
-                <QRCode
-                  value={qrReservation.qrToken}
-                  size={220}
-                  color="#FFFFFF"
-                  backgroundColor={Colors.surface}
-                />
-              </View>
-            ) : (
-              <View style={styles.qrWrapper}>
-                <MaterialCommunityIcons name="qrcode" size={100} color={Colors.border} />
-                <Text style={styles.noQrText}>QR no disponible aún</Text>
-              </View>
-            )}
+            <View style={styles.qrWrapper}>
+              <QRCode
+                value={qrReservation?.qrToken || `GS-RES-${qrReservation?.id || '0'}`}
+                size={220}
+                color="#FFFFFF"
+                backgroundColor={Colors.background}
+              />
+            </View>
 
             <View style={styles.qrNote}>
               <MaterialCommunityIcons name="information-outline" size={16} color={Colors.textSoft} />

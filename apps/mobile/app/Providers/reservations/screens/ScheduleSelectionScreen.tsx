@@ -86,8 +86,8 @@ export const ScheduleSelectionScreen = ({ route, navigation }: Props) => {
         setShowSuccess(false);
         scaleAnim.setValue(0);
         opacityAnim.setValue(0);
-        // getParent() sube al Tab Navigator desde el Stack
-        (navigation as any).getParent()?.navigate('Reservas');
+        // El nombre del Tab cambió de 'Reservas' a 'Mis Reservas'
+        (navigation as any).getParent()?.navigate('Mis Reservas');
       }, 1800);
       return () => clearTimeout(timer);
     }

@@ -7,14 +7,15 @@ import { DashboardLayout } from './components/Layout/DashboardLayout';
 import { AuditoriaView } from './components/Auditoria/AuditoriaView';
 import { ResumenView, UsuariosView, SedesView, RutinasView, RolesView } from './components/Dashboard/DashboardViews';
 import { RoleGuard } from './components/Auth/RoleGuard';
-import { ReservasPlaceholder, MedidasPlaceholder } from './components/Dashboard/Placeholders';
+import { MedidasPlaceholder } from './components/Dashboard/Placeholders';
+import { ReservasView } from './components/Reservas/ReservasView';
 
 export const AppRouter = () => {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Toaster 
-          position="top-right" 
+        <Toaster
+          position="top-right"
           toastOptions={{
             style: {
               background: '#1C1C1E',
@@ -25,24 +26,24 @@ export const AppRouter = () => {
         />
         <Routes>
           <Route path="/login" element={<LoginScreen />} />
-          
+
           <Route path="/dashboard" element={<DashboardLayout />}>
             <Route path="resumen" element={<ResumenView />} />
-            
+
             {/* Rutas para SUPER_ADMIN y GERENTE */}
             <Route path="auditoria" element={
               <RoleGuard allowedRoles={['SUPER_ADMIN', 'GERENTE']}>
                 <AuditoriaView />
               </RoleGuard>
             } />
-            
+
             {/* Rutas para SUPER_ADMIN, GERENTE, ENTRENADOR, NUTRICIONISTA */}
             <Route path="usuarios" element={
               <RoleGuard allowedRoles={['SUPER_ADMIN', 'GERENTE', 'ENTRENADOR', 'NUTRICIONISTA']}>
                 <UsuariosView />
               </RoleGuard>
             } />
-            
+
             {/* Rutas solo para SUPER_ADMIN */}
             <Route path="sedes" element={
               <RoleGuard allowedRoles={['SUPER_ADMIN']}>
@@ -64,10 +65,10 @@ export const AppRouter = () => {
               </RoleGuard>
             } />
 
-            {/* Reservas: GERENTE, CLIENTE */}
+            {/* Reservas: SUPER_ADMIN, GERENTE, CLIENTE */}
             <Route path="reservas" element={
-              <RoleGuard allowedRoles={['GERENTE', 'CLIENTE']}>
-                <ReservasPlaceholder />
+              <RoleGuard allowedRoles={['SUPER_ADMIN', 'GERENTE', 'CLIENTE']}>
+                <ReservasView />
               </RoleGuard>
             } />
 
