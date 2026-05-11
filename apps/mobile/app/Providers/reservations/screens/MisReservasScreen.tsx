@@ -14,6 +14,7 @@ import {
   Modal,
   Pressable,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';

@@ -1,6 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useRef, useMemo, useState, useCallback } from 'react';
 import type { CSSProperties } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
@@ -40,66 +40,204 @@ const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message }: any) => {
 
 const UserModal = ({ isOpen, onClose, userToEdit, onSave }: any) => {
   const [formData, setFormData] = useState({
-    firstName: '', lastName: '', email: '', password: '', role: 'USER', isActive: true
+    firstName: '', lastName: '', email: '', password: '', roleId: 3, gymIds: [] as number[], isActive: true
   });
-  
+  const [gyms, setGyms] = useState<any[]>([]);
+  const [loadingGyms, setLoadingGyms] = useState(false);
+  const modalScrollContainerRef = useRef<HTMLDivElement>(null);
+  const topAnchorRef = useRef<HTMLDivElement>(null);
+
+  const roles = [
+    { id: 1, name: 'SUPER_ADMIN', label: 'Super Administrador' },
+    { id: 2, name: 'GERENTE', label: 'Gerente de Sede' },
+    { id: 3, name: 'USER', label: 'Usuario Estándar' },
+    { id: 4, name: 'CLIENTE', label: 'Cliente Activo' },
+    { id: 5, name: 'ENTRENADOR', label: 'Entrenador' },
+    { id: 6, name: 'NUTRICIONISTA', label: 'Nutricionista' },
+  ];
+
+  useEffect(() => {
+    if (isOpen) {
+      const originalStyle = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalStyle;
+      };
+    }
+  }, [isOpen]);
+
+  useLayoutEffect(() => {
+    if (isOpen) {
+      fetchGyms();
+      // 1. Forzar el foco al contenedor superior o un elemento invisible al inicio
+      topAnchorRef.current?.focus();
+
+      // 2. Doble reset de scroll para vencer al Reflow de React
+      const reset = () => {
+        if (modalScrollContainerRef.current) {
+          modalScrollContainerRef.current.scrollTop = 0;
+        }
+      };
+
+      reset(); // Intento 1: Inmediato
+      const timeoutId = setTimeout(reset, 100); // Intento 2: Tras el renderizado del Rol
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isOpen, formData.roleId]);
+
+  const fetchGyms = async () => {
+    setLoadingGyms(true);
+    try {
+      const response = await apiClient.get('/gyms');
+      if (response.data) {
+        setGyms(Array.isArray(response.data) ? response.data : []);
+      }
+    } catch (error) {
+      console.error('Error al cargar sedes:', error);
+    } finally {
+      setLoadingGyms(false);
+    }
+  };
+
   useEffect(() => {
     if (userToEdit) {
+      // Adaptado a nueva estructura: userRoles.gym en lugar de gyms directo
+      const gymsFromRoles = userToEdit.userRoles?.map((ur: any) => ur.gym).filter(Boolean) || [];
       setFormData({
         firstName: userToEdit.profile?.firstName || '',
         lastName: userToEdit.profile?.lastName || '',
         email: userToEdit.email || '',
         password: '',
-        role: userToEdit.role || 'USER',
+        roleId: Number(userToEdit.userRoles?.[0]?.roleId) || 3,
+        gymIds: gymsFromRoles.map((g: any) => g.id),
         isActive: userToEdit.isActive ?? true
       });
     } else {
-      setFormData({ firstName: '', lastName: '', email: '', password: '', role: 'USER', isActive: true });
+      setFormData({ firstName: '', lastName: '', email: '', password: '', roleId: 3, gymIds: [], isActive: true });
     }
   }, [userToEdit, isOpen]);
+
+  const handleGymToggle = (gymId: number) => {
+    setFormData(prev => ({
+      ...prev,
+      gymIds: prev.gymIds.includes(gymId)
+        ? prev.gymIds.filter(id => id !== gymId)
+        : [...prev.gymIds, gymId]
+    }));
+  };
+
+  const handleGymSelect = (gymId: number) => {
+    setFormData(prev => ({
+      ...prev,
+      gymIds: [gymId]
+    }));
+  };
 
   if (!isOpen) return null;
 
   return (
     <ModalOverlay onClose={onClose}>
-      <div className="modal-content glass-panel">
+      <div className="modal-content glass-panel" style={{ maxHeight: '75vh', display: 'flex', flexDirection: 'column' }}>
         <div className="modal-header">
           <h2>{userToEdit ? 'Editar Usuario' : 'Nuevo Usuario'}</h2>
         </div>
-        <div className="modal-form-group">
-          <label>Nombre</label>
-          <input type="text" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} placeholder="Ej. Juan" />
-        </div>
-        <div className="modal-form-group">
-          <label>Apellido</label>
-          <input type="text" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} placeholder="Ej. Pérez" />
-        </div>
-        <div className="modal-form-group">
-          <label>Correo Electrónico</label>
-          <input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="correo@ejemplo.com" />
-        </div>
-        <div className="modal-form-group">
-          <label>Contraseña {userToEdit && '(Déjalo en blanco para no cambiar)'}</label>
-          <input type="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} placeholder="••••••••" />
-        </div>
+        <div ref={modalScrollContainerRef} className="border-2 border-red-500" style={{ overflowY: 'auto', paddingRight: '0.5rem', flex: 1, maxHeight: '75vh', display: 'flex', flexDirection: 'column' }}>
+          <div ref={topAnchorRef} tabIndex={-1} style={{ width: '100%', height: '1px', opacity: 0, display: 'block' }} />
+          <div className="modal-form-group">
+            <label>Nombre</label>
+            <input type="text" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} placeholder="Ej. Juan" />
+          </div>
+          <div className="modal-form-group">
+            <label>Apellido</label>
+            <input type="text" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} placeholder="Ej. Pérez" />
+          </div>
+          <div className="modal-form-group">
+            <label>Correo Electrónico</label>
+            <input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="correo@ejemplo.com" />
+          </div>
+          <div className="modal-form-group">
+            <label>Contraseña {userToEdit && '(Déjalo en blanco para no cambiar)'}</label>
+            <input type="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} placeholder="••••••••" />
+          </div>
         <div className="modal-form-group">
           <label>Rol del Sistema</label>
-          <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}>
-            <option value="USER">Usuario Estándar</option>
-            <option value="CLIENTE">Cliente Activo</option>
-            <option value="ENTRENADOR">Entrenador</option>
-            <option value="NUTRICIONISTA">Nutricionista</option>
-            <option value="GERENTE">Gerente de Sede</option>
-            <option value="SUPER_ADMIN">Super Administrador</option>
+          <select 
+            value={formData.roleId} 
+            onChange={e => setFormData({...formData, roleId: Number(e.target.value), gymIds: []})}
+          >
+            {roles.map(role => (
+              <option key={role.id} value={role.id}>
+                {role.label}
+              </option>
+            ))}
           </select>
         </div>
+
+        {formData.roleId === 2 && (
+          <div className="modal-form-group">
+            <label>Sede (Única) *</label>
+            {loadingGyms ? (
+              <p style={{ color: '#8E8E93', fontSize: '0.875rem' }}>Cargando sedes...</p>
+            ) : (
+              <select
+                value={formData.gymIds[0] || ''}
+                onChange={e => handleGymSelect(Number(e.target.value))}
+                style={{ width: '100%', padding: '0.5rem', background: '#0A0A0A', border: formData.gymIds.length === 0 ? '1px solid #ef4444' : '1px solid #3A3A3C', color: '#FFFFFF', borderRadius: '6px' }}
+              >
+                <option value="">Seleccionar sede</option>
+                {gyms.map(gym => (
+                  <option key={gym.id} value={gym.id} style={{ background: '#0A0A0A', color: '#FFFFFF' }}>
+                    {gym.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        )}
+
+        {(formData.roleId === 5 || formData.roleId === 6) && (
+          <div className="modal-form-group">
+            <label>Sedes (Múltiples)</label>
+            {loadingGyms ? (
+              <p style={{ color: '#8E8E93', fontSize: '0.875rem' }}>Cargando sedes...</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '200px', overflowY: 'auto', padding: '0.5rem', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '8px' }}>
+                {gyms.map(gym => (
+                  <label key={gym.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', borderRadius: '4px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={formData.gymIds.includes(gym.id)}
+                      onChange={() => handleGymToggle(gym.id)}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                    />
+                    <span>{gym.name}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="modal-form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <input type="checkbox" style={{ width: 'auto' }} checked={formData.isActive} onChange={e => setFormData({...formData, isActive: e.target.checked})} />
           <label style={{ margin: 0 }}>Usuario Activo</label>
         </div>
+        </div>
         <div className="modal-actions">
           <button className="btn-cancel" onClick={onClose}>Cancelar</button>
-          <button className="btn-primary" onClick={() => onSave(formData)}>Guardar Usuario</button>
+          <button 
+            className="btn-primary" 
+            onClick={() => {
+              if (formData.roleId === 2 && formData.gymIds.length === 0) {
+                alert('El Gerente de Sede debe tener asignada al menos una sede');
+                return;
+              }
+              onSave(formData);
+            }}
+          >
+            Guardar Usuario
+          </button>
         </div>
       </div>
     </ModalOverlay>
@@ -479,6 +617,14 @@ type UserDto = {
     firstName?: string;
     lastName?: string;
   };
+  userRoles?: Array<{
+    roleId: number;
+  }>;
+  gyms?: Array<{
+    id: number;
+    name?: string;
+  }>;
+  gymsMap?: Map<number, string>;
 };
 
 type CheckinDto = {
@@ -641,6 +787,10 @@ export const UsuariosView = () => {
         const usersResponse = await apiClient.get('/users');
         const usersData: UserDto[] = Array.isArray(usersResponse.data) ? usersResponse.data : [];
 
+        // Fetch gyms para mostrar nombres en la tabla
+        const gymsResponse = await apiClient.get('/gyms');
+        const gymsMap = new Map(Array.isArray(gymsResponse.data) ? gymsResponse.data.map((g: any) => [g.id, g.name]) : []);
+
         if (user.role === 'GERENTE' && user.gymId) {
           const checkinsResponse = await apiClient.get('/checkins', {
             params: { gym_id: user.gymId, page: 1, limit: 500 },
@@ -648,9 +798,9 @@ export const UsuariosView = () => {
           const checkinsData: CheckinDto[] = Array.isArray(checkinsResponse.data) ? checkinsResponse.data : [];
           const allowedUserIds = new Set(checkinsData.map(item => String(item.userId)));
           const scopedUsers = usersData.filter(u => allowedUserIds.has(String(u.id)));
-          if (mounted) setUsers(scopedUsers);
+          if (mounted) setUsers(scopedUsers.map((u: any) => ({ ...u, gymsMap })));
         } else if (mounted) {
-          setUsers(usersData);
+          setUsers(usersData.map((u: any) => ({ ...u, gymsMap })));
         }
       } catch (err: any) {
         if (mounted) setError(err?.response?.data?.message || err?.message || 'No se pudo cargar usuarios.');
@@ -695,68 +845,69 @@ export const UsuariosView = () => {
 
   const handleSaveUser = async (formData: any) => {
     try {
-      const roleMap: Record<string, number> = {
-        'SUPER_ADMIN': 1,
-        'GERENTE': 2,
-        'USER': 3,
-        'CLIENTE': 3,
-        'ENTRENADOR': 4,
-        'NUTRICIONISTA': 4
-      };
-
       const payload: any = {
-        email: formData.email,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
+        email: formData.email?.trim(),
+        firstName: formData.firstName?.trim(),
+        lastName: formData.lastName?.trim(),
+        roleId: formData.roleId,
+        gymIds: (formData.roleId === 3 || formData.roleId === 4) ? [] : (formData.gymIds || []),
+        isActive: formData.isActive,
       };
 
-      if (formData.password) {
-        payload.password = formData.password;
+      if (formData.password && formData.password.trim()) {
+        payload.password = formData.password.trim();
       }
 
       console.log(`[Security Check]: Ejecutando acción para Rol ${user?.role} con Scope Gym ${user?.gymId || 'Global'}`);
-      console.log("[Debug] Payload de Usuario saneado a enviar (/users):", JSON.stringify(payload, null, 2));
+      console.log("[Debug] Payload de Usuario a enviar (/users):", JSON.stringify(payload, null, 2));
 
       let newUserId = userToEdit?.id;
 
       if (userToEdit) {
         await apiClient.put(`/users/${userToEdit.id}`, payload);
-        setUsers(prev => prev.map(u => u.id === userToEdit.id ? { ...u, email: formData.email, isActive: formData.isActive, profile: { firstName: formData.firstName, lastName: formData.lastName } } : u));
+        // Recargar usuarios para obtener la estructura actualizada del backend
+        const usersResponse = await apiClient.get('/users');
+        const gymsResponse = await apiClient.get('/gyms');
+        const gymsMap = new Map(Array.isArray(gymsResponse.data) ? gymsResponse.data.map((g: any) => [g.id, g.name]) : []);
+        const usersData: UserDto[] = Array.isArray(usersResponse.data) ? usersResponse.data : [];
+        
+        if (user.role === 'GERENTE' && user.gymId) {
+          const checkinsResponse = await apiClient.get('/checkins', {
+            params: { gym_id: user.gymId, page: 1, limit: 500 },
+          });
+          const checkinsData: CheckinDto[] = Array.isArray(checkinsResponse.data) ? checkinsResponse.data : [];
+          const allowedUserIds = new Set(checkinsData.map(item => String(item.userId)));
+          const scopedUsers = usersData.filter(u => allowedUserIds.has(String(u.id)));
+          setUsers(scopedUsers.map((u: any) => ({ ...u, gymsMap })));
+        } else {
+          setUsers(usersData.map((u: any) => ({ ...u, gymsMap })));
+        }
       } else {
         const res = await apiClient.post('/users', payload);
         newUserId = res.data?.id || res.data?.data?.id || res.data?.userId;
+        // Recargar usuarios para obtener la estructura actualizada del backend
+        const usersResponse = await apiClient.get('/users');
+        const gymsResponse = await apiClient.get('/gyms');
+        const gymsMap = new Map(Array.isArray(gymsResponse.data) ? gymsResponse.data.map((g: any) => [g.id, g.name]) : []);
+        const usersData: UserDto[] = Array.isArray(usersResponse.data) ? usersResponse.data : [];
         
-        const newUser = res.data?.id ? res.data : { id: newUserId || Date.now(), email: formData.email, isActive: formData.isActive, profile: { firstName: formData.firstName, lastName: formData.lastName } };
-        setUsers(prev => [...prev, newUser]);
-      }
-
-      // Flujo de Promesa Encadenada: Asignación de Rol
-      if (newUserId) {
-        let roleId = roleMap[formData.role] || 3;
-        // Validación de Payload de Asignación: [1, 4]
-        if (roleId < 1 || roleId > 4) roleId = 3;
-
-        const assignPayload: any = {
-          userId: parseInt(newUserId),
-          roleId: roleId
-        };
-        // Scoping: Inyectar gymId si es Gerente
-        if (user?.role === 'GERENTE' && user?.gymId) {
-          assignPayload.gymId = parseInt(user.gymId as string);
+        if (user.role === 'GERENTE' && user.gymId) {
+          const checkinsResponse = await apiClient.get('/checkins', {
+            params: { gym_id: user.gymId, page: 1, limit: 500 },
+          });
+          const checkinsData: CheckinDto[] = Array.isArray(checkinsResponse.data) ? checkinsResponse.data : [];
+          const allowedUserIds = new Set(checkinsData.map(item => String(item.userId)));
+          const scopedUsers = usersData.filter(u => allowedUserIds.has(String(u.id)));
+          setUsers(scopedUsers.map((u: any) => ({ ...u, gymsMap })));
+        } else {
+          setUsers(usersData.map((u: any) => ({ ...u, gymsMap })));
         }
-        
-        console.log(`[Security Check]: Asignando Rol ID ${roleId} al Usuario ID ${newUserId}`);
-        console.log("[Debug] Payload de Rol saneado a enviar (/roles/assign):", JSON.stringify(assignPayload, null, 2));
-        
-        await apiClient.post('/roles/assign', assignPayload).catch(e => {
-          console.error("Error al asignar rol (ignorado localmente para continuar flujo):", e);
-        });
       }
 
       setIsModalOpen(false);
     } catch (err: any) {
       console.error(err);
-      // api.config.ts ya maneja el toast para errores 400
+      alert(err?.response?.data?.message || err?.message || 'Error al guardar usuario.');
     }
   };
 
@@ -787,12 +938,13 @@ export const UsuariosView = () => {
 
       {!loading && !error && (
         <div style={{ marginTop: '1rem', overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '720px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '850px' }}>
             <thead>
               <tr>
                 <th style={{ textAlign: 'left', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>ID</th>
                 <th style={{ textAlign: 'left', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Nombre</th>
                 <th style={{ textAlign: 'left', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Email</th>
+                <th style={{ textAlign: 'left', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Sedes Asignadas</th>
                 <th style={{ textAlign: 'left', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Estado</th>
                 <th style={{ textAlign: 'center', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Acciones</th>
               </tr>
@@ -800,24 +952,49 @@ export const UsuariosView = () => {
             <tbody>
               {users.map((u) => {
                 const fullName = [u?.profile?.firstName, u?.profile?.lastName].filter(Boolean).join(' ').trim();
+                const roleId = Number(u?.userRoles?.[0]?.roleId);
+                // Adaptado a nueva estructura: userRoles.gym en lugar de gyms directo
+                const gymsList = u?.userRoles?.map((ur: any) => ur.gym).filter(Boolean) || [];
+                const gymNames = gymsList.map((g: any) => u?.gymsMap?.get(g.id) || g.name || g.nombre).filter(Boolean);
+                
+                console.log("Datos del usuario en tabla:", { id: u.id, roleId, userRoles: u?.userRoles, gymsList, gymNames });
+                
                 return (
                   <tr key={u.id}>
                     <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C' }}>{u.id}</td>
                     <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C' }}>{fullName || '-'}</td>
                     <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C' }}>{u.email}</td>
+                    <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C' }}>
+                      {(roleId === 2 || roleId === 5 || roleId === 6) && gymNames.length > 0 ? (
+                        <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                          {gymNames.map((name: string, idx: number) => (
+                            <span key={idx} style={{ 
+                              background: 'rgba(0, 217, 255, 0.15)', 
+                              backdropFilter: 'blur(10px)',
+                              color: '#00D9FF', 
+                              padding: '0.2rem 0.5rem', 
+                              borderRadius: '4px', 
+                              fontSize: '0.75rem',
+                              border: '1px solid rgba(0, 217, 255, 0.3)'
+                            }}>
+                              {name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span style={{ color: '#8E8E93' }}>-</span>
+                      )}
+                    </td>
                     <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: u.isActive ? '#30D158' : '#FF5E00' }}>
                       {u.isActive ? 'ACTIVO' : 'INACTIVO'}
                     </td>
                     <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C', textAlign: 'center' }}>
                       <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                        {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE' || user?.role === 'ENTRENADOR' || user?.role === 'NUTRICIONISTA') && (
+                        {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE') && (
                           <button onClick={() => handleEditUser(u)} style={{ background: '#00D9FF', color: '#0A0A0A', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>Editar</button>
                         )}
                         {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE') && (
                           <button onClick={() => handleDeleteUser(u)} style={{ background: 'rgba(255, 94, 0, 0.1)', color: '#FF5E00', border: '1px solid #FF5E00', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>Eliminar</button>
-                        )}
-                        {(user?.role !== 'SUPER_ADMIN' && user?.role !== 'GERENTE' && user?.role !== 'ENTRENADOR' && user?.role !== 'NUTRICIONISTA') && (
-                          <button style={{ background: '#3A3A3C', color: '#FFFFFF', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>Ver Ficha</button>
                         )}
                       </div>
                     </td>

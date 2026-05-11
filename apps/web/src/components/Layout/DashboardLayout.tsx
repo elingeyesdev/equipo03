@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Outlet, Navigate, useNavigate, NavLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../hooks/useNotifications';
@@ -8,11 +8,24 @@ export const DashboardLayout = () => {
   const { isAuthenticated, user, logout, isLoading } = useAuth();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const hideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 🔌 Activar canal de notificaciones en tiempo real (Socket.io)
   // Se auto-une a la sala correcta según el rol (room_gym_{id} o room_admin_all)
   useNotifications();
 
+  const handleHeaderMouseLeave = () => {
+    if (hideTimeout.current) clearTimeout(hideTimeout.current);
+    hideTimeout.current = setTimeout(() => {
+      setIsHeaderVisible(false);
+    }, 1500);
+  };
+
+  const handleSensorMouseEnter = () => {
+    if (hideTimeout.current) clearTimeout(hideTimeout.current);
+    setIsHeaderVisible(true);
+  };
 
   if (isLoading) return <div className="layout-loading">Verificando sesión...</div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
@@ -65,7 +78,7 @@ export const DashboardLayout = () => {
               🏋️ Rutinas
             </NavLink>
           )}
-          {(user?.role === 'GERENTE' || user?.role === 'CLIENTE') && (
+          {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE' || user?.role === 'CLIENTE') && (
             <NavLink to="/dashboard/reservas" onClick={closeSidebar} className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}>
               📅 Reservas
             </NavLink>
@@ -83,7 +96,29 @@ export const DashboardLayout = () => {
 
       {/* Main Content Area */}
       <main className="main-content">
-        <header className="top-header glass-panel">
+        {/* Invisible Sensor Zone - 20px active area at top */}
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '20px',
+            zIndex: 9999,
+            cursor: 'default'
+          }}
+          onMouseEnter={handleSensorMouseEnter}
+        />
+
+        <header 
+          className="top-header glass-panel"
+          onMouseLeave={handleHeaderMouseLeave}
+          style={{
+            transform: isHeaderVisible ? 'translateY(0)' : 'translateY(-100%)',
+            transition: 'transform 0.3s ease-out',
+            zIndex: 10000
+          }}
+        >
           <div className="header-left">
             <button className="menu-toggle" onClick={() => setIsSidebarOpen(true)}>
               ☰

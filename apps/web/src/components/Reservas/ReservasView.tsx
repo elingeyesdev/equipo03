@@ -20,19 +20,30 @@ export const ReservasView = () => {
   const [scannedReservation, setScannedReservation] = useState<Reservation | null>(null);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
 
+  const isGerente = user?.role === 'GERENTE' || user?.roleId === 2 || user?.role === '2';
+
   const loadReservations = useCallback(async () => {
     setLoading(true);
+    const selectedGymId = isGerente && user?.gymId ? Number(user.gymId) : (filterGym ? Number(filterGym) : undefined);
     const data = await reservationsApi.getReservations({
       status: filterStatus || undefined,
-      gymId: filterGym ? Number(filterGym) : undefined,
+      gymId: selectedGymId,
     });
-    const sorted = [...data].sort((a, b) =>
+    let sorted = [...data].sort((a, b) =>
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
+
+    // Additional frontend filtering for enhanced security:
+    if (isGerente && user?.gymId) {
+      sorted = sorted.filter(res => res.gymActivitySchedule?.gymActivity?.gymId === Number(user.gymId));
+    } else if (user?.role === 'CLIENTE' && user?.id) {
+      sorted = sorted.filter(res => res.userId === Number(user.id));
+    }
+
     setReservations(sorted);
     setLoading(false);
     setCurrentPage(1);
-  }, [filterStatus, filterGym]);
+  }, [filterStatus, filterGym, isGerente, user?.gymId, user?.role, user?.id]);
 
   useEffect(() => { loadReservations(); }, [loadReservations]);
 
@@ -169,12 +180,14 @@ export const ReservasView = () => {
             <span className="search-icon">🔍</span>
           </div>
 
-          <select value={filterGym} onChange={e => setFilterGym(e.target.value)} className="filter-select">
-            <option value="">Sede: Todas</option>
-            <option value="1">Smart Fit</option>
-            <option value="2">Premier</option>
-            <option value="3">Bio Fitness</option>
-          </select>
+          {!isGerente && (
+            <select value={filterGym} onChange={e => setFilterGym(e.target.value)} className="filter-select">
+              <option value="">Sede: Todas</option>
+              <option value="1">Smart Fit</option>
+              <option value="2">Premier</option>
+              <option value="3">Bio Fitness</option>
+            </select>
+          )}
 
           <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="filter-select">
             <option value="">Estado: Todos</option>
