@@ -1208,18 +1208,20 @@ export const SedesView = () => {
                   </td>
                   {user.role === 'SUPER_ADMIN' && (
                     <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C', textAlign: 'center' }}>
-                      <button
-                        onClick={() => handleEditSede(g)}
-                        style={{ background: 'transparent', border: '1px solid #00D9FF', color: '#00D9FF', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', marginRight: '0.5rem', fontSize: '0.8rem' }}
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => handleDeleteSede(g)}
-                        style={{ background: 'transparent', border: '1px solid #FF5E00', color: '#FF5E00', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
-                      >
-                        Eliminar
-                      </button>
+                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', alignItems: 'center' }}>
+                        <button
+                          onClick={() => handleEditSede(g)}
+                          style={{ background: 'transparent', border: '1px solid #00D9FF', color: '#00D9FF', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSede(g)}
+                          style={{ background: 'transparent', border: '1px solid #FF5E00', color: '#FF5E00', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                        >
+                          Eliminar
+                        </button>
+                      </div>
                     </td>
                   )}
                 </tr>
@@ -1340,13 +1342,14 @@ const SucursalModal = ({ isOpen, onClose, sucursalToEdit, onSave, parentGyms }: 
     longitude: -63.1667, 
     city: 'Santa Cruz de la Sierra',
     parentId: '',
-    schedules: [] as {dayOfWeek: string, opensAt: string, closesAt: string}[]
+    schedules: [] as {dayOfWeek: string, opensAt: string, closesAt: string, isHoliday?: boolean}[]
   });
 
   const [newSchedule, setNewSchedule] = useState({
     dayOfWeek: 'LUNES',
     opensAt: '06:00',
-    closesAt: '22:00'
+    closesAt: '22:00',
+    isHoliday: false
   });
 
   const fetchAddress = async (latlng: any) => {
@@ -1388,7 +1391,7 @@ const SucursalModal = ({ isOpen, onClose, sucursalToEdit, onSave, parentGyms }: 
         parentId: '',
         schedules: []
       });
-      setNewSchedule({ dayOfWeek: 'LUNES', opensAt: '06:00', closesAt: '22:00' });
+      setNewSchedule({ dayOfWeek: 'LUNES', opensAt: '06:00', closesAt: '22:00', isHoliday: false });
     } else {
       document.body.style.overflow = 'unset';
     }
@@ -1411,7 +1414,12 @@ const SucursalModal = ({ isOpen, onClose, sucursalToEdit, onSave, parentGyms }: 
         longitude: sucursalToEdit.location?.longitude || -63.1667,
         city: sucursalToEdit.location?.city || 'Santa Cruz de la Sierra',
         parentId: sucursalToEdit.parentId?.toString() || '',
-        schedules: sucursalToEdit.schedules || []
+        schedules: (sucursalToEdit.schedules || []).map((s: any) => ({
+          dayOfWeek: s.dayOfWeek,
+          opensAt: s.opensAt?.slice(0, 5) || '06:00',
+          closesAt: s.closesAt?.slice(0, 5) || '22:00',
+          isHoliday: s.isHoliday ?? false
+        }))
       });
     }
   }, [sucursalToEdit, isOpen]);
@@ -1713,9 +1721,14 @@ const SucursalModal = ({ isOpen, onClose, sucursalToEdit, onSave, parentGyms }: 
             {formData.schedules && formData.schedules.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
                 {formData.schedules.map((sch, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: '0.5rem 0.75rem', borderRadius: '6px' }}>
-                    <span style={{ color: '#E5E5EA', fontSize: '0.85rem' }}>
-                      <strong style={{ color: '#00D9FF' }}>{sch.dayOfWeek}</strong>: {sch.opensAt} - {sch.closesAt}
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: sch.isHoliday ? '1px solid rgba(255, 59, 48, 0.3)' : 'none' }}>
+                    <span style={{ color: '#E5E5EA', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <strong style={{ color: '#00D9FF' }}>{sch.dayOfWeek}</strong>: 
+                      {sch.isHoliday ? (
+                        <span style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255, 59, 48, 0.15)', color: '#FF3B30', fontWeight: 600 }}>FERIADO / CERRADO</span>
+                      ) : (
+                        `${sch.opensAt} - ${sch.closesAt}`
+                      )}
                     </span>
                     <button type="button" onClick={() => setFormData(prev => ({...prev, schedules: prev.schedules.filter((_, idx) => idx !== i)}))} style={{ background: 'transparent', border: 'none', color: '#FF3B30', cursor: 'pointer', fontSize: '0.8rem', padding: '0.2rem' }}>
                       Quitar
@@ -1753,28 +1766,52 @@ const SucursalModal = ({ isOpen, onClose, sucursalToEdit, onSave, parentGyms }: 
                 </div>
               </div>
               
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '0.75rem', alignItems: 'end' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.75rem', color: '#8E8E93', marginBottom: '0.25rem' }}>Apertura</label>
                   <input 
                     type="time" 
-                    value={newSchedule.opensAt} 
+                    disabled={newSchedule.isHoliday}
+                    value={newSchedule.isHoliday ? '00:00' : newSchedule.opensAt} 
                     onChange={e => setNewSchedule({...newSchedule, opensAt: e.target.value})}
-                    style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', background: 'rgba(0,0,0,0.6)', color: '#FFF', border: '1px solid rgba(255,255,255,0.15)', fontSize: '0.9rem', colorScheme: 'dark' }}
+                    style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', background: newSchedule.isHoliday ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.6)', color: newSchedule.isHoliday ? '#8E8E93' : '#FFF', border: '1px solid rgba(255,255,255,0.15)', fontSize: '0.9rem', colorScheme: 'dark', opacity: newSchedule.isHoliday ? 0.6 : 1 }}
                   />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.75rem', color: '#8E8E93', marginBottom: '0.25rem' }}>Cierre</label>
                   <input 
                     type="time" 
-                    value={newSchedule.closesAt} 
+                    disabled={newSchedule.isHoliday}
+                    value={newSchedule.isHoliday ? '00:00' : newSchedule.closesAt} 
                     onChange={e => setNewSchedule({...newSchedule, closesAt: e.target.value})}
-                    style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', background: 'rgba(0,0,0,0.6)', color: '#FFF', border: '1px solid rgba(255,255,255,0.15)', fontSize: '0.9rem', colorScheme: 'dark' }}
+                    style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', background: newSchedule.isHoliday ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.6)', color: newSchedule.isHoliday ? '#8E8E93' : '#FFF', border: '1px solid rgba(255,255,255,0.15)', fontSize: '0.9rem', colorScheme: 'dark', opacity: newSchedule.isHoliday ? 0.6 : 1 }}
                   />
                 </div>
+              </div>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }} onClick={() => setNewSchedule({...newSchedule, isHoliday: !newSchedule.isHoliday})}>
+                  <input 
+                    type="checkbox" 
+                    checked={newSchedule.isHoliday}
+                    onChange={e => setNewSchedule({...newSchedule, isHoliday: e.target.checked})}
+                    onClick={e => e.stopPropagation()}
+                    style={{ width: '18px', height: '18px', accentColor: '#00D9FF', cursor: 'pointer' }}
+                  />
+                  <label style={{ margin: 0, fontSize: '0.8rem', color: '#E5E5EA', cursor: 'pointer' }}>Día Feriado / Cerrado</label>
+                </div>
+                
                 <button 
                   type="button" 
-                  onClick={() => setFormData(prev => ({...prev, schedules: [...(prev.schedules||[]), newSchedule]}))}
+                  onClick={() => {
+                    const schToAdd = {
+                      ...newSchedule,
+                      opensAt: newSchedule.isHoliday ? '00:00' : newSchedule.opensAt,
+                      closesAt: newSchedule.isHoliday ? '00:00' : newSchedule.closesAt
+                    };
+                    setFormData(prev => ({...prev, schedules: [...(prev.schedules||[]), schToAdd]}));
+                    setNewSchedule(prev => ({ ...prev, isHoliday: false }));
+                  }}
                   style={{ padding: '0.6rem 1rem', background: '#00D9FF', color: '#0A0A0A', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', height: '40px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                 >
                   <span style={{ fontSize: '1.2rem' }}>+</span> Añadir
@@ -2049,18 +2086,20 @@ export const SucursalesView = () => {
                   </td>
                   {user.role === 'SUPER_ADMIN' && (
                     <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C', textAlign: 'center' }}>
-                      <button
-                        onClick={() => handleEditSucursal(g)}
-                        style={{ background: 'transparent', border: '1px solid #00D9FF', color: '#00D9FF', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', marginRight: '0.5rem', fontSize: '0.8rem' }}
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => handleDeleteSucursal(g)}
-                        style={{ background: 'transparent', border: '1px solid #FF5E00', color: '#FF5E00', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
-                      >
-                        Eliminar
-                      </button>
+                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', alignItems: 'center' }}>
+                        <button
+                          onClick={() => handleEditSucursal(g)}
+                          style={{ background: 'transparent', border: '1px solid #00D9FF', color: '#00D9FF', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSucursal(g)}
+                          style={{ background: 'transparent', border: '1px solid #FF5E00', color: '#FF5E00', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                        >
+                          Eliminar
+                        </button>
+                      </div>
                     </td>
                   )}
                 </tr>
