@@ -65,7 +65,12 @@ export const DashboardLayout = () => {
           )}
           {user?.role === 'SUPER_ADMIN' && (
             <NavLink to="/dashboard/sedes" onClick={closeSidebar} className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}>
-              🏢 Sedes
+              🏢 Sedes (Marcas)
+            </NavLink>
+          )}
+          {user?.role === 'SUPER_ADMIN' && (
+            <NavLink to="/dashboard/sucursales" onClick={closeSidebar} className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}>
+              🏪 Sucursales
             </NavLink>
           )}
           {user?.role === 'SUPER_ADMIN' && (
