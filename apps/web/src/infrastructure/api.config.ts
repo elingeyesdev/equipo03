@@ -125,7 +125,9 @@ export const createApiClient = (): AxiosInstance => {
         } else if (body?.success === false) {
           toast.error(errorMessage);
         } else {
-          toast.error(`Error del servidor (${status})`);
+          // Priorizar el mensaje real del backend (ej: "Ya existe un usuario con este email")
+          // sobre el código numérico genérico.
+          toast.error(errorMessage || `Error del servidor (${status})`);
         }
       } else {
         toast.error('Error de red o conexión perdida.');

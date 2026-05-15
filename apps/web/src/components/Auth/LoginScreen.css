@@ -133,15 +133,15 @@
 }
 
 .login-card {
-  background-color: rgba(28, 28, 30, 0.4);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  padding: 2.5rem 2rem;
-  border-radius: 24px;
+  background-color: rgba(20, 20, 22, 0.65);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  padding: 3rem 2.5rem;
+  border-radius: 28px;
   width: 100%;
-  max-width: 440px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+  max-width: 460px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.1);
   position: relative;
   box-sizing: border-box;
 }
@@ -224,12 +224,12 @@
 
 .input-group input {
   width: 100%;
-  background-color: rgba(10, 10, 10, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   color: #FFFFFF;
-  padding: 1rem 1rem 1rem 3rem;
-  border-radius: 12px;
-  font-size: 1rem;
+  padding: 1.1rem 3rem 1.1rem 3.2rem;
+  border-radius: 14px;
+  font-size: 1.05rem;
   outline: none;
   transition: all 0.3s ease;
   box-sizing: border-box;
@@ -250,20 +250,43 @@
   color: #636366;
 }
 
+/* Ojo de contraseña */
+.password-toggle-btn {
+  position: absolute;
+  right: 1.2rem;
+  background: transparent;
+  border: none;
+  color: #8E8E93;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3rem;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.password-toggle-btn:hover,
+.password-toggle-btn:focus {
+  color: #FFFFFF;
+  background-color: rgba(255, 255, 255, 0.05);
+  outline: none;
+}
+
 /* Botón Acción */
 .btn-login {
   width: 100%;
-  background: linear-gradient(135deg, #00D9FF 0%, #0055ff 100%);
+  background: linear-gradient(135deg, #00D9FF 0%, #0077ff 100%);
   color: #FFFFFF;
   border: none;
-  padding: 1rem;
-  border-radius: 12px;
+  padding: 1.1rem;
+  border-radius: 14px;
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 1.05rem;
   cursor: pointer;
   transition: all 0.3s ease;
-  margin-top: 0.5rem;
-  box-shadow: 0 4px 15px rgba(0, 217, 255, 0.2);
+  margin-top: 1rem;
+  box-shadow: 0 6px 20px rgba(0, 217, 255, 0.25);
 }
 
 .btn-login:hover:not(:disabled) {

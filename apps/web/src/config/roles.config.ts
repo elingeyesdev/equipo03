@@ -62,6 +62,12 @@ export const NAV_ROUTES: NavRoute[] = [
     allowedRoles: ['SUPER_ADMIN'],
   },
   {
+    path: 'mapa',
+    label: 'Mapa de Red',
+    icon: '🌐',
+    allowedRoles: ['SUPER_ADMIN'],
+  },
+  {
     path: 'rutinas',
     label: 'Rutinas',
     icon: '🏋️',

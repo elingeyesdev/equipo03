@@ -5,7 +5,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { LoginScreen } from './components/Auth/LoginScreen';
 import { DashboardLayout } from './components/Layout/DashboardLayout';
 import { AuditoriaView } from './components/Auditoria/AuditoriaView';
-import { ResumenView, UsuariosView, SedesView, SucursalesView, RutinasView, RolesView } from './components/Dashboard/DashboardViews';
+import { ResumenView, UsuariosView, SedesView, SucursalesView, RutinasView, RolesView, MapaView } from './components/Dashboard/DashboardViews';
 import { RoleGuard } from './components/Auth/RoleGuard';
 import { MedidasPlaceholder } from './components/Dashboard/Placeholders';
 import { ReservasView } from './components/Reservas/ReservasView';
@@ -16,6 +16,7 @@ export const AppRouter = () => {
       <AuthProvider>
         <Toaster
           position="top-right"
+          containerStyle={{ zIndex: 99999 }}
           toastOptions={{
             style: {
               background: '#1C1C1E',
@@ -54,6 +55,10 @@ export const AppRouter = () => {
 
             <Route path="rutinas" element={
               <RoleGuard routePath="rutinas"><RutinasView /></RoleGuard>
+            } />
+
+            <Route path="mapa" element={
+              <RoleGuard routePath="mapa"><MapaView /></RoleGuard>
             } />
 
             <Route path="reservas" element={

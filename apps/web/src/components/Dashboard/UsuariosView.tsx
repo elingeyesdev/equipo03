@@ -26,7 +26,7 @@ const obtenerUsuariosUseCase = UseCaseFactory.getObtenerUsuariosUC();
 // ─── Componente Modal de creación/edición (usa Portal via ModalOverlay) ───────
 const UserModal = ({ isOpen, onClose, userToEdit, onSave }: any) => {
   const [formData, setFormData] = useState({
-    firstName: '', lastName: '', email: '', password: '',
+    firstName: '', lastName: '', email: '', password: '', phone: '',
     roleId: DB_ROLES.USER as number, gymIds: [] as number[], isActive: true,
   });
   const [gyms, setGyms] = useState<GymDto[]>([]);
@@ -50,6 +50,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave }: any) => {
       setFormData({
         firstName: userToEdit.profile?.firstName ?? '',
         lastName:  userToEdit.profile?.lastName  ?? '',
+        phone:     userToEdit.profile?.phone     ?? '',
         email:     userToEdit.email ?? '',
         password:  '',
         roleId:    Number(userToEdit.userRoles?.[0]?.roleId) || DB_ROLES.USER,
@@ -57,7 +58,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave }: any) => {
         isActive:  userToEdit.isActive ?? true,
       });
     } else {
-      setFormData({ firstName: '', lastName: '', email: '', password: '', roleId: DB_ROLES.USER, gymIds: [], isActive: true });
+      setFormData({ firstName: '', lastName: '', email: '', password: '', phone: '', roleId: DB_ROLES.USER, gymIds: [], isActive: true });
     }
   }, [userToEdit, isOpen]);
 
@@ -87,6 +88,12 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave }: any) => {
           <input type="text" value={formData.lastName}
             onChange={e => setFormData({ ...formData, lastName: e.target.value })}
             placeholder="Ej. Pérez" />
+        </div>
+        <div className="modal-form-group">
+          <label>Teléfono</label>
+          <input type="tel" value={formData.phone}
+            onChange={e => setFormData({ ...formData, phone: e.target.value })}
+            placeholder="Ej. +591 70000000" />
         </div>
         <div className="modal-form-group">
           <label>Correo Electrónico</label>
@@ -219,12 +226,21 @@ export const UsuariosView = () => {
         email:     formData.email?.trim(),
         firstName: formData.firstName?.trim(),
         lastName:  formData.lastName?.trim(),
+        phone:     formData.phone?.trim(),
         roleId:    Number(formData.roleId),
         gymIds: [DB_ROLES.SUPER_ADMIN, DB_ROLES.CLIENTE, DB_ROLES.USER].includes(Number(formData.roleId))
           ? []
           : (formData.gymIds || []).map(Number),
         isActive: formData.isActive,
       };
+      
+      // 🔐 REGLA DE SEGURIDAD RBAC: Si el creador es GERENTE, forzamos que el nuevo usuario
+      // quede asignado ÚNICAMENTE a su sede. Esto evita la creación de usuarios globales
+      // o de otras sedes, lo cual genera error 409/403 en la API por violación de scope.
+      if (user?.role === 'GERENTE' && user?.gymId) {
+        payload.gymIds = [Number(user.gymId)];
+      }
+
       if (formData.password?.trim()) payload.password = formData.password.trim();
 
       if (userToEdit) {
@@ -240,7 +256,7 @@ export const UsuariosView = () => {
       toast.success(userToEdit ? 'Usuario actualizado.' : 'Usuario creado.');
     } catch (err: any) {
       console.error(err);
-      toast.error(err?.response?.data?.message || err?.message || 'Error al guardar usuario.');
+      // Delegamos la alerta de error al interceptor centralizado de la API, que ya lo renderiza en el Toaster.
     }
   };
 
@@ -372,7 +388,8 @@ export const UsuariosView = () => {
         <DetailField label="ID de Usuario" value={viewingUser?.id} />
         <DetailField label="Nombre Completo"
           value={[viewingUser?.profile?.firstName, viewingUser?.profile?.lastName].filter(Boolean).join(' ') || '-'} />
-        <DetailField label="Correo Electrónico" value={viewingUser?.email} isFullWidth />
+        <DetailField label="Correo Electrónico" value={viewingUser?.email} />
+        <DetailField label="Teléfono" value={viewingUser?.profile?.phone || 'No registrado'} />
         <DetailField label="Estado de Cuenta"
           value={
             <span style={{ color: viewingUser?.isActive ? '#30D158' : '#FF5E00', fontWeight: 700 }}>

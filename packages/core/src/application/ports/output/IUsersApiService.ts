@@ -23,7 +23,7 @@ export interface IUserRecord {
   email:     string;
   isActive:  boolean;
   createdAt: string;
-  profile?:  { firstName?: string; lastName?: string } | null;
+  profile?:  { firstName?: string; lastName?: string; phone?: string } | null;
   userRoles?: IUserRoleRecord[];
 }
 

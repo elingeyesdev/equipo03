@@ -24,6 +24,8 @@ export type GymDto = {
   location?: {
     address?: string;
     city?: string;
+    latitude?: number | null;
+    longitude?: number | null;
   };
   schedules?: GymScheduleDto[];
 };
@@ -35,6 +37,7 @@ export type UserDto = {
   profile?: {
     firstName?: string;
     lastName?: string;
+    phone?: string;
   };
   userRoles?: Array<{
     roleId: number;
