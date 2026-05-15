@@ -24,6 +24,7 @@ export * from './application/ports/input/ObtenerSedesCercanas.use-case';
 export * from './application/ports/input/SuscribirseUbicacion.use-case';
 export * from './application/ports/input/ConsultarHistorialAccesos.use-case';
 export * from './application/ports/input/ObtenerUsuarios.use-case';
+export * from './application/ports/input/ObtenerSedesMapa.use-case';
 
 export * from './application/ports/output/IGeolocationService.port';
 export * from './application/ports/output/ISedesApiService.port';

@@ -8,8 +8,9 @@
  *   const uc = UseCaseFactory.getObtenerUsuariosUC();
  *   const result = await uc.execute(authCtx);
  */
-import { ObtenerUsuariosUseCase } from '@gymsync/core';
+import { ObtenerUsuariosUseCase, ObtenerSedesMapaUseCase } from '@gymsync/core';
 import { usersApiAdapter } from './AxiosUsersApi.adapter';
+import { gymsApiAdapter } from './AxiosGymsApi.adapter';
 
 export const UseCaseFactory = {
   /**
@@ -23,6 +24,23 @@ export const UseCaseFactory = {
     return (): ObtenerUsuariosUseCase => {
       if (!instance) {
         instance = new ObtenerUsuariosUseCase(usersApiAdapter);
+      }
+      return instance;
+    };
+  })(),
+
+  /**
+   * Retorna la instancia del caso de uso ObtenerSedesMapa
+   * con el adaptador de Axios inyectado.
+   *
+   * Solo debe ser invocado por SUPER_ADMIN (la verificación está en el Core).
+   * Singleton lazy: la instancia se crea una sola vez y se reutiliza.
+   */
+  getObtenerSedesMapaUC: (() => {
+    let instance: ObtenerSedesMapaUseCase | null = null;
+    return (): ObtenerSedesMapaUseCase => {
+      if (!instance) {
+        instance = new ObtenerSedesMapaUseCase(gymsApiAdapter);
       }
       return instance;
     };
