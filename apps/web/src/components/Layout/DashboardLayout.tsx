@@ -1,35 +1,35 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, Navigate, useNavigate, NavLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../hooks/useNotifications';
+import { getRoutesForRole } from '../../config/roles.config';
 import './DashboardLayout.css';
 
 export const DashboardLayout = () => {
   const { isAuthenticated, user, logout, isLoading } = useAuth();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
-  const hideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [hasActiveFormModal, setHasActiveFormModal] = useState(false);
 
   // Monitorear dinámicamente si hay modales de creación/edición activos
   useEffect(() => {
     const checkModals = () => {
-      // Verificamos si existe un modal que contenga elementos de edición (input, select, textarea).
-      // Excluimos botones simples para que los modales de confirmación o detalle no bloqueen el menú.
-      const hasForm = !!document.querySelector('.modal-overlay input:not([type="button"]):not([type="submit"]), .modal-overlay select, .modal-overlay textarea, .modal-content input, .modal-content select, .modal-content textarea');
+      const hasForm = !!document.querySelector(
+        '.modal-overlay input:not([type="button"]):not([type="submit"]), ' +
+        '.modal-overlay select, .modal-overlay textarea, ' +
+        '.modal-content input, .modal-content select, .modal-content textarea'
+      );
       setHasActiveFormModal(hasForm);
     };
 
     const observer = new MutationObserver(checkModals);
     observer.observe(document.body, { childList: true, subtree: true });
-    checkModals(); // Verificación inicial
+    checkModals();
 
     return () => observer.disconnect();
   }, []);
 
   // 🔌 Activar canal de notificaciones en tiempo real (Socket.io)
-  // Se auto-une a la sala correcta según el rol (room_gym_{id} o room_admin_all)
   useNotifications();
 
   if (isLoading) return <div className="layout-loading">Verificando sesión...</div>;
@@ -44,6 +44,10 @@ export const DashboardLayout = () => {
 
   const closeSidebar = () => setIsSidebarOpen(false);
 
+  // ── Sidebar dinámico: solo se incluyen en el DOM los links permitidos ────────
+  // getRoutesForRole filtra por el mismo criterio que RoleGuard → 0 desincronía.
+  const visibleRoutes = getRoutesForRole(user?.role);
+
   return (
     <div className="dashboard-layout">
       {/* Overlay for mobile */}
@@ -55,49 +59,16 @@ export const DashboardLayout = () => {
           GymSync <span>Pro</span>
         </div>
         <nav className="nav-menu">
-          <NavLink to="/dashboard/resumen" onClick={closeSidebar} className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}>
-            📊 Resumen
-          </NavLink>
-          {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE') && (
-            <NavLink to="/dashboard/auditoria" onClick={closeSidebar} className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}>
-              🛡️ Auditoría
+          {visibleRoutes.map((route) => (
+            <NavLink
+              key={route.path}
+              to={`/dashboard/${route.path}`}
+              onClick={closeSidebar}
+              className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}
+            >
+              {route.icon} {route.label}
             </NavLink>
-          )}
-          {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE' || user?.role === 'ENTRENADOR' || user?.role === 'NUTRICIONISTA') && (
-            <NavLink to="/dashboard/usuarios" onClick={closeSidebar} className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}>
-              👥 Usuarios
-            </NavLink>
-          )}
-          {user?.role === 'SUPER_ADMIN' && (
-            <NavLink to="/dashboard/sedes" onClick={closeSidebar} className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}>
-              🏢 Sedes (Marcas)
-            </NavLink>
-          )}
-          {user?.role === 'SUPER_ADMIN' && (
-            <NavLink to="/dashboard/sucursales" onClick={closeSidebar} className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}>
-              🏪 Sucursales
-            </NavLink>
-          )}
-          {user?.role === 'SUPER_ADMIN' && (
-            <NavLink to="/dashboard/roles" onClick={closeSidebar} className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}>
-              🔑 Roles
-            </NavLink>
-          )}
-          {(user?.role === 'SUPER_ADMIN' || user?.role === 'ENTRENADOR' || user?.role === 'NUTRICIONISTA' || user?.role === 'CLIENTE') && (
-            <NavLink to="/dashboard/rutinas" onClick={closeSidebar} className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}>
-              🏋️ Rutinas
-            </NavLink>
-          )}
-          {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE' || user?.role === 'CLIENTE') && (
-            <NavLink to="/dashboard/reservas" onClick={closeSidebar} className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}>
-              📅 Reservas
-            </NavLink>
-          )}
-          {user?.role === 'CLIENTE' && (
-            <NavLink to="/dashboard/medidas" onClick={closeSidebar} className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}>
-              📏 Medidas
-            </NavLink>
-          )}
+          ))}
         </nav>
         <div className="sidebar-footer">
           <span className="version">v2.0 (PostgreSQL Mode)</span>
@@ -106,15 +77,14 @@ export const DashboardLayout = () => {
 
       {/* Main Content Area */}
       <main className="main-content">
-        {/* Header will only hide when a form is active */}
-
-        <header 
+        {/* Header will only hide when a form modal is active */}
+        <header
           className="top-header glass-panel"
           style={{
-            transform: hasActiveFormModal ? 'translateY(-100%)' : 'translateY(0)', // Forzar translateY(-100%) si hay formulario
+            transform: hasActiveFormModal ? 'translateY(-100%)' : 'translateY(0)',
             transition: 'transform 0.3s ease-out',
             zIndex: 10000,
-            pointerEvents: hasActiveFormModal ? 'none' : 'auto' // Prevenir interacciones accidentales con el panel oculto
+            pointerEvents: hasActiveFormModal ? 'none' : 'auto',
           }}
         >
           <div className="header-left">
@@ -128,9 +98,9 @@ export const DashboardLayout = () => {
 
           <div className="header-actions">
             <div className="user-profile">
-              <img src={`https://i.pravatar.cc/150?u=${user?.userId}`} alt="User" className="avatar" />
+              <img src={`https://i.pravatar.cc/150?u=${user?.id}`} alt="User" className="avatar" />
               <div className="user-info desktop-only">
-                <span className="user-name">Usuario ({user?.userId})</span>
+                <span className="user-name">Usuario ({user?.id})</span>
                 <span className="user-role">{user?.role} {user?.gymId ? `(Gym: ${user.gymId})` : ''}</span>
               </div>
             </div>

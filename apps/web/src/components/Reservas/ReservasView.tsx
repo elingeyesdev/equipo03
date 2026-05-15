@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { reservationsApi } from '../../infrastructure/AxiosReservationsApi.adapter';
+import { DB_ROLES } from '../../config/rbac.constants';
 import type { Reservation } from '../../infrastructure/Reservations.types';
 import { QrScannerModal } from './QrScannerModal';
 import { RecordDetailModal, DetailField } from '../Dashboard/Shared/DashboardShared';
@@ -22,7 +23,9 @@ export const ReservasView = () => {
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [viewingReservation, setViewingReservation] = useState<Reservation | null>(null);
 
-  const isGerente = user?.role === 'GERENTE' || user?.roleId === 2 || user?.role === '2';
+  // Usa roleId numérico de WebUser (Paso 1) — no depende de strings ni comparaciones mixtas
+  const isGerente = user?.roleId === DB_ROLES.GERENTE;
+  const isCliente = user?.roleId === DB_ROLES.CLIENTE;
 
   const loadReservations = useCallback(async () => {
     setLoading(true);
@@ -35,17 +38,18 @@ export const ReservasView = () => {
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
 
-    // Additional frontend filtering for enhanced security:
+    // Filtrado de seguridad en frontend como capa adicional
     if (isGerente && user?.gymId) {
       sorted = sorted.filter(res => res.gymActivitySchedule?.gymActivity?.gymId === Number(user.gymId));
-    } else if (user?.role === 'CLIENTE' && user?.id) {
-      sorted = sorted.filter(res => res.userId === Number(user.id));
+    } else if (isCliente && user?.id) {
+      // user.id es number (WebUser.id) — comparación estricta con res.userId
+      sorted = sorted.filter(res => res.userId === user.id);
     }
 
     setReservations(sorted);
     setLoading(false);
     setCurrentPage(1);
-  }, [filterStatus, filterGym, isGerente, user?.gymId, user?.role, user?.id]);
+  }, [filterStatus, filterGym, isGerente, isCliente, user?.gymId, user?.id]);
 
   useEffect(() => { loadReservations(); }, [loadReservations]);
 

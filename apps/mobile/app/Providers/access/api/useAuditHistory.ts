@@ -31,8 +31,8 @@ export const useAuditHistory = () => {
     try {
       const client = createSedesApiClient();
       // El backend manejará el scoping por el token JWT
-      // Asumimos que el endpoint es /api/checkins/history
-      const response = await client.get('/api/checkins/history');
+      // Según la auditoría, el endpoint para listar es /api/checkins
+      const response = await client.get('/api/checkins');
       
       // La data ya está desempaquetada gracias al interceptor
       setHistory(response.data || []);

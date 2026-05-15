@@ -18,7 +18,8 @@ export class SedeDTOMapper {
     const address = location.address || dto.direccion || 'Dirección no especificada';
     const lat = location.latitude ?? dto.latitude ?? 0;
     const lng = location.longitude ?? dto.longitude ?? 0;
-    const maxCap = dto.maxCapacity ?? dto.capacity ?? dto.aforoMaximo ?? 100;
+    const rawMaxCap = dto.maxCapacity ?? dto.capacity ?? dto.aforoMaximo;
+    const maxCap = (typeof rawMaxCap === 'number' && rawMaxCap > 0) ? rawMaxCap : 100;
     const actualCap = dto.aforoActual ?? 0;
     
     // Mapeo simple de schedules del backend a HorariosMap

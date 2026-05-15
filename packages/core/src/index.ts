@@ -15,6 +15,7 @@ export * from './domain/entities/Acceso.entity';
 // Exportando Errores de Dominio
 export * from './domain/errors/UbicacionNoDisponible.error';
 export * from './domain/errors/SedeNoEncontrada.error';
+export * from './domain/errors/GymScopeViolationException';
 
 // Exportando Puertos de la Capa de Aplicación
 export * from './application/ports/input/CalcularRuta.use-case';
@@ -22,12 +23,14 @@ export * from './application/ports/input/FiltrarSedes.use-case';
 export * from './application/ports/input/ObtenerSedesCercanas.use-case';
 export * from './application/ports/input/SuscribirseUbicacion.use-case';
 export * from './application/ports/input/ConsultarHistorialAccesos.use-case';
+export * from './application/ports/input/ObtenerUsuarios.use-case';
 
 export * from './application/ports/output/IGeolocationService.port';
 export * from './application/ports/output/ISedesApiService.port';
 export * from './application/ports/output/IStorageService.port';
 export * from './application/ports/output/INavigationService.port';
 export * from './application/ports/output/IAccessApiService.port';
+export * from './application/ports/output/IUsersApiService';
 
 // Exportando Servicios de Dominio
 export * from './domain/services/CalculadoraDistancia.service';

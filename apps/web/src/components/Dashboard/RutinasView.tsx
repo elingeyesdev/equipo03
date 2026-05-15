@@ -124,7 +124,7 @@ export const RutinasView = () => {
           description: formData.description,
           difficultyLevel: formData.difficulty,
           isTemplate: false,
-          trainerId: Number(user?.userId) || 1
+          trainerId: Number(user?.id) || 1
         };
       }
       

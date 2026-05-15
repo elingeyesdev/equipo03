@@ -6,10 +6,10 @@
  */
 
 import axios, { AxiosInstance } from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { Env } from '../../config/environment';
 
-const TOKEN_STORAGE_KEY = '@gymsync_token';
+const TOKEN_STORAGE_KEY = 'gymsync.token';
 
 export const createSedesApiClient = (): AxiosInstance => {
   const client = axios.create({
@@ -26,7 +26,7 @@ export const createSedesApiClient = (): AxiosInstance => {
     async (config) => {
       try {
         // Obtener el token del almacenamiento
-        const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+        const token = await SecureStore.getItemAsync(TOKEN_STORAGE_KEY);
         
         if (token && config.headers) {
           config.headers.Authorization = `Bearer ${token}`;
