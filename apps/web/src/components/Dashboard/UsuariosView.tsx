@@ -4,7 +4,7 @@ import { Navigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
-import { ModalOverlay, ConfirmModal, panelStyle } from './Shared/DashboardShared';
+import { ModalOverlay, ConfirmModal, panelStyle, RecordDetailModal, DetailField } from './Shared/DashboardShared';
 import type { GymDto, GymScheduleDto, UserDto, CheckinDto, ScheduleEntry } from './Shared/DashboardTypes';
 
 const UserModal = ({ isOpen, onClose, userToEdit, onSave }: any) => {
@@ -226,6 +226,7 @@ export const UsuariosView = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [userToEdit, setUserToEdit] = useState<UserDto | null>(null);
   const [deleteConfirmUser, setDeleteConfirmUser] = useState<UserDto | null>(null);
+  const [viewingUser, setViewingUser] = useState<UserDto | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -445,6 +446,7 @@ export const UsuariosView = () => {
                     </td>
                     <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C', textAlign: 'center' }}>
                       <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                        <button onClick={() => setViewingUser(u)} style={{ background: 'rgba(0, 217, 255, 0.1)', color: '#00D9FF', border: '1px solid rgba(0, 217, 255, 0.3)', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }} title="Ver ficha completa">👁️ Detalle</button>
                         {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE') && (
                           <button onClick={() => handleEditUser(u)} style={{ background: '#00D9FF', color: '#0A0A0A', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>Editar</button>
                         )}
@@ -475,7 +477,55 @@ export const UsuariosView = () => {
         title="Confirmar Eliminación"
         message={`¿Estás seguro de querer eliminar al usuario "${deleteConfirmUser?.email}"? Esta acción no se puede deshacer y borrará permanentemente sus datos de acceso y perfil.`}
       />
+
+      <RecordDetailModal
+        isOpen={!!viewingUser}
+        onClose={() => setViewingUser(null)}
+        title="Ficha Detallada de Usuario"
+      >
+        <DetailField label="ID de Usuario" value={viewingUser?.id} />
+        <DetailField 
+          label="Nombre Completo" 
+          value={[viewingUser?.profile?.firstName, viewingUser?.profile?.lastName].filter(Boolean).join(' ') || '-'} 
+        />
+        <DetailField label="Correo Electrónico" value={viewingUser?.email} isFullWidth />
+        <DetailField 
+          label="Estado de Cuenta" 
+          value={
+            <span style={{ color: viewingUser?.isActive ? '#30D158' : '#FF5E00', fontWeight: 700 }}>
+              {viewingUser?.isActive ? '● ACTIVO' : '● INACTIVO'}
+            </span>
+          } 
+        />
+        <DetailField 
+          label="Rol del Sistema" 
+          value={
+            (() => {
+              const roleId = Number(viewingUser?.userRoles?.[0]?.roleId);
+              switch(roleId) {
+                case 1: return 'SUPER_ADMIN (Administrador Global)';
+                case 2: return 'GERENTE (Gerente de Sede)';
+                case 3: return 'USER (Usuario Estándar)';
+                case 4: return 'CLIENTE (Cliente Activo)';
+                case 5: return 'ENTRENADOR';
+                case 6: return 'NUTRICIONISTA';
+                default: return 'Usuario';
+              }
+            })()
+          } 
+        />
+        <DetailField 
+          label="Sedes Asignadas" 
+          isFullWidth 
+          value={
+            (() => {
+              const gymsList = viewingUser?.userRoles?.map((ur: any) => ur.gym).filter(Boolean) || [];
+              const gymNames = gymsList.map((g: any) => viewingUser?.gymsMap?.get(g.id) || g.name || g.nombre).filter(Boolean);
+              return gymNames.length > 0 ? gymNames.join(', ') : 'Sin Sedes Asignadas (Acceso Global / Ninguna)';
+            })()
+          } 
+        />
+      </RecordDetailModal>
     </section>
   );
 };
-

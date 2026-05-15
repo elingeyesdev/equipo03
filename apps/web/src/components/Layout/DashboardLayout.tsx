@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Outlet, Navigate, useNavigate, NavLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../hooks/useNotifications';
@@ -10,22 +10,27 @@ export const DashboardLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   const hideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [hasActiveFormModal, setHasActiveFormModal] = useState(false);
+
+  // Monitorear dinámicamente si hay modales de creación/edición activos
+  useEffect(() => {
+    const checkModals = () => {
+      // Verificamos si existe un modal que contenga elementos de edición (input, select, textarea).
+      // Excluimos botones simples para que los modales de confirmación o detalle no bloqueen el menú.
+      const hasForm = !!document.querySelector('.modal-overlay input:not([type="button"]):not([type="submit"]), .modal-overlay select, .modal-overlay textarea, .modal-content input, .modal-content select, .modal-content textarea');
+      setHasActiveFormModal(hasForm);
+    };
+
+    const observer = new MutationObserver(checkModals);
+    observer.observe(document.body, { childList: true, subtree: true });
+    checkModals(); // Verificación inicial
+
+    return () => observer.disconnect();
+  }, []);
 
   // 🔌 Activar canal de notificaciones en tiempo real (Socket.io)
   // Se auto-une a la sala correcta según el rol (room_gym_{id} o room_admin_all)
   useNotifications();
-
-  const handleHeaderMouseLeave = () => {
-    if (hideTimeout.current) clearTimeout(hideTimeout.current);
-    hideTimeout.current = setTimeout(() => {
-      setIsHeaderVisible(false);
-    }, 1500);
-  };
-
-  const handleSensorMouseEnter = () => {
-    if (hideTimeout.current) clearTimeout(hideTimeout.current);
-    setIsHeaderVisible(true);
-  };
 
   if (isLoading) return <div className="layout-loading">Verificando sesión...</div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
@@ -101,27 +106,15 @@ export const DashboardLayout = () => {
 
       {/* Main Content Area */}
       <main className="main-content">
-        {/* Invisible Sensor Zone - 20px active area at top */}
-        <div 
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: '20px',
-            zIndex: 9999,
-            cursor: 'default'
-          }}
-          onMouseEnter={handleSensorMouseEnter}
-        />
+        {/* Header will only hide when a form is active */}
 
         <header 
           className="top-header glass-panel"
-          onMouseLeave={handleHeaderMouseLeave}
           style={{
-            transform: isHeaderVisible ? 'translateY(0)' : 'translateY(-100%)',
+            transform: hasActiveFormModal ? 'translateY(-100%)' : 'translateY(0)', // Forzar translateY(-100%) si hay formulario
             transition: 'transform 0.3s ease-out',
-            zIndex: 10000
+            zIndex: 10000,
+            pointerEvents: hasActiveFormModal ? 'none' : 'auto' // Prevenir interacciones accidentales con el panel oculto
           }}
         >
           <div className="header-left">

@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { reservationsApi } from '../../infrastructure/AxiosReservationsApi.adapter';
 import type { Reservation } from '../../infrastructure/Reservations.types';
 import { QrScannerModal } from './QrScannerModal';
+import { RecordDetailModal, DetailField } from '../Dashboard/Shared/DashboardShared';
 import './ReservasView.css';
 
 export const ReservasView = () => {
@@ -19,6 +20,7 @@ export const ReservasView = () => {
   const [showScanner, setShowScanner] = useState(false);
   const [scannedReservation, setScannedReservation] = useState<Reservation | null>(null);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [viewingReservation, setViewingReservation] = useState<Reservation | null>(null);
 
   const isGerente = user?.role === 'GERENTE' || user?.roleId === 2 || user?.role === '2';
 
@@ -251,6 +253,17 @@ export const ReservasView = () => {
                       </td>
                       <td>
                         <div className="action-group">
+                          {/* Detalle */}
+                          <button
+                            className="btn-action"
+                            style={{ background: 'rgba(0, 217, 255, 0.1)', border: '1px solid rgba(0, 217, 255, 0.3)', color: '#00D9FF', borderRadius: '6px', padding: '0.4rem', fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '36px' }}
+                            title="Ver detalle completo de reserva"
+                            onClick={() => setViewingReservation(res)}
+                            disabled={isLoading}
+                          >
+                            👁️
+                          </button>
+
                           {/* Escanear QR — siempre disponible */}
                           <button
                             className="btn-action btn-action-scan"
@@ -307,6 +320,57 @@ export const ReservasView = () => {
           <div className="empty-state">No hay reservas registradas para estos filtros.</div>
         )}
       </div>
+
+      <RecordDetailModal
+        isOpen={!!viewingReservation}
+        onClose={() => setViewingReservation(null)}
+        title="Detalle Completo de Reserva"
+      >
+        <DetailField label="ID de Reserva" value={viewingReservation?.id} />
+        <DetailField 
+          label="Estado de Reserva" 
+          value={
+            <span className={`badge-status ${(viewingReservation?.status || '').toLowerCase()}`} style={{ display: 'inline-block', padding: '2px 8px', borderRadius: '12px', fontWeight: 700, fontSize: '0.75rem' }}>
+              {viewingReservation?.status}
+            </span>
+          } 
+        />
+
+        <DetailField label="Cliente" value={viewingReservation?.user?.profile?.fullName || 'No especificado'} />
+        <DetailField label="Carnet de Identidad (CI)" value={viewingReservation?.user?.profile?.ci || 'Sin registrar'} />
+        <DetailField label="Correo del Cliente" value={viewingReservation?.user?.email} isFullWidth />
+
+        <DetailField label="Actividad Deportiva" value={viewingReservation?.gymActivitySchedule?.gymActivity?.name || '-'} />
+        <DetailField label="Gimnasio / Sede" value={viewingReservation?.gymActivitySchedule?.gymActivity?.gym?.name || '-'} />
+        
+        <DetailField label="Fecha Reservada" value={viewingReservation?.reservationDate} />
+        <DetailField 
+          label="Horario de Actividad" 
+          value={
+            viewingReservation?.gymActivitySchedule?.startTime 
+              ? `${viewingReservation.gymActivitySchedule.startTime.substring(0, 5)} - ${viewingReservation.gymActivitySchedule.endTime?.substring(0, 5) || ''}` 
+              : '-'
+          } 
+        />
+
+        <DetailField 
+          label="Fecha de Registro (Creación)" 
+          isFullWidth 
+          value={viewingReservation?.createdAt ? new Date(viewingReservation.createdAt).toLocaleString('es-ES') : '-'} 
+        />
+
+        {viewingReservation?.qrToken && (
+          <DetailField 
+            label="Token de Seguridad QR" 
+            isFullWidth 
+            value={
+              <code style={{ wordBreak: 'break-all', background: 'rgba(0,0,0,0.4)', padding: '0.4rem 0.6rem', borderRadius: '6px', color: '#00D9FF', fontSize: '0.8rem', display: 'block', border: '1px solid rgba(0, 217, 255, 0.1)' }}>
+                {viewingReservation.qrToken}
+              </code>
+            } 
+          />
+        )}
+      </RecordDetailModal>
     </div>
   );
 };
