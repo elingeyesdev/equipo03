@@ -4,7 +4,7 @@ import { Navigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
-import { ModalOverlay, ConfirmModal, panelStyle } from './Shared/DashboardShared';
+import { ModalOverlay, ConfirmModal, panelStyle, RecordDetailModal, DetailField } from './Shared/DashboardShared';
 import type { GymDto, GymScheduleDto, UserDto, CheckinDto, ScheduleEntry } from './Shared/DashboardTypes';
 
 type RoutineDto = {
@@ -73,6 +73,7 @@ export const RutinasView = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [routineToEdit, setRoutineToEdit] = useState<RoutineDto | null>(null);
   const [deleteConfirmRoutine, setDeleteConfirmRoutine] = useState<RoutineDto | null>(null);
+  const [viewingRoutine, setViewingRoutine] = useState<RoutineDto | null>(null);
 
   const canDelete = user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE';
 
@@ -123,7 +124,7 @@ export const RutinasView = () => {
           description: formData.description,
           difficultyLevel: formData.difficulty,
           isTemplate: false,
-          trainerId: Number(user?.userId) || 1
+          trainerId: Number(user?.id) || 1
         };
       }
       
@@ -173,9 +174,7 @@ export const RutinasView = () => {
                 <th style={{ textAlign: 'left', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Rutina</th>
                 <th style={{ textAlign: 'left', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Dificultad</th>
                 <th style={{ textAlign: 'left', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Descripción</th>
-                {user?.role !== 'CLIENTE' && (
-                  <th style={{ textAlign: 'center', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Acciones</th>
-                )}
+                <th style={{ textAlign: 'center', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -194,16 +193,19 @@ export const RutinasView = () => {
                     </span>
                   </td>
                   <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#E5E5EA' }}>{r.description || '-'}</td>
-                  {user?.role !== 'CLIENTE' && (
-                    <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C', textAlign: 'center' }}>
-                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                        <button onClick={() => { setRoutineToEdit(r); setIsModalOpen(true); }} style={{ background: '#00D9FF', color: '#0A0A0A', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>Editar</button>
-                        {canDelete && (
-                          <button onClick={() => handleDeleteRoutine(r)} style={{ background: 'rgba(255, 94, 0, 0.1)', color: '#FF5E00', border: '1px solid #FF5E00', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>Eliminar</button>
-                        )}
-                      </div>
-                    </td>
-                  )}
+                  <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                      <button onClick={() => setViewingRoutine(r)} style={{ background: 'rgba(0, 217, 255, 0.1)', border: '1px solid rgba(0, 217, 255, 0.3)', color: '#00D9FF', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }} title="Ver ficha de rutina">👁️ Detalle</button>
+                      {user?.role !== 'CLIENTE' && (
+                        <>
+                          <button onClick={() => { setRoutineToEdit(r); setIsModalOpen(true); }} style={{ background: '#00D9FF', color: '#0A0A0A', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>Editar</button>
+                          {canDelete && (
+                            <button onClick={() => handleDeleteRoutine(r)} style={{ background: 'rgba(255, 94, 0, 0.1)', color: '#FF5E00', border: '1px solid #FF5E00', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>Eliminar</button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -225,6 +227,43 @@ export const RutinasView = () => {
         title="Confirmar Eliminación"
         message={`¿Estás seguro de querer eliminar la rutina "${deleteConfirmRoutine?.name}"? Esta acción no se puede deshacer.`}
       />
+
+      <RecordDetailModal
+        isOpen={!!viewingRoutine}
+        onClose={() => setViewingRoutine(null)}
+        title="Detalle del Plan de Entrenamiento"
+      >
+        <DetailField label="ID de Rutina" value={viewingRoutine?.id} />
+        <DetailField label="Nombre de la Rutina" value={viewingRoutine?.name} />
+        <DetailField 
+          label="Nivel de Dificultad" 
+          value={
+            <span style={{ 
+              padding: '0.2rem 0.5rem', 
+              borderRadius: '4px', 
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              background: viewingRoutine?.difficulty === 'FACIL' ? 'rgba(48, 209, 88, 0.15)' : viewingRoutine?.difficulty === 'INTERMEDIO' ? 'rgba(255, 159, 10, 0.15)' : 'rgba(255, 94, 0, 0.15)',
+              color: viewingRoutine?.difficulty === 'FACIL' ? '#30D158' : viewingRoutine?.difficulty === 'INTERMEDIO' ? '#FF9F0A' : '#FF5E00' 
+            }}>
+              {viewingRoutine?.difficulty}
+            </span>
+          } 
+        />
+        <DetailField 
+          label="Tipo de Plantilla" 
+          value={(viewingRoutine as any)?.isTemplate ? 'Plantilla Global' : 'Plan Personalizado'} 
+        />
+        <DetailField 
+          label="Descripción Completa" 
+          isFullWidth 
+          value={
+            <div style={{ whiteSpace: 'pre-wrap', color: '#E5E5EA', lineHeight: 1.6, maxHeight: '200px', overflowY: 'auto', paddingRight: '5px' }}>
+              {viewingRoutine?.description || 'Sin descripción proporcionada para esta rutina.'}
+            </div>
+          } 
+        />
+      </RecordDetailModal>
     </section>
   );
 };
@@ -233,4 +272,3 @@ export const RutinasView = () => {
 // ============================================================
 // MÓDULO DE ROLES — Exclusivo SUPER_ADMIN
 // ============================================================
-

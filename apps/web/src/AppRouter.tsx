@@ -28,60 +28,40 @@ export const AppRouter = () => {
           <Route path="/login" element={<LoginScreen />} />
 
           <Route path="/dashboard" element={<DashboardLayout />}>
+            {/* Resumen: accesible a todos los roles autenticados */}
             <Route path="resumen" element={<ResumenView />} />
 
-            {/* Rutas para SUPER_ADMIN y GERENTE */}
+            {/* Las demás rutas pasan por RoleGuard v2 (consume NAV_ROUTES internamente) */}
             <Route path="auditoria" element={
-              <RoleGuard allowedRoles={['SUPER_ADMIN', 'GERENTE']}>
-                <AuditoriaView />
-              </RoleGuard>
+              <RoleGuard routePath="auditoria"><AuditoriaView /></RoleGuard>
             } />
 
-            {/* Rutas para SUPER_ADMIN, GERENTE, ENTRENADOR, NUTRICIONISTA */}
             <Route path="usuarios" element={
-              <RoleGuard allowedRoles={['SUPER_ADMIN', 'GERENTE', 'ENTRENADOR', 'NUTRICIONISTA']}>
-                <UsuariosView />
-              </RoleGuard>
+              <RoleGuard routePath="usuarios"><UsuariosView /></RoleGuard>
             } />
 
-            {/* Rutas solo para SUPER_ADMIN */}
             <Route path="sedes" element={
-              <RoleGuard allowedRoles={['SUPER_ADMIN']}>
-                <SedesView />
-              </RoleGuard>
+              <RoleGuard routePath="sedes"><SedesView /></RoleGuard>
             } />
+
             <Route path="sucursales" element={
-              <RoleGuard allowedRoles={['SUPER_ADMIN']}>
-                <SucursalesView />
-              </RoleGuard>
+              <RoleGuard routePath="sucursales"><SucursalesView /></RoleGuard>
             } />
 
-            {/* Roles: Solo SUPER_ADMIN */}
             <Route path="roles" element={
-              <RoleGuard allowedRoles={['SUPER_ADMIN']}>
-                <RolesView />
-              </RoleGuard>
+              <RoleGuard routePath="roles"><RolesView /></RoleGuard>
             } />
 
-            {/* Rutinas: SUPER_ADMIN, ENTRENADOR, NUTRICIONISTA, CLIENTE */}
             <Route path="rutinas" element={
-              <RoleGuard allowedRoles={['SUPER_ADMIN', 'ENTRENADOR', 'NUTRICIONISTA', 'CLIENTE']}>
-                <RutinasView />
-              </RoleGuard>
+              <RoleGuard routePath="rutinas"><RutinasView /></RoleGuard>
             } />
 
-            {/* Reservas: SUPER_ADMIN, GERENTE, CLIENTE */}
             <Route path="reservas" element={
-              <RoleGuard allowedRoles={['SUPER_ADMIN', 'GERENTE', 'CLIENTE']}>
-                <ReservasView />
-              </RoleGuard>
+              <RoleGuard routePath="reservas"><ReservasView /></RoleGuard>
             } />
 
-            {/* Medidas: CLIENTE */}
             <Route path="medidas" element={
-              <RoleGuard allowedRoles={['CLIENTE']}>
-                <MedidasPlaceholder />
-              </RoleGuard>
+              <RoleGuard routePath="medidas"><MedidasPlaceholder /></RoleGuard>
             } />
 
             <Route index element={<Navigate to="resumen" replace />} />

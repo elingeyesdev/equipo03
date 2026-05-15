@@ -135,7 +135,7 @@ export const SedesView = () => {
 
   const handleEditSede = (sede: GymDto) => {
     if (user?.role === 'GERENTE' && user?.gymId && sede.id !== parseInt(user.gymId as string)) {
-      console.warn(`[Security Guard]: Bloqueo de acceso a Sede ajena para Gerente ID ${user.userId}`);
+      console.warn(`[Security Guard]: Bloqueo de acceso a Sede ajena para Gerente ID ${user.id}`);
       alert("Acceso denegado: No tienes permisos para editar una sede que no te pertenece.");
       return;
     }

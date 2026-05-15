@@ -13,7 +13,7 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({ iconUrl: markerIcon, iconRetinaUrl: markerIcon2x, shadowUrl: markerShadow });
-import { ModalOverlay, ConfirmModal, panelStyle } from './Shared/DashboardShared';
+import { ModalOverlay, ConfirmModal, panelStyle, RecordDetailModal, DetailField } from './Shared/DashboardShared';
 import type { GymDto, GymScheduleDto, UserDto, CheckinDto, ScheduleEntry } from './Shared/DashboardTypes';
 
 const MapPicker = ({ lat, lng, onSelect }: { lat: number; lng: number; onSelect: (lat: number, lng: number, address: string) => void }) => {
@@ -444,7 +444,7 @@ const SucursalModal = ({ isOpen, onClose, sucursalToEdit, onSave, parentGyms }: 
         latitude: sucursalToEdit.location?.latitude || -17.7833, 
         longitude: sucursalToEdit.location?.longitude || -63.1667,
         city: sucursalToEdit.location?.city || 'Santa Cruz de la Sierra',
-        parentId: sucursalToEdit.parentId?.toString() || '',
+        parentId: sucursalToEdit.parentId?.toString() || sucursalToEdit.parent?.id?.toString() || '',
         schedules: (sucursalToEdit.schedules || []).map((s: any) => ({
           dayOfWeek: s.dayOfWeek,
           opensAt: s.opensAt?.slice(0, 5) || '06:00',
@@ -908,6 +908,7 @@ export const SucursalesView = () => {
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [sucursalToEdit, setSucursalToEdit] = useState<GymDto | null>(null);
+  const [viewingSucursal, setViewingSucursal] = useState<GymDto | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -981,6 +982,7 @@ export const SucursalesView = () => {
         name: formData.name,
         description: formData.description || formData.address,
         maxCapacity: Number(formData.maxCapacity) || 0,
+        parentId: Number(formData.parentId) || null,
         location: {
           address: formData.address || '',
           city: formData.city || 'Santa Cruz de la Sierra',
@@ -1007,6 +1009,7 @@ export const SucursalesView = () => {
           name: payload.name,
           description: payload.description,
           maxCapacity: payload.maxCapacity,
+          parentId: payload.parentId,
           // Evitamos enviar schedules en el PUT principal por si el UpdateGymDto no lo permite
         };
         await apiClient.put(`/gyms/${sucursalToEdit.id}`, updatePayload);
@@ -1082,9 +1085,7 @@ export const SucursalesView = () => {
                 <th style={{ textAlign: 'left', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Dirección</th>
                 <th style={{ textAlign: 'left', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Capacidad</th>
                 <th style={{ textAlign: 'left', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Estado</th>
-                {user.role === 'SUPER_ADMIN' && (
-                  <th style={{ textAlign: 'center', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Acciones</th>
-                )}
+                <th style={{ textAlign: 'center', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -1115,24 +1116,33 @@ export const SucursalesView = () => {
                     </span>
                     <span style={{ color: '#8E8E93' }}>{g.isOpen ? ' | ABIERTA' : ' | CERRADA'}</span>
                   </td>
-                  {user.role === 'SUPER_ADMIN' && (
-                    <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C', textAlign: 'center' }}>
-                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', alignItems: 'center' }}>
-                        <button
-                          onClick={() => handleEditSucursal(g)}
-                          style={{ background: 'transparent', border: '1px solid #00D9FF', color: '#00D9FF', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => handleDeleteSucursal(g)}
-                          style={{ background: 'transparent', border: '1px solid #FF5E00', color: '#FF5E00', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
-                        >
-                          Eliminar
-                        </button>
-                      </div>
-                    </td>
-                  )}
+                  <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', alignItems: 'center' }}>
+                      <button
+                        onClick={() => setViewingSucursal(g)}
+                        style={{ background: 'rgba(0, 217, 255, 0.1)', border: '1px solid rgba(0, 217, 255, 0.3)', color: '#00D9FF', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
+                        title="Ver detalles de la sucursal"
+                      >
+                        👁️ Detalle
+                      </button>
+                      {user.role === 'SUPER_ADMIN' && (
+                        <>
+                          <button
+                            onClick={() => handleEditSucursal(g)}
+                            style={{ background: 'transparent', border: '1px solid #00D9FF', color: '#00D9FF', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => handleDeleteSucursal(g)}
+                            style={{ background: 'transparent', border: '1px solid #FF5E00', color: '#FF5E00', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                          >
+                            Eliminar
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -1161,6 +1171,71 @@ export const SucursalesView = () => {
         title="Confirmar Eliminación"
         message={`¿Estás seguro de querer eliminar la sucursal "${deleteConfirmSucursal?.name}"? Esta acción no se puede deshacer y borrará los registros asociados permanentemente.`}
       />
+
+      <RecordDetailModal
+        isOpen={!!viewingSucursal}
+        onClose={() => setViewingSucursal(null)}
+        title="Detalle de la Sucursal"
+      >
+        <DetailField label="ID de Registro" value={viewingSucursal?.id} />
+        <DetailField label="Nombre de Sucursal" value={viewingSucursal?.name} />
+        
+        <DetailField 
+          label="Sede Principal (Marca)" 
+          value={viewingSucursal?.parent?.name || (viewingSucursal?.parentId ? parentGyms[viewingSucursal.parentId] : 'Sin Sede Vinculada')} 
+        />
+        <DetailField 
+          label="Capacidad Máxima" 
+          value={`${viewingSucursal?.maxCapacity || '0'} personas`} 
+        />
+
+        <DetailField label="Dirección Física" value={viewingSucursal?.location?.address || viewingSucursal?.description} isFullWidth />
+        
+        <DetailField label="Ciudad" value={viewingSucursal?.location?.city || 'Santa Cruz de la Sierra'} />
+        <DetailField 
+          label="Coordenadas Geográficas" 
+          value={
+            (viewingSucursal as any)?.location?.latitude 
+              ? `${(viewingSucursal as any).location.latitude}, ${(viewingSucursal as any).location.longitude}` 
+              : 'Sin coordenadas'
+          } 
+        />
+
+        <DetailField 
+          label="Estado Administrativo" 
+          value={
+            <span style={{ color: viewingSucursal?.isActive ? '#30D158' : '#FF5E00', fontWeight: 700 }}>
+              {viewingSucursal?.isActive ? '● ACTIVA' : '● INACTIVA'}
+            </span>
+          } 
+        />
+        <DetailField 
+          label="Estado de Puertas" 
+          value={
+            <span style={{ color: viewingSucursal?.isOpen ? '#00D9FF' : '#8E8E93', fontWeight: 700 }}>
+              {viewingSucursal?.isOpen ? '🚪 ABIERTA AL PÚBLICO' : '🔒 CERRADA'}
+            </span>
+          } 
+        />
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', gridColumn: 'span 2', marginTop: '0.5rem', background: 'rgba(255, 255, 255, 0.03)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+          <span style={{ fontSize: '0.7rem', color: '#8E8E93', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Horarios de Atención</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.5rem', marginTop: '0.25rem' }}>
+            {viewingSucursal?.schedules && viewingSucursal.schedules.length > 0 ? (
+              viewingSucursal.schedules.map((sch: any, i: number) => (
+                <div key={i} style={{ background: 'rgba(0, 0, 0, 0.2)', padding: '0.5rem', borderRadius: '6px', border: sch.isHoliday ? '1px solid rgba(255, 94, 0, 0.2)' : '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ color: '#00D9FF', fontWeight: 600, fontSize: '0.75rem' }}>{sch.dayOfWeek}</div>
+                  <div style={{ color: sch.isHoliday ? '#FF5E00' : '#FFFFFF', fontSize: '0.8rem', fontFamily: 'monospace', marginTop: '2px' }}>
+                    {sch.isHoliday ? 'FERIADO' : `${sch.opensAt?.slice(0,5)} - ${sch.closesAt?.slice(0,5)}`}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div style={{ color: '#8E8E93', fontSize: '0.8rem', fontStyle: 'italic', gridColumn: 'span 2' }}>No hay horarios registrados para esta sucursal.</div>
+            )}
+          </div>
+        </div>
+      </RecordDetailModal>
     </section>
   );
 };

@@ -14,7 +14,6 @@ const forceLogout = () => {
 const handleAccessDenied = (message?: string) => {
   toast.error(message || 'Acceso Denegado: No tienes permisos.');
   if (window.location.pathname !== '/dashboard/resumen' && window.location.pathname.startsWith('/dashboard')) {
-    // Redirección elegante al resumen del dashboard en caso de intento de salto de URL
     window.location.href = '/dashboard/resumen?error=access_denied';
   }
 };
@@ -29,26 +28,41 @@ export const createApiClient = (): AxiosInstance => {
     },
   });
 
-  // Request interceptor: Inyectar JWT y Scoping
+  // ── Request interceptor ──────────────────────────────────────────────────────
   client.interceptors.request.use(
     (config) => {
+      // 1. Inyectar JWT en todas las peticiones
       const token = localStorage.getItem('gymsync_token');
       if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
       }
 
-      // RBAC Scoping Injection invisible
+      // 2. Inyección de Scope para GERENTE (solo en GET)
       if (config.method?.toUpperCase() === 'GET') {
         const userStr = localStorage.getItem('gymsync_user');
         if (userStr) {
           try {
             const user = JSON.parse(userStr);
-            if (user.role === 'GERENTE' && user.gymId) {
+
+            if (user.role === 'GERENTE') {
               config.params = config.params || {};
-              config.params.gym_id = user.gymId;
+
+              if (user.gymId) {
+                // Caso normal: Gerente con sede asignada — inyecta filtro real
+                config.params.gym_id = user.gymId;
+              } else {
+                // ⚠️ BLINDAJE DE SEGURIDAD: Gerente SIN gymId.
+                // Inyecta gym_id = -1 para que el backend retorne vacío en lugar de
+                // exponer datos globales. Previene la fuga de información por estado incompleto.
+                config.params.gym_id = -1;
+                console.warn(
+                  '[RBAC Security]: Gerente sin gymId detectado. ' +
+                  'Petición bloqueada con gym_id=-1 para evitar exposición de datos globales.'
+                );
+              }
             }
           } catch (e) {
-            console.error('Error al inyectar scope de GERENTE', e);
+            console.error('[api.config]: Error al parsear usuario del localStorage', e);
           }
         }
       }
@@ -59,7 +73,7 @@ export const createApiClient = (): AxiosInstance => {
     (error) => Promise.reject(error)
   );
 
-  // Response interceptor: Manejo de errores de validación y autenticación
+  // ── Response interceptor ─────────────────────────────────────────────────────
   client.interceptors.response.use(
     (response) => {
       const body = response.data;
@@ -86,12 +100,12 @@ export const createApiClient = (): AxiosInstance => {
       }
 
       console.error('[Web API Error]', error.message);
-      
+
       if (error.response) {
         const status = error.response.status;
         const body = error.response.data;
         const rawMessage = body?.message || body?.error || error.message;
-        
+
         let errorMessage = typeof rawMessage === 'string' ? rawMessage : 'Error desconocido';
         if (Array.isArray(rawMessage)) {
           errorMessage = rawMessage.join('\n• ');
@@ -116,7 +130,7 @@ export const createApiClient = (): AxiosInstance => {
       } else {
         toast.error('Error de red o conexión perdida.');
       }
-      
+
       return Promise.reject(error);
     }
   );

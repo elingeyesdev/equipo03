@@ -71,7 +71,7 @@ export const useNotifications = () => {
       // Validación de privacidad de Gerente: Descarta alertas de otras sedes
       if (user.role === 'GERENTE' && user.gymId && String(payload.gymId) !== String(user.gymId)) {
         console.warn(
-          `[Security Guard]: Alerta de Sede ajena descartada para Gerente ID ${user.userId}. Sede recibida: ${payload.gymId}`
+          `[Security Guard]: Alerta de Sede ajena descartada para Gerente ID ${user.id}. Sede recibida: ${payload.gymId}`
         );
         return;
       }
