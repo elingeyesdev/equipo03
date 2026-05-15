@@ -26,7 +26,7 @@ export class GymsService {
   }
 
   async findAll() {
-    const gyms = await this.gymsRepo.find({ relations: ['location', 'schedules'], where: { isActive: true } });
+    const gyms = await this.gymsRepo.find({ relations: ['location', 'schedules'], where: { isActive: true }, order: { id: 'ASC' } });
     return gyms.map(gym => this.mapGymToDto(gym));
   }
 

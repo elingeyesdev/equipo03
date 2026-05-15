@@ -72,6 +72,7 @@ export class UsersService {
     return this.usersRepo.find({
       relations: ['profile', 'userRoles', 'userRoles.role', 'userRoles.gym'],
       select: ['id', 'email', 'isActive', 'createdAt'],
+      order: { id: 'ASC' },
     });
   }
 
@@ -95,11 +96,21 @@ export class UsersService {
     if (data.isActive !== undefined) user.isActive = data.isActive;
     await this.usersRepo.save(user);
 
-    if (user.profile && (data.firstName || data.lastName || data.phone)) {
-      if (data.firstName) user.profile.firstName = data.firstName;
-      if (data.lastName) user.profile.lastName = data.lastName;
-      if (data.phone) user.profile.phone = data.phone;
-      await this.profilesRepo.save(user.profile);
+    if (data.firstName !== undefined || data.lastName !== undefined || data.phone !== undefined) {
+      if (user.profile) {
+        if (data.firstName !== undefined) user.profile.firstName = data.firstName;
+        if (data.lastName !== undefined) user.profile.lastName = data.lastName;
+        if (data.phone !== undefined) user.profile.phone = data.phone;
+        await this.profilesRepo.save(user.profile);
+      } else {
+        const newProfile = this.profilesRepo.create({
+          userId: id,
+          firstName: data.firstName || '',
+          lastName: data.lastName || '',
+          phone: data.phone,
+        });
+        await this.profilesRepo.save(newProfile);
+      }
     }
 
     // Actualizar roles y asignaciones de gimnasios si se proporcionan

@@ -25,6 +25,9 @@ export class Gym {
   @Column({ type: 'boolean', name: 'is_open', default: true })
   isOpen: boolean;
 
+  @Column({ type: 'integer', name: 'parent_id', nullable: true })
+  parentId: number | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
