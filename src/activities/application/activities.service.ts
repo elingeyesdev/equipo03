@@ -1,11 +1,34 @@
-import { Inject, Injectable, ForbiddenException, NotFoundException, Scope } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+  ConflictException,
+  Scope,
+} from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { GymActivity } from '../domain/gym-activity.entity';
 import { GymActivitySchedule } from '../domain/gym-activity-schedule.entity';
 import { GymActivityAttendance } from '../domain/gym-activity-attendance.entity';
+import { User } from '../../users/domain/user.entity';
+import { GymSchedule } from '../../gyms/domain/gym-schedule.entity';
 import { getManagerGymId, type RequestWithUser } from '../../common/security/gym-scope';
+import {
+  aliasesForCanonicalDay,
+  CreateActivityScheduleDto,
+  DayOfWeek,
+} from './dtos/create-activity-schedule.dto';
+
+const INSTRUCTOR_ROLE_NAMES = new Set(['ENTRENADOR', 'TRAINER', 'INSTRUCTOR']);
+
+/** HH:mm o HH:mm:ss → HH:mm para comparar con horarios del gimnasio. */
+function toHHmm(time: string): string {
+  const s = String(time).trim();
+  return s.length >= 5 ? s.slice(0, 5) : s;
+}
 
 @Injectable({ scope: Scope.REQUEST })
 export class ActivitiesService {
@@ -13,6 +36,8 @@ export class ActivitiesService {
     @InjectRepository(GymActivity) private actRepo: Repository<GymActivity>,
     @InjectRepository(GymActivitySchedule) private schedRepo: Repository<GymActivitySchedule>,
     @InjectRepository(GymActivityAttendance) private attRepo: Repository<GymActivityAttendance>,
+    @InjectRepository(User) private userRepo: Repository<User>,
+    @InjectRepository(GymSchedule) private gymScheduleRepo: Repository<GymSchedule>,
     @Inject(REQUEST) private readonly request: RequestWithUser,
   ) {}
 
@@ -88,9 +113,96 @@ export class ActivitiesService {
     return s;
   }
 
-  async createSchedule(data: Partial<GymActivitySchedule>) {
-    if (data.gymActivityId != null) await this.assertActivityInManagerScope(Number(data.gymActivityId));
-    return this.schedRepo.save(this.schedRepo.create(data));
+  /**
+   * Crea un horario para una actividad: valida instructor con rol permitido,
+   * solapamiento de instructor en mismo día/hora y (si hay filas) horario del gimnasio.
+   */
+  async createSchedule(activityId: number, dto: CreateActivityScheduleDto): Promise<GymActivitySchedule> {
+    const activity = await this.assertActivityInManagerScope(activityId);
+    if (!activity.isActive) {
+      throw new BadRequestException('La actividad no está activa');
+    }
+
+    await this.assertInstructorEligible(dto.instructorId);
+
+    const dayVariants = aliasesForCanonicalDay(dto.dayOfWeek as DayOfWeek);
+    const overlapCount = await this.schedRepo
+      .createQueryBuilder('sched')
+      .where('sched.instructor_id = :iid', { iid: dto.instructorId })
+      .andWhere('sched.day_of_week IN (:...days)', { days: dayVariants })
+      .andWhere('sched.start_time < CAST(:newEnd AS time)', { newEnd: dto.endTime })
+      .andWhere('sched.end_time > CAST(:newStart AS time)', { newStart: dto.startTime })
+      .getCount();
+
+    if (overlapCount > 0) {
+      throw new ConflictException('El instructor ya tiene una clase en este horario');
+    }
+
+    await this.assertWithinGymOpeningHours(activity.gymId, dto.dayOfWeek, dto.startTime, dto.endTime);
+
+    const entity = this.schedRepo.create({
+      gymActivityId: activityId,
+      instructorId: dto.instructorId,
+      dayOfWeek: dto.dayOfWeek,
+      startTime: dto.startTime,
+      endTime: dto.endTime,
+      maxAttendees: dto.maxAttendees,
+      isRecurring: dto.isRecurring ?? true,
+    });
+    return this.schedRepo.save(entity);
+  }
+
+  private async assertInstructorEligible(instructorId: number): Promise<void> {
+    const user = await this.userRepo.findOne({
+      where: { id: instructorId },
+      relations: ['userRoles', 'userRoles.role'],
+    });
+    if (!user) {
+      throw new NotFoundException(`Usuario instructor ${instructorId} no encontrado`);
+    }
+    if (!user.isActive) {
+      throw new ForbiddenException('El instructor indicado no está activo');
+    }
+    const ok = user.userRoles?.some((ur) =>
+      INSTRUCTOR_ROLE_NAMES.has(String(ur.role?.name ?? '').toUpperCase()),
+    );
+    if (!ok) {
+      throw new ForbiddenException('El usuario indicado no tiene rol de instructor');
+    }
+  }
+
+  /** Si la sede tiene filas en `gym_schedules`, la clase debe caer dentro de al menos una ventana no festiva. */
+  private async assertWithinGymOpeningHours(
+    gymId: number,
+    dayOfWeek: DayOfWeek,
+    startTime: string,
+    endTime: string,
+  ): Promise<void> {
+    const dayVariants = aliasesForCanonicalDay(dayOfWeek);
+    const slots = await this.gymScheduleRepo.find({
+      where: {
+        gymId,
+        isHoliday: false,
+      },
+    });
+    const sameDay = slots.filter((s) => dayVariants.includes(String(s.dayOfWeek).toUpperCase()));
+    if (sameDay.length === 0) {
+      return;
+    }
+
+    const start = toHHmm(startTime);
+    const end = toHHmm(endTime);
+    const covered = sameDay.some((row) => {
+      const open = toHHmm(row.opensAt as unknown as string);
+      const close = toHHmm(row.closesAt as unknown as string);
+      return open <= start && close >= end;
+    });
+
+    if (!covered) {
+      throw new ConflictException(
+        'El horario de la clase queda fuera del horario de apertura configurado para la sede',
+      );
+    }
   }
 
   async findSchedulesByActivity(gymActivityId: number) {

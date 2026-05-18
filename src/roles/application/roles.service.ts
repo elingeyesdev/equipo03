@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, EntityManager } from 'typeorm';
 import { Permission } from '../domain/permission.entity';
 import { Role } from '../domain/role.entity';
 import { RolePermission } from '../domain/role-permission.entity';
@@ -37,6 +37,31 @@ export class RolesService {
   // ── User-Role assignment ────────────────────────────
   assignRoleToUser(userId: number, roleId: number, gymId?: number, assignedBy?: number, expiresAt?: string) {
     return this.urRepo.save(this.urRepo.create({ userId, roleId, gymId, assignedBy, expiresAt: expiresAt ? new Date(expiresAt) : undefined }));
+  }
+
+  /**
+   * Elimina todas las filas user_roles del usuario y vuelve a insertar una fila por sede,
+   * o una fila sin sede cuando gymIds está vacío.
+   */
+  async replaceUserRoleAssignments(
+    userId: number,
+    roleId: number,
+    gymIds: number[],
+    assignedBy?: number,
+    manager?: EntityManager,
+  ): Promise<void> {
+    const repo = manager ? manager.getRepository(UserRole) : this.urRepo;
+    await repo.delete({ userId });
+
+    const unique = [...new Set(gymIds.filter((id) => Number.isFinite(id) && id > 0))];
+
+    if (unique.length === 0) {
+      await repo.save(repo.create({ userId, roleId, assignedBy }));
+      return;
+    }
+
+    const rows = unique.map((gymId) => repo.create({ userId, roleId, gymId, assignedBy }));
+    await repo.save(rows);
   }
   findUserRoles(userId: number) { return this.urRepo.find({ where: { userId }, relations: ['role', 'gym'] }); }
   removeUserRole(id: number) { return this.urRepo.delete(id); }

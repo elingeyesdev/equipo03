@@ -1,4 +1,13 @@
-import { IsEmail, IsString, IsOptional, MinLength, IsBoolean } from 'class-validator';
+import {
+  IsEmail,
+  IsString,
+  IsOptional,
+  MinLength,
+  IsBoolean,
+  IsInt,
+  IsArray,
+  ArrayMaxSize,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateUserDto {
@@ -33,6 +42,22 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   gender?: string;
+
+  @ApiProperty({ example: 3, description: 'ID del rol en la tabla roles' })
+  @IsInt()
+  roleId: number;
+
+  @ApiPropertyOptional({ example: [1, 2], description: 'Sedes (vacío si el rol es global ante el gimnasio)' })
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  @ArrayMaxSize(100)
+  gymIds?: number[];
+
+  @ApiPropertyOptional({ example: true, description: 'Alta como usuario activo' })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
 
 export class UpdateUserDto {
@@ -66,4 +91,16 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ example: 3, description: 'ID del rol en la tabla roles (usar junto con gymIds para sincronizar)' })
+  @IsOptional()
+  @IsInt()
+  roleId?: number;
+
+  @ApiPropertyOptional({ example: [1], description: 'Sedes ligadas al rol; debe enviarse junto con roleId para aplicar cambios de rol' })
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  @ArrayMaxSize(100)
+  gymIds?: number[];
 }

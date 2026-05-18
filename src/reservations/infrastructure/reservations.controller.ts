@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Put, Body, Param, UseGuards, ParseIntPipe } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
 import { ReservationsService } from '../application/reservations.service';
 import { CreateReservationDto } from '../application/dtos/reservations.dto';
@@ -10,9 +10,16 @@ import { CreateReservationDto } from '../application/dtos/reservations.dto';
 export class ReservationsController {
   constructor(private readonly svc: ReservationsService) {}
 
-  @Post() @ApiOperation({ summary: 'Crear reserva' })
+  @Post()
+  @ApiOperation({ summary: 'Crear reserva' })
   @ApiBody({ type: CreateReservationDto })
-  create(@Body() body: CreateReservationDto) { return this.svc.create(body); }
+  @ApiResponse({ status: 201, description: 'Reserva creada' })
+  @ApiResponse({ status: 400, description: 'Datos inválidos' })
+  @ApiResponse({ status: 403, description: 'Sin permiso para esta sede' })
+  @ApiResponse({ status: 409, description: 'Cupo agotado o reserva duplicada' })
+  create(@Body() body: CreateReservationDto) {
+    return this.svc.create(body);
+  }
 
   @Get() @ApiOperation({ summary: 'Listar reservas' })
   findAll() { return this.svc.findAll(); }
