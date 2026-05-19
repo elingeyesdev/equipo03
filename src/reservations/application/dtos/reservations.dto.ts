@@ -2,9 +2,14 @@ import { IsString, IsOptional, IsInt } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateReservationDto {
-  @ApiProperty({ example: 1, description: 'ID del usuario' })
+  @ApiPropertyOptional({
+    example: 1,
+    description:
+      'ID del cliente a reservar. Obligatorio para GERENTE; ignorado para CLIENTE (usa su propio ID del JWT).',
+  })
+  @IsOptional()
   @IsInt()
-  userId: number;
+  targetUserId?: number;
 
   @ApiProperty({ example: 1, description: 'ID del horario de actividad' })
   @IsInt()
@@ -15,6 +20,7 @@ export class CreateReservationDto {
   reservationDate: string;
 
   @ApiPropertyOptional({ example: 'CONFIRMED' })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   status?: string;
 }

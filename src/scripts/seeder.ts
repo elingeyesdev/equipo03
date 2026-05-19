@@ -214,13 +214,13 @@ async function runSeed() {
 
         const resRepo = queryRunner.manager.getRepository(Reservation);
         await resRepo.save([
-            { user: users[4], gymActivitySchedule: schedules[0], reservationDate: new Date('2026-04-28'), status: 'CONFIRMADA', createdAt: new Date() },
-            { user: users[5], gymActivitySchedule: schedules[2], reservationDate: new Date('2026-04-29'), status: 'CONFIRMADA', createdAt: new Date() },
-            { user: users[6], gymActivitySchedule: schedules[1], reservationDate: new Date('2026-04-30'), status: 'CONFIRMADA', createdAt: new Date() },
-            { user: users[4], gymActivitySchedule: schedules[3], reservationDate: new Date('2026-05-01'), status: 'CANCELADA', createdAt: new Date(), cancelledAt: new Date() },
-            { user: users[5], gymActivitySchedule: schedules[4], reservationDate: new Date('2026-05-02'), status: 'CONFIRMADA', createdAt: new Date() },
-            { user: users[6], gymActivitySchedule: schedules[5], reservationDate: new Date('2026-05-03'), status: 'CONFIRMADA', createdAt: new Date() },
-            { user: users[4], gymActivitySchedule: schedules[6], reservationDate: new Date('2026-05-04'), status: 'CONFIRMADA', createdAt: new Date() },
+            { user: users[4], gymActivitySchedule: schedules[0], reservationDate: new Date('2026-04-28'), status: 'CONFIRMADA', createdBy: users[4].id, createdAt: new Date() },
+            { user: users[5], gymActivitySchedule: schedules[2], reservationDate: new Date('2026-04-29'), status: 'CONFIRMADA', createdBy: users[5].id, createdAt: new Date() },
+            { user: users[6], gymActivitySchedule: schedules[1], reservationDate: new Date('2026-04-30'), status: 'CONFIRMADA', createdBy: users[6].id, createdAt: new Date() },
+            { user: users[4], gymActivitySchedule: schedules[3], reservationDate: new Date('2026-05-01'), status: 'CANCELADA', createdBy: users[4].id, createdAt: new Date(), cancelledAt: new Date() },
+            { user: users[5], gymActivitySchedule: schedules[4], reservationDate: new Date('2026-05-02'), status: 'CONFIRMADA', createdBy: users[5].id, createdAt: new Date() },
+            { user: users[6], gymActivitySchedule: schedules[5], reservationDate: new Date('2026-05-03'), status: 'CONFIRMADA', createdBy: users[6].id, createdAt: new Date() },
+            { user: users[4], gymActivitySchedule: schedules[6], reservationDate: new Date('2026-05-04'), status: 'CONFIRMADA', createdBy: users[4].id, createdAt: new Date() },
         ]);
 
         const checkRepo = queryRunner.manager.getRepository(CheckIn);

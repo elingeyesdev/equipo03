@@ -27,10 +27,17 @@ export class Reservation {
   @Column({ type: 'timestamp', name: 'cancelled_at', nullable: true })
   cancelledAt: Date;
 
+  @Column({ type: 'integer', name: 'created_by' })
+  createdBy: number;
+
   // ── Relations ─────────────────────────────────────
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;
+
+  @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'created_by' })
+  createdByUser?: User;
 
   @ManyToOne(() => GymActivitySchedule, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'gym_activity_schedule_id' })
