@@ -57,6 +57,11 @@ export class CreateGymDto {
   @IsInt()
   maxCapacity: number;
 
+  @ApiPropertyOptional({ example: 1, description: 'ID de la sede o marca principal a la que pertenece esta sucursal' })
+  @IsOptional()
+  @IsInt()
+  parentId?: number;
+
   @ApiPropertyOptional({
     type: CreateGymLocationDto,
     example: {
@@ -101,6 +106,11 @@ export class UpdateGymDto {
   @IsOptional()
   @IsInt()
   maxCapacity?: number;
+
+  @ApiPropertyOptional({ example: 1, description: 'ID de la sede o marca principal' })
+  @IsOptional()
+  @IsInt()
+  parentId?: number;
 
   @ApiPropertyOptional({ example: true, description: 'true = abierto, false = cerrado' })
   @IsOptional()

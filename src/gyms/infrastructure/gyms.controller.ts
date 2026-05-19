@@ -65,6 +65,16 @@ export class GymsController {
   @ApiParam({ name: 'id', example: 1 })
   findSchedules(@Param('id', ParseIntPipe) id: number) { return this.svc.findSchedules(id); }
 
+  @Delete('schedules/:scheduleId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Eliminar horario de gimnasio' })
+  @ApiParam({ name: 'scheduleId', example: 1 })
+  async removeSchedule(@Param('scheduleId', ParseIntPipe) scheduleId: number) {
+    await this.svc.removeSchedule(scheduleId);
+    return { message: 'Horario eliminado' };
+  }
+
   @Put(':id/location')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')

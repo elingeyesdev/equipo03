@@ -1,14 +1,6 @@
-import {
-  IsEmail,
-  IsString,
-  IsOptional,
-  MinLength,
-  IsBoolean,
-  IsInt,
-  IsArray,
-  ArrayMaxSize,
-} from 'class-validator';
+import { IsEmail, IsString, IsOptional, MinLength, IsBoolean, IsNumber, IsArray } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 
 export class CreateUserDto {
   @ApiProperty({ example: 'admin@corpusgym.com', description: 'Correo electrónico único' })
@@ -43,18 +35,18 @@ export class CreateUserDto {
   @IsString()
   gender?: string;
 
-  @ApiProperty({ example: 3, description: 'ID del rol en la tabla roles' })
-  @IsInt()
-  roleId: number;
+  @ApiPropertyOptional({ example: 1, description: 'ID del rol asignado al usuario' })
+  @IsOptional()
+  @IsNumber()
+  roleId?: number;
 
-  @ApiPropertyOptional({ example: [1, 2], description: 'Sedes (vacío si el rol es global ante el gimnasio)' })
+  @ApiPropertyOptional({ example: [1, 2, 3], description: 'Array de IDs de gimnasios asignados al usuario' })
   @IsOptional()
   @IsArray()
-  @IsInt({ each: true })
-  @ArrayMaxSize(100)
+  @IsNumber({}, { each: true })
   gymIds?: number[];
 
-  @ApiPropertyOptional({ example: true, description: 'Alta como usuario activo' })
+  @ApiPropertyOptional({ example: true, description: 'Estado de activación del usuario' })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
@@ -92,15 +84,14 @@ export class UpdateUserDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ example: 3, description: 'ID del rol en la tabla roles (usar junto con gymIds para sincronizar)' })
+  @ApiPropertyOptional({ example: 2, description: 'ID del rol asignado al usuario' })
   @IsOptional()
-  @IsInt()
+  @IsNumber()
   roleId?: number;
 
-  @ApiPropertyOptional({ example: [1], description: 'Sedes ligadas al rol; debe enviarse junto con roleId para aplicar cambios de rol' })
+  @ApiPropertyOptional({ example: [1, 2], description: 'Array de IDs de gimnasios asignados al usuario' })
   @IsOptional()
   @IsArray()
-  @IsInt({ each: true })
-  @ArrayMaxSize(100)
+  @IsNumber({}, { each: true })
   gymIds?: number[];
 }
