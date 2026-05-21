@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
 import { LoginScreen } from './components/Auth/LoginScreen';
+import { RegisterScreen } from './components/Auth/RegisterScreen';
 import { DashboardLayout } from './components/Layout/DashboardLayout';
 import { AuditoriaView } from './components/Auditoria/AuditoriaView';
 import { ResumenView, UsuariosView, SedesView, SucursalesView, RutinasView, RolesView, MapaView } from './components/Dashboard/DashboardViews';
@@ -27,6 +28,7 @@ export const AppRouter = () => {
         />
         <Routes>
           <Route path="/login" element={<LoginScreen />} />
+          <Route path="/register" element={<RegisterScreen />} />
 
           <Route path="/dashboard" element={<DashboardLayout />}>
             {/* Resumen: accesible a todos los roles autenticados */}

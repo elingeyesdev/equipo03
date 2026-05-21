@@ -216,6 +216,15 @@ export const LoginScreen = () => {
                   {isSubmitting ? 'Verificando credenciales...' : 'Ingresar al Dashboard'}
                 </button>
               </form>
+              <div className="login-card-footer" style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.88rem', color: '#8E8E93' }}>
+                ¿No tienes una cuenta?{' '}
+                <span 
+                  onClick={() => navigate('/register')} 
+                   style={{ color: '#00D9FF', cursor: 'pointer', fontWeight: 600, textDecoration: 'underline' }}
+                >
+                  Regístrate aquí
+                </span>
+              </div>
             </motion.div>
           </motion.div>
         )}

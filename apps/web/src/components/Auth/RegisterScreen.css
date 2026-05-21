@@ -1,0 +1,326 @@
+.register-wrapper {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background-color: #0A0A0A;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Background Carousel */
+.carousel-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.carousel-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.carousel-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to bottom, rgba(10, 10, 10, 0.45) 0%, rgba(10, 10, 10, 0.9) 100%);
+  z-index: 1;
+}
+
+/* Floating Navbar */
+.landing-navbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 1.5rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 10;
+  box-sizing: border-box;
+}
+
+.navbar-logo {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #FFFFFF;
+  letter-spacing: -1px;
+}
+
+.navbar-logo span {
+  color: #00D9FF;
+}
+
+.btn-ghost-cyan {
+  background: transparent;
+  color: #00D9FF;
+  border: 1px solid rgba(0, 217, 255, 0.5);
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(8px);
+}
+
+.btn-ghost-cyan:hover {
+  background: rgba(0, 217, 255, 0.1);
+  border-color: #00D9FF;
+  box-shadow: 0 0 15px rgba(0, 217, 255, 0.3);
+}
+
+/* Register Container & Card */
+.register-view-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1.5rem;
+  background: rgba(10, 10, 10, 0.6);
+  backdrop-filter: blur(6px);
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.register-card {
+  background-color: rgba(15, 15, 17, 0.85); /* REGLA DE ORO: Fondo glassmorphism */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: 2.5rem 2.2rem;
+  border-radius: 28px;
+  width: 100%;
+  max-width: 480px;
+  border: 1px solid rgba(255, 255, 255, 0.1); /* 1px solid blanco sutil */
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255,255,255,0.15);
+  position: relative;
+  box-sizing: border-box;
+  margin: auto;
+}
+
+.register-title {
+  color: #FFFFFF;
+  font-size: 1.6rem;
+  font-weight: 700;
+  text-align: center;
+  margin: 0 0 0.4rem 0;
+}
+
+.register-subtitle {
+  color: #8E8E93;
+  text-align: center;
+  font-size: 0.9rem;
+  margin-bottom: 1.8rem;
+  line-height: 1.4;
+}
+
+/* Banner de error de API NestJS */
+.register-api-error {
+  display: flex;
+  gap: 0.75rem;
+  background-color: rgba(255, 94, 0, 0.12);
+  color: #FF5E00;
+  padding: 0.8rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 94, 0, 0.25);
+  margin-bottom: 1.25rem;
+  font-size: 0.85rem;
+  text-align: left;
+  line-height: 1.4;
+}
+
+.register-api-error p {
+  margin: 0.2rem 0 0 0;
+  color: #FFD2B8;
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+}
+
+/* Form Fields */
+.register-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.input-icon {
+  position: absolute;
+  left: 1.1rem;
+  color: #8E8E93;
+  pointer-events: none;
+  transition: color 0.3s;
+  display: flex;
+  align-items: center;
+}
+
+.input-group input {
+  width: 100%;
+  background-color: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #FFFFFF;
+  padding: 0.95rem 3rem 0.95rem 3.2rem;
+  border-radius: 14px;
+  font-size: 1rem;
+  outline: none;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+}
+
+/* Focus: Neon turquesa (#00D9FF) */
+.input-group input:focus {
+  border-color: #00D9FF;
+  box-shadow: 0 0 0 4px rgba(0, 217, 255, 0.15), 0 0 8px rgba(0, 217, 255, 0.3);
+  background-color: rgba(10, 10, 10, 0.85);
+}
+
+.input-group input:focus ~ .input-icon,
+.input-group:focus-within .input-icon {
+  color: #00D9FF;
+}
+
+.input-group input::placeholder {
+  color: #636366;
+}
+
+/* Error State in Inputs */
+.input-group.has-error input {
+  border-color: #FF5E00;
+  box-shadow: 0 0 0 3px rgba(255, 94, 0, 0.15);
+}
+
+.input-group.has-error .input-icon {
+  color: #FF5E00;
+}
+
+.field-error-text {
+  color: #FF5E00;
+  font-size: 0.78rem;
+  padding-left: 0.5rem;
+  font-weight: 500;
+}
+
+/* Password Toggle Eye */
+.password-toggle-btn {
+  position: absolute;
+  right: 1.1rem;
+  background: transparent;
+  border: none;
+  color: #8E8E93;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3rem;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.password-toggle-btn:hover {
+  color: #FFFFFF;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Password strength feedback */
+.password-requirements {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem;
+}
+
+.password-requirements span {
+  font-size: 0.78rem;
+  color: #636366;
+  transition: color 0.3s ease;
+  display: flex;
+  align-items: center;
+}
+
+.password-requirements span.met {
+  color: #30D158; /* Verde elegante para requerimiento cumplido */
+}
+
+/* Submit Button */
+.btn-register {
+  width: 100%;
+  background: linear-gradient(135deg, #00D9FF 0%, #0077ff 100%); /* Turquesa neón gradient */
+  color: #FFFFFF;
+  border: none;
+  padding: 1rem;
+  border-radius: 14px;
+  font-weight: 700;
+  font-size: 1.02rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 0.75rem;
+  box-shadow: 0 6px 20px rgba(0, 217, 255, 0.25);
+  box-sizing: border-box;
+}
+
+.btn-register:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 217, 255, 0.45);
+}
+
+.btn-register:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Footer Section */
+.register-footer {
+  text-align: center;
+  font-size: 0.88rem;
+  color: #8E8E93;
+  margin-top: 1.75rem;
+}
+
+.login-link {
+  color: #00D9FF;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.login-link:hover {
+  color: #FFFFFF;
+  text-decoration: underline;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .register-card {
+    padding: 2rem 1.5rem;
+  }
+}

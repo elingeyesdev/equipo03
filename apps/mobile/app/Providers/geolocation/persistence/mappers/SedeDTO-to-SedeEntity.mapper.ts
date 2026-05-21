@@ -43,6 +43,24 @@ export class SedeDTOMapper {
       });
     }
 
+    // Extracción defensiva de servicios/actividades (ignora nulos, vacíos o estructuras de objetos anidados)
+    const rawServicios = dto.servicios || dto.services || dto.activities || dto.gym_activities || dto.gym_activity || [];
+    let servicios: ServicioSede[] = [];
+    if (Array.isArray(rawServicios)) {
+      servicios = rawServicios
+        .map(s => (typeof s === 'string' ? s.trim() : (s && typeof s === 'object' && 'name' in s ? String((s as any).name).trim() : '')))
+        .filter(s => s.length > 0) as ServicioSede[];
+    }
+
+    // Extracción defensiva de beneficios
+    const rawBeneficios = dto.beneficios || dto.benefits || [];
+    let beneficios: BeneficioSede[] = [];
+    if (Array.isArray(rawBeneficios)) {
+      beneficios = rawBeneficios
+        .map(b => (typeof b === 'string' ? b.trim() : (b && typeof b === 'object' && 'name' in b ? String((b as any).name).trim() : '')))
+        .filter(b => b.length > 0) as BeneficioSede[];
+    }
+
     return Sede.create({
       id: Identifier.create(dto.id as string | number),
       nombre: (dto.name || dto.nombre) as string,
@@ -56,8 +74,8 @@ export class SedeDTOMapper {
         actual: actualCap as number,
       }),
       horarios: horariosMap ? HorariosSede.create(horariosMap) : undefined,
-      servicios: dto.servicios as ServicioSede[] | undefined,
-      beneficios: dto.beneficios as BeneficioSede[] | undefined,
+      servicios,
+      beneficios,
       imagenUrl: dto.imagenUrl as string | undefined,
       telefono: dto.telefono as string | undefined,
     });

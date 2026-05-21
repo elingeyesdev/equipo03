@@ -134,6 +134,64 @@ export class AuthService {
   }
 
   /**
+   * Realiza registro de un nuevo cliente público contra el backend
+   */
+  static async register(name: string, email: string, password: string, phone?: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      console.log('[AuthService] Iniciando registro para:', email);
+
+      // Mapear 'name' a 'firstName' y 'lastName', y omitir 'phone' según el contrato exacto del backend NestJS
+      const parts = String(name || '').trim().split(' ');
+      const firstName = parts[0] || '';
+      const lastName = parts.slice(1).join(' ') || '-';
+
+      const payload = {
+        firstName,
+        lastName,
+        email: String(email || '').trim().toLowerCase(),
+        password: String(password || ''),
+      };
+
+      const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      console.log('[AuthService] Register response status:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.log('[AuthService] Error de registro del servidor:', JSON.stringify(errorData, null, 2));
+        
+        // Mapear los errores 400 (HttpExceptionFilter de NestJS)
+        if (response.status === 400 && errorData && errorData.message) {
+          const rawMessage = errorData.message;
+          if (Array.isArray(rawMessage)) {
+            return { success: false, error: rawMessage.join('\n• ') };
+          }
+          return { success: false, error: String(rawMessage) };
+        }
+
+        const errorMsg = errorData?.message || `HTTP ${response.status}`;
+        return { success: false, error: errorMsg };
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      const errorMsg = error?.message || 'Error de conexión con el servidor';
+      console.error('[AuthService] Error en register:', errorMsg);
+      return { success: false, error: errorMsg };
+    }
+  }
+
+  /**
    * Recupera el usuario actual del almacenamiento
    */
   static async getCurrentUser(): Promise<AutenticacionContext | null> {

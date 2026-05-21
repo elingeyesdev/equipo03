@@ -7,9 +7,11 @@ import { PerfilStack } from './PerfilStack';
 import { BuscarStack } from './BuscarStack';
 import { InicioScreen } from '../resources/views/inicio/InicioScreen';
 import { LoginScreen } from '../resources/views/auth/LoginScreen';
+import { RegisterScreen } from '../resources/views/auth/RegisterScreen';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { MisReservasScreen } from '../app/Providers/reservations/screens/MisReservasScreen';
 import { AuditHistoryScreen } from '../resources/views/audit/AuditHistoryScreen';
+import { ReservarHorarioScreen } from '../resources/views/reservas/ReservarHorarioScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -73,6 +75,30 @@ const AppTabs = () => {
   );
 };
 
+const AppStack = () => {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <Stack.Screen name="MainTabs" component={AppTabs} />
+      <Stack.Screen
+        name="ReservarHorario"
+        component={ReservarHorarioScreen}
+        options={{
+          headerShown: true,
+          title: 'Nueva Reserva',
+          headerStyle: { backgroundColor: '#050505' },
+          headerTintColor: '#00D9FF',
+          headerTitleStyle: { fontWeight: 'bold' },
+          headerBackTitle: 'Atrás',
+        }}
+      />
+    </Stack.Navigator>
+  );
+};
+
 const AuthStack = () => {
   return (
     <Stack.Navigator
@@ -82,6 +108,7 @@ const AuthStack = () => {
       }}
     >
       <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="Register" component={RegisterScreen} />
     </Stack.Navigator>
   );
 };
@@ -97,7 +124,7 @@ export const RootNavigator = () => {
     );
   }
 
-  return isAuthenticated ? <AppTabs /> : <AuthStack />;
+  return isAuthenticated ? <AppStack /> : <AuthStack />;
 };
 
 export default RootNavigator;

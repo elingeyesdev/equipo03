@@ -19,8 +19,8 @@ export const useAuditHistory = () => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchHistory = useCallback(async () => {
-    // Solo permitimos buscar si es gerente
-    if (user?.role !== 'GERENTE') {
+    // Solo permitimos buscar si es gerente o super_admin
+    if (user?.role !== 'GERENTE' && user?.role !== 'SUPER_ADMIN') {
       setError('No tienes permisos para ver el historial.');
       return;
     }
