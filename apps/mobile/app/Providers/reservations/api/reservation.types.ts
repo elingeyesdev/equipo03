@@ -31,6 +31,7 @@ export interface GymActivity {
   description: string;
   defaultDurationMin: number;
   isActive: boolean;
+  isFreeAccess?: boolean;
   gym: {
     id: number;
     name: string;
@@ -39,15 +40,23 @@ export interface GymActivity {
     isActive: boolean;
     isOpen: boolean;
   };
-  schedules: GymActivitySchedule[];
+  // El backend serializa como 'schedules' (propiedad TypeORM).
+  // Se acepta también 'gymActivitySchedules' por si cambia el naming.
+  schedules?: GymActivitySchedule[];
+  gymActivitySchedules?: GymActivitySchedule[];
 }
 
-// Payload exacto según el CreateReservationDto del Swagger
 export interface CreateReservationPayload {
-  userId: number;                // REQUERIDO por el backend
-  gymActivityScheduleId: number; // ID del horario de la actividad
-  reservationDate: string;       // Formato: "YYYY-MM-DD"
-  status?: string;               // Opcional: "CONFIRMED" (default del backend)
+  gymActivityScheduleId: number;
+  reservationDate: string;
+}
+
+export interface CreateFreeReservationPayload {
+  gymId: number;
+  activityId: number;   // REQUERIDO por el backend para flujo isFreeAccess=true
+  reservationDate: string;
+  startTime: string;    // formato HH:mm
+  endTime: string;      // formato HH:mm
 }
 
 export interface ReservationResponse {
@@ -61,19 +70,28 @@ export interface ReservationResponse {
 
 export interface UserReservation {
   id: number;
-  status: 'CONFIRMADA' | 'CANCELADA' | 'USADA' | 'CONFIRMED';
+  status: 'CONFIRMADA' | 'CANCELADA' | 'USADA' | 'CONFIRMED' | 'COMPLETADA' | 'CANCELLED' | 'PENDIENTE';
   reservationDate: string;
   qrToken?: string;
   cancelledAt?: string | null;
   canCancel?: boolean;
-  // Mapeados desde gymActivitySchedule.gymActivity
+
+  // Discriminador de flujo
+  isFreeAccess?: boolean;      // true = Cardio/libre, false = Zumba/programada
+
+  // Datos comunes
   activityName?: string;
   activityDescription?: string;
   gymId?: number;
-  gymName?: string;        // No viene en el response, se deja vacío
-  startTime?: string;      // "HH:mm:ss"
+  createdAt?: string;
+
+  // Tiempos — libre: elegidos por el usuario; programada: copiados del Schedule
+  startTime?: string;          // "HH:mm"
   endTime?: string;
-  dayOfWeek?: string;      // "SAB", "LUN", etc.
+
+  // Solo programada
+  dayOfWeek?: string;          // "SAB", "LUN", etc.
+  instructorName?: string;     // firstName + lastName del instructor
 }
 
 // Mapa de errores personalizado para la UI

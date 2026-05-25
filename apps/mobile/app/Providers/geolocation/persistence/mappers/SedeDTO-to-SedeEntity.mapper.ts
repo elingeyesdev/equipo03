@@ -24,22 +24,30 @@ export class SedeDTOMapper {
     
     // Mapeo simple de schedules del backend a HorariosMap
     let horariosMap: HorariosMap | undefined = dto.horarios as HorariosMap | undefined;
-    if (dto.schedules && Array.isArray(dto.schedules)) {
+    const rawSched = dto.schedules || dto.gymSchedules;
+    if (rawSched && Array.isArray(rawSched)) {
       horariosMap = {};
-      const days = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-      dto.schedules.forEach(s => {
-        const d = days[Number(s.dayOfWeek)];
-        if (d) {
-          // El backend usa opensAt/closesAt, el mock usaba openTime/closeTime
-          const rawApertura = s.opensAt ?? s.openTime;
-          const rawCierre = s.closesAt ?? s.closeTime;
-
-          // El backend devuelve '05:00:00' (time) y el VO espera '05:00' (HH:mm)
-          const aperturaStr = typeof rawApertura === 'string' ? rawApertura.substring(0, 5) : rawApertura;
-          const cierreStr = typeof rawCierre === 'string' ? rawCierre.substring(0, 5) : rawCierre;
-          
-          horariosMap![d] = { apertura: aperturaStr, cierre: cierreStr };
+      const daysByIndex = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+      const daysByName: Record<string, string> = {
+        DOMINGO: 'domingo', LUNES: 'lunes', MARTES: 'martes', MIERCOLES: 'miercoles',
+        JUEVES: 'jueves', VIERNES: 'viernes', SABADO: 'sabado',
+        SUNDAY: 'domingo', MONDAY: 'lunes', TUESDAY: 'martes', WEDNESDAY: 'miercoles',
+        THURSDAY: 'jueves', FRIDAY: 'viernes', SATURDAY: 'sabado',
+      };
+      (rawSched as any[]).forEach(s => {
+        const raw = s.dayOfWeek;
+        let d: string | undefined;
+        if (typeof raw === 'number') {
+          d = daysByIndex[raw];
+        } else if (typeof raw === 'string') {
+          d = daysByName[raw.toUpperCase()] ?? daysByIndex[Number(raw)];
         }
+        if (!d) return;
+        const rawApertura = s.opensAt ?? s.openTime ?? s.startTime;
+        const rawCierre   = s.closesAt ?? s.closeTime ?? s.endTime;
+        const apertura = typeof rawApertura === 'string' ? rawApertura.substring(0, 5) : String(rawApertura ?? '');
+        const cierre   = typeof rawCierre   === 'string' ? rawCierre.substring(0, 5)   : String(rawCierre   ?? '');
+        if (apertura && cierre) horariosMap![d] = { apertura, cierre };
       });
     }
 

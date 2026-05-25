@@ -10,6 +10,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import type { AutenticacionContext } from '@gymsync/core';
 import { AuthService } from './AuthService';
+import { authEvents } from './authEvents';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -37,7 +38,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       try {
         const currentUser = await AuthService.getCurrentUser();
         if (currentUser) {
-          setUser(currentUser);
+          const profile = await AuthService.fetchUserProfile();
+          setUser({ ...currentUser, profile: profile ?? (currentUser as any).profile ?? undefined });
         }
       } catch (e) {
         console.error('[AuthContext] Error restaurando sesión:', e);
@@ -45,8 +47,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setIsLoading(false);
       }
     };
-
     restoreSession();
+  }, []);
+
+  useEffect(() => {
+    return authEvents.onForceLogout(() => {
+      setUser(null);
+      setError(null);
+    });
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
@@ -57,7 +65,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const result = await AuthService.login(email, password);
 
       if (result.success && result.user) {
-        setUser(result.user);
+        const profile = await AuthService.fetchUserProfile();
+        setUser({ ...result.user, profile: profile ?? undefined });
         return true;
       } else {
         setError(result.error || 'Error al iniciar sesión');

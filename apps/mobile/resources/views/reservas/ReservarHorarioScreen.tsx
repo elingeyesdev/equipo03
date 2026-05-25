@@ -1,621 +1,274 @@
-/**
- * ReservarHorarioScreen.tsx
- * 
- * Capa de Presentación para el Sistema de Reservas de GymSync Pro Mobile.
- * Conectada al ReservasController Zustand Store para validación de horarios y aforo en runtime.
- */
-
-import React, { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
+  TouchableOpacity,
   ActivityIndicator,
   Alert,
-  SafeAreaView,
-  StatusBar,
-  TextInput,
 } from 'react-native';
-import { useRoute, useNavigation } from '@react-navigation/native';
-import { ReservationsModule } from '../../../app/Providers/ReservationsModule.container';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useMutation } from '@tanstack/react-query';
+import { format } from 'date-fns';
+import { Colors } from '../../../app/Providers/reservations/theme/colors';
+import { useGymActivitiesQuery } from '../../../app/Providers/reservations/hooks/useGymActivitiesQuery';
+import { reservationApi } from '../../../app/Providers/reservations/api/reservation.api';
+import { CreateFreeReservationPayload } from '../../../app/Providers/reservations/api/reservation.types';
 
-export const ReservarHorarioScreen = () => {
-  const route = useRoute<any>();
-  const navigation = useNavigation<any>();
-  const gymId = route.params?.gymId;
+type RootStackParamList = {
+  ReservarHorario: { gymId: number; gymName: string };
+};
 
-  // --- CONTROLLER CONNECTION ---
-  const controller = ReservationsModule.useController();
-  const { detalleSucursal, loading, error, cargarDetallesSucursal } = controller;
+type Props = NativeStackScreenProps<RootStackParamList, 'ReservarHorario'>;
 
-  // --- STATE FOR FORM ---
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedTime, setSelectedTime] = useState<string>(''); // Formato HH:mm
-  const [selectedActivity, setSelectedActivity] = useState<string>('');
-  const [validationError, setValidationError] = useState<string | null>(null);
+const TIME_SLOTS = [
+  { label: '08:00 – 10:00', start: '08:00', end: '10:00' },
+  { label: '10:00 – 12:00', start: '10:00', end: '12:00' },
+  { label: '14:00 – 16:00', start: '14:00', end: '16:00' },
+  { label: '16:00 – 18:00', start: '16:00', end: '18:00' },
+];
 
-  useEffect(() => {
-    if (gymId) {
-      cargarDetallesSucursal(String(gymId));
-    } else {
-      Alert.alert('Error', 'Falta el ID del gimnasio para iniciar la reserva.', [
-        { text: 'Volver', onPress: () => navigation.goBack() }
+const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+const generateDays = () =>
+  Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    return {
+      value: format(d, 'yyyy-MM-dd'),
+      label: format(d, 'dd/MM'),
+      dayName: DAY_NAMES[d.getDay()],
+    };
+  });
+
+export const ReservarHorarioScreen = ({ route, navigation }: Props) => {
+  const { gymId, gymName } = route.params;
+  const days = useMemo(generateDays, []);
+
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedActivityId, setSelectedActivityId] = useState<number | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<typeof TIME_SLOTS[0] | null>(null);
+
+  const { data: activities = [], isLoading } = useGymActivitiesQuery(gymId);
+
+  const mutation = useMutation({
+    mutationFn: (payload: CreateFreeReservationPayload) =>
+      reservationApi.createFreeReservation(payload),
+    onSuccess: () => {
+      Alert.alert('¡Reserva confirmada!', 'Tu reserva fue creada con éxito.', [
+        {
+          text: 'Ver mis reservas',
+          onPress: () => (navigation as any).getParent()?.navigate('Mis Reservas'),
+        },
       ]);
-    }
-  }, [gymId]);
+    },
+    onError: (error: any) => {
+      const msg =
+        error?.response?.data?.message ?? 'No se pudo completar la reserva.';
+      Alert.alert('Error al reservar', msg);
+    },
+  });
 
-  // --- GENERATE NEXT 7 DAYS FOR SELECTOR ---
-  const getNext7Days = (): Date[] => {
-    const dates = [];
-    const today = new Date();
-    for (let i = 0; i < 7; i++) {
-      const nextDate = new Date();
-      nextDate.setDate(today.getDate() + i);
-      dates.push(nextDate);
-    }
-    return dates;
+  const canConfirm = !!selectedDate && !!selectedActivityId && !!selectedSlot;
+
+  const handleConfirm = () => {
+    if (!canConfirm || !selectedSlot) return;
+    mutation.mutate({
+      gymId,
+      reservationDate: selectedDate!,
+      startTime: selectedSlot.start,
+      endTime: selectedSlot.end,
+    });
   };
-
-  const daysOfWeekSpanish = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'];
-  const datesToSelect = getNext7Days();
-
-  // --- CHECK IF DAY OPERATES ---
-  const getDaySchedule = (date: Date) => {
-    if (!detalleSucursal) return null;
-    const dayName = daysOfWeekSpanish[date.getDay()];
-    return detalleSucursal.horariosDeOperacion.find(
-      (h: any) => h.dia.toLowerCase() === dayName.toLowerCase()
-    );
-  };
-
-  // --- RUNTIME VALIDATIONS ---
-  const validateSelection = (date: Date | null, timeStr: string, activityStr: string) => {
-    setValidationError(null);
-
-    if (!date) return;
-    
-    // 1. Validar que la sucursal abra ese día
-    const schedule = getDaySchedule(date);
-    if (!schedule || schedule.cerrado) {
-      setValidationError('La sucursal está cerrada este día de la semana.');
-      return;
-    }
-
-    if (!timeStr) return;
-
-    // 2. Validar formato de hora
-    if (!timeStr.match(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)) {
-      setValidationError('Introduce una hora válida en formato HH:mm.');
-      return;
-    }
-
-    // 3. Validar rango de horarios
-    const [selHour, selMin] = timeStr.split(':').map(Number);
-    const [openHour, openMin] = schedule.apertura.split(':').map(Number);
-    const [closeHour, closeMin] = schedule.cierre.split(':').map(Number);
-
-    const selTotalMin = selHour * 60 + selMin;
-    const openTotalMin = openHour * 60 + openMin;
-    const closeTotalMin = closeHour * 60 + closeMin;
-
-    if (selTotalMin < openTotalMin || selTotalMin > closeTotalMin) {
-      setValidationError(
-        `La hora elegida debe estar dentro del horario de operación (${schedule.apertura} a ${schedule.cierre}).`
-      );
-      return;
-    }
-  };
-
-  const handleDateSelect = (date: Date) => {
-    setSelectedDate(date);
-    validateSelection(date, selectedTime, selectedActivity);
-  };
-
-  const handleTimeChange = (time: string) => {
-    setSelectedTime(time);
-    validateSelection(selectedDate, time, selectedActivity);
-  };
-
-  const handleActivitySelect = (activity: string) => {
-    setSelectedActivity(activity);
-    validateSelection(selectedDate, selectedTime, activity);
-  };
-
-  const handleContinue = async () => {
-    if (!selectedDate || !selectedTime || !selectedActivity) {
-      Alert.alert('Campos Incompletos', 'Por favor selecciona fecha, hora y el servicio para la reserva.');
-      return;
-    }
-
-    if (validationError) {
-      Alert.alert('Error de Validación', validationError);
-      return;
-    }
-
-    try {
-      const result = await controller.confirmarNuevaReserva({
-        gymId: String(gymId),
-        fecha: selectedDate,
-        hora: selectedTime,
-        actividad: selectedActivity,
-      });
-
-      if (result.isRight()) {
-        const res = result.value;
-        Alert.alert(
-          'Reserva Confirmada',
-          `¡Tu reserva ha sido procesada y confirmada con éxito!\n\n• Actividad: ${res.activityName}\n• Fecha: ${res.fecha.toLocaleDateString()}\n• Hora: ${res.horaInicio}\n• Estado: ${res.estado}`,
-          [
-            {
-              text: 'Ver mis reservas',
-              onPress: () => {
-                navigation.navigate('MainTabs', { screen: 'Mis Reservas' });
-              }
-            }
-          ]
-        );
-      } else {
-        Alert.alert('Error de Reserva', result.value.message || 'El servidor rechazó la reserva.');
-      }
-    } catch (e: any) {
-      Alert.alert('Error de Conexión', e?.message || 'No se pudo contactar con el backend.');
-    }
-  };
-
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#00D9FF" />
-        <Text style={styles.loadingText}>Cargando detalles de la sucursal...</Text>
-      </View>
-    );
-  }
-
-  if (error || !detalleSucursal) {
-    return (
-      <View style={styles.errorContainer}>
-        <MaterialCommunityIcons name="alert-circle-outline" size={60} color="#ff4444" />
-        <Text style={styles.errorText}>No se pudo cargar la sucursal.</Text>
-        <Text style={styles.errorSubText}>{error || 'Error de conexión.'}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={() => gymId && cargarDetallesSucursal(String(gymId))}>
-          <Text style={styles.retryButtonText}>Reintentar</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  const selectedDaySchedule = selectedDate ? getDaySchedule(selectedDate) : null;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        
-        {/* Header Sucursal info */}
-        <View style={styles.branchHeader}>
-          <Text style={styles.branchTitle}>{detalleSucursal.nombre}</Text>
-          <Text style={styles.branchSubtitle}>
-            <MaterialCommunityIcons name="map-marker" size={14} color="#666" /> {detalleSucursal.direccion}
-          </Text>
-          
-          {/* Badge Aforo Glassmorphic */}
-          <View style={styles.aforoCard}>
-            <MaterialCommunityIcons 
-              name={detalleSucursal.estaDisponible ? "account-group-outline" : "account-lock-outline"} 
-              size={18} 
-              color={detalleSucursal.estaDisponible ? "#00D9FF" : "#ff4444"} 
-            />
-            <Text style={styles.aforoText}>
-              Aforo: <Text style={{ fontWeight: 'bold', color: '#fff' }}>{detalleSucursal.aforoActual} / {detalleSucursal.aforoMaximo}</Text>
-            </Text>
-            <View style={[
-              styles.statusDot, 
-              { backgroundColor: detalleSucursal.estaDisponible ? '#00D9FF' : '#ff4444' }
-            ]} />
-          </View>
-        </View>
+    <View style={s.root}>
+      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+        <Text style={s.gymName}>{gymName}</Text>
 
-        {/* 1. SELECCIÓN DE FECHA */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>1. Selecciona el Día</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dateList}>
-            {datesToSelect.map((date, idx) => {
-              const isSelected = selectedDate?.toDateString() === date.toDateString();
-              const schedule = getDaySchedule(date);
-              const isClosed = !schedule || schedule.cerrado;
-              
-              return (
-                <TouchableOpacity
-                  key={idx}
-                  activeOpacity={0.8}
-                  style={[
-                    styles.dateChip,
-                    isSelected && styles.dateChipSelected,
-                    isClosed && styles.dateChipClosed
-                  ]}
-                  onPress={() => handleDateSelect(date)}
-                >
-                  <Text style={[
-                    styles.dateChipDayName,
-                    isSelected && styles.textSelected,
-                    isClosed && styles.textClosed
-                  ]}>
-                    {daysOfWeekSpanish[date.getDay()].substring(0, 3)}
-                  </Text>
-                  <Text style={[
-                    styles.dateChipDayNum,
-                    isSelected && styles.textSelected,
-                    isClosed && styles.textClosed
-                  ]}>
-                    {date.getDate()}
-                  </Text>
-                  {isClosed && (
-                    <Text style={styles.closedIndicator}>Cerrado</Text>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
+        <Text style={s.sectionLabel}>Selecciona un día</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.carousel}>
+          {days.map((d) => {
+            const active = selectedDate === d.value;
+            return (
+              <TouchableOpacity
+                key={d.value}
+                style={[s.dayChip, active && s.dayChipActive]}
+                onPress={() => setSelectedDate(active ? null : d.value)}
+                activeOpacity={0.8}
+              >
+                <Text style={[s.dayName, active && s.dayTextActive]}>{d.dayName}</Text>
+                <Text style={[s.dayDate, active && s.dayTextActive]}>{d.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
 
-        {/* 2. HORA DE RESERVA */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>2. Selecciona la Hora</Text>
-          
-          {selectedDate ? (
-            <View>
-              {selectedDaySchedule && !selectedDaySchedule.cerrado ? (
-                <View>
-                  <Text style={styles.scheduleNotice}>
-                    Horario de operación hoy: <Text style={{ color: '#00D9FF', fontWeight: 'bold' }}>{selectedDaySchedule.apertura} a {selectedDaySchedule.cierre}</Text>
-                  </Text>
-                  
-                  <View style={styles.timeInputWrapper}>
-                    <MaterialCommunityIcons name="clock-outline" size={22} color="#00D9FF" style={styles.timeIcon} />
-                    <TextInput
-                      style={styles.timeInput}
-                      placeholder="Ej: 14:30"
-                      placeholderTextColor="#444"
-                      value={selectedTime}
-                      onChangeText={handleTimeChange}
-                      keyboardType="numbers-and-punctuation"
-                      maxLength={5}
-                    />
+        <Text style={s.sectionLabel}>Selecciona una actividad</Text>
+        {isLoading ? (
+          <ActivityIndicator color={Colors.secondary} style={{ marginVertical: 16 }} />
+        ) : activities.length === 0 ? (
+          <Text style={s.empty}>No hay actividades disponibles.</Text>
+        ) : (
+          activities.map((a) => {
+            const active = selectedActivityId === a.id;
+            return (
+              <TouchableOpacity
+                key={a.id}
+                style={[s.actCard, active && s.actCardActive]}
+                onPress={() => setSelectedActivityId(active ? null : a.id)}
+                activeOpacity={0.8}
+              >
+                <View style={s.actRow}>
+                  <View style={s.actInfo}>
+                    <Text style={[s.actName, active && s.actNameActive]}>{a.name}</Text>
+                    {!!a.description && (
+                      <Text style={s.actDesc} numberOfLines={2}>{a.description}</Text>
+                    )}
+                  </View>
+                  <View style={[s.badge, active && s.badgeActive]}>
+                    <Text style={[s.badgeTxt, active && s.badgeTxtActive]}>
+                      {a.defaultDurationMin} min
+                    </Text>
                   </View>
                 </View>
-              ) : (
-                <Text style={styles.closedWarning}>
-                  La sucursal está cerrada el día seleccionado.
-                </Text>
-              )}
-            </View>
-          ) : (
-            <Text style={styles.placeholderNotice}>
-              Selecciona primero un día para ver los horarios.
-            </Text>
-          )}
-        </View>
-
-        {/* 3. SERVICIOS ACTIVOS Y PURGADOS */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>3. Selecciona la Actividad</Text>
-          
-          {detalleSucursal.actividadesDisponibles.length > 0 ? (
-            <View style={styles.activitiesContainer}>
-              {detalleSucursal.actividadesDisponibles.map((act: string, idx: number) => {
-                const isSelected = selectedActivity === act;
-                return (
-                  <TouchableOpacity
-                    key={idx}
-                    activeOpacity={0.8}
-                    style={[
-                      styles.activityChip,
-                      isSelected && styles.activityChipSelected
-                    ]}
-                    onPress={() => handleActivitySelect(act)}
-                  >
-                    <MaterialCommunityIcons 
-                      name="lightning-bolt" 
-                      size={14} 
-                      color={isSelected ? "#000" : "#00D9FF"} 
-                      style={{ marginRight: 6 }}
-                    />
-                    <Text style={[
-                      styles.activityText,
-                      isSelected && styles.activityTextSelected
-                    ]}>
-                      {act}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          ) : (
-            <Text style={styles.placeholderNotice}>
-              No hay actividades programadas en esta sucursal.
-            </Text>
-          )}
-        </View>
-
-        {/* FEEDBACK DE VALIDACIÓN RUNTIME */}
-        {validationError && (
-          <View style={styles.validationErrorCard}>
-            <MaterialCommunityIcons name="alert-outline" size={20} color="#ff4444" />
-            <Text style={styles.validationErrorText}>{validationError}</Text>
-          </View>
+                {active && (
+                  <MaterialCommunityIcons
+                    name="check-circle"
+                    size={18}
+                    color={Colors.secondary}
+                    style={s.checkIcon}
+                  />
+                )}
+              </TouchableOpacity>
+            );
+          })
         )}
 
-        {/* BOTÓN CONTINUAR */}
-        <TouchableOpacity
-          activeOpacity={0.8}
-          style={[
-            styles.continueButton,
-            (!selectedDate || !selectedTime || !selectedActivity || !!validationError) && styles.continueButtonDisabled
-          ]}
-          onPress={handleContinue}
-          disabled={!selectedDate || !selectedTime || !selectedActivity || !!validationError}
-        >
-          <Text style={styles.continueButtonText}>Continuar con la Reserva</Text>
-        </TouchableOpacity>
+        <Text style={s.sectionLabel}>Selecciona un horario</Text>
+        <View style={s.slotsGrid}>
+          {TIME_SLOTS.map((slot) => {
+            const active = selectedSlot?.start === slot.start;
+            return (
+              <TouchableOpacity
+                key={slot.start}
+                style={[s.slotBtn, active && s.slotBtnActive]}
+                onPress={() => setSelectedSlot(active ? null : slot)}
+                activeOpacity={0.8}
+              >
+                <MaterialCommunityIcons
+                  name="clock-outline"
+                  size={15}
+                  color={active ? Colors.secondary : Colors.textSoft}
+                />
+                <Text style={[s.slotTxt, active && s.slotTxtActive]}>{slot.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
+        <View style={{ height: 130 }} />
       </ScrollView>
-    </SafeAreaView>
+
+      <View style={s.bottomBar}>
+        <TouchableOpacity
+          style={[s.confirmBtn, (!canConfirm || mutation.isPending) && s.confirmBtnDisabled]}
+          onPress={handleConfirm}
+          disabled={!canConfirm || mutation.isPending}
+          activeOpacity={0.85}
+        >
+          {mutation.isPending ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={s.confirmTxt}>Confirmar Reserva</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#050505',
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingVertical: 25,
-  },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: '#050505',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: '#666',
-    marginTop: 15,
-    fontSize: 14,
-  },
-  errorContainer: {
-    flex: 1,
-    backgroundColor: '#050505',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 30,
-  },
-  errorText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 15,
-  },
-  errorSubText: {
-    color: '#555',
-    textAlign: 'center',
-    marginTop: 8,
-    fontSize: 14,
-    marginBottom: 20,
-  },
-  retryButton: {
-    backgroundColor: '#00D9FF',
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 25,
-  },
-  retryButtonText: {
-    color: '#000',
-    fontWeight: 'bold',
-  },
-  branchHeader: {
-    marginBottom: 30,
-  },
-  branchTitle: {
-    fontSize: 26,
-    fontWeight: '900',
-    color: '#fff',
-    letterSpacing: -0.5,
-  },
-  branchSubtitle: {
-    fontSize: 14,
-    color: '#777',
-    marginTop: 6,
-  },
-  aforoCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(26, 26, 28, 0.7)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginTop: 15,
-    alignSelf: 'flex-start',
-  },
-  aforoText: {
-    color: '#aaa',
-    fontSize: 13,
-    marginLeft: 8,
-    marginRight: 15,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  sectionContainer: {
-    marginBottom: 25,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#fff',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 15,
-  },
-  dateList: {
-    flexDirection: 'row',
-  },
-  dateChip: {
-    backgroundColor: '#111',
-    borderWidth: 1,
-    borderColor: '#222',
-    borderRadius: 14,
-    width: 65,
-    height: 75,
-    justifyContent: 'center',
-    alignItems: 'center',
+const s = StyleSheet.create({
+  root:   { flex: 1, backgroundColor: Colors.background },
+  scroll: { padding: 20 },
+
+  gymName:      { fontSize: 13, color: Colors.textSoft, marginBottom: 20 },
+  sectionLabel: { fontSize: 15, fontWeight: '700', color: Colors.text, marginBottom: 12, marginTop: 8 },
+  empty:        { color: Colors.textSoft, fontSize: 14, marginBottom: 16 },
+
+  carousel: { flexGrow: 0, marginBottom: 24 },
+  dayChip: {
+    width: 62,
     marginRight: 10,
-  },
-  dateChipSelected: {
-    backgroundColor: '#00D9FF',
-    borderColor: '#00D9FF',
-  },
-  dateChipClosed: {
-    backgroundColor: '#111',
-    opacity: 0.35,
-  },
-  dateChipDayName: {
-    color: '#666',
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-  },
-  dateChipDayNum: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginTop: 4,
-  },
-  closedIndicator: {
-    color: '#ff4444',
-    fontSize: 8,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-    marginTop: 2,
-  },
-  textSelected: {
-    color: '#000',
-  },
-  textClosed: {
-    color: '#444',
-  },
-  scheduleNotice: {
-    color: '#aaa',
-    fontSize: 13,
-    marginBottom: 12,
-  },
-  timeInputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(26, 26, 28, 0.7)',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#222',
-    paddingHorizontal: 15,
-    height: 55,
-  },
-  timeIcon: {
-    marginRight: 10,
-  },
-  timeInput: {
-    flex: 1,
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  closedWarning: {
-    color: '#ff4444',
-    fontSize: 14,
-    fontWeight: '600',
-    backgroundColor: 'rgba(255, 68, 68, 0.08)',
-    borderColor: 'rgba(255, 68, 68, 0.2)',
-    borderWidth: 1,
-    padding: 12,
-    borderRadius: 10,
-  },
-  placeholderNotice: {
-    color: '#555',
-    fontSize: 14,
-    fontStyle: 'italic',
-  },
-  activitiesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  activityChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#111',
-    borderWidth: 1,
-    borderColor: '#222',
+    paddingVertical: 12,
     borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    backgroundColor: Colors.surface,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    alignItems: 'center',
   },
-  activityChipSelected: {
-    backgroundColor: '#00D9FF',
-    borderColor: '#00D9FF',
+  dayChipActive:   { borderColor: Colors.secondary, backgroundColor: 'rgba(0,217,255,0.1)' },
+  dayName:         { fontSize: 11, fontWeight: '700', color: Colors.textSoft },
+  dayDate:         { fontSize: 13, fontWeight: '600', color: Colors.textSoft, marginTop: 4 },
+  dayTextActive:   { color: Colors.secondary },
+
+  actCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
   },
-  activityText: {
-    color: '#aaa',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  activityTextSelected: {
-    color: '#000',
-  },
-  validationErrorCard: {
+  actCardActive:  { borderColor: Colors.secondary, backgroundColor: 'rgba(0,217,255,0.07)' },
+  actRow:         { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  actInfo:        { flex: 1, marginRight: 10 },
+  actName:        { fontSize: 15, fontWeight: '700', color: Colors.text, marginBottom: 3 },
+  actNameActive:  { color: Colors.secondary },
+  actDesc:        { fontSize: 12, color: Colors.textSoft, lineHeight: 17 },
+  badge:          { backgroundColor: Colors.border, borderRadius: 7, paddingHorizontal: 9, paddingVertical: 3 },
+  badgeActive:    { backgroundColor: 'rgba(0,217,255,0.2)' },
+  badgeTxt:       { fontSize: 11, fontWeight: '600', color: Colors.textSoft },
+  badgeTxtActive: { color: Colors.secondary },
+  checkIcon:      { marginTop: 8, alignSelf: 'flex-end' },
+
+  slotsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8 },
+  slotBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 68, 68, 0.08)',
+    gap: 8,
+    paddingVertical: 13,
+    paddingHorizontal: 14,
     borderRadius: 12,
-    padding: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 68, 68, 0.2)',
-    marginBottom: 25,
+    backgroundColor: Colors.surface,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    width: '47%',
   },
-  validationErrorText: {
-    color: '#ff4444',
-    fontSize: 13,
-    marginLeft: 10,
-    flex: 1,
-    lineHeight: 18,
+  slotBtnActive: { borderColor: Colors.secondary, backgroundColor: 'rgba(0,217,255,0.1)' },
+  slotTxt:       { fontSize: 13, fontWeight: '600', color: Colors.textSoft },
+  slotTxtActive: { color: Colors.secondary },
+
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 20,
+    paddingBottom: 101,
+    backgroundColor: Colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
   },
-  continueButton: {
-    backgroundColor: '#00D9FF',
+  confirmBtn: {
+    backgroundColor: Colors.primary,
     borderRadius: 14,
-    height: 55,
+    paddingVertical: 16,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#00D9FF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 4,
-    marginTop: 15,
-    marginBottom: 30,
   },
-  continueButtonDisabled: {
-    backgroundColor: '#222',
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  continueButtonText: {
-    color: '#000',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+  confirmBtnDisabled: { opacity: 0.35 },
+  confirmTxt: { color: '#fff', fontSize: 17, fontWeight: '700', letterSpacing: 0.3 },
 });

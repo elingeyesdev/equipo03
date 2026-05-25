@@ -38,6 +38,7 @@ export type UserDto = {
     firstName?: string;
     lastName?: string;
     phone?: string;
+    ci?: string;
   };
   userRoles?: Array<{
     roleId: number;

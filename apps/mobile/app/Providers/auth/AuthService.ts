@@ -237,4 +237,42 @@ export class AuthService {
     const token = await this.getToken();
     return !!(user && token);
   }
+
+  /**
+   * GET /api/users/:userId — trae firstName, lastName, email, gender, role del backend.
+   */
+  static async fetchUserProfile(): Promise<Record<string, any> | null> {
+    try {
+      const token = await this.getToken();
+      const user  = await this.getCurrentUser();
+      if (!token || !user?.userId) return null;
+
+      const res = await fetch(`${API_BASE_URL}/api/users/${user.userId}`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      });
+      if (!res.ok) {
+        console.warn('[AuthService] fetchUserProfile status:', res.status);
+        return null;
+      }
+      const body = await res.json();
+      const data = body?.data ?? body ?? null;
+      console.log('[AuthService] Perfil obtenido:', JSON.stringify(data));
+      return data;
+    } catch (e) {
+      console.error('[AuthService] Error en fetchUserProfile:', e);
+      return null;
+    }
+  }
+
+  static async getTokenPayload(): Promise<Record<string, any> | null> {
+    try {
+      const token = await this.getToken();
+      if (!token) return null;
+      const base64Url = token.trim().split('.')[1];
+      const base64    = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      return JSON.parse(Buffer.from(base64, 'base64').toString('utf-8'));
+    } catch {
+      return null;
+    }
+  }
 }

@@ -11,6 +11,7 @@ import { RegisterScreen } from '../resources/views/auth/RegisterScreen';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { MisReservasScreen } from '../app/Providers/reservations/screens/MisReservasScreen';
 import { AuditHistoryScreen } from '../resources/views/audit/AuditHistoryScreen';
+import { EscanerScreen } from '../resources/views/audit/EscanerScreen';
 import { ReservarHorarioScreen } from '../resources/views/reservas/ReservarHorarioScreen';
 
 const Tab = createBottomTabNavigator();
@@ -62,11 +63,13 @@ const AppTabs = () => {
     >
       <Tab.Screen name="Inicio" component={InicioScreen} />
       <Tab.Screen name="Buscar" component={BuscarStack} />
-      <Tab.Screen
-        name="Mis Reservas"
-        component={MisReservasScreen}
-        options={{ headerShown: false }}
-      />
+      {user?.role !== 'GERENTE' && (
+        <Tab.Screen
+          name="Mis Reservas"
+          component={MisReservasScreen}
+          options={{ headerShown: false }}
+        />
+      )}
       {user?.role === 'GERENTE' && (
         <Tab.Screen name="Auditoría" component={AuditHistoryScreen} />
       )}
@@ -94,6 +97,11 @@ const AppStack = () => {
           headerTitleStyle: { fontWeight: 'bold' },
           headerBackTitle: 'Atrás',
         }}
+      />
+      <Stack.Screen
+        name="Escaner"
+        component={EscanerScreen}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );

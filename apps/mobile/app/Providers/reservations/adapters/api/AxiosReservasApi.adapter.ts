@@ -14,15 +14,17 @@ import { Identifier } from '@gymsync/core';
 export class AxiosReservasApiAdapter implements IReservasApiService {
   async crearReserva(params: CrearReservaParams): Promise<Either<Error, Reserva>> {
     try {
-      console.log('[AxiosReservasApiAdapter] Iniciando persistencia para:', params);
-      
-      // 1. Obtener el usuario actual autenticado
       const user = await AuthService.getCurrentUser();
       if (!user || !user.userId) {
         return left(new Error('Usuario no autenticado en la sesión actual.'));
       }
 
-      // 2. Obtener las actividades del gimnasio para resolver el gymActivityScheduleId correspondiente
+      const token = await AuthService.getToken();
+      if (!token) {
+        console.error('[ERROR AUTH] No hay token en el llavero seguro');
+        return left(new Error('No hay sesión activa. Inicia sesión nuevamente.'));
+      }
+
       const gymIdNum = Number(params.gymId);
       const activities = await reservationApi.getGymActivities(gymIdNum);
       

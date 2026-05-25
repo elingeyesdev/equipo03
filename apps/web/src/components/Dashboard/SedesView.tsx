@@ -83,6 +83,22 @@ export const SedesView = () => {
   const [sedeToEdit, setSedeToEdit] = useState<GymDto | null>(null);
   const [deleteConfirmSede, setDeleteConfirmSede] = useState<GymDto | null>(null);
 
+  // ── Filtros ──
+  const [search,    setSearch]    = useState('');
+  const [sortOrder, setSortOrder] = useState<'az' | 'za' | 'id_asc' | 'id_desc'>('az');
+
+  const filteredGyms = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return gyms
+      .filter(g => !term || g.name.toLowerCase().includes(term))
+      .sort((a, b) => {
+        if (sortOrder === 'az') return a.name.localeCompare(b.name);
+        if (sortOrder === 'za') return b.name.localeCompare(a.name);
+        if (sortOrder === 'id_asc')  return a.id - b.id;
+        return b.id - a.id;
+      });
+  }, [gyms, search, sortOrder]);
+
   useEffect(() => {
     let mounted = true;
 
@@ -204,12 +220,12 @@ export const SedesView = () => {
           : 'Solo los administradores pueden gestionar las marcas del sistema.'}
       </p>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div style={{ color: '#8E8E93', fontSize: '0.9rem' }}>
           {loading ? 'Cargando marcas...' : `Total de marcas: ${gyms.length}`}
         </div>
         {user.role === 'SUPER_ADMIN' && (
-          <button 
+          <button
             onClick={handleCreateSede}
             style={{ background: '#00D9FF', color: '#0A0A0A', border: 'none', padding: '0.5rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
           >
@@ -219,8 +235,40 @@ export const SedesView = () => {
       </div>
       {error && <div style={{ marginTop: '0.75rem', color: '#FF5E00' }}>{error}</div>}
 
+      {/* ── Barra de filtros ── */}
+      {!loading && !error && gyms.length > 0 && (
+        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center', marginTop: '0.85rem' }}>
+          <input
+            value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="🔍  Buscar marca por nombre..."
+            style={{ flex: 1, minWidth: '180px', background: '#1C1C1E', color: '#E5E5EA', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '0.5rem 0.9rem', fontSize: '0.85rem', outline: 'none' }}
+          />
+          <div style={{ position: 'relative' }}>
+            <select value={sortOrder} onChange={e => setSortOrder(e.target.value as any)}
+              style={{ background: '#1C1C1E', color: '#E5E5EA', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '0.5rem 2rem 0.5rem 0.9rem', fontSize: '0.85rem', appearance: 'none', WebkitAppearance: 'none', cursor: 'pointer', outline: 'none' }}>
+              <option value="az"      style={{ background: '#1C1C1E' }}>Nombre A → Z</option>
+              <option value="za"      style={{ background: '#1C1C1E' }}>Nombre Z → A</option>
+              <option value="id_asc"  style={{ background: '#1C1C1E' }}>ID ↑</option>
+              <option value="id_desc" style={{ background: '#1C1C1E' }}>ID ↓</option>
+            </select>
+            <span style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#8E8E93', fontSize: '0.7rem' }}>▼</span>
+          </div>
+          {(search || sortOrder !== 'az') && (
+            <button onClick={() => { setSearch(''); setSortOrder('az'); }}
+              style={{ background: 'none', color: '#8E8E93', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '0.45rem 0.85rem', cursor: 'pointer', fontSize: '0.8rem' }}>
+              ✕ Limpiar
+            </button>
+          )}
+        </div>
+      )}
+      {!loading && !error && gyms.length > 0 && (
+        <div style={{ color: '#8E8E93', fontSize: '0.8rem', margin: '0.5rem 0' }}>
+          {filteredGyms.length === gyms.length ? `${gyms.length} marcas` : `${filteredGyms.length} de ${gyms.length} marcas`}
+        </div>
+      )}
+
       {!loading && !error && (
-        <div style={{ marginTop: '1rem', overflowX: 'auto' }}>
+        <div style={{ marginTop: '0.25rem', overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '400px' }}>
             <thead>
               <tr>
@@ -232,7 +280,9 @@ export const SedesView = () => {
               </tr>
             </thead>
             <tbody>
-              {gyms.map((g) => (
+              {filteredGyms.length === 0 ? (
+                <tr><td colSpan={3} style={{ padding: '2rem', textAlign: 'center', color: '#8E8E93' }}>Sin resultados para los filtros aplicados.</td></tr>
+              ) : filteredGyms.map((g) => (
                 <tr key={g.id}>
                   <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C' }}>{g.id}</td>
                   <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C' }}>

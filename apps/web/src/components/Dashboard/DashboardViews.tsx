@@ -5,3 +5,4 @@ export { SucursalesView } from './SucursalesView';
 export { RutinasView } from './RutinasView';
 export { RolesView } from './RolesView';
 export { MapaView } from './MapaView';
+export { ActividadesView } from './ActividadesView';

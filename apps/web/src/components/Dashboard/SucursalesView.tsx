@@ -96,6 +96,44 @@ const MapPicker = ({ lat, lng, onSelect }: { lat: number; lng: number; onSelect:
   );
 };
 
+const HOURS_24_S   = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+const MINUTES_15_S = ['00', '15', '30', '45'];
+
+const TimeSelect = ({ value, onChange, disabled = false }: {
+  value: string; onChange: (v: string) => void; disabled?: boolean;
+}) => {
+  const parts = (value || '').split(':');
+  const h = parts[0]?.padStart(2, '0') ?? '08';
+  const m = parts[1]?.substring(0, 2) ?? '00';
+
+  const sel: React.CSSProperties = {
+    background: 'transparent', color: disabled ? '#636366' : '#E5E5EA',
+    border: 'none', padding: '0.5rem 0.4rem',
+    fontSize: '0.9rem', fontFamily: 'monospace', fontWeight: 600,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    outline: 'none', appearance: 'none', WebkitAppearance: 'none',
+    textAlign: 'center' as const,
+  };
+
+  return (
+    <div style={{
+      display: 'inline-flex', alignItems: 'center', gap: '1px',
+      background: disabled ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.6)',
+      border: `1px solid ${disabled ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.15)'}`,
+      borderRadius: '8px', overflow: 'hidden', opacity: disabled ? 0.5 : 1,
+      width: '100%',
+    }}>
+      <select value={h} onChange={e => !disabled && onChange(`${e.target.value}:${m}`)} disabled={disabled} style={sel}>
+        {HOURS_24_S.map(hh => <option key={hh} value={hh} style={{ background: '#1C1C1E' }}>{hh}</option>)}
+      </select>
+      <span style={{ color: '#8E8E93', fontWeight: 700, fontSize: '0.9rem', userSelect: 'none' }}>:</span>
+      <select value={m} onChange={e => !disabled && onChange(`${h}:${e.target.value}`)} disabled={disabled} style={sel}>
+        {MINUTES_15_S.map(mm => <option key={mm} value={mm} style={{ background: '#1C1C1E' }}>{mm}</option>)}
+      </select>
+    </div>
+  );
+};
+
 // ============================================================
 // GymModal — Con Map Picker + Gestión de Horarios integrada
 // ============================================================
@@ -142,6 +180,23 @@ const GymModal = ({ isOpen, onClose, gymToEdit, onSave }: any) => {
     setScheduleError('');
   }, [gymToEdit, isOpen]);
 
+  const reloadSchedules = useCallback(async () => {
+    if (!gymToEdit?.id) return;
+    try {
+      const res = await apiClient.get(`/gyms/${gymToEdit.id}/schedules`);
+      const data = Array.isArray(res.data) ? res.data : [];
+      setSchedules(data.map((s: any) => ({
+        id: s.id,
+        dayOfWeek: s.dayOfWeek,
+        opensAt: s.opensAt?.slice(0, 5),
+        closesAt: s.closesAt?.slice(0, 5),
+        isHoliday: s.isHoliday ?? false,
+      })));
+    } catch {
+      toast.error('Error al refrescar horarios.');
+    }
+  }, [gymToEdit?.id]);
+
   const handleLocationSelect = useCallback((lat: number, lng: number, address: string) => {
     setFormData(prev => ({ ...prev, latitude: lat, longitude: lng, address }));
   }, []);
@@ -162,14 +217,13 @@ const GymModal = ({ isOpen, onClose, gymToEdit, onSave }: any) => {
     const entry: ScheduleEntry = { ...newSchedule, _isNew: true };
 
     if (isEditing) {
-      // Modo edición: POST individual al backend
       try {
-        const res = await apiClient.post(`/gyms/${gymToEdit.id}/schedules`, {
+        await apiClient.post(`/gyms/${gymToEdit.id}/schedules`, {
           dayOfWeek: newSchedule.dayOfWeek, opensAt: newSchedule.opensAt, closesAt: newSchedule.closesAt, isHoliday: newSchedule.isHoliday,
         });
-        entry.id = res.data?.id;
-        entry._isNew = false;
         toast.success(`Horario ${DAY_LABELS[newSchedule.dayOfWeek]} agregado`);
+        await reloadSchedules();
+        return;
       } catch { toast.error('Error al agregar horario en el servidor.'); return; }
     }
     setSchedules(prev => [...prev, entry]);
@@ -180,7 +234,9 @@ const GymModal = ({ isOpen, onClose, gymToEdit, onSave }: any) => {
     if (isEditing && item.id) {
       try {
         await apiClient.delete(`/gyms/schedules/${item.id}`);
-        toast.success('Horario eliminado del servidor');
+        toast.success('Horario eliminado');
+        await reloadSchedules();
+        return;
       } catch {
         toast.error('Error al eliminar horario del servidor.');
         return;
@@ -317,13 +373,11 @@ const GymModal = ({ isOpen, onClose, gymToEdit, onSave }: any) => {
               </div>
               <div>
                 <label style={{ fontSize: '0.75rem', color: '#8E8E93', display: 'block', marginBottom: '2px' }}>Apertura</label>
-                <input type="time" value={newSchedule.opensAt} onChange={e => setNewSchedule(p => ({ ...p, opensAt: e.target.value }))}
-                  style={{ width: '100%', padding: '0.4rem', borderRadius: '6px', background: 'rgba(0,0,0,0.3)', border: '1px solid #3A3A3C', color: '#FFF', fontSize: '0.82rem' }} />
+                <TimeSelect value={newSchedule.opensAt} onChange={v => setNewSchedule(p => ({ ...p, opensAt: v }))} />
               </div>
               <div>
                 <label style={{ fontSize: '0.75rem', color: '#8E8E93', display: 'block', marginBottom: '2px' }}>Cierre</label>
-                <input type="time" value={newSchedule.closesAt} onChange={e => setNewSchedule(p => ({ ...p, closesAt: e.target.value }))}
-                  style={{ width: '100%', padding: '0.4rem', borderRadius: '6px', background: 'rgba(0,0,0,0.3)', border: '1px solid #3A3A3C', color: '#FFF', fontSize: '0.82rem' }} />
+                <TimeSelect value={newSchedule.closesAt} onChange={v => setNewSchedule(p => ({ ...p, closesAt: v }))} />
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -404,20 +458,19 @@ const SucursalModal = ({ isOpen, onClose, sucursalToEdit, onSave, parentGyms }: 
     }
   };
 
-  // Bloquear scroll del body cuando el modal está abierto
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
+      document.body.setAttribute('data-modal-open', 'true');
       setShowMap(false);
-      // Limpiar estado anterior para evitar scroll pegado
       setFormData({
-        name: '', 
+        name: '',
         description: '',
-        address: '', 
-        maxCapacity: 100, 
+        address: '',
+        maxCapacity: 100,
         isOpen: true,
-        latitude: -17.7833, 
-        longitude: -63.1667, 
+        latitude: -17.7833,
+        longitude: -63.1667,
         city: 'Santa Cruz de la Sierra',
         parentId: '',
         schedules: []
@@ -425,10 +478,12 @@ const SucursalModal = ({ isOpen, onClose, sucursalToEdit, onSave, parentGyms }: 
       setNewSchedule({ dayOfWeek: 'LUNES', opensAt: '06:00', closesAt: '22:00', isHoliday: false });
     } else {
       document.body.style.overflow = 'unset';
+      document.body.removeAttribute('data-modal-open');
     }
-    
+
     return () => {
       document.body.style.overflow = 'unset';
+      document.body.removeAttribute('data-modal-open');
     };
   }, [isOpen]);
 
@@ -436,22 +491,31 @@ const SucursalModal = ({ isOpen, onClose, sucursalToEdit, onSave, parentGyms }: 
   useEffect(() => {
     if (sucursalToEdit && isOpen) {
       setFormData({
-        name: sucursalToEdit.name || '', 
+        name: sucursalToEdit.name || '',
         description: sucursalToEdit.description || '',
         address: sucursalToEdit.location?.address || '',
-        maxCapacity: sucursalToEdit.maxCapacity || 100, 
+        maxCapacity: sucursalToEdit.maxCapacity || 100,
         isOpen: sucursalToEdit.isOpen ?? true,
-        latitude: sucursalToEdit.location?.latitude || -17.7833, 
+        latitude: sucursalToEdit.location?.latitude || -17.7833,
         longitude: sucursalToEdit.location?.longitude || -63.1667,
         city: sucursalToEdit.location?.city || 'Santa Cruz de la Sierra',
         parentId: sucursalToEdit.parentId?.toString() || sucursalToEdit.parent?.id?.toString() || '',
-        schedules: (sucursalToEdit.schedules || []).map((s: any) => ({
-          dayOfWeek: s.dayOfWeek,
-          opensAt: s.opensAt?.slice(0, 5) || '06:00',
-          closesAt: s.closesAt?.slice(0, 5) || '22:00',
-          isHoliday: s.isHoliday ?? false
-        }))
+        schedules: []
       });
+      // Cargar horarios reales desde el backend
+      apiClient.get(`/gyms/${sucursalToEdit.id}/schedules`).then(res => {
+        const data = Array.isArray(res.data) ? res.data : [];
+        setFormData(prev => ({
+          ...prev,
+          schedules: data.map((s: any) => ({
+            id: s.id,
+            dayOfWeek: s.dayOfWeek,
+            opensAt: s.opensAt?.slice(0, 5) || '06:00',
+            closesAt: s.closesAt?.slice(0, 5) || '22:00',
+            isHoliday: s.isHoliday ?? false,
+          }))
+        }));
+      }).catch(() => {});
     }
   }, [sucursalToEdit, isOpen]);
 
@@ -800,22 +864,18 @@ const SucursalModal = ({ isOpen, onClose, sucursalToEdit, onSave, parentGyms }: 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.75rem', color: '#8E8E93', marginBottom: '0.25rem' }}>Apertura</label>
-                  <input 
-                    type="time" 
+                  <TimeSelect
+                    value={newSchedule.opensAt}
+                    onChange={v => setNewSchedule({...newSchedule, opensAt: v})}
                     disabled={newSchedule.isHoliday}
-                    value={newSchedule.isHoliday ? '00:00' : newSchedule.opensAt} 
-                    onChange={e => setNewSchedule({...newSchedule, opensAt: e.target.value})}
-                    style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', background: newSchedule.isHoliday ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.6)', color: newSchedule.isHoliday ? '#8E8E93' : '#FFF', border: '1px solid rgba(255,255,255,0.15)', fontSize: '0.9rem', colorScheme: 'dark', opacity: newSchedule.isHoliday ? 0.6 : 1 }}
                   />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.75rem', color: '#8E8E93', marginBottom: '0.25rem' }}>Cierre</label>
-                  <input 
-                    type="time" 
+                  <TimeSelect
+                    value={newSchedule.closesAt}
+                    onChange={v => setNewSchedule({...newSchedule, closesAt: v})}
                     disabled={newSchedule.isHoliday}
-                    value={newSchedule.isHoliday ? '00:00' : newSchedule.closesAt} 
-                    onChange={e => setNewSchedule({...newSchedule, closesAt: e.target.value})}
-                    style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', background: newSchedule.isHoliday ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.6)', color: newSchedule.isHoliday ? '#8E8E93' : '#FFF', border: '1px solid rgba(255,255,255,0.15)', fontSize: '0.9rem', colorScheme: 'dark', opacity: newSchedule.isHoliday ? 0.6 : 1 }}
                   />
                 </div>
               </div>
@@ -910,6 +970,43 @@ export const SucursalesView = () => {
   const [sucursalToEdit, setSucursalToEdit] = useState<GymDto | null>(null);
   const [viewingSucursal, setViewingSucursal] = useState<GymDto | null>(null);
 
+  // ── Filtros ──
+  const [search,        setSearch]        = useState('');
+  const [filterParent,  setFilterParent]  = useState('');
+  const [filterEstado,  setFilterEstado]  = useState<'all' | 'activa' | 'inactiva' | 'abierta' | 'cerrada'>('all');
+  const [sortOrder,     setSortOrder]     = useState<'az' | 'za' | 'cap_asc' | 'cap_desc'>('az');
+
+  // Opciones de sedes ordenadas A→Z
+  const parentOptions = useMemo(() =>
+    Object.entries(parentGyms)
+      .map(([id, name]) => ({ id: Number(id), name }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    [parentGyms]
+  );
+
+  const filteredSucursales = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return gyms
+      .filter(g => {
+        if (term && !g.name.toLowerCase().includes(term) && !(g.location?.address ?? g.description ?? '').toLowerCase().includes(term)) return false;
+        if (filterParent && String(g.parentId ?? g.parent?.id ?? '') !== filterParent) return false;
+        if (filterEstado === 'activa'   && !g.isActive)  return false;
+        if (filterEstado === 'inactiva' &&  g.isActive)  return false;
+        if (filterEstado === 'abierta'  && !g.isOpen)    return false;
+        if (filterEstado === 'cerrada'  &&  g.isOpen)    return false;
+        return true;
+      })
+      .sort((a, b) => {
+        if (sortOrder === 'az') return a.name.localeCompare(b.name);
+        if (sortOrder === 'za') return b.name.localeCompare(a.name);
+        if (sortOrder === 'cap_asc')  return (a.maxCapacity ?? 0) - (b.maxCapacity ?? 0);
+        return (b.maxCapacity ?? 0) - (a.maxCapacity ?? 0);
+      });
+  }, [gyms, search, filterParent, filterEstado, sortOrder]);
+
+  const hasFilters = search || filterParent || filterEstado !== 'all' || sortOrder !== 'az';
+  const resetFilters = () => { setSearch(''); setFilterParent(''); setFilterEstado('all'); setSortOrder('az'); };
+
   useEffect(() => {
     let mounted = true;
 
@@ -966,14 +1063,27 @@ export const SucursalesView = () => {
 
   const confirmDeleteSucursal = async () => {
     if (!deleteConfirmSucursal) return;
+    const nameToDelete = deleteConfirmSucursal.name;
     try {
       await apiClient.delete(`/gyms/${deleteConfirmSucursal.id}`);
-      setGyms(prev => prev.filter(g => g.id !== deleteConfirmSucursal.id));
+      toast.success(`Sucursal "${nameToDelete}" eliminada`);
+      await recargarSucursales();
     } catch (err: any) {
-      alert(err?.response?.data?.message || err?.message || 'Error al eliminar sucursal.');
+      toast.error(err?.response?.data?.message || err?.message || 'Error al eliminar sucursal.');
     } finally {
       setDeleteConfirmSucursal(null);
     }
+  };
+
+  /** Re-carga la lista completa de sucursales y el mapa de sedes desde el servidor */
+  const recargarSucursales = async () => {
+    const gymsResp = await apiClient.get('/gyms');
+    const gymsData: GymDto[] = Array.isArray(gymsResp.data) ? gymsResp.data : [];
+    const sucursalesData = gymsData.filter(g => (g.maxCapacity ?? 0) > 0);
+    const parentMap: Record<number, string> = {};
+    gymsData.filter(g => (g.maxCapacity ?? 0) === 0).forEach(g => { parentMap[g.id] = g.name; });
+    setGyms(sucursalesData);
+    setParentGyms(parentMap);
   };
 
   const handleSaveSucursal = async (formData: any) => {
@@ -987,62 +1097,67 @@ export const SucursalesView = () => {
           address: formData.address || '',
           city: formData.city || 'Santa Cruz de la Sierra',
           latitude: Number(formData.latitude) || 0,
-          longitude: Number(formData.longitude) || 0
-        }
+          longitude: Number(formData.longitude) || 0,
+        },
       };
-      
-      if (formData.schedules && formData.schedules.length > 0) {
-        // Limpiar propiedades no permitidas por el DTO del backend
-        payload.schedules = formData.schedules.map((sch: any) => ({
-          dayOfWeek: sch.dayOfWeek,
-          opensAt: sch.opensAt,
-          closesAt: sch.closesAt,
-          isHoliday: sch.isHoliday || false
-        }));
-      }
 
-      console.log('[Sucursal] Enviando payload:', JSON.stringify(payload));
-      
+      const schedulesPayload = (formData.schedules ?? []).map((sch: any) => ({
+        dayOfWeek: sch.dayOfWeek,
+        opensAt: sch.isHoliday ? '00:00' : sch.opensAt,
+        closesAt: sch.isHoliday ? '00:00' : sch.closesAt,
+        isHoliday: sch.isHoliday || false,
+      }));
+
       if (sucursalToEdit) {
-        // EDITAR SUCURSAL
-        const updatePayload = {
+        // ── EDITAR: datos principales ────────────────────────────────────────
+        await apiClient.put(`/gyms/${sucursalToEdit.id}`, {
           name: payload.name,
           description: payload.description,
           maxCapacity: payload.maxCapacity,
           parentId: payload.parentId,
-          // Evitamos enviar schedules en el PUT principal por si el UpdateGymDto no lo permite
-        };
-        await apiClient.put(`/gyms/${sucursalToEdit.id}`, updatePayload);
-        
+        });
+
+        // Ubicación (intenta PUT, fallback a POST)
         if (payload.location) {
-          await apiClient.put(`/gyms/${sucursalToEdit.id}/location`, payload.location).catch(async () => {
-            await apiClient.post(`/gyms/${sucursalToEdit.id}/location`, payload.location).catch(() => {});
-          });
+          await apiClient.put(`/gyms/${sucursalToEdit.id}/location`, payload.location)
+            .catch(async () => {
+              await apiClient.post(`/gyms/${sucursalToEdit.id}/location`, payload.location).catch(() => {});
+            });
         }
-        
-        // Si hay horarios, intentamos agregarlos al endpoint de horarios
-        if (payload.schedules && payload.schedules.length > 0) {
-           // Nota: Lo ideal sería sincronizarlos (borrar viejos y agregar nuevos), 
-           // pero al menos evitamos el error 400 del DTO enviándolos limpios.
-           try {
-              // await apiClient.post(`/gyms/${sucursalToEdit.id}/schedules`, payload.schedules);
-           } catch (e) {
-              console.warn("No se pudieron actualizar los horarios:", e);
-           }
+
+        // Sincronizar horarios (borrar todos y recrear)
+        try {
+          const existingRes = await apiClient.get(`/gyms/${sucursalToEdit.id}/schedules`);
+          const existing: any[] = Array.isArray(existingRes.data) ? existingRes.data : [];
+          await Promise.allSettled(existing.map(s => apiClient.delete(`/gyms/schedules/${s.id}`)));
+        } catch {}
+
+        if (schedulesPayload.length > 0) {
+          await Promise.allSettled(
+            schedulesPayload.map((sch: any) =>
+              apiClient.post(`/gyms/${sucursalToEdit.id}/schedules`, sch)
+            )
+          );
         }
-        
-        setGyms(prev => prev.map(g => g.id === sucursalToEdit.id ? { ...g, ...payload, location: payload.location } : g));
+
+        // Re-fetch completo para reflejar parentId + parent.name correctamente
+        await recargarSucursales();
+        toast.success(`Sucursal "${payload.name}" actualizada correctamente`);
+
       } else {
-        // CREAR SUCURSAL
-        const res = await apiClient.post('/gyms', payload);
-        const newSucursal = res.data?.id ? res.data : { id: res.data?.data?.id || Date.now(), ...payload };
-        setGyms(prev => [...prev, newSucursal]);
+        // ── CREAR SUCURSAL ────────────────────────────────────────────────────
+        if (schedulesPayload.length > 0) payload.schedules = schedulesPayload;
+        await apiClient.post('/gyms', payload);
+
+        // Re-fetch para obtener el ID real del servidor y el parent completo
+        await recargarSucursales();
+        toast.success(`Sucursal "${payload.name}" creada correctamente`);
       }
-      
+
       setIsModalOpen(false);
     } catch (err: any) {
       console.error('[Sucursal] Error:', err?.response?.data || err?.message);
-      alert(err?.response?.data?.message || err?.message || 'Error al crear sucursal.');
+      // El interceptor de apiClient ya muestra el toast de error — no duplicar.
     }
   };
 
@@ -1074,8 +1189,64 @@ export const SucursalesView = () => {
       </div>
       {error && <div style={{ marginTop: '0.75rem', color: '#FF5E00' }}>{error}</div>}
 
+      {/* ── Barra de filtros ── */}
+      {!loading && !error && gyms.length > 0 && (
+        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center', marginTop: '0.85rem' }}>
+          <input
+            value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="🔍  Buscar por nombre o dirección..."
+            style={{ flex: 1, minWidth: '200px', background: '#1C1C1E', color: '#E5E5EA', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '0.5rem 0.9rem', fontSize: '0.85rem', outline: 'none' }}
+          />
+          {/* Sede principal */}
+          {parentOptions.length > 0 && (
+            <div style={{ position: 'relative' }}>
+              <select value={filterParent} onChange={e => setFilterParent(e.target.value)}
+                style={{ background: '#1C1C1E', color: '#E5E5EA', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '0.5rem 2rem 0.5rem 0.9rem', fontSize: '0.85rem', appearance: 'none', WebkitAppearance: 'none', cursor: 'pointer', outline: 'none', maxWidth: '175px' }}>
+                <option value="" style={{ background: '#1C1C1E' }}>Todas las marcas</option>
+                {parentOptions.map(p => <option key={p.id} value={p.id} style={{ background: '#1C1C1E' }}>{p.name}</option>)}
+              </select>
+              <span style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#8E8E93', fontSize: '0.7rem' }}>▼</span>
+            </div>
+          )}
+          {/* Estado */}
+          <div style={{ position: 'relative' }}>
+            <select value={filterEstado} onChange={e => setFilterEstado(e.target.value as any)}
+              style={{ background: '#1C1C1E', color: '#E5E5EA', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '0.5rem 2rem 0.5rem 0.9rem', fontSize: '0.85rem', appearance: 'none', WebkitAppearance: 'none', cursor: 'pointer', outline: 'none' }}>
+              <option value="all"      style={{ background: '#1C1C1E' }}>Todos los estados</option>
+              <option value="activa"   style={{ background: '#1C1C1E' }}>Solo Activas</option>
+              <option value="inactiva" style={{ background: '#1C1C1E' }}>Solo Inactivas</option>
+              <option value="abierta"  style={{ background: '#1C1C1E' }}>Solo Abiertas</option>
+              <option value="cerrada"  style={{ background: '#1C1C1E' }}>Solo Cerradas</option>
+            </select>
+            <span style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#8E8E93', fontSize: '0.7rem' }}>▼</span>
+          </div>
+          {/* Orden */}
+          <div style={{ position: 'relative' }}>
+            <select value={sortOrder} onChange={e => setSortOrder(e.target.value as any)}
+              style={{ background: '#1C1C1E', color: '#E5E5EA', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '0.5rem 2rem 0.5rem 0.9rem', fontSize: '0.85rem', appearance: 'none', WebkitAppearance: 'none', cursor: 'pointer', outline: 'none' }}>
+              <option value="az"       style={{ background: '#1C1C1E' }}>Nombre A → Z</option>
+              <option value="za"       style={{ background: '#1C1C1E' }}>Nombre Z → A</option>
+              <option value="cap_asc"  style={{ background: '#1C1C1E' }}>Capacidad ↑</option>
+              <option value="cap_desc" style={{ background: '#1C1C1E' }}>Capacidad ↓</option>
+            </select>
+            <span style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#8E8E93', fontSize: '0.7rem' }}>▼</span>
+          </div>
+          {hasFilters && (
+            <button onClick={resetFilters}
+              style={{ background: 'none', color: '#8E8E93', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '0.45rem 0.85rem', cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+              ✕ Limpiar
+            </button>
+          )}
+        </div>
+      )}
+      {!loading && !error && gyms.length > 0 && (
+        <div style={{ color: '#8E8E93', fontSize: '0.8rem', margin: '0.5rem 0' }}>
+          {filteredSucursales.length === gyms.length ? `${gyms.length} sucursales` : `${filteredSucursales.length} de ${gyms.length} sucursales`}
+        </div>
+      )}
+
       {!loading && !error && (
-        <div style={{ marginTop: '1rem', overflowX: 'auto' }}>
+        <div style={{ marginTop: '0.25rem', overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '960px' }}>
             <thead>
               <tr>
@@ -1089,7 +1260,11 @@ export const SucursalesView = () => {
               </tr>
             </thead>
             <tbody>
-              {gyms.map((g) => (
+              {filteredSucursales.length === 0 ? (
+                <tr><td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#8E8E93' }}>
+                  {gyms.length === 0 ? 'No hay sucursales registradas.' : 'Sin resultados para los filtros aplicados.'}
+                </td></tr>
+              ) : filteredSucursales.map((g) => (
                 <tr key={g.id}>
                   <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C' }}>{g.id}</td>
                   <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C' }}>{g.name}</td>
@@ -1119,7 +1294,14 @@ export const SucursalesView = () => {
                   <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C', textAlign: 'center' }}>
                     <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', alignItems: 'center' }}>
                       <button
-                        onClick={() => setViewingSucursal(g)}
+                        onClick={async () => {
+                          try {
+                            const res = await apiClient.get(`/gyms/${g.id}/schedules`);
+                            setViewingSucursal({ ...g, schedules: Array.isArray(res.data) ? res.data : [] });
+                          } catch {
+                            setViewingSucursal(g);
+                          }
+                        }}
                         style={{ background: 'rgba(0, 217, 255, 0.1)', border: '1px solid rgba(0, 217, 255, 0.3)', color: '#00D9FF', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
                         title="Ver detalles de la sucursal"
                       >
@@ -1150,11 +1332,6 @@ export const SucursalesView = () => {
         </div>
       )}
 
-      {gyms.length === 0 && !loading && !error && (
-        <div style={{ textAlign: 'center', padding: '2rem', color: '#8E8E93' }}>
-          No hay sucursales registradas. Las sucursales son gimnasios vinculados a una sede principal.
-        </div>
-      )}
 
       <SucursalModal 
         isOpen={isModalOpen} 

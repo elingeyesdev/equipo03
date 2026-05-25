@@ -25,8 +25,10 @@ const modalBodyStyle: CSSProperties = {
   padding: '2rem',
   boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
   maxHeight: '90vh',
+  height: '90vh',
   display: 'flex',
   flexDirection: 'column',
+  overflow: 'hidden',
   animation: 'modalFadeIn 0.25s ease',
 };
 
@@ -36,6 +38,11 @@ const modalBodyStyle: CSSProperties = {
  * Inmune al z-index del header (10000) y a cualquier overflow:hidden padre.
  */
 export const ModalOverlay = ({ children, onClose }: { children: React.ReactNode; onClose: () => void }) => {
+  React.useEffect(() => {
+    document.body.setAttribute('data-modal-open', 'true');
+    return () => document.body.removeAttribute('data-modal-open');
+  }, []);
+
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) onClose();
   };
@@ -124,11 +131,14 @@ export const RecordDetailModal = ({
         border: '1px solid rgba(0, 217, 255, 0.3)',
         boxShadow: '0 0 15px rgba(0, 217, 255, 0.1)',
         display: 'flex', flexDirection: 'column', flex: 1,
+        minHeight: 0, overflow: 'hidden',
       }}>
+        {/* Header fijo */}
         <div className="modal-header" style={{
           borderBottom: '1px solid rgba(0, 217, 255, 0.2)',
           paddingBottom: '0.75rem',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          flexShrink: 0,
         }}>
           <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#00D9FF', margin: 0, fontSize: '1.3rem' }}>
             👁️ {title}
@@ -137,14 +147,20 @@ export const RecordDetailModal = ({
             ✕
           </button>
         </div>
+
+        {/* Contenido scrollable */}
         <div style={{
           display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem',
-          marginTop: '1.25rem', overflowY: 'auto', flex: 1,
-          paddingRight: '0.25rem',
+          marginTop: '1.25rem',
+          overflowY: 'auto', flex: 1, minHeight: 0,
+          paddingRight: '0.4rem',
+          paddingBottom: '0.5rem',
         }}>
           {children}
         </div>
-        <div className="modal-actions" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', marginTop: '1.25rem', paddingTop: '0.75rem' }}>
+
+        {/* Footer fijo */}
+        <div className="modal-actions" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', marginTop: '1rem', paddingTop: '0.75rem', flexShrink: 0 }}>
           <button className="btn-cancel" style={{ width: '100%', background: 'rgba(255,255,255,0.05)' }} onClick={onClose}>
             Cerrar Detalle
           </button>

@@ -6,7 +6,7 @@ import { LoginScreen } from './components/Auth/LoginScreen';
 import { RegisterScreen } from './components/Auth/RegisterScreen';
 import { DashboardLayout } from './components/Layout/DashboardLayout';
 import { AuditoriaView } from './components/Auditoria/AuditoriaView';
-import { ResumenView, UsuariosView, SedesView, SucursalesView, RutinasView, RolesView, MapaView } from './components/Dashboard/DashboardViews';
+import { ResumenView, UsuariosView, SedesView, SucursalesView, RutinasView, RolesView, MapaView, ActividadesView } from './components/Dashboard/DashboardViews';
 import { RoleGuard } from './components/Auth/RoleGuard';
 import { MedidasPlaceholder } from './components/Dashboard/Placeholders';
 import { ReservasView } from './components/Reservas/ReservasView';
@@ -61,6 +61,10 @@ export const AppRouter = () => {
 
             <Route path="mapa" element={
               <RoleGuard routePath="mapa"><MapaView /></RoleGuard>
+            } />
+
+            <Route path="actividades" element={
+              <RoleGuard routePath="actividades"><ActividadesView /></RoleGuard>
             } />
 
             <Route path="reservas" element={

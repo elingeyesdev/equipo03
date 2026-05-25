@@ -74,10 +74,16 @@ export const NAV_ROUTES: NavRoute[] = [
     allowedRoles: ['SUPER_ADMIN', 'ENTRENADOR', 'NUTRICIONISTA', 'CLIENTE'],
   },
   {
+    path: 'actividades',
+    label: 'Catálogo de Servicios',
+    icon: '🏃',
+    allowedRoles: ['SUPER_ADMIN', 'GERENTE'],
+  },
+  {
     path: 'reservas',
     label: 'Reservas',
     icon: '📅',
-    allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'CLIENTE'],
+    allowedRoles: ['SUPER_ADMIN', 'CLIENTE'],
   },
   {
     path: 'medidas',

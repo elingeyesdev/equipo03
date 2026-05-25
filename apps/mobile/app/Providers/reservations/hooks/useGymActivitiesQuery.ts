@@ -31,9 +31,14 @@ export const useGymActivitiesQuery = (gymId: number | undefined) => {
       // 2. Para cada actividad, si no trae schedules embebidos, los pedimos por separado
       const enriched = await Promise.all(
         activities.map(async (activity) => {
-          let schedules: GymActivitySchedule[] = activity.schedules ?? [];
+          // Lectura defensiva: el backend puede usar 'schedules' o 'gymActivitySchedules'
+          let schedules: GymActivitySchedule[] =
+            (activity as any).gymActivitySchedules ??
+            activity.schedules ??
+            [];
 
-          if (schedules.length === 0) {
+          if (schedules.length === 0 && activity.isFreeAccess !== true) {
+            // Solo buscar horarios separados si la actividad es programada
             try {
               schedules = await reservationApi.getActivitySchedules(activity.id);
             } catch {
@@ -51,7 +56,7 @@ export const useGymActivitiesQuery = (gymId: number | undefined) => {
         })
       );
 
-      return enriched.filter((a) => a.availableSchedule !== null);
+      return enriched;
     },
     enabled: !!gymId,
     staleTime: 1000 * 60 * 5, // 5 min de caché

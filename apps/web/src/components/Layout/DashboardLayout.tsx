@@ -11,19 +11,13 @@ export const DashboardLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [hasActiveFormModal, setHasActiveFormModal] = useState(false);
 
-  // Monitorear dinámicamente si hay modales de creación/edición activos
   useEffect(() => {
     const checkModals = () => {
-      const hasForm = !!document.querySelector(
-        '.modal-overlay input:not([type="button"]):not([type="submit"]), ' +
-        '.modal-overlay select, .modal-overlay textarea, ' +
-        '.modal-content input, .modal-content select, .modal-content textarea'
-      );
-      setHasActiveFormModal(hasForm);
+      setHasActiveFormModal(document.body.hasAttribute('data-modal-open'));
     };
 
     const observer = new MutationObserver(checkModals);
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { attributes: true, attributeFilter: ['data-modal-open'] });
     checkModals();
 
     return () => observer.disconnect();

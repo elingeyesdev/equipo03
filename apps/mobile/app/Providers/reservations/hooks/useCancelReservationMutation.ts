@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { reservationApi } from '../api/reservation.api';
+import { UserReservation } from '../api/reservation.types';
 import { Alert } from 'react-native';
 
 export const useCancelReservationMutation = () => {
@@ -7,14 +8,24 @@ export const useCancelReservationMutation = () => {
 
   return useMutation({
     mutationFn: (reservationId: number) => reservationApi.cancelReservation(reservationId),
-    onSuccess: () => {
-      // Invalidar la lista de reservas para que se refresque sola
-      queryClient.invalidateQueries({ queryKey: ['my-reservations'] });
-      Alert.alert('Éxito', 'La reserva ha sido cancelada correctamente.');
+
+    onMutate: async (reservationId) => {
+      await queryClient.cancelQueries({ queryKey: ['my-reservations'] });
+      const prev = queryClient.getQueryData<UserReservation[]>(['my-reservations']);
+      queryClient.setQueryData<UserReservation[]>(['my-reservations'], (old = []) =>
+        old.filter((r) => r.id !== reservationId)
+      );
+      return { prev };
     },
-    onError: (error: any) => {
-      console.error('[Cancelación] Error:', error);
-      Alert.alert('Error', 'No se pudo cancelar la reserva. Inténtalo de nuevo más tarde.');
+
+    onError: (err: any, _id, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(['my-reservations'], ctx.prev);
+      const message = err?.response?.data?.message ?? 'No se pudo cancelar la reserva.';
+      Alert.alert('Error', message);
+    },
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-reservations'] });
     },
   });
 };

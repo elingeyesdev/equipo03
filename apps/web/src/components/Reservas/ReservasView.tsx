@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { reservationsApi } from '../../infrastructure/AxiosReservationsApi.adapter';
+import { apiClient } from '../../infrastructure/api.config';
 import { DB_ROLES } from '../../config/rbac.constants';
 import type { Reservation } from '../../infrastructure/Reservations.types';
 import { QrScannerModal } from './QrScannerModal';
@@ -14,6 +15,9 @@ export const ReservasView = () => {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterGym, setFilterGym] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [sucursales, setSucursales] = useState<{ id: number; name: string }[]>([]);
+  // mapa gymId → { sucursalName, sedeName } construido desde /gyms
+  const [gymInfoMap, setGymInfoMap] = useState<Map<number, { sucursalName: string; sedeName: string }>>(new Map());
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -23,9 +27,42 @@ export const ReservasView = () => {
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [viewingReservation, setViewingReservation] = useState<Reservation | null>(null);
 
-  // Usa roleId numérico de WebUser (Paso 1) — no depende de strings ni comparaciones mixtas
+  // Usa roleId numérico de WebUser — no depende de strings ni comparaciones mixtas
   const isGerente = user?.roleId === DB_ROLES.GERENTE;
   const isCliente = user?.roleId === DB_ROLES.CLIENTE;
+
+  // Carga /gyms una sola vez → construye lookup de sucursales + sedes
+  useEffect(() => {
+    apiClient.get('/gyms').then((data: any) => {
+      const raw: any[] = Array.isArray(data) ? data : data?.data ?? [];
+
+      // Mapa id → nombre de todas las entidades (sedes y sucursales)
+      const allByIdName = new Map<number, string>(raw.map((g: any) => [g.id, g.name]));
+
+      // Sedes (marcas): maxCapacity === 0
+      const sedesMap = new Map<number, string>(
+        raw.filter((g: any) => (g.maxCapacity ?? 0) === 0).map((g: any) => [g.id, g.name])
+      );
+
+      // Sucursales: maxCapacity > 0
+      const sucursalesData = raw
+        .filter((g: any) => (g.maxCapacity ?? 0) > 0)
+        .sort((a: any, b: any) => a.name.localeCompare(b.name));
+
+      setSucursales(sucursalesData.map((g: any) => ({ id: g.id, name: g.name })));
+
+      // Construir mapa gymId → { sucursalName, sedeName }
+      const infoMap = new Map<number, { sucursalName: string; sedeName: string }>();
+      sucursalesData.forEach((g: any) => {
+        const parentId = g.parentId ?? g.parent?.id;
+        infoMap.set(g.id, {
+          sucursalName: g.name,
+          sedeName: parentId ? (sedesMap.get(parentId) ?? allByIdName.get(parentId) ?? 'Sin marca') : 'Sin marca',
+        });
+      });
+      setGymInfoMap(infoMap);
+    }).catch(() => {});
+  }, []);
 
   const loadReservations = useCallback(async () => {
     setLoading(true);
@@ -39,8 +76,12 @@ export const ReservasView = () => {
     );
 
     // Filtrado de seguridad en frontend como capa adicional
+    // Si gymActivitySchedule no viene populado, confiamos en el filtro del servidor
     if (isGerente && user?.gymId) {
-      sorted = sorted.filter(res => res.gymActivitySchedule?.gymActivity?.gymId === Number(user.gymId));
+      sorted = sorted.filter(res => {
+        const gId = res.gymActivitySchedule?.gymActivity?.gymId;
+        return gId == null || gId === Number(user.gymId);
+      });
     } else if (isCliente && user?.id) {
       // user.id es number (WebUser.id) — comparación estricta con res.userId
       sorted = sorted.filter(res => res.userId === user.id);
@@ -186,12 +227,12 @@ export const ReservasView = () => {
             <span className="search-icon">🔍</span>
           </div>
 
-          {!isGerente && (
+          {!isGerente && sucursales.length > 0 && (
             <select value={filterGym} onChange={e => setFilterGym(e.target.value)} className="filter-select">
-              <option value="">Sede: Todas</option>
-              <option value="1">Smart Fit</option>
-              <option value="2">Premier</option>
-              <option value="3">Bio Fitness</option>
+              <option value="">Sucursal: Todas</option>
+              {sucursales.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
             </select>
           )}
 
@@ -218,7 +259,7 @@ export const ReservasView = () => {
                   <th>Usuario</th>
                   <th>Carnet (CI)</th>
                   <th>Actividad</th>
-                  <th>Sede</th>
+                  <th>Sucursal</th>
                   <th>Horario</th>
                   <th>Estado</th>
                   <th style={{ textAlign: 'center', minWidth: '220px' }}>Acciones</th>
@@ -243,7 +284,11 @@ export const ReservasView = () => {
                       </td>
                       <td className="cell-ci">{res.user?.profile?.ci || '—'}</td>
                       <td className="cell-activity">{res.gymActivitySchedule?.gymActivity?.name || '—'}</td>
-                      <td>{res.gymActivitySchedule?.gymActivity?.gym?.name || `Sede #${res.gymActivitySchedule?.gymActivity?.gymId}`}</td>
+                      <td>{(() => {
+                        const gId = res.gymActivitySchedule?.gymActivity?.gymId;
+                        const info = gId ? gymInfoMap.get(gId) : undefined;
+                        return info ? info.sucursalName : (gId ? `Sucursal #${gId}` : '—');
+                      })()}</td>
                       <td>
                         <div className="cell-time">
                           <span className="time">{res.gymActivitySchedule?.startTime?.substring(0, 5)}</span>
@@ -345,7 +390,22 @@ export const ReservasView = () => {
         <DetailField label="Correo del Cliente" value={viewingReservation?.user?.email} isFullWidth />
 
         <DetailField label="Actividad Deportiva" value={viewingReservation?.gymActivitySchedule?.gymActivity?.name || '-'} />
-        <DetailField label="Gimnasio / Sede" value={viewingReservation?.gymActivitySchedule?.gymActivity?.gym?.name || '-'} />
+        <DetailField
+          label="Sucursal"
+          value={(() => {
+            const gId = viewingReservation?.gymActivitySchedule?.gymActivity?.gymId;
+            const info = gId ? gymInfoMap.get(gId) : undefined;
+            return info?.sucursalName ?? (gId ? `Sucursal #${gId}` : 'Sin información');
+          })()}
+        />
+        <DetailField
+          label="Sede (Marca)"
+          value={(() => {
+            const gId = viewingReservation?.gymActivitySchedule?.gymActivity?.gymId;
+            const info = gId ? gymInfoMap.get(gId) : undefined;
+            return info?.sedeName ?? 'Sin información';
+          })()}
+        />
         
         <DetailField label="Fecha Reservada" value={viewingReservation?.reservationDate} />
         <DetailField 

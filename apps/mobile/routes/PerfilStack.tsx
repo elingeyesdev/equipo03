@@ -5,6 +5,7 @@ import { PerfilManagerScreen } from '../resources/views/perfil/PerfilManagerScre
 import { AlertasConfigScreen } from '../resources/views/alertas/AlertasConfigScreen';
 import { AjustesScreen } from '../resources/views/perfil/AjustesScreen';
 import { MisDatosPersonalesScreen } from '../resources/views/perfil/MisDatosPersonalesScreen';
+import { AuditoriaSucursalScreen } from '../resources/views/perfil/AuditoriaSucursalScreen';
 
 export type PerfilStackParamList = {
   Menu: undefined;
@@ -12,6 +13,7 @@ export type PerfilStackParamList = {
   AlertasConfig: undefined;
   Ajustes: undefined;
   DatosPersonales: undefined;
+  AuditoriaSucursal: undefined;
 };
 
 const Stack = createNativeStackNavigator<PerfilStackParamList>();
@@ -55,12 +57,22 @@ export const PerfilStack = () => {
           headerTintColor: '#fff',
         }}
       />
-      <Stack.Screen 
-        name="DatosPersonales" 
-        component={MisDatosPersonalesScreen} 
+      <Stack.Screen
+        name="DatosPersonales"
+        component={MisDatosPersonalesScreen}
         options={{
           headerShown: true,
           title: 'Mis Datos Personales',
+          headerStyle: { backgroundColor: '#1E1E1E' },
+          headerTintColor: '#fff',
+        }}
+      />
+      <Stack.Screen
+        name="AuditoriaSucursal"
+        component={AuditoriaSucursalScreen}
+        options={{
+          headerShown: true,
+          title: 'Auditoría de Sucursal',
           headerStyle: { backgroundColor: '#1E1E1E' },
           headerTintColor: '#fff',
         }}

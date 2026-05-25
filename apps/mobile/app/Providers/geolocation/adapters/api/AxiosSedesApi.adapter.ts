@@ -66,15 +66,17 @@ export class AxiosSedesApiAdapter implements ISedesApiService {
       const gymIdParam = Number(id);
       const [gymResponse, activitiesResponse] = await Promise.all([
         this.client.get(`/api/gyms/${id}`),
-        this.client.get('/api/activities', { params: { gym_id: gymIdParam } })
+        this.client.get('/api/activities', { params: { gymId: gymIdParam } })
           .catch((err) => {
             console.warn('[AxiosSedesApiAdapter] Error al cargar actividades en obtenerSedePorId:', err?.message);
-            return { data: { data: [] } };
+            return { data: [] };
           })
       ]);
-      
-      const gymDataCruda = gymResponse.data.data;
-      const actividadesCrudas = activitiesResponse.data.data;
+
+      // El interceptor ya desempaqueta el envelope: response.data ES el payload final
+      const gymDataCruda = gymResponse.data;
+      const rawActividades = activitiesResponse.data;
+      const actividadesCrudas = Array.isArray(rawActividades) ? rawActividades : (rawActividades?.data ?? []);
       
       // INYECCIÓN DE LOGS DE DIAGNÓSTICO (PASO 3)
       console.log('[DEBUG DIAGNÓSTICO] OBJETO CRUDO DE GIMNASIO (gymResponse.data):', gymResponse.data);
@@ -82,20 +84,31 @@ export class AxiosSedesApiAdapter implements ISedesApiService {
       console.log('[DEBUG DIAGNÓSTICO] gymDataCruda EXTRAÍDO:', gymDataCruda);
       console.log('[DEBUG DIAGNÓSTICO] actividadesCrudas EXTRAÍDAS:', actividadesCrudas);
       
-      // Sintetizar horarios operativos estándar por defecto si el backend no los provee planos
-      const defaultSchedules = [
-        { dayOfWeek: 1, opensAt: '06:00:00', closesAt: '22:00:00' }, // Lunes
-        { dayOfWeek: 2, opensAt: '06:00:00', closesAt: '22:00:00' }, // Martes
-        { dayOfWeek: 3, opensAt: '06:00:00', closesAt: '22:00:00' }, // Miércoles
-        { dayOfWeek: 4, opensAt: '06:00:00', closesAt: '22:00:00' }, // Jueves
-        { dayOfWeek: 5, opensAt: '06:00:00', closesAt: '22:00:00' }, // Viernes
-        { dayOfWeek: 6, opensAt: '08:00:00', closesAt: '20:00:00' }, // Sábado
-        { dayOfWeek: 0, opensAt: '09:00:00', closesAt: '14:00:00' }, // Domingo
-      ];
+      const DOW_MAP: Record<string, number> = { DOM:0, LUN:1, MAR:2, MIE:3, JUE:4, VIE:5, SAB:6 };
+      const dayTimes: Record<number, { min: string; max: string }> = {};
+      actividadesCrudas.forEach((act: any) => {
+        (act.schedules ?? []).forEach((sch: any) => {
+          const idx = DOW_MAP[sch.dayOfWeek];
+          if (idx === undefined) return;
+          const s = String(sch.startTime ?? '06:00').substring(0, 5);
+          const e = String(sch.endTime   ?? '22:00').substring(0, 5);
+          if (!dayTimes[idx]) dayTimes[idx] = { min: s, max: e };
+          else {
+            if (s < dayTimes[idx].min) dayTimes[idx].min = s;
+            if (e > dayTimes[idx].max) dayTimes[idx].max = e;
+          }
+        });
+      });
+      const derivedSchedules = Object.entries(dayTimes).map(([d, t]) => ({
+        dayOfWeek: Number(d), opensAt: t.min, closesAt: t.max,
+      }));
 
-      const schedules = gymDataCruda.schedules && gymDataCruda.schedules.length > 0
-        ? gymDataCruda.schedules
-        : defaultSchedules;
+      const schedules =
+        (gymDataCruda.gymSchedules?.length > 0 ? gymDataCruda.gymSchedules : null) ??
+        (gymDataCruda.schedules?.length    > 0 ? gymDataCruda.schedules    : null) ??
+        (derivedSchedules.length           > 0 ? derivedSchedules          : []);
+
+      console.log('[Sedes] Horarios derivados de actividades:', derivedSchedules);
 
       const combinedPayload = {
         ...gymDataCruda,

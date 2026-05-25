@@ -102,10 +102,12 @@ export const ReservasController = (
 
     try {
       const currentUser = await AuthService.getCurrentUser();
-      const userId = currentUser?.userId || '';
+      const token       = await AuthService.getToken();
+      const userId      = currentUser?.userId || '';
 
-      if (!userId) {
-        const authErr = new Error('No se pudo encontrar una sesión activa para este usuario.');
+      if (!userId || !token) {
+        console.error('[ERROR AUTH] No hay token en el llavero seguro. confirmarNuevaReserva bloqueado.');
+        const authErr = new Error('No hay sesión activa. Inicia sesión nuevamente.');
         store.setError(authErr.message);
         return left(authErr);
       }
@@ -119,7 +121,7 @@ export const ReservasController = (
       });
 
       if (result.isRight()) {
-        store.reset(); // Limpiar estado temporal de la sucursal activa
+        store.reset();
         return result;
       } else {
         store.setError(result.value.message);

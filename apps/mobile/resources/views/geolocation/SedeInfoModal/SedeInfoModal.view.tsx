@@ -26,6 +26,7 @@ type SedeInfoModalViewProps = {
   onClose: () => void;
   onNavigate: () => void;
   onReserve?: () => void;
+  isAdmin?: boolean;
 };
 
 export const SedeInfoModalView: React.FC<SedeInfoModalViewProps> = ({
@@ -35,6 +36,7 @@ export const SedeInfoModalView: React.FC<SedeInfoModalViewProps> = ({
   onClose,
   onNavigate,
   onReserve,
+  isAdmin = false,
 }) => {
   return (
     <Modal
@@ -92,19 +94,23 @@ export const SedeInfoModalView: React.FC<SedeInfoModalViewProps> = ({
             showsVerticalScrollIndicator={false}
           >
             {/* Horarios */}
-            {sede.horarios && Object.keys(sede.horarios.raw).length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>🕐 Horarios ({sede.estaAbierta ? 'Abierto Ahora' : 'Cerrado'})</Text>
-                {Object.entries(sede.horarios.raw).map(([dia, horario]) => (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>🕐 Horarios ({sede.estaAbierta ? 'Abierto Ahora' : 'Cerrado'})</Text>
+              {sede.horarios && Object.keys(sede.horarios.raw).length > 0 ? (
+                Object.entries(sede.horarios.raw).map(([dia, horario]) => (
                   <View key={dia} style={styles.horarioRow}>
                     <Text style={styles.horarioDia}>{dia.charAt(0).toUpperCase() + dia.slice(1)}</Text>
                     <Text style={styles.horarioHora}>
                       {horario?.cerrado ? 'Cerrado' : `${horario?.apertura} - ${horario?.cierre}`}
                     </Text>
                   </View>
-                ))}
-              </View>
-            )}
+                ))
+              ) : (
+                <Text style={{ color: '#8E8E93', fontSize: 13, fontStyle: 'italic', marginTop: 4 }}>
+                  No hay horarios disponibles aún.
+                </Text>
+              )}
+            </View>
 
             {/* Servicios */}
             {sede.servicios.length > 0 && (
@@ -154,7 +160,11 @@ export const SedeInfoModalView: React.FC<SedeInfoModalViewProps> = ({
               <Text style={[styles.navigateButtonText, { color: '#00D9FF' }]}>🧭 Cómo llegar</Text>
             </TouchableOpacity>
 
-            {onReserve && (
+            {isAdmin ? (
+              <View style={{ flex: 1, backgroundColor: '#1a1a1a', borderRadius: 12, justifyContent: 'center', alignItems: 'center', paddingVertical: 14, borderWidth: 1, borderColor: '#333' }}>
+                <Text style={{ color: '#555', fontSize: 13, fontWeight: '600' }}>Acceso Administrativo</Text>
+              </View>
+            ) : onReserve ? (
               <TouchableOpacity
                 style={[styles.navigateButton, { flex: 1, backgroundColor: '#FF5E00' }]}
                 onPress={onReserve}
@@ -163,7 +173,7 @@ export const SedeInfoModalView: React.FC<SedeInfoModalViewProps> = ({
               >
                 <Text style={[styles.navigateButtonText, { color: '#FFF' }]}>📅 Reservar</Text>
               </TouchableOpacity>
-            )}
+            ) : null}
           </View>
         </View>
       </View>
