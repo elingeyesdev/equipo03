@@ -104,13 +104,8 @@ export class AuthService {
         extractedRole = 'USER';
       }
 
-      // Extraer gym_id
-      let extractedGymId = userData?.gymId || userData?.gym_id || jwtPayload.gym_id || jwtPayload.gymId;
-
-      // Para GERENTE, gym_id es obligatorio
-      if (extractedRole === 'GERENTE' && !extractedGymId) {
-        extractedGymId = '1'; // Default fallback
-      }
+      // Extraer gym_id — estrictamente del JWT/userData, sin fallback
+      const extractedGymId = jwtPayload.gymId ?? jwtPayload.gym_id ?? userData?.gymId ?? userData?.gym_id ?? null;
 
       // Crear contexto de autenticación
       const userId = userData?.id || jwtPayload.sub || jwtPayload.id || email;

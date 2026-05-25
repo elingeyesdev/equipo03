@@ -339,6 +339,15 @@ const ReservationCard = ({
           </>
         )}
 
+        {/* AMBOS: sucursal */}
+        <View style={s.detailRow}>
+          <MaterialCommunityIcons name="map-marker-outline" size={14} color={Colors.secondary} />
+          <Text style={s.detailTxt}>
+            <Text style={s.detailLabel}>Sucursal: </Text>
+            {r?.gymName || 'No especificada'}
+          </Text>
+        </View>
+
         {/* AMBOS: fecha de creación */}
         {!!createdLabel && (
           <View style={s.detailRow}>

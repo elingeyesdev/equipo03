@@ -83,6 +83,7 @@ export interface UserReservation {
   activityName?: string;
   activityDescription?: string;
   gymId?: number;
+  gymName?: string;        // nombre de la sucursal (si el backend lo popula en gym.name)
   createdAt?: string;
 
   // Tiempos — libre: elegidos por el usuario; programada: copiados del Schedule

@@ -136,6 +136,7 @@ export const reservationApi = {
           activityName:        isFreeAccess ? freeAct?.name : schedAct?.name,
           activityDescription: isFreeAccess ? freeAct?.description : schedAct?.description,
           gymId:               r?.gymId ?? schedAct?.gymId,
+          gymName:             r?.gym?.name ?? schedAct?.gym?.name ?? freeAct?.gym?.name ?? undefined,
           createdAt:           r?.createdAt,
           startTime:           st,
           endTime:             et,
@@ -175,6 +176,26 @@ export const reservationApi = {
     });
     const raw = response.data?.data ?? response.data;
     return Array.isArray(raw) ? raw : [];
+  },
+
+  /**
+   * GET /api/reservations/gym
+   * Auditoría de sede: gymId del JWT (applyListScope en backend).
+   * Sin filtro de fecha — devuelve todas las reservas de la sede.
+   */
+  getGymReservationsByGymId: async (_gymId: number, _date?: string): Promise<any[]> => {
+    const response = await reservationClient.get('/api/reservations/gym');
+    const raw = response.data?.data ?? response.data;
+    return Array.isArray(raw) ? raw : [];
+  },
+
+  /**
+   * PATCH /api/reservations/:id/check-in
+   * Marca la reserva como COMPLETADA (gerente valida QR de entrada).
+   */
+  checkInReservation: async (reservationId: number): Promise<{ success: boolean }> => {
+    const response = await reservationClient.patch(`/api/reservations/${reservationId}/check-in`);
+    return response.data?.data ?? response.data;
   },
 
   /**
