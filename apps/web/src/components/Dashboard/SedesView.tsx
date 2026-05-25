@@ -106,11 +106,8 @@ export const SedesView = () => {
       try {
         setLoading(true);
         setError(null);
-        const gymsResp = await apiClient.get('/gyms');
+        const gymsResp = await apiClient.get('/gyms/brands');
         let gymsData: GymDto[] = Array.isArray(gymsResp.data) ? gymsResp.data : [];
-
-        // Filtrar solo Marcas (entidades abstractas sin capacidad máxima física)
-        gymsData = gymsData.filter(g => g.maxCapacity === 0);
 
         // Las marcas no tienen scoping de gerente, solo SUPER_ADMIN las gestiona
 

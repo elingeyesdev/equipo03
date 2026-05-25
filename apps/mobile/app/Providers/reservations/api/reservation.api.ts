@@ -99,10 +99,8 @@ export const reservationApi = {
    *   reservation.gymActivitySchedule.dayOfWeek         → día
    */
   getMyReservations: async (): Promise<UserReservation[]> => {
-    const user = await AuthService.getCurrentUser();
-    if (!user?.userId) return [];
     try {
-      const response = await reservationClient.get(`/api/reservations/user/${user.userId}`);
+      const response = await reservationClient.get('/api/reservations/me');
       const raw = response.data?.data ?? response.data;
       const list: any[] = Array.isArray(raw) ? raw : [];
 

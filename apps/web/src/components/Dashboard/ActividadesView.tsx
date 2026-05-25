@@ -17,7 +17,7 @@ interface Activity {
   gym?: { id: number; name: string };
 }
 
-interface GymOption { id: number; name: string }
+interface GymOption { id: number; name: string; parentId?: number | null }
 
 interface ActivitySchedule {
   id: number;
@@ -489,11 +489,31 @@ const ActivityFormModal = ({
               <div style={{ position: 'relative' }}>
                 <select style={selectStyle} value={gymId} onChange={e => setGymId(e.target.value)}>
                   <option value="" style={{ background: '#1C1C1E', color: '#8E8E93' }}>— Selecciona una sucursal —</option>
-                  {gyms
-                    .filter((g, i, a) => a.findIndex(t => t.name === g.name) === i)
-                    .map(g => (
-                      <option key={g.id} value={g.id} style={{ background: '#1C1C1E', color: '#E5E5EA' }}>{g.name}</option>
-                    ))}
+                  {(() => {
+                    // Marcas = parentId null → solo agrupadores, NO seleccionables
+                    const brands = gyms.filter(g => g.parentId == null);
+                    // Sucursales = parentId != null → seleccionables
+                    const branches = gyms.filter(g => g.parentId != null);
+                    // Si no hay parentId en ninguno → lista plana (fallback)
+                    if (brands.length === 0 || branches.length === 0) {
+                      return gyms.map(g => (
+                        <option key={g.id} value={g.id} style={{ background: '#1C1C1E', color: '#E5E5EA' }}>{g.name}</option>
+                      ));
+                    }
+                    return brands.map(brand => {
+                      const children = branches.filter(b => b.parentId === brand.id);
+                      if (children.length === 0) return null;
+                      return (
+                        <optgroup key={brand.id} label={brand.name} style={{ background: '#2C2C2E', color: '#AEAEB2' }}>
+                          {children.map(b => (
+                            <option key={b.id} value={b.id} style={{ background: '#1C1C1E', color: '#E5E5EA' }}>
+                              {b.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      );
+                    });
+                  })()}
                 </select>
                 <span style={{ position: 'absolute', right: '0.85rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#8E8E93', fontSize: '0.75rem' }}>▼</span>
               </div>
@@ -775,7 +795,7 @@ export const ActividadesView = () => {
       // Dedup por nombre: si hay 2 gyms con igual nombre (IDs distintos), mostrar solo uno
       const seenNames = new Set<string>();
       const unique = raw
-        .map(g => ({ id: g.id, name: g.name }))
+        .map(g => ({ id: g.id, name: g.name, parentId: g.parentId ?? g.parent_id ?? null }))
         .filter(g => { if (seenNames.has(g.name)) return false; seenNames.add(g.name); return true; })
         .sort((a, b) => a.name.localeCompare(b.name));
       setGyms(unique);

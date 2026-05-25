@@ -202,15 +202,21 @@ export const MapScreenView: React.FC<MapScreenViewProps> = ({
             />
           )}
 
-          {/* Marcadores de sedes */}
-          {sedes.map(({ sede, distancia }) => (
-            <SedeMarker
-              key={sede.id.value}
-              sede={sede}
-              distancia={distancia}
-              onPress={() => onMarkerPress(sede)}
-            />
-          ))}
+          {/* Marcadores de sedes — solo sucursales con coordenadas válidas */}
+          {sedes.map(({ sede, distancia }) => {
+            const lat = sede.coordenadas?.latitude;
+            const lng = sede.coordenadas?.longitude;
+            // Saltar si coordenadas vacías o (0,0) — dato ausente del mapper
+            if (!lat || !lng || (lat === 0 && lng === 0)) return null;
+            return (
+              <SedeMarker
+                key={sede.id.value}
+                sede={sede}
+                distancia={distancia}
+                onPress={() => onMarkerPress(sede)}
+              />
+            );
+          })}
         </MapView>
 
         {/* Atribución OSM */}

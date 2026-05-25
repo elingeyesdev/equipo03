@@ -1014,19 +1014,19 @@ export const SucursalesView = () => {
       try {
         setLoading(true);
         setError(null);
-        const gymsResp = await apiClient.get('/gyms');
-        let gymsData: GymDto[] = Array.isArray(gymsResp.data) ? gymsResp.data : [];
+        const [gymsResp, brandsResp] = await Promise.all([
+          apiClient.get('/gyms'),
+          apiClient.get('/gyms/brands'),
+        ]);
+        const gymsData: GymDto[]   = Array.isArray(gymsResp.data)   ? gymsResp.data   : [];
+        const brandsData: GymDto[] = Array.isArray(brandsResp.data) ? brandsResp.data : [];
 
-        // Filtrar solo sucursales (capacidad > 0)
-        const sucursalesData = gymsData.filter(g => g.maxCapacity > 0);
+        // Sucursales = todo lo que devuelve /gyms (parentId IS NOT NULL)
+        const sucursalesData = gymsData;
 
-        // Crear mapa de sedes principales para mostrar nombres (entidades con capacidad 0)
+        // Mapa de marcas desde /gyms/brands
         const parentMap: Record<number, string> = {};
-        gymsData
-          .filter(g => g.maxCapacity === 0)
-          .forEach(g => {
-            parentMap[g.id] = g.name;
-          });
+        brandsData.forEach(g => { parentMap[g.id] = g.name; });
 
         if (mounted) {
           setGyms(sucursalesData);
@@ -1077,11 +1077,15 @@ export const SucursalesView = () => {
 
   /** Re-carga la lista completa de sucursales y el mapa de sedes desde el servidor */
   const recargarSucursales = async () => {
-    const gymsResp = await apiClient.get('/gyms');
-    const gymsData: GymDto[] = Array.isArray(gymsResp.data) ? gymsResp.data : [];
-    const sucursalesData = gymsData.filter(g => (g.maxCapacity ?? 0) > 0);
+    const [gymsResp, brandsResp] = await Promise.all([
+      apiClient.get('/gyms'),
+      apiClient.get('/gyms/brands'),
+    ]);
+    const gymsData: GymDto[]   = Array.isArray(gymsResp.data)   ? gymsResp.data   : [];
+    const brandsData: GymDto[] = Array.isArray(brandsResp.data) ? brandsResp.data : [];
+    const sucursalesData = gymsData;
     const parentMap: Record<number, string> = {};
-    gymsData.filter(g => (g.maxCapacity ?? 0) === 0).forEach(g => { parentMap[g.id] = g.name; });
+    brandsData.forEach(g => { parentMap[g.id] = g.name; });
     setGyms(sucursalesData);
     setParentGyms(parentMap);
   };

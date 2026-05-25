@@ -77,38 +77,16 @@ export class AuthService {
         return { success: false, error: 'No se recibió token del servidor' };
       }
 
-      // Decodificar JWT
-      let jwtPayload: Record<string, any> = {};
-      try {
-        const base64Url = jwtToken.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        jwtPayload = JSON.parse(Buffer.from(base64, 'base64').toString());
-      } catch (e) {
-        console.warn('[AuthService] Error decodificando JWT:', e);
-      }
+      // Leer role y gymId del JSON de respuesta (backend los envía en user{})
+      // SIN Buffer.from — evita crash "Buffer doesn't exist" en iOS/Hermes
+      const extractedRole = userData?.role
+        ? (String(userData.role).toUpperCase() as UserRole)
+        : (() => { throw new Error('El servidor no devolvió el rol del usuario.'); })();
 
-      // Extraer role
-      let extractedRole: UserRole = 'USER';
-      if (jwtPayload.role) {
-        extractedRole = String(jwtPayload.role).toUpperCase() as UserRole;
-      } else if (userData?.role) {
-        extractedRole = String(userData.role).toUpperCase() as UserRole;
-      } else if (email.includes('admin@')) {
-        extractedRole = 'SUPER_ADMIN';
-      } else if (email.includes('gerente@')) {
-        extractedRole = 'GERENTE';
-      }
+      const extractedGymId: string | null = userData?.gymId ?? null;
 
-      // Validar role
-      if (!['SUPER_ADMIN', 'GERENTE', 'USER'].includes(extractedRole)) {
-        extractedRole = 'USER';
-      }
-
-      // Extraer gym_id — estrictamente del JWT/userData, sin fallback
-      const extractedGymId = jwtPayload.gymId ?? jwtPayload.gym_id ?? userData?.gymId ?? userData?.gym_id ?? null;
-
-      // Crear contexto de autenticación
-      const userId = userData?.id || jwtPayload.sub || jwtPayload.id || email;
+      // userId del objeto user del backend
+      const userId = userData?.id;
       const autenticacionContext: AutenticacionContext = {
         userId,
         role: extractedRole,
@@ -263,9 +241,10 @@ export class AuthService {
     try {
       const token = await this.getToken();
       if (!token) return null;
+      // atob() nativo — sin Buffer (compatible iOS/Hermes/React Native)
       const base64Url = token.trim().split('.')[1];
       const base64    = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      return JSON.parse(Buffer.from(base64, 'base64').toString('utf-8'));
+      return JSON.parse(atob(base64));
     } catch {
       return null;
     }

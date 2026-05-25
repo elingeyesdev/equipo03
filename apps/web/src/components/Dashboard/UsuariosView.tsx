@@ -45,22 +45,27 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions }: {
   // Para GERENTE: selección en dos pasos (sede → sucursal)
   const [selectedSede, setSelectedSede] = useState<number | ''>('');
 
-  // ── Derivados: sedes (marcas) y sucursales (gymns físicos) ────────────────────
-  const sedes      = gyms.filter(g => (g.maxCapacity ?? 0) === 0);
-  const sucursales = gyms.filter(g => (g.maxCapacity ?? 0) > 0);
+  // ── Derivados: marcas (sin padre) y sucursales físicas (con padre) ────────────
+  const sedes      = gyms.filter(g => !g.parentId && !g.parent?.id);
+  const sucursales = gyms.filter(g => !!(g.parentId ?? g.parent?.id));
   // Sucursales que pertenecen a la sede seleccionada
   const sucursalesParaSede = selectedSede !== ''
     ? sucursales.filter(s => (s.parentId ?? s.parent?.id) === selectedSede)
     : [];
 
-  // ── Cargar gyms al abrir ───────────────────────────────────────────────────────
+  // ── Cargar gyms al abrir: marcas (/gyms/brands) + sucursales (/gyms) ─────────
   useEffect(() => {
     if (!isOpen) return;
     setLoadingGyms(true);
-    apiClient.get('/gyms')
-      .then(res => setGyms(Array.isArray(res.data) ? res.data : []))
-      .catch(() => console.error('Error al cargar sedes.'))
-      .finally(() => setLoadingGyms(false));
+    Promise.all([
+      apiClient.get('/gyms/brands').catch(() => ({ data: [] })),
+      apiClient.get('/gyms').catch(() => ({ data: [] })),
+    ]).then(([brandsRes, sucursalesRes]) => {
+      const brands: GymDto[]     = Array.isArray(brandsRes.data)     ? brandsRes.data     : [];
+      const sucursales: GymDto[] = Array.isArray(sucursalesRes.data) ? sucursalesRes.data : [];
+      // Marcas: parentId null; Sucursales: parentId != null (ya viene del backend)
+      setGyms([...brands, ...sucursales]);
+    }).finally(() => setLoadingGyms(false));
   }, [isOpen]);
 
   // ── Poblar formulario al abrir ─────────────────────────────────────────────────
@@ -355,15 +360,20 @@ export const UsuariosView = () => {
   // ── Catálogo de gyms para el mapa sede↔sucursal en la ficha detallada ────────
   const [gymsCatalog, setGymsCatalog] = useState<GymDto[]>([]);
   useEffect(() => {
-    apiClient.get('/gyms')
-      .then(res => setGymsCatalog(Array.isArray(res.data) ? res.data : []))
-      .catch(() => {});
+    Promise.all([
+      apiClient.get('/gyms/brands').catch(() => ({ data: [] })),
+      apiClient.get('/gyms').catch(() => ({ data: [] })),
+    ]).then(([brandsRes, sucursalesRes]) => {
+      const brands: GymDto[]     = Array.isArray(brandsRes.data)     ? brandsRes.data     : [];
+      const sucursales: GymDto[] = Array.isArray(sucursalesRes.data) ? sucursalesRes.data : [];
+      setGymsCatalog([...brands, ...sucursales]);
+    }).catch(() => {});
   }, []);
 
   /** Mapa sucursalId → { sucursalName, sedeId, sedeName } */
   const gymInfoMap = useMemo(() => {
-    const sedes      = gymsCatalog.filter(g => (g.maxCapacity ?? 0) === 0);
-    const sucursales = gymsCatalog.filter(g => (g.maxCapacity ?? 0) > 0);
+    const sedes      = gymsCatalog.filter(g => !g.parentId && !g.parent?.id);
+    const sucursales = gymsCatalog.filter(g => !!(g.parentId ?? g.parent?.id));
     const sedesById  = new Map(sedes.map(s => [s.id, s.name]));
     const map = new Map<number, { sucursalName: string; sedeId: number | null; sedeName: string }>();
     sucursales.forEach(s => {

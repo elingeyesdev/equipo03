@@ -10,7 +10,7 @@ import { LoginScreen } from '../resources/views/auth/LoginScreen';
 import { RegisterScreen } from '../resources/views/auth/RegisterScreen';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { MisReservasScreen } from '../app/Providers/reservations/screens/MisReservasScreen';
-import { AuditHistoryScreen } from '../resources/views/audit/AuditHistoryScreen';
+import { AuditoriaSucursalScreen } from '../resources/views/perfil/AuditoriaSucursalScreen';
 import { EscanerScreen } from '../resources/views/audit/EscanerScreen';
 import { ReservarHorarioScreen } from '../resources/views/reservas/ReservarHorarioScreen';
 
@@ -71,7 +71,7 @@ const AppTabs = () => {
         />
       )}
       {user?.role === 'GERENTE' && (
-        <Tab.Screen name="Auditoría" component={AuditHistoryScreen} />
+        <Tab.Screen name="Auditoría" component={AuditoriaSucursalScreen} />
       )}
       <Tab.Screen name="Perfil" component={PerfilStack} />
     </Tab.Navigator>
