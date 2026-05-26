@@ -20,6 +20,10 @@ import { SedeConDistancia } from '@gymsync/core';
 import { GeolocationModule } from '../../../app/Providers/GeolocationModule.container';
 import { useMapScreenStore } from '../../../app/Http/Controllers/geolocation/MapScreen.Controller';
 import { useFilterStore } from '../../../app/Providers/geolocation/stores/FilterStore';
+import { useAuth } from '../../../app/Shared/hooks/useAuth';
+import { ManagerDashboard } from './ManagerDashboard';
+import { TrainerDashboard } from './TrainerDashboard';
+import { NutritionistDashboard } from './NutritionistDashboard';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.45;
@@ -36,7 +40,18 @@ const GALLERY_ICONS: Array<{ icon: string; color: string; label: string }> = [
   { icon: 'gymnastics', color: '#06d6a0', label: 'Gimnasia' },
 ];
 
-export const InicioScreen = () => {
+// ─── Placeholders para roles no-cliente ──────────────────────────────────────
+
+const ph = StyleSheet.create({
+  safe:   { flex: 1, backgroundColor: '#000' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, gap: 14 },
+  title:  { color: '#fff', fontSize: 22, fontWeight: '800', textAlign: 'center' },
+  sub:    { color: '#555', fontSize: 14, textAlign: 'center', lineHeight: 20 },
+});
+
+// ─── Dashboard del cliente (lógica intacta) ───────────────────────────────────
+
+const ClientDashboard = () => {
   const navigation = useNavigation<any>();
   const [sedes, setSedes] = useState<SedeConDistancia[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,7 +121,7 @@ export const InicioScreen = () => {
     const sedeEncontrada = sedes.find(item => {
       if (!item.sede.servicios) return false;
       // Verificamos si algún servicio del gimnasio coincide con alguna de nuestras palabras clave
-      return item.sede.servicios.some(servicio => 
+      return item.sede.servicios.some(servicio =>
         searchTerms.some(term => servicio.toLowerCase().includes(term))
       );
     });
@@ -114,13 +129,13 @@ export const InicioScreen = () => {
     if (sedeEncontrada) {
       useMapScreenStore.setState({ isListView: true });
       const matchedService = sedeEncontrada.sede.servicios?.find(s => searchTerms.some(term => s.toLowerCase().includes(term)));
-      
+
       if (matchedService) {
          useFilterStore.getState().setFiltros({ servicios: [matchedService as any] });
       } else {
          useFilterStore.getState().resetFiltros();
       }
-      
+
       navigation.navigate('Buscar');
     } else {
       Alert.alert(
@@ -131,16 +146,15 @@ export const InicioScreen = () => {
     }
   };
 
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={onRefresh} 
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
             tintColor="#f05b22"
             colors={['#f05b22']}
           />
@@ -152,7 +166,7 @@ export const InicioScreen = () => {
             <Text style={styles.welcomeText}>Bienvenido,</Text>
             <Text style={styles.title}>GymSync</Text>
           </View>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.searchBtn}
             onPress={() => {
               useMapScreenStore.setState({ isListView: true });
@@ -204,8 +218,8 @@ export const InicioScreen = () => {
             keyExtractor={(item) => item.sede.id.value.toString()}
             contentContainerStyle={styles.carouselContainer}
             renderItem={({ item, index }) => (
-              <TouchableOpacity 
-                style={styles.gymCard} 
+              <TouchableOpacity
+                style={styles.gymCard}
                 activeOpacity={0.8}
                 onPress={() => handleSedePress(item.sede)}
               >
@@ -213,8 +227,8 @@ export const InicioScreen = () => {
                   <MaterialCommunityIcons name={getIconForGym(item.sede.servicios) as any} size={48} color="#fff" />
                   <View style={styles.distanceBadge}>
                     <Text style={styles.distanceText}>
-                      {item.distanciaKm !== undefined && item.distanciaKm !== null 
-                        ? `${Number(item.distanciaKm).toFixed(1)} km` 
+                      {item.distanciaKm !== undefined && item.distanciaKm !== null
+                        ? `${Number(item.distanciaKm).toFixed(1)} km`
                         : 'N/A km'}
                     </Text>
                   </View>
@@ -249,9 +263,9 @@ export const InicioScreen = () => {
           {/* Gallery grid */}
           <View style={styles.galleryGrid}>
             {GALLERY_ICONS.map((item, index) => (
-              <TouchableOpacity 
-                key={index} 
-                style={styles.galleryItem} 
+              <TouchableOpacity
+                key={index}
+                style={styles.galleryItem}
                 activeOpacity={0.7}
                 onPress={() => handleDisciplinaPress(item.label)}
               >
@@ -270,7 +284,7 @@ export const InicioScreen = () => {
                 no pierdas de vista tu bienestar.
               </Text>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.actionBtn}
               onPress={() => navigation.navigate('Buscar')}
             >
@@ -283,6 +297,30 @@ export const InicioScreen = () => {
     </SafeAreaView>
   );
 };
+
+// ─── Enrutador por rol ────────────────────────────────────────────────────────
+
+export const InicioScreen = () => {
+  const { user } = useAuth();
+  const role = user?.role ?? '';
+
+  if (role === 'GERENTE' || role === 'COORDINADOR') return <ManagerDashboard />;
+  if (role === 'INSTRUCTOR' || role === 'ENTRENADOR') return <TrainerDashboard />;
+  if (role === 'NUTRICIONISTA') return <NutritionistDashboard />;
+  if (role === 'PERSONAL_DE_LIMPIEZA') return (
+    <SafeAreaView style={ph.safe} edges={['top']}>
+      <View style={ph.center}>
+        <MaterialCommunityIcons name="broom" size={56} color="#666" />
+        <Text style={ph.title}>Panel de Limpieza</Text>
+      </View>
+    </SafeAreaView>
+  );
+
+  // Fallback intocable para USER / CLIENTE / sin rol
+  return <ClientDashboard />;
+};
+
+// ─── Estilos del ClientDashboard ─────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {

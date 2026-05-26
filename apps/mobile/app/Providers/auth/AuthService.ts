@@ -165,6 +165,56 @@ export class AuthService {
   }
 
   /**
+   * POST /api/auth/forgot-password
+   * Solicita OTP al email del usuario.
+   */
+  static async forgotPassword(email: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        return { success: false, error: body?.message ?? `Error ${res.status}` };
+      }
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e?.message ?? 'Error de conexión' };
+    }
+  }
+
+  /**
+   * POST /api/auth/reset-password
+   * Valida OTP y establece la nueva contraseña.
+   */
+  static async resetPassword(
+    email: string,
+    otpCode: string,
+    newPassword: string,
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          email:       email.trim().toLowerCase(),
+          otpCode:     String(otpCode).trim(),
+          newPassword,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        return { success: false, error: body?.message ?? `Error ${res.status}` };
+      }
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e?.message ?? 'Error de conexión' };
+    }
+  }
+
+  /**
    * Recupera el usuario actual del almacenamiento
    */
   static async getCurrentUser(): Promise<AutenticacionContext | null> {

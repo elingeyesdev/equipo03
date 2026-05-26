@@ -44,29 +44,21 @@ export const EscanerScreen = ({ navigation }: any) => {
     setProcessing(true);
 
     try {
-      // Parsear JSON del QR
-      let reservationId: number | null = null;
-      try {
-        const parsed = JSON.parse(data);
-        reservationId = Number(parsed?.reservationId);
-      } catch {
-        throw new Error('QR inválido: no es un pase de GymSync.');
-      }
+      // Token opaco: el string crudo ES el token — sin JSON.parse
+      const token = data.trim();
+      if (!token) throw new Error('QR inválido: contenido vacío.');
 
-      if (!reservationId || isNaN(reservationId)) {
-        throw new Error('QR inválido: no contiene reservationId.');
-      }
-
-      // Confirmar reserva en el backend
-      await reservationApi.confirmReservation(reservationId);
+      // Check-in seguro por token
+      await reservationApi.checkInByToken(token);
 
       // Invalidar auditoría para refrescar lista
       await queryClient.invalidateQueries({ queryKey: ['audit-history'] });
       await queryClient.invalidateQueries({ queryKey: ['gym-reservations'] });
+      await queryClient.invalidateQueries({ queryKey: ['gym-audit-reservations'] });
 
       Alert.alert(
         '✅ Ingreso Autorizado',
-        `Reserva #${reservationId} confirmada correctamente.`,
+        'Acceso registrado correctamente.',
         [
           {
             text: 'Escanear otro',

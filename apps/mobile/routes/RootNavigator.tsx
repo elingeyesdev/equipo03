@@ -8,6 +8,8 @@ import { BuscarStack } from './BuscarStack';
 import { InicioScreen } from '../resources/views/inicio/InicioScreen';
 import { LoginScreen } from '../resources/views/auth/LoginScreen';
 import { RegisterScreen } from '../resources/views/auth/RegisterScreen';
+import { ForgotPasswordScreen } from '../resources/views/auth/ForgotPasswordScreen';
+import { ResetPasswordScreen } from '../resources/views/auth/ResetPasswordScreen';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { MisReservasScreen } from '../app/Providers/reservations/screens/MisReservasScreen';
 import { AuditoriaSucursalScreen } from '../resources/views/perfil/AuditoriaSucursalScreen';
@@ -17,14 +19,42 @@ import { ReservarHorarioScreen } from '../resources/views/reservas/ReservarHorar
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-const PlaceholderScreen = ({ name }: { name: string }) => (
-  <View style={{ flex: 1, backgroundColor: '#000000', justifyContent: 'center', alignItems: 'center' }}>
-    <Text style={{ color: '#ffffff', fontSize: 18 }}>{name} - En desarrollo</Text>
+// ── Placeholders de staff (sin navegación aún) ────────────────────────────────
+const AgendaScreenPlaceholder = () => (
+  <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
+    <MaterialCommunityIcons name="calendar-clock" size={52} color="#f05b22" />
+    <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700', marginTop: 16 }}>Mi Agenda</Text>
+    <Text style={{ color: '#555', fontSize: 13, marginTop: 8 }}>Próximamente</Text>
   </View>
 );
 
+const PacientesScreenPlaceholder = () => (
+  <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
+    <MaterialCommunityIcons name="account-heart-outline" size={52} color="#06d6a0" />
+    <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700', marginTop: 16 }}>Mis Pacientes</Text>
+    <Text style={{ color: '#555', fontSize: 13, marginTop: 8 }}>Próximamente</Text>
+  </View>
+);
+
+// ── Mapa de iconos por nombre de tab ──────────────────────────────────────────
+const TAB_ICON: Record<string, string> = {
+  'Inicio':       'home',
+  'Buscar':       'magnify',
+  'Mis Reservas': 'calendar',
+  'Auditoría':    'clipboard-text-outline',
+  'Mi Agenda':    'calendar-clock',
+  'Pacientes':    'account-heart-outline',
+  'Perfil':       'account',
+};
+
 const AppTabs = () => {
   const { user } = useAuth();
+  const role = user?.role ?? '';
+
+  const isCliente    = role === 'USER'    || role === 'CLIENTE'  || role === '';
+  const isGerente    = role === 'GERENTE' || role === 'COORDINADOR';
+  const isTrainer    = role === 'INSTRUCTOR' || role === 'ENTRENADOR';
+  const isNutri      = role === 'NUTRICIONISTA';
 
   return (
     <Tab.Navigator
@@ -49,30 +79,44 @@ const AppTabs = () => {
           shadowRadius: 10,
           elevation: 10,
         },
-        tabBarIcon: ({ color }) => {
-          let iconName: any = 'home';
-          if (route.name === 'Inicio') iconName = 'home';
-          else if (route.name === 'Buscar') iconName = 'magnify';
-          else if (route.name === 'Mis Reservas') iconName = 'calendar';
-          else if (route.name === 'Perfil') iconName = 'account';
-          else if (route.name === 'Auditoría') iconName = 'clipboard-text-outline';
-
-          return <MaterialCommunityIcons name={iconName} size={28} color={color} />;
-        },
+        tabBarIcon: ({ color }) => (
+          <MaterialCommunityIcons
+            name={(TAB_ICON[route.name] ?? 'circle') as any}
+            size={28}
+            color={color}
+          />
+        ),
       })}
     >
+      {/* ── Tabs estáticos para todos ── */}
       <Tab.Screen name="Inicio" component={InicioScreen} />
       <Tab.Screen name="Buscar" component={BuscarStack} />
-      {user?.role !== 'GERENTE' && (
+
+      {/* ── Solo CLIENTE / USER ── */}
+      {isCliente && (
         <Tab.Screen
           name="Mis Reservas"
           component={MisReservasScreen}
           options={{ headerShown: false }}
         />
       )}
-      {user?.role === 'GERENTE' && (
+
+      {/* ── Solo GERENTE / COORDINADOR ── */}
+      {isGerente && (
         <Tab.Screen name="Auditoría" component={AuditoriaSucursalScreen} />
       )}
+
+      {/* ── Solo INSTRUCTOR / ENTRENADOR ── */}
+      {isTrainer && (
+        <Tab.Screen name="Mi Agenda" component={AgendaScreenPlaceholder} />
+      )}
+
+      {/* ── Solo NUTRICIONISTA ── */}
+      {isNutri && (
+        <Tab.Screen name="Pacientes" component={PacientesScreenPlaceholder} />
+      )}
+
+      {/* ── Perfil estático para todos ── */}
       <Tab.Screen name="Perfil" component={PerfilStack} />
     </Tab.Navigator>
   );
@@ -117,6 +161,8 @@ const AuthStack = () => {
     >
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
     </Stack.Navigator>
   );
 };

@@ -181,8 +181,10 @@ export const reservationApi = {
    * Auditoría de sede: gymId del JWT (applyListScope en backend).
    * Sin filtro de fecha — devuelve todas las reservas de la sede.
    */
-  getGymReservationsByGymId: async (_gymId: number, _date?: string): Promise<any[]> => {
-    const response = await reservationClient.get('/api/reservations/gym');
+  getGymReservationsByGymId: async (_gymId: number, date?: string): Promise<any[]> => {
+    const response = await reservationClient.get('/api/reservations/gym', {
+      params: date ? { date } : undefined,
+    });
     const raw = response.data?.data ?? response.data;
     return Array.isArray(raw) ? raw : [];
   },
@@ -193,6 +195,24 @@ export const reservationApi = {
    */
   checkInReservation: async (reservationId: number): Promise<{ success: boolean }> => {
     const response = await reservationClient.patch(`/api/reservations/${reservationId}/check-in`);
+    return response.data?.data ?? response.data;
+  },
+
+  /**
+   * POST /api/reservations/check-in/token
+   * Check-in seguro: token opaco del QR → backend resuelve reservationId internamente.
+   */
+  checkInByToken: async (token: string): Promise<{ success: boolean; reservationId?: number }> => {
+    const response = await reservationClient.post('/api/reservations/check-in/token', { token });
+    return response.data?.data ?? response.data;
+  },
+
+  /**
+   * GET /api/reservations/:id/qr-token
+   * JWT temporal de 3 min para el QR del cliente.
+   */
+  getDynamicQRToken: async (reservationId: number): Promise<{ token: string }> => {
+    const response = await reservationClient.get(`/api/reservations/${reservationId}/qr-token`);
     return response.data?.data ?? response.data;
   },
 

@@ -415,8 +415,9 @@ const LocationMarker = ({ position, setPosition }: any) => {
   );
 };
 
-const SucursalModal = ({ isOpen, onClose, sucursalToEdit, onSave, parentGyms }: any) => {
+const SucursalModal = ({ isOpen, onClose, sucursalToEdit, onSave, parentGyms, existingGyms = [] }: any) => {
   const [showMap, setShowMap] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
     name: '', 
     description: '',
@@ -519,8 +520,28 @@ const SucursalModal = ({ isOpen, onClose, sucursalToEdit, onSave, parentGyms }: 
     }
   }, [sucursalToEdit, isOpen]);
 
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    const nameTrimmed = formData.name.trim();
+
+    if (!nameTrimmed) {
+      newErrors.name = 'El nombre es obligatorio';
+    } else {
+      const isDuplicate = (existingGyms as any[]).some(
+        g => g.name.trim().toLowerCase() === nameTrimmed.toLowerCase() &&
+             g.id !== sucursalToEdit?.id
+      );
+      if (isDuplicate) newErrors.name = 'Ya existe una sucursal con este nombre';
+    }
+
+    if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return false; }
+    setErrors({});
+    return true;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateForm()) return;
     onSave(formData);
   };
 
@@ -571,24 +592,24 @@ const SucursalModal = ({ isOpen, onClose, sucursalToEdit, onSave, parentGyms }: 
             }}>
               Nombre de la Sucursal
             </label>
-            <input 
-              type="text" 
-              value={formData.name} 
-              onChange={e => setFormData({...formData, name: e.target.value})} 
+            <input
+              type="text"
+              value={formData.name}
+              onChange={e => { setFormData({ ...formData, name: e.target.value }); setErrors(p => ({ ...p, name: '' })); }}
               placeholder="Ej. Sucursal Centro"
-              required 
               style={{
                 width: '100%',
                 background: 'rgba(0, 0, 0, 0.6)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
+                border: errors.name ? '1px solid #ef4444' : '1px solid rgba(255, 255, 255, 0.15)',
                 color: '#FFFFFF',
                 padding: '0.875rem',
                 borderRadius: '8px',
                 fontSize: '0.9rem',
                 boxSizing: 'border-box',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.2s ease',
               }}
             />
+            {errors.name && <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block' }}>{errors.name}</span>}
           </div>
           
           <div>
@@ -1337,12 +1358,13 @@ export const SucursalesView = () => {
       )}
 
 
-      <SucursalModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        sucursalToEdit={sucursalToEdit} 
+      <SucursalModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        sucursalToEdit={sucursalToEdit}
         onSave={handleSaveSucursal}
         parentGyms={parentGyms}
+        existingGyms={gyms}
       />
 
       <ConfirmModal

@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import QRCode from 'react-native-qrcode-svg';
 import { Colors } from '../theme/colors';
 import { useMyReservationsQuery } from '../hooks/useMyReservationsQuery';
@@ -59,6 +59,49 @@ const fmt5 = (t?: string | null) => t?.substring(0, 5) ?? '—';
 
 const CONFIRMED = new Set(['CONFIRMADA', 'CONFIRMED']);
 const QR_SIZE   = Dimensions.get('window').width * 0.62;
+
+// ─── QR dinámico con auto-refresh ────────────────────────────────────────────
+const DynamicQRCode = ({
+  reservationId,
+  fallbackToken,
+}: {
+  reservationId: number;
+  fallbackToken?: string;
+}) => {
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ['qr-token', reservationId],
+    queryFn:  () => reservationApi.getDynamicQRToken(reservationId),
+    refetchInterval: 150_000,          // refresca a los 2.5 min (token vive 3 min)
+    refetchIntervalInBackground: false, // ahorra batería en segundo plano
+    staleTime: 120_000,
+    retry: 2,
+  });
+
+  const token = data?.token ?? fallbackToken ?? 'TOKEN_PENDIENTE';
+
+  return (
+    <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
+      <QRCode
+        value={token}
+        size={QR_SIZE}
+        backgroundColor="#FFFFFF"
+        color={isFetching ? '#AAAAAA' : '#0A0A0A'}
+      />
+      {(isLoading || isFetching) && (
+        <View style={{
+          position: 'absolute',
+          backgroundColor: 'rgba(255,255,255,0.55)',
+          width: QR_SIZE,
+          height: QR_SIZE,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <ActivityIndicator color="#f05b22" size="large" />
+        </View>
+      )}
+    </View>
+  );
+};
 
 export const MisReservasScreen = () => {
   const { data: reservations = [], isLoading, error, refetch } = useMyReservationsQuery();
@@ -178,14 +221,14 @@ export const MisReservasScreen = () => {
               {fmt5(qrReservation?.startTime)} – {fmt5(qrReservation?.endTime)}
             </Text>
 
-            {/* QR */}
+            {/* QR dinámico — se renueva cada 2.5 min */}
             <View style={s.qrBox}>
-              <QRCode
-                value={JSON.stringify({ reservationId: qrReservation?.id })}
-                size={QR_SIZE}
-                backgroundColor="#FFFFFF"
-                color="#0A0A0A"
-              />
+              {qrReservation?.id != null && (
+                <DynamicQRCode
+                  reservationId={qrReservation.id}
+                  fallbackToken={qrReservation.qrToken}
+                />
+              )}
             </View>
 
             <Text style={s.qrHint}>Muestra este código al ingreso de la sede.</Text>

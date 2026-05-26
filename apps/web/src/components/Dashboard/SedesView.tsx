@@ -7,25 +7,41 @@ import { apiClient } from '../../infrastructure/api.config';
 import { ModalOverlay, ConfirmModal, panelStyle } from './Shared/DashboardShared';
 import type { GymDto, GymScheduleDto, UserDto, CheckinDto, ScheduleEntry } from './Shared/DashboardTypes';
 
-const MarcaModal = ({ isOpen, onClose, marcaToEdit, onSave }: any) => {
-  const [formData, setFormData] = useState({
-    name: '',
-    description: ''
-  });
+const MarcaModal = ({ isOpen, onClose, marcaToEdit, onSave, existingGyms = [] }: any) => {
+  const [formData, setFormData] = useState({ name: '', description: '' });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (marcaToEdit) {
-      setFormData({
-        name: marcaToEdit.name || '',
-        description: marcaToEdit.description || ''
-      });
+      setFormData({ name: marcaToEdit.name || '', description: marcaToEdit.description || '' });
     } else {
       setFormData({ name: '', description: '' });
     }
+    setErrors({});
   }, [marcaToEdit, isOpen]);
+
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    const nameTrimmed = formData.name.trim();
+
+    if (!nameTrimmed) {
+      newErrors.name = 'El nombre es obligatorio';
+    } else {
+      const isDuplicate = (existingGyms as any[]).some(
+        s => s.name.trim().toLowerCase() === nameTrimmed.toLowerCase() &&
+             s.id !== marcaToEdit?.id
+      );
+      if (isDuplicate) newErrors.name = 'Esta marca ya existe en tu lista';
+    }
+
+    if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return false; }
+    setErrors({});
+    return true;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateForm()) return;
     onSave(formData);
   };
 
@@ -40,21 +56,22 @@ const MarcaModal = ({ isOpen, onClose, marcaToEdit, onSave }: any) => {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div className="modal-form-group">
             <label>Nombre de la Marca</label>
-            <input 
-              type="text" 
-              value={formData.name} 
-              onChange={e => setFormData({...formData, name: e.target.value})} 
+            <input
+              type="text"
+              value={formData.name}
+              onChange={e => { setFormData({ ...formData, name: e.target.value }); setErrors(p => ({ ...p, name: '' })); }}
               placeholder="Ej. Metro Flex"
-              required 
+              style={errors.name ? { borderColor: '#ef4444' } : undefined}
             />
+            {errors.name && <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block' }}>{errors.name}</span>}
           </div>
 
           <div className="modal-form-group">
             <label>Descripción</label>
-            <input 
-              type="text" 
-              value={formData.description} 
-              onChange={e => setFormData({...formData, description: e.target.value})} 
+            <input
+              type="text"
+              value={formData.description}
+              onChange={e => setFormData({ ...formData, description: e.target.value })}
               placeholder="Ej. Cadena de gimnasios premium"
             />
           </div>
@@ -320,11 +337,12 @@ export const SedesView = () => {
         </div>
       )}
 
-      <MarcaModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        marcaToEdit={sedeToEdit} 
-        onSave={handleSaveSede} 
+      <MarcaModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        marcaToEdit={sedeToEdit}
+        onSave={handleSaveSede}
+        existingGyms={gyms}
       />
 
       <ConfirmModal

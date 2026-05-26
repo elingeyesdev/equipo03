@@ -175,8 +175,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
+  forgotContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 20,
+    paddingVertical: 8,
+  },
+  forgotText: {
+    color: '#666',
+    fontSize: 13,
+  },
+  forgotTextBold: {
+    color: '#f05b22',
+    fontWeight: '700',
+  },
   registerLinkContainer: {
-    marginTop: 25,
+    marginTop: 10,
     alignItems: 'center',
     paddingVertical: 10,
   },
@@ -376,8 +392,21 @@ export const LoginScreen = () => {
               )}
             </TouchableOpacity>
 
+            {/* Olvidaste contraseña */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.forgotContainer}
+              onPress={() => navigation.navigate('ForgotPassword')}
+            >
+              <MaterialCommunityIcons name="lock-reset" size={15} color="#f05b22" />
+              <Text style={styles.forgotText}>
+                ¿Has olvidado tu contraseña?{' '}
+                <Text style={styles.forgotTextBold}>Recupérala aquí</Text>
+              </Text>
+            </TouchableOpacity>
+
             {/* Enlace para registrarse */}
-            <TouchableOpacity 
+            <TouchableOpacity
               activeOpacity={0.7}
               style={styles.registerLinkContainer}
               onPress={() => navigation.navigate('Register')}

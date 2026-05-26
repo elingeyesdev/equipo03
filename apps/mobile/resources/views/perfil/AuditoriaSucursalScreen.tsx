@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, addDays } from 'date-fns';
 import { reservationApi } from '../../../app/Providers/reservations/api/reservation.api';
@@ -185,16 +186,20 @@ const dm = StyleSheet.create({
 });
 
 // ─── Pantalla principal ───────────────────────────────────────────────────────
+type StatusFilter = 'all' | 'confirmed' | 'completed';
+
 export const AuditoriaSucursalScreen = () => {
   const queryClient = useQueryClient();
+  const navigation  = useNavigation<any>();
   const { user }    = useAuth();
   const gymId       = user?.gymId ? Number(user.gymId) : null;   // null si no cargado aún
 
   const today     = format(new Date(), 'yyyy-MM-dd');
   const dateStrip = useMemo(() => buildDateStrip(), []);
 
-  const [filterDate, setFilterDate] = useState<string>(today);
-  const [detailItem, setDetailItem] = useState<AuditReservation | null>(null);
+  const [filterDate,   setFilterDate]   = useState<string>(today);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [detailItem,   setDetailItem]   = useState<AuditReservation | null>(null);
 
   const { data: reservations = [], isLoading, isRefetching, refetch, error } = useQuery({
     queryKey: makeQK(filterDate),
@@ -204,11 +209,13 @@ export const AuditoriaSucursalScreen = () => {
     staleTime: 30_000,
   });
 
-  // Mostrar todas las reservas excepto CANCELADAS (CONFIRMADA y COMPLETADA son vitales)
-  const filtered = useMemo(
-    () => reservations.filter((r: any) => !CANCELLED.has(r?.status ?? '')),
-    [reservations],
-  );
+  // Filtro local: excluir canceladas + chip de estado
+  const filtered = useMemo(() => {
+    const base = reservations.filter((r: any) => !CANCELLED.has(r?.status ?? ''));
+    if (statusFilter === 'confirmed') return base.filter((r: any) => CONFIRMED.has(r?.status ?? ''));
+    if (statusFilter === 'completed') return base.filter((r: any) => COMPLETED.has(r?.status ?? ''));
+    return base;
+  }, [reservations, statusFilter]);
 
   // ── Mutación: confirmar (PENDIENTE → CONFIRMADA) ──
   const confirmMutation = useMutation({
@@ -314,6 +321,14 @@ export const AuditoriaSucursalScreen = () => {
         <View style={s.countBadge}>
           <Text style={s.countTxt}>{filtered.length}</Text>
         </View>
+        <TouchableOpacity
+          style={s.scanHeaderBtn}
+          onPress={() => navigation.navigate('Escaner')}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons name="qrcode-scan" size={18} color="#0A0A0A" />
+          <Text style={s.scanHeaderTxt}>Escanear QR</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Date Strip */}
@@ -342,6 +357,27 @@ export const AuditoriaSucursalScreen = () => {
           );
         })}
       </ScrollView>
+
+      {/* Status Chips */}
+      <View style={s.chipsRow}>
+        {([
+          { key: 'all',       label: 'Todos'      },
+          { key: 'confirmed', label: 'Pendientes' },
+          { key: 'completed', label: 'Ingresados' },
+        ] as { key: StatusFilter; label: string }[]).map(chip => {
+          const active = statusFilter === chip.key;
+          return (
+            <TouchableOpacity
+              key={chip.key}
+              style={[s.chip, active && s.chipActive]}
+              onPress={() => setStatusFilter(chip.key)}
+              activeOpacity={0.75}
+            >
+              <Text style={[s.chipTxt, active && s.chipTxtActive]}>{chip.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
 
       {/* Lista */}
       <FlatList
@@ -472,27 +508,11 @@ export const AuditoriaSucursalScreen = () => {
                 </View>
               )}
 
-              {/* Botón escanear: solo para CONFIRMADA (no COMPLETADA) */}
-              {isConfirmed && !isCompleted && (
-                <TouchableOpacity
-                  style={[s.scanBtn, isBusy && s.disabledBtn]}
-                  onPress={() => handleScan(item.id)}
-                  disabled={isBusy}
-                  activeOpacity={0.8}
-                >
-                  {scanMutation.isPending && scanMutation.variables === item.id
-                    ? <ActivityIndicator size="small" color="#fff" />
-                    : <>
-                        <MaterialCommunityIcons name="qrcode-scan" size={16} color="#fff" />
-                        <Text style={s.scanTxt}>Registrar Ingreso</Text>
-                      </>
-                  }
-                </TouchableOpacity>
-              )}
             </View>
           );
         }}
       />
+
     </SafeAreaView>
   );
 };
@@ -519,7 +539,7 @@ const s = StyleSheet.create({
   dateDayNum:     { color: '#aaa', fontSize: 16, fontWeight: '800' },
   dateDayNumSel:  { color: '#fff' },
 
-  list:          { padding: 14, paddingBottom: 40 },
+  list:          { padding: 14, paddingBottom: 120 },
   card:          { backgroundColor: '#0e0e0e', borderRadius: 14, marginBottom: 10, borderWidth: 1.5, borderColor: '#1a1a1a', overflow: 'hidden' },
   cardConfirmed: { borderColor: '#F97316' },  // naranja → pendiente de ingreso
   cardCompleted: { borderColor: '#22C55E' },  // verde → ya ingresó
@@ -547,6 +567,26 @@ const s = StyleSheet.create({
   disabledBtn:{ opacity: 0.4 },
   actionTxt:  { color: '#fff', fontWeight: '700', fontSize: 12 },
 
-  scanBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, margin: 14, marginTop: 4, paddingVertical: 12, borderRadius: 10, backgroundColor: '#F97316' },
-  scanTxt: { color: '#fff', fontWeight: '800', fontSize: 13 },
+  // Chips de estado
+  chipsRow:    { flexDirection: 'row', gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#111' },
+  chip:        { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: '#111', borderWidth: 1, borderColor: '#222' },
+  chipActive:  { backgroundColor: '#f05b22', borderColor: '#f05b22' },
+  chipTxt:     { color: '#555', fontSize: 12, fontWeight: '600' },
+  chipTxtActive: { color: '#fff' },
+
+  // Botón QR en header
+  scanHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#f05b22',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+  scanHeaderTxt: {
+    color: '#0A0A0A',
+    fontWeight: '700',
+    fontSize: 12,
+  },
 });

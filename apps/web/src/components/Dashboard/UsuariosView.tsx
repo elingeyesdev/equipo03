@@ -36,10 +36,33 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions }: {
   isOpen: boolean; onClose: () => void; userToEdit: any; onSave: (d: any) => void;
   roleOptions: RoleOption[];
 }) => {
+  const PHONE_PREFIXES = [
+    { code: '+591', flag: '🇧🇴', label: '+591' },
+    { code: '+54',  flag: '🇦🇷', label: '+54'  },
+    { code: '+56',  flag: '🇨🇱', label: '+56'  },
+    { code: '+55',  flag: '🇧🇷', label: '+55'  },
+    { code: '+51',  flag: '🇵🇪', label: '+51'  },
+    { code: '+57',  flag: '🇨🇴', label: '+57'  },
+    { code: '+52',  flag: '🇲🇽', label: '+52'  },
+    { code: '+1',   flag: '🇺🇸', label: '+1'   },
+  ];
+
+  const splitPhone = (raw: string): { prefix: string; number: string } => {
+    for (const p of PHONE_PREFIXES) {
+      if (raw.startsWith(p.code)) {
+        return { prefix: p.code, number: raw.slice(p.code.length).trim() };
+      }
+    }
+    return { prefix: '+591', number: raw.replace(/^\+\d{1,3}\s?/, '') };
+  };
+
   const [formData, setFormData] = useState({
-    firstName: '', lastName: '', email: '', password: '', phone: '', ci: '',
+    firstName: '', lastName: '', email: '', password: '', phone: '',
+    phonePrefix: '+591', phoneNumber: '', ci: '',
     roleId: DB_ROLES.USER as number, gymIds: [] as number[], isActive: true,
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showPassword, setShowPassword] = useState(false);
   const [gyms, setGyms] = useState<GymDto[]>([]);
   const [loadingGyms, setLoadingGyms] = useState(false);
   // Para GERENTE: selección en dos pasos (sede → sucursal)
@@ -73,19 +96,23 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions }: {
     if (!isOpen) return;
     if (userToEdit) {
       const gymsFromRoles = (userToEdit.userRoles ?? []).map((ur: any) => ur?.gym).filter(Boolean);
+      const rawPhone = userToEdit.profile?.phone ?? '';
+      const { prefix, number } = splitPhone(rawPhone);
       setFormData({
-        firstName: userToEdit.profile?.firstName ?? '',
-        lastName:  userToEdit.profile?.lastName  ?? '',
-        phone:     userToEdit.profile?.phone     ?? '',
-        ci:        userToEdit.profile?.ci        ?? '',
-        email:     userToEdit.email ?? '',
-        password:  '',
-        roleId:    Number(userToEdit.userRoles?.[0]?.roleId) || DB_ROLES.USER,
-        gymIds:    gymsFromRoles.map((g: any) => Number(g.id)),
-        isActive:  userToEdit.isActive ?? true,
+        firstName:   userToEdit.profile?.firstName ?? '',
+        lastName:    userToEdit.profile?.lastName  ?? '',
+        phone:       rawPhone,
+        phonePrefix: prefix,
+        phoneNumber: number,
+        ci:          userToEdit.profile?.ci ?? '',
+        email:       userToEdit.email ?? '',
+        password:    '',
+        roleId:      Number(userToEdit.userRoles?.[0]?.roleId) || DB_ROLES.USER,
+        gymIds:      gymsFromRoles.map((g: any) => Number(g.id)),
+        isActive:    userToEdit.isActive ?? true,
       });
     } else {
-      setFormData({ firstName: '', lastName: '', email: '', password: '', phone: '', ci: '', roleId: DB_ROLES.USER, gymIds: [], isActive: true });
+      setFormData({ firstName: '', lastName: '', email: '', password: '', phone: '', phonePrefix: '+591', phoneNumber: '', ci: '', roleId: DB_ROLES.USER, gymIds: [], isActive: true });
     }
     setSelectedSede('');
   }, [userToEdit, isOpen]);
@@ -99,6 +126,41 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions }: {
     const sedeId   = sucursal?.parentId ?? sucursal?.parent?.id;
     if (sedeId) setSelectedSede(sedeId);
   }, [gyms, formData.gymIds, formData.roleId, isOpen, userToEdit]);
+
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      newErrors.email = 'Correo inválido';
+    }
+
+    const isCreation = !userToEdit;
+    if (isCreation || formData.password.trim()) {
+      if (!/^(?=.*[a-zA-Z])(?=.*\d)(?=.*[\W_]).{8,}$/.test(formData.password)) {
+        newErrors.password = 'Mínimo 8 caracteres, 1 número y 1 especial';
+      }
+    }
+
+    if (formData.phoneNumber.trim()) {
+      const digits = formData.phoneNumber.replace(/\s/g, '');
+      if (!/^\d{6,14}$/.test(digits)) {
+        newErrors.phone = 'Solo dígitos, entre 6 y 14 números';
+      }
+    }
+
+    if (formData.ci.trim()) {
+      if (!/^\d{6,9}(-[a-zA-Z0-9]{1,2})?$/.test(formData.ci.trim())) {
+        newErrors.ci = 'CI inválido (ej: 12345678 o 1234567-1A)';
+      }
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return false;
+    }
+    setErrors({});
+    return true;
+  };
 
   const toggleGym  = (id: number) => setFormData(p => ({
     ...p, gymIds: p.gymIds.includes(id) ? p.gymIds.filter(x => x !== id) : [...p.gymIds, id],
@@ -139,30 +201,105 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions }: {
             placeholder="Ej. Pérez" />
         </div>
         <div className="modal-form-group">
-          <label>Teléfono</label>
-          <input type="tel" value={formData.phone}
-            onChange={e => setFormData({ ...formData, phone: e.target.value })}
-            placeholder="Ej. +591 70000000" />
+          <label>Teléfono <span style={{ color: '#8E8E93', fontWeight: 400, fontSize: '0.8rem' }}>— opcional</span></label>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <select
+              value={formData.phonePrefix}
+              onChange={e => setFormData({ ...formData, phonePrefix: e.target.value })}
+              style={{
+                width: '95px', flexShrink: 0, padding: '0.5rem 0.3rem',
+                borderRadius: '6px', color: '#fff', background: '#0A0A0A',
+                border: errors.phone ? '1px solid #ef4444' : '1px solid #3A3A3C',
+                fontSize: '0.88rem', cursor: 'pointer',
+              }}
+            >
+              {PHONE_PREFIXES.map(p => (
+                <option key={p.code} value={p.code} style={{ background: '#0A0A0A' }}>
+                  {p.flag} {p.label}
+                </option>
+              ))}
+            </select>
+            <input
+              type="tel"
+              value={formData.phoneNumber}
+              onChange={e => {
+                setFormData({ ...formData, phoneNumber: e.target.value });
+                setErrors(p => ({ ...p, phone: '' }));
+              }}
+              placeholder="71234567"
+              maxLength={14}
+              style={errors.phone ? { borderColor: '#ef4444', flex: 1 } : { flex: 1 }}
+            />
+          </div>
+          {errors.phone && <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block' }}>{errors.phone}</span>}
         </div>
         <div className="modal-form-group">
           <label>Carnet de Identidad (CI) <span style={{ color: '#8E8E93', fontWeight: 400, fontSize: '0.8rem' }}>— opcional</span></label>
-          <input type="text" value={formData.ci}
-            onChange={e => setFormData({ ...formData, ci: e.target.value })}
-            placeholder="Ej. 12345678" maxLength={20} />
+          <input
+            type="text"
+            value={formData.ci}
+            onChange={e => { setFormData({ ...formData, ci: e.target.value }); setErrors(p => ({ ...p, ci: '' })); }}
+            placeholder="Ej. 12345678 o 1234567-1A"
+            maxLength={20}
+            style={errors.ci ? { borderColor: '#ef4444' } : undefined}
+          />
+          {errors.ci && <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block' }}>{errors.ci}</span>}
         </div>
         <div className="modal-form-group">
           <label>Correo Electrónico</label>
-          <input type="email" value={formData.email}
-            onChange={e => setFormData({ ...formData, email: e.target.value })}
-            placeholder="correo@ejemplo.com" />
+          <input
+            type="email"
+            value={formData.email}
+            onChange={e => { setFormData({ ...formData, email: e.target.value }); setErrors(p => ({ ...p, email: '' })); }}
+            placeholder="correo@ejemplo.com"
+            style={errors.email ? { borderColor: '#ef4444' } : undefined}
+          />
+          {errors.email && <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block' }}>{errors.email}</span>}
         </div>
         <div className="modal-form-group">
           <label>Contraseña{' '}
             {userToEdit && <span style={{ color: '#8E8E93', fontSize: '0.8rem' }}>(vacío = sin cambios)</span>}
           </label>
-          <input type="password" value={formData.password}
-            onChange={e => setFormData({ ...formData, password: e.target.value })}
-            placeholder="••••••••" />
+          <div style={{ position: 'relative' }}>
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={formData.password}
+              onChange={e => { setFormData({ ...formData, password: e.target.value }); setErrors(p => ({ ...p, password: '' })); }}
+              placeholder="••••••••"
+              style={{
+                paddingRight: '42px',
+                ...(errors.password ? { borderColor: '#ef4444' } : {}),
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(v => !v)}
+              style={{
+                position: 'absolute', right: '10px', top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none', border: 'none', cursor: 'pointer',
+                padding: '4px', display: 'flex', alignItems: 'center',
+                color: '#8E8E93',
+              }}
+              title={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            >
+              {showPassword ? (
+                /* Eye-off SVG */
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+              ) : (
+                /* Eye SVG */
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              )}
+            </button>
+          </div>
+          {errors.password && <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block' }}>{errors.password}</span>}
         </div>
 
         <div className="modal-form-group">
@@ -310,6 +447,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions }: {
       <div className="modal-actions" style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.1)', flexShrink: 0 }}>
         <button className="btn-cancel" onClick={onClose}>Cancelar</button>
         <button className="btn-primary" onClick={() => {
+          if (!validateForm()) return;
           if (isGerente) {
             if (!selectedSede) {
               toast.error('Debes seleccionar la Sede (Marca) a la que pertenece el Gerente');
@@ -320,7 +458,10 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions }: {
               return;
             }
           }
-          onSave(formData);
+          const phoneVal = formData.phoneNumber.trim()
+            ? `${formData.phonePrefix}${formData.phoneNumber.replace(/\s/g, '')}`
+            : '';
+          onSave({ ...formData, phone: phoneVal });
         }}>
           Guardar Usuario
         </button>
@@ -485,6 +626,7 @@ export const UsuariosView = () => {
     try {
       const emailTrimmed = formData.email?.trim();
       const payload: any = {
+
         // Solo envía email si tiene valor (evita error 400 de @IsEmail con cadena vacía)
         ...(emailTrimmed ? { email: emailTrimmed } : {}),
         firstName: formData.firstName?.trim() || undefined,
@@ -520,7 +662,7 @@ export const UsuariosView = () => {
       toast.success(userToEdit ? 'Usuario actualizado.' : 'Usuario creado.');
     } catch (err: any) {
       console.error('[handleSaveUser]', err);
-      // El interceptor de apiClient ya muestra el toast de error correspondiente
+      toast.error(err?.response?.data?.message || err?.message || 'Error al guardar usuario');
     }
   };
 
