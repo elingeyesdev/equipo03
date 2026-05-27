@@ -22,13 +22,14 @@ const HIERARCHY_LABELS: Record<number, string> = {
   1: 'Básico (1)',
 };
 
-const RoleModal = ({ isOpen, onClose, roleToEdit, onSave }: any) => {
+const RoleModal = ({ isOpen, onClose, roleToEdit, onSave, roles }: any) => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     hierarchyLevel: 1,
     isSystemRole: false,
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (roleToEdit) {
@@ -41,70 +42,175 @@ const RoleModal = ({ isOpen, onClose, roleToEdit, onSave }: any) => {
     } else {
       setFormData({ name: '', description: '', hierarchyLevel: 1, isSystemRole: false });
     }
+    setErrors({});
   }, [roleToEdit, isOpen]);
+
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    const editingId = roleToEdit?.id ?? null;
+
+    // Regla 1: Nombre formato + longitud
+    if (!formData.name || formData.name.trim().length < 3) {
+      newErrors.name = 'El nombre debe tener al menos 3 caracteres.';
+    } else if (!/^[A-Z_]+$/.test(formData.name)) {
+      newErrors.name = 'Solo letras mayúsculas y guiones bajos permitidos.';
+    } else {
+      // Regla 2: Unicidad local
+      const isDuplicate = (roles as RoleDto[]).some(
+        r => r.name === formData.name && r.id !== editingId
+      );
+      if (isDuplicate) newErrors.name = 'Este rol ya existe.';
+    }
+
+    // Regla 3: Descripción
+    if (!formData.description || formData.description.trim().length < 5) {
+      newErrors.description = 'La descripción es obligatoria (mínimo 5 caracteres).';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = () => {
+    if (validateForm()) onSave(formData);
+  };
 
   if (!isOpen) return null;
 
+  const fgLabel: CSSProperties = { fontSize: '0.8rem', color: '#8E8E93', fontWeight: 600, marginBottom: '0.35rem', display: 'block' };
+  const fgInput  = (hasErr: boolean): CSSProperties => ({
+    width: '100%', boxSizing: 'border-box',
+    background: 'rgba(255,255,255,0.06)',
+    border: `1px solid ${hasErr ? '#ef4444' : 'rgba(255,255,255,0.12)'}`,
+    borderRadius: '8px', padding: '0.6rem 0.75rem',
+    color: '#FFFFFF', fontSize: '0.9rem',
+  });
+  const fgGroup: CSSProperties = { display: 'flex', flexDirection: 'column', marginBottom: '1rem' };
+  const errStyle: CSSProperties = { color: '#ef4444', fontSize: '0.72rem', marginTop: '0.3rem' };
+
   return (
     <ModalOverlay onClose={onClose}>
-      <div className="modal-content glass-panel" style={{ maxWidth: '480px', width: '95vw' }}>
-        <div className="modal-header">
-          <h2>{roleToEdit ? '✏️ Editar Rol' : '🔑 Nuevo Rol'}</h2>
-        </div>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+        <h2 style={{ margin: 0, fontSize: '1.15rem', color: '#FFFFFF' }}>
+          {roleToEdit ? '✏️ Editar Rol' : '🔑 Nuevo Rol'}
+        </h2>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#8E8E93', fontSize: '1.2rem', cursor: 'pointer', lineHeight: 1 }}>✕</button>
+      </div>
 
-        <div className="modal-form-group">
-          <label>Nombre del Rol</label>
-          <input
-            type="text"
-            value={formData.name}
-            onChange={e => setFormData({ ...formData, name: e.target.value.toUpperCase().replace(/\s/g, '_') })}
-            placeholder="Ej. COORDINADOR"
-          />
-          <small style={{ color: '#8E8E93', fontSize: '0.75rem' }}>Solo mayúsculas y guión bajo (AUTO)</small>
-        </div>
+      {/* Nombre */}
+      <div style={fgGroup}>
+        <label style={fgLabel}>Nombre del Rol</label>
+        <input
+          type="text"
+          style={fgInput(!!errors.name)}
+          value={formData.name}
+          onChange={e => {
+            setFormData({ ...formData, name: e.target.value.toUpperCase().replace(/\s/g, '_') });
+            if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
+          }}
+          placeholder="Ej. COORDINADOR"
+        />
+        {errors.name
+          ? <span style={errStyle}>⚠ {errors.name}</span>
+          : <small style={{ color: '#8E8E93', fontSize: '0.72rem', marginTop: '0.3rem' }}>Solo mayúsculas y guión bajo (AUTO)</small>
+        }
+      </div>
 
-        <div className="modal-form-group">
-          <label>Descripción</label>
-          <input
-            type="text"
-            value={formData.description}
-            onChange={e => setFormData({ ...formData, description: e.target.value })}
-            placeholder="Descripción del rol y sus permisos"
-          />
+      {/* Descripción */}
+      <div style={fgGroup}>
+        <label style={fgLabel}>Descripción</label>
+        <textarea
+          maxLength={250}
+          rows={3}
+          style={{
+            width: '100%',
+            boxSizing: 'border-box',
+            background: 'rgba(255,255,255,0.06)',
+            border: `1px solid ${errors.description ? '#ef4444' : 'rgba(255,255,255,0.12)'}`,
+            borderRadius: '8px',
+            padding: '0.6rem 0.75rem',
+            color: '#FFFFFF',
+            fontSize: '0.9rem',
+            resize: 'none',
+            outline: 'none',
+            transition: 'border-color 0.2s',
+            fontFamily: 'inherit',
+            lineHeight: 1.5,
+          }}
+          onFocus={e => { if (!errors.description) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)'; }}
+          onBlur={e  => { if (!errors.description) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; }}
+          value={formData.description}
+          onChange={e => {
+            setFormData({ ...formData, description: e.target.value });
+            if (errors.description) setErrors(prev => ({ ...prev, description: '' }));
+          }}
+          placeholder="Descripción del rol y sus permisos"
+        />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.3rem' }}>
+          {errors.description
+            ? <span style={errStyle}>⚠ {errors.description}</span>
+            : <span />
+          }
+          <span style={{
+            fontSize: '0.68rem',
+            color: formData.description.length >= 230 ? '#ef4444' : formData.description.length >= 180 ? '#FF9F0A' : '#8E8E93',
+            marginLeft: 'auto',
+          }}>
+            {formData.description.length} / 250
+          </span>
         </div>
+      </div>
 
-        <div className="modal-form-group">
-          <label>Nivel Jerárquico</label>
-          <select value={formData.hierarchyLevel} onChange={e => setFormData({ ...formData, hierarchyLevel: Number(e.target.value) })}>
-            <option value={10}>Máximo (10) — Super Administrador</option>
-            <option value={5}>Alto (5) — Gerentes / Coordinadores</option>
-            <option value={3}>Medio (3) — Entrenadores / Nutricionistas</option>
-            <option value={1}>Básico (1) — Usuarios / Clientes</option>
-          </select>
+      {/* Nivel Jerárquico */}
+      <div style={fgGroup}>
+        <label style={fgLabel}>Nivel Jerárquico</label>
+        <select
+          style={{ ...fgInput(false), cursor: 'pointer', background: '#0F0F12', colorScheme: 'dark' } as CSSProperties}
+          value={formData.hierarchyLevel}
+          onChange={e => setFormData({ ...formData, hierarchyLevel: Number(e.target.value) })}
+        >
+          <option value={10} style={{ background: '#0F0F12', color: '#FFFFFF' }}>Máximo (10) — Super Administrador</option>
+          <option value={5}  style={{ background: '#0F0F12', color: '#FFFFFF' }}>Alto (5) — Gerentes / Coordinadores</option>
+          <option value={3}  style={{ background: '#0F0F12', color: '#FFFFFF' }}>Medio (3) — Entrenadores / Nutricionistas</option>
+          <option value={1}  style={{ background: '#0F0F12', color: '#FFFFFF' }}>Básico (1) — Usuarios / Clientes</option>
+        </select>
+      </div>
+
+      {/* Rol de Sistema */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
+        <input
+          type="checkbox"
+          style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#FF5E00' }}
+          checked={formData.isSystemRole}
+          onChange={e => setFormData({ ...formData, isSystemRole: e.target.checked })}
+        />
+        <label style={{ margin: 0, fontSize: '0.85rem', color: '#C7C7CC', cursor: 'pointer' }}>
+          Rol de Sistema (no puede ser eliminado por usuarios)
+        </label>
+      </div>
+
+      {/* Warning */}
+      {roleToEdit?.isSystemRole && (
+        <div style={{ padding: '0.6rem 0.75rem', background: 'rgba(255, 159, 10, 0.08)', border: '1px solid rgba(255, 159, 10, 0.3)', borderRadius: '8px', color: '#FF9F0A', fontSize: '0.8rem', marginBottom: '1rem' }}>
+          ⚠️ Este es un rol de sistema. Modifícalo con precaución.
         </div>
+      )}
 
-        <div className="modal-form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <input
-            type="checkbox"
-            style={{ width: 'auto' }}
-            checked={formData.isSystemRole}
-            onChange={e => setFormData({ ...formData, isSystemRole: e.target.checked })}
-          />
-          <label style={{ margin: 0 }}>Rol de Sistema (no puede ser eliminado por usuarios)</label>
-        </div>
-
-        {roleToEdit?.isSystemRole && (
-          <div style={{ padding: '0.6rem 0.75rem', background: 'rgba(255, 159, 10, 0.08)', border: '1px solid rgba(255, 159, 10, 0.3)', borderRadius: '8px', color: '#FF9F0A', fontSize: '0.8rem', marginBottom: '1rem' }}>
-            ⚠️ Este es un rol de sistema. Modifícalo con precaución.
-          </div>
-        )}
-
-        <div className="modal-actions">
-          <button className="btn-cancel" onClick={onClose}>Cancelar</button>
-          <button className="btn-primary" onClick={() => onSave(formData)}>
-            {roleToEdit ? 'Actualizar Rol' : 'Crear Rol'}
-          </button>
-        </div>
+      {/* Acciones */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+        <button
+          onClick={onClose}
+          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: '#C7C7CC', padding: '0.55rem 1.1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600 }}
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={handleSubmit}
+          style={{ background: '#FF5E00', border: 'none', color: '#FFFFFF', padding: '0.55rem 1.25rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 700 }}
+        >
+          {roleToEdit ? 'Actualizar Rol' : 'Crear Rol'}
+        </button>
       </div>
     </ModalOverlay>
   );
@@ -397,6 +503,7 @@ export const RolesView = () => {
         onClose={() => { setIsModalOpen(false); setRoleToEdit(null); }}
         roleToEdit={roleToEdit}
         onSave={handleSaveRole}
+        roles={roles}
       />
 
       <ConfirmModal

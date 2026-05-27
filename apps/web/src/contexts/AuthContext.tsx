@@ -16,6 +16,12 @@ export interface WebUser {
   roleId: number;
   /** ID del gimnasio asignado. Solo presente en roles con scope de sede. */
   gymId?: string;
+  /** Nombre real del usuario, extraído del perfil en el login. */
+  firstName?: string;
+  /** Apellido real del usuario, extraído del perfil en el login. */
+  lastName?: string;
+  /** Nombre de la sucursal asignada (solo roles con scope de sede). */
+  gymName?: string;
 }
 
 interface AuthState {
@@ -94,17 +100,59 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<WebUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Restaurar sesión desde localStorage al montar
+  // Hidratación real: localStorage como arranque rápido + /auth/me para datos frescos
   useEffect(() => {
-    const storedUser = localStorage.getItem('gymsync_user');
-    if (storedUser) {
+    const hydrate = async () => {
+      const token      = localStorage.getItem('gymsync_token');
+      const storedRaw  = localStorage.getItem('gymsync_user');
+
+      // Sin token → no hay sesión, termina inmediatamente
+      if (!token || !storedRaw) {
+        setIsLoading(false);
+        return;
+      }
+
+      // 1. Arranque optimista: muestra UI con datos en caché sin esperar red
+      let storedUser: WebUser | null = null;
       try {
-        setUser(JSON.parse(storedUser));
+        storedUser = JSON.parse(storedRaw);
+        setUser(storedUser);
       } catch {
         localStorage.removeItem('gymsync_user');
+        setIsLoading(false);
+        return;
       }
-    }
-    setIsLoading(false);
+
+      // 2. Verificar token y obtener datos frescos del perfil
+      try {
+        const res     = await apiClient.get('/auth/me');
+        const data    = res.data ?? {};
+        const profile = data.profile ?? {};
+
+        const refreshedUser: WebUser = {
+          ...storedUser!,
+          firstName: profile.firstName || data.firstName || storedUser!.firstName || '',
+          lastName:  profile.lastName  || data.lastName  || storedUser!.lastName  || '',
+          gymName:   data.gymName      || data.gym?.name || storedUser!.gymName   || '',
+        };
+
+        setUser(refreshedUser);
+        localStorage.setItem('gymsync_user', JSON.stringify(refreshedUser));
+      } catch (err: any) {
+        // 401 = token expirado → forzar cierre de sesión
+        if (err?.response?.status === 401) {
+          setUser(null);
+          localStorage.removeItem('gymsync_user');
+          localStorage.removeItem('gymsync_token');
+          sessionStorage.clear();
+        }
+        // Otro error de red → mantener datos en caché (offline graceful)
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    hydrate();
   }, []);
 
   const login = async (email: string, pass: string): Promise<{ success: boolean; error?: string }> => {
@@ -133,7 +181,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // ID numérico del usuario (sub es el estándar JWT de NestJS)
       const id: number = Number(jwtPayload.sub || jwtPayload.id || userData.id || 0);
 
-      const webUser: WebUser = { id, role, roleId, gymId };
+      // Nombre real desde el perfil devuelto por el backend en el login
+      const firstName: string = userData.profile?.firstName || userData.firstName || '';
+      const lastName:  string = userData.profile?.lastName  || userData.lastName  || '';
+      const gymName:   string = userData.gymName || userData.gym?.name || '';
+
+      const webUser: WebUser = { id, role, roleId, gymId, firstName, lastName, gymName };
 
       setUser(webUser);
       localStorage.setItem('gymsync_user', JSON.stringify(webUser));

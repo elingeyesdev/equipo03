@@ -11,6 +11,16 @@ export interface IGymLocationRaw {
   longitude?: number | null;
 }
 
+/** Horario de un día tal como llega del endpoint GET /gyms. */
+export interface IScheduleRaw {
+  id?: number;
+  gymId?: number;
+  dayOfWeek: string;   // Ej: 'LUNES', 'MARTES' ...
+  opensAt: string;     // Ej: '06:00' o '06:00:00'
+  closesAt: string;    // Ej: '22:00' o '22:00:00'
+  isHoliday: boolean;
+}
+
 /** Gym crudo tal como llega del endpoint GET /gyms. */
 export interface IGymRaw {
   id: number;
@@ -23,6 +33,7 @@ export interface IGymRaw {
   parentId?: number | null;
   parent?: { id: number; name: string } | null;
   location?: IGymLocationRaw | null;
+  schedules?: IScheduleRaw[];
 }
 
 /**
@@ -42,6 +53,7 @@ export interface SucursalMapaDTO {
   aforoActual: number;
   isActive: boolean;
   isOpen: boolean;
+  schedules: IScheduleRaw[];
 }
 
 /** Puerto de salida: contrato que deben implementar los adaptadores de infraestructura. */
@@ -127,6 +139,7 @@ export class ObtenerSedesMapaUseCase {
         aforoActual: gym.aforoActual ?? 0,
         isActive: gym.isActive ?? true,
         isOpen: gym.isOpen ?? true,
+        schedules: gym.schedules ?? [],
       });
     }
 

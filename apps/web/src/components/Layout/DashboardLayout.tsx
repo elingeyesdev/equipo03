@@ -38,6 +38,12 @@ export const DashboardLayout = () => {
 
   const closeSidebar = () => setIsSidebarOpen(false);
 
+  // Avatar de iniciales
+  const fName   = user?.firstName || 'U';
+  const lName   = user?.lastName  || '';
+  const initials = `${fName.charAt(0)}${lName ? lName.charAt(0) : ''}`.toUpperCase();
+  const displayName = lName ? `${fName} ${lName}` : fName;
+
   // ── Sidebar dinámico: solo se incluyen en el DOM los links permitidos ────────
   // getRoutesForRole filtra por el mismo criterio que RoleGuard → 0 desincronía.
   const visibleRoutes = getRoutesForRole(user?.role);
@@ -92,10 +98,21 @@ export const DashboardLayout = () => {
 
           <div className="header-actions">
             <div className="user-profile">
-              <img src={`https://i.pravatar.cc/150?u=${user?.id}`} alt="User" className="avatar" />
+              {/* Avatar de iniciales — sin dependencia externa */}
+              <div style={{
+                width: '38px', height: '38px', borderRadius: '50%',
+                background: 'linear-gradient(135deg, #00D9FF 0%, #0099CC 100%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#0A0A0A', fontWeight: 800, fontSize: '0.85rem',
+                flexShrink: 0, letterSpacing: '0.02em',
+                boxShadow: '0 0 0 2px rgba(0,217,255,0.3)',
+                userSelect: 'none',
+              }}>
+                {initials}
+              </div>
               <div className="user-info desktop-only">
-                <span className="user-name">Usuario ({user?.id})</span>
-                <span className="user-role">{user?.role} {user?.gymId ? `(Gym: ${user.gymId})` : ''}</span>
+                <span className="user-name">{displayName}</span>
+                <span className="user-role">{user?.role}{user?.gymName ? ` · ${user.gymName}` : ''}</span>
               </div>
             </div>
             <button onClick={handleLogout} className="btn-logout desktop-only">

@@ -66,24 +66,27 @@ export const ReservasView = () => {
 
   const loadReservations = useCallback(async () => {
     setLoading(true);
-    const selectedGymId = isGerente && user?.gymId ? Number(user.gymId) : (filterGym ? Number(filterGym) : undefined);
-    const data = await reservationsApi.getReservations({
-      status: filterStatus || undefined,
-      gymId: selectedGymId,
-    });
+    const selectedGymId = isGerente && user?.gymId
+      ? Number(user.gymId)
+      : (filterGym ? Number(filterGym) : undefined);
+
+    const filters = {
+      gymId:  selectedGymId  !== undefined ? selectedGymId  : undefined,
+      status: filterStatus   !== ''        ? filterStatus   : undefined,
+    };
+
+    const data = await reservationsApi.getReservations(filters);
     let sorted = [...data].sort((a, b) =>
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
 
     // Filtrado de seguridad en frontend como capa adicional
-    // Si gymActivitySchedule no viene populado, confiamos en el filtro del servidor
     if (isGerente && user?.gymId) {
       sorted = sorted.filter(res => {
         const gId = res.gymActivitySchedule?.gymActivity?.gymId;
         return gId == null || gId === Number(user.gymId);
       });
     } else if (isCliente && user?.id) {
-      // user.id es number (WebUser.id) — comparación estricta con res.userId
       sorted = sorted.filter(res => res.userId === user.id);
     }
 
@@ -92,6 +95,7 @@ export const ReservasView = () => {
     setCurrentPage(1);
   }, [filterStatus, filterGym, isGerente, isCliente, user?.gymId, user?.id]);
 
+  // Se dispara automáticamente cuando filterStatus, filterGym u otro dep cambia
   useEffect(() => { loadReservations(); }, [loadReservations]);
 
   // ── Filtro por Nombre o CI ─────────────────────────────────

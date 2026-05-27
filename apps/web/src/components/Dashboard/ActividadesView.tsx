@@ -481,7 +481,7 @@ const ActivityFormModal = ({
 
       {/* Contenido scrollable */}
       <div style={{ overflowY: 'auto', flex: 1, paddingRight: '0.2rem' }}>
-        <form onSubmit={handleSubmit} id="activity-form">
+        <form onSubmit={handleSubmit} id="activity-form" style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
           {/* Selector de sucursal — SUPER_ADMIN */}
           {needsGymPicker && (
             <div style={fieldGap}>
@@ -528,9 +528,13 @@ const ActivityFormModal = ({
 
           <div style={fieldGap}>
             <label style={labelStyle}>Descripción *</label>
-            <textarea style={{ ...inputStyle, minHeight: '72px', resize: 'vertical' }}
-              value={description} onChange={e => setDescription(e.target.value)}
-              placeholder="Breve descripción del servicio..." maxLength={500} />
+            <textarea
+              style={{ ...inputStyle, minHeight: '100px', resize: 'none', lineHeight: '1.55' }}
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              placeholder="Breve descripción del servicio..."
+              maxLength={500}
+            />
           </div>
 
           {/* ── Toggle Acceso Libre ── */}
@@ -685,7 +689,7 @@ const ActivityFormModal = ({
       </div>
 
       {/* Botones fijos al fondo */}
-      <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.25rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+      <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.25rem', paddingTop: '1rem', paddingBottom: '0.25rem', borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
         <button type="button" style={btnSecondary} onClick={onClose}>Cancelar</button>
         <button type="submit" form="activity-form" style={btnPrimary} disabled={saving}>
           {saving ? 'Guardando...' : isEdit ? 'Guardar Cambios' : 'Crear Servicio'}

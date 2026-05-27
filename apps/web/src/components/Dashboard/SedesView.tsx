@@ -7,9 +7,20 @@ import { apiClient } from '../../infrastructure/api.config';
 import { ModalOverlay, ConfirmModal, panelStyle } from './Shared/DashboardShared';
 import type { GymDto, GymScheduleDto, UserDto, CheckinDto, ScheduleEntry } from './Shared/DashboardTypes';
 
+const DESC_MAX = 180;
+
 const MarcaModal = ({ isOpen, onClose, marcaToEdit, onSave, existingGyms = [] }: any) => {
   const [formData, setFormData] = useState({ name: '', description: '' });
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors]     = useState<Record<string, string>>({});
+  const textareaRef             = React.useRef<HTMLTextAreaElement>(null);
+
+  /* Auto-resize textarea */
+  const autoResize = () => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  };
 
   useEffect(() => {
     if (marcaToEdit) {
@@ -18,6 +29,8 @@ const MarcaModal = ({ isOpen, onClose, marcaToEdit, onSave, existingGyms = [] }:
       setFormData({ name: '', description: '' });
     }
     setErrors({});
+    /* reset altura al abrir */
+    requestAnimationFrame(() => autoResize());
   }, [marcaToEdit, isOpen]);
 
   const validateForm = (): boolean => {
@@ -34,6 +47,10 @@ const MarcaModal = ({ isOpen, onClose, marcaToEdit, onSave, existingGyms = [] }:
       if (isDuplicate) newErrors.name = 'Esta marca ya existe en tu lista';
     }
 
+    if (formData.description.length > DESC_MAX) {
+      newErrors.description = `Máximo ${DESC_MAX} caracteres`;
+    }
+
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return false; }
     setErrors({});
     return true;
@@ -47,38 +64,89 @@ const MarcaModal = ({ isOpen, onClose, marcaToEdit, onSave, existingGyms = [] }:
 
   if (!isOpen) return null;
 
+  const descLen     = formData.description.length;
+  const descOver    = descLen > DESC_MAX;
+  const descNear    = descLen >= DESC_MAX * 0.85;
+
   return (
     <ModalOverlay onClose={onClose}>
-      <div className="modal-content glass-panel">
-        <div className="modal-header">
-          <h2>{marcaToEdit ? 'Editar Marca' : 'Nueva Marca'}</h2>
-        </div>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div className="modal-form-group">
-            <label>Nombre de la Marca</label>
+      {/* Elimina el wrapper doble — ModalOverlay ya provee el contenedor */}
+      <div style={{ width: '100%' }}>
+        {/* Header */}
+        <h2 style={{ margin: '0 0 1.5rem', fontSize: '1.25rem', fontWeight: 700, color: '#fff' }}>
+          {marcaToEdit ? '✏️ Editar Marca' : '🏷️ Nueva Marca'}
+        </h2>
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+          {/* Nombre */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+            <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#8E8E93', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Nombre de la Marca *
+            </label>
             <input
               type="text"
               value={formData.name}
               onChange={e => { setFormData({ ...formData, name: e.target.value }); setErrors(p => ({ ...p, name: '' })); }}
               placeholder="Ej. Metro Flex"
-              style={errors.name ? { borderColor: '#ef4444' } : undefined}
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                background: 'rgba(255,255,255,0.06)', border: `1px solid ${errors.name ? '#ef4444' : 'rgba(255,255,255,0.12)'}`,
+                borderRadius: '8px', color: '#E5E5EA', padding: '0.65rem 0.9rem',
+                fontSize: '0.9rem', outline: 'none',
+              }}
             />
-            {errors.name && <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block' }}>{errors.name}</span>}
+            {errors.name && (
+              <span style={{ color: '#ef4444', fontSize: '12px' }}>{errors.name}</span>
+            )}
           </div>
 
-          <div className="modal-form-group">
-            <label>Descripción</label>
-            <input
-              type="text"
+          {/* Descripción con auto-resize */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#8E8E93', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Descripción
+              </label>
+              <span style={{ fontSize: '11px', color: descOver ? '#ef4444' : descNear ? '#f97316' : '#555' }}>
+                {descLen}/{DESC_MAX}
+              </span>
+            </div>
+            <textarea
+              ref={textareaRef}
               value={formData.description}
-              onChange={e => setFormData({ ...formData, description: e.target.value })}
+              onChange={e => {
+                setFormData({ ...formData, description: e.target.value });
+                setErrors(p => ({ ...p, description: '' }));
+                autoResize();
+              }}
               placeholder="Ej. Cadena de gimnasios premium"
+              rows={3}
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                background: 'rgba(255,255,255,0.06)',
+                border: `1px solid ${errors.description || descOver ? '#ef4444' : 'rgba(255,255,255,0.12)'}`,
+                borderRadius: '8px', color: '#E5E5EA',
+                padding: '0.65rem 0.9rem', fontSize: '0.9rem',
+                outline: 'none', resize: 'none', overflow: 'hidden',
+                lineHeight: '1.55', minHeight: '80px',
+                transition: 'border-color 0.2s',
+              }}
             />
+            {(errors.description || descOver) && (
+              <span style={{ color: '#ef4444', fontSize: '12px' }}>
+                {errors.description || `Máximo ${DESC_MAX} caracteres`}
+              </span>
+            )}
           </div>
 
-          <div className="modal-actions" style={{ marginTop: '1.5rem' }}>
-            <button type="button" onClick={onClose} className="btn-secondary">Cancelar</button>
-            <button type="submit" className="btn-primary">
+          {/* Botones */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+            <button type="button" onClick={onClose}
+              style={{ background: 'rgba(255,255,255,0.07)', color: '#E5E5EA', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '0.55rem 1.1rem', cursor: 'pointer', fontSize: '0.875rem' }}>
+              Cancelar
+            </button>
+            <button type="submit"
+              style={{ background: '#00D9FF', color: '#0A0A0A', border: 'none', borderRadius: '8px', padding: '0.55rem 1.25rem', cursor: 'pointer', fontWeight: 700, fontSize: '0.875rem' }}>
               {marcaToEdit ? 'Actualizar' : 'Crear'} Marca
             </button>
           </div>
@@ -99,6 +167,7 @@ export const SedesView = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [sedeToEdit, setSedeToEdit] = useState<GymDto | null>(null);
   const [deleteConfirmSede, setDeleteConfirmSede] = useState<GymDto | null>(null);
+  const [infoSede, setInfoSede] = useState<GymDto | null>(null);
 
   // ── Filtros ──
   const [search,    setSearch]    = useState('');
@@ -288,9 +357,7 @@ export const SedesView = () => {
               <tr>
                 <th style={{ textAlign: 'left', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>ID</th>
                 <th style={{ textAlign: 'left', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Nombre de la Marca</th>
-                {user.role === 'SUPER_ADMIN' && (
-                  <th style={{ textAlign: 'center', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Acciones</th>
-                )}
+                <th style={{ textAlign: 'center', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -312,9 +379,23 @@ export const SedesView = () => {
                       {g.name}
                     </span>
                   </td>
-                  {user.role === 'SUPER_ADMIN' && (
-                    <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C', textAlign: 'center' }}>
-                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', alignItems: 'center' }}>
+                  <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', alignItems: 'center' }}>
+                      {/* ── Botón info (siempre visible) ── */}
+                      <button
+                        title="Ver información"
+                        onClick={() => setInfoSede(g)}
+                        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: '#AEAEB2', padding: '0.25rem 0.45rem', borderRadius: '4px', cursor: 'pointer', lineHeight: 1, display: 'flex', alignItems: 'center' }}
+                      >
+                        {/* SVG info circle */}
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"/>
+                          <line x1="12" y1="16" x2="12" y2="12"/>
+                          <line x1="12" y1="8" x2="12.01" y2="8"/>
+                        </svg>
+                      </button>
+
+                      {user.role === 'SUPER_ADMIN' && (<>
                         <button
                           onClick={() => handleEditSede(g)}
                           style={{ background: 'transparent', border: '1px solid #00D9FF', color: '#00D9FF', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
@@ -327,9 +408,9 @@ export const SedesView = () => {
                         >
                           Eliminar
                         </button>
-                      </div>
-                    </td>
-                  )}
+                      </>)}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -352,6 +433,60 @@ export const SedesView = () => {
         title="Confirmar Eliminación"
         message={`¿Estás seguro de querer eliminar la sede "${deleteConfirmSede?.name}"? Esta acción no se puede deshacer y borrará los registros asociados permanentemente.`}
       />
+
+      {/* ── Info card de marca ── */}
+      {infoSede && (
+        <ModalOverlay onClose={() => setInfoSede(null)}>
+          <div style={{ width: '100%' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <span style={{ fontSize: '1.5rem' }}>🏷️</span>
+                <div>
+                  <div style={{ fontSize: '0.68rem', color: '#00D9FF', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '2px' }}>
+                    Marca · #{infoSede.id}
+                  </div>
+                  <h2 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 800, color: '#fff' }}>{infoSede.name}</h2>
+                </div>
+              </div>
+              <button
+                onClick={() => setInfoSede(null)}
+                style={{ background: 'none', border: 'none', color: '#8E8E93', fontSize: '1.2rem', cursor: 'pointer', padding: '0.2rem', flexShrink: 0 }}
+              >✕</button>
+            </div>
+
+            {/* Descripción */}
+            <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '1rem' }}>
+              <div style={{ fontSize: '0.68rem', color: '#8E8E93', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>
+                Descripción
+              </div>
+              {infoSede.description ? (
+                <p style={{ margin: 0, color: '#E5E5EA', fontSize: '0.92rem', lineHeight: '1.6' }}>{infoSede.description}</p>
+              ) : (
+                <p style={{ margin: 0, color: '#555', fontSize: '0.88rem', fontStyle: 'italic' }}>Sin descripción registrada.</p>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.25rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+              {user.role === 'SUPER_ADMIN' && (
+                <button
+                  onClick={() => { handleEditSede(infoSede); setInfoSede(null); }}
+                  style={{ background: 'transparent', border: '1px solid #00D9FF', color: '#00D9FF', borderRadius: '8px', padding: '0.5rem 1rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
+                >
+                  ✏️ Editar
+                </button>
+              )}
+              <button
+                onClick={() => setInfoSede(null)}
+                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: '#E5E5EA', borderRadius: '8px', padding: '0.5rem 1.1rem', cursor: 'pointer', fontSize: '0.85rem' }}
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </ModalOverlay>
+      )}
     </section>
   );
 };
