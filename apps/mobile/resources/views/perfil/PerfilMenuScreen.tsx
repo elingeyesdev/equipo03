@@ -50,7 +50,8 @@ export const PerfilMenuScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const { user, updateProfile } = useAuth();
 
-  const isGerente   = user?.role === 'GERENTE';
+  const isGerente        = user?.role === 'GERENTE';
+  const isStaffOperativo = new Set(['ENTRENADOR', 'INSTRUCTOR', 'NUTRICIONISTA']).has(user?.role?.toUpperCase() ?? '');
   const p           = (user as any)?.profile;
   const displayName = p?.username || (user as any)?.email?.split('@')[0] || 'Sin usuario';
 
@@ -85,6 +86,7 @@ export const PerfilMenuScreen = () => {
     { icon: 'chart-line',  label: 'Mi historial físico',  action: () => navigation.navigate('HistorialMetricas' as any) },
     { icon: 'trophy',      label: 'Mis objetivos',        action: () => navigation.navigate('MisObjetivos' as any) },
     { icon: 'bell-ring',   label: 'Alertas de salud',     action: () => navigation.navigate('AlertasConfig') },
+    ...(isStaffOperativo ? [{ icon: 'card-account-details-outline', label: 'Mi Carnet Digital', action: () => navigation.navigate('CarnetDigital' as any), premium: true }] : []),
     { icon: 'cog-outline', label: 'Ajustes',              action: () => navigation.navigate('Ajustes' as any) },
   ];
 

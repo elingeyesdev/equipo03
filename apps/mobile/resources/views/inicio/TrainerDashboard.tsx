@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { staffApi, MyStudent } from '../../../app/Providers/staff/api/staff.api';
 
@@ -13,8 +14,9 @@ const studentName = (s: MyStudent) =>
   (s.name ?? [s.firstName, s.lastName].filter(Boolean).join(' ')) || `Alumno #${s.id}`;
 
 export const TrainerDashboard = () => {
-  const { user } = useAuth();
-  const firstName = (user as any)?.profile?.firstName ?? (user as any)?.firstName ?? 'Entrenador';
+  const { user }   = useAuth();
+  const navigation = useNavigation<any>();
+  const firstName  = (user as any)?.profile?.firstName ?? (user as any)?.firstName ?? 'Entrenador';
   const hora    = new Date().getHours();
   const saludo  = hora < 12 ? 'Buenos días' : hora < 18 ? 'Buenas tardes' : 'Buenas noches';
 
@@ -92,7 +94,14 @@ export const TrainerDashboard = () => {
                   )}
                 </View>
               </View>
-              <TouchableOpacity style={s.expBtn} activeOpacity={0.8}>
+              <TouchableOpacity
+                style={s.expBtn}
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate('AsignarRutina', {
+                  studentId:   item.id,
+                  studentName: studentName(item),
+                })}
+              >
                 <Text style={s.expBtnTxt}>Ver Expediente</Text>
               </TouchableOpacity>
             </View>

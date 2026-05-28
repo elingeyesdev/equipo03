@@ -8,6 +8,7 @@ import { MisDatosPersonalesScreen }  from '../resources/views/perfil/MisDatosPer
 import { AuditoriaSucursalScreen }   from '../resources/views/perfil/AuditoriaSucursalScreen';
 import { HistorialMetricasScreen }   from '../resources/views/perfil/HistorialMetricasScreen';
 import { MisObjetivosScreen }        from '../resources/views/perfil/MisObjetivosScreen';
+import { CarnetVirtualScreen }       from '../resources/views/perfil/CarnetVirtualScreen';
 
 // ── Opciones de header compartidas ──────────────────────────────────────────
 const hdr = (title: string) => ({
@@ -26,6 +27,7 @@ export type ClientePerfilParamList = {
   Ajustes: undefined;
   HistorialMetricas: undefined;
   MisObjetivos: undefined;
+  CarnetDigital: undefined;
 };
 
 export type GerentePerfilParamList = {
@@ -56,6 +58,7 @@ export const ClientePerfilStack = () => (
     <ClienteStack.Screen name="Ajustes"          component={AjustesScreen}              options={hdr('Ajustes')} />
     <ClienteStack.Screen name="HistorialMetricas" component={HistorialMetricasScreen}   options={hdr('Historial Físico')} />
     <ClienteStack.Screen name="MisObjetivos"      component={MisObjetivosScreen}         options={hdr('Mis Objetivos')} />
+    <ClienteStack.Screen name="CarnetDigital"     component={CarnetVirtualScreen}        options={hdr('Mi Carnet Digital')} />
   </ClienteStack.Navigator>
 );
 

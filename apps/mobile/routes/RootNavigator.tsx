@@ -27,6 +27,8 @@ import { ManagerDashboard }       from '../resources/views/inicio/ManagerDashboa
 import { InstructorDashboard }    from '../resources/views/inicio/InstructorDashboard';
 import { TrainerDashboard }       from '../resources/views/inicio/TrainerDashboard';
 import { NutritionistDashboard }  from '../resources/views/inicio/NutritionistDashboard';
+import { ClaseDetalleScreen }      from '../resources/views/inicio/ClaseDetalleScreen';
+import { AsignarRutinaScreen }     from '../resources/views/inicio/AsignarRutinaScreen';
 
 // ── Stacks de Perfil segregados ───────────────────────────────────────────────
 import { ClientePerfilStack, GerentePerfilStack } from './PerfilStack';
@@ -166,6 +168,28 @@ const StaffNav = createNativeStackNavigator();
 const StaffStack = () => (
   <StaffNav.Navigator screenOptions={{ headerShown: false }}>
     <StaffNav.Screen name="MainTabs" component={StaffTabs} />
+    <StaffNav.Screen
+      name="ClaseDetalle"
+      component={ClaseDetalleScreen}
+      options={{
+        headerShown:    true,
+        title:          'Detalle de Clase',
+        headerStyle:    { backgroundColor: '#1E1E1E' },
+        headerTintColor:'#fff',
+        headerBackTitle:'Atrás',
+      }}
+    />
+    <StaffNav.Screen
+      name="AsignarRutina"
+      component={AsignarRutinaScreen}
+      options={{
+        headerShown:    true,
+        title:          'Asignar Rutina',
+        headerStyle:    { backgroundColor: '#1E1E1E' },
+        headerTintColor:'#fff',
+        headerBackTitle:'Atrás',
+      }}
+    />
   </StaffNav.Navigator>
 );
 

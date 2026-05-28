@@ -63,6 +63,38 @@ export type MyAppointment = {
   status:          string;   // PENDIENTE | COMPLETADA | CANCELADA
 };
 
+export type ScheduleReservation = {
+  id:     number;
+  status: string;
+  userId: string;
+  user?: {
+    id:       number;
+    email?:   string;
+    profile?: { firstName?: string; lastName?: string; fullName?: string };
+  };
+};
+
+export type UserSearchResult = {
+  id:       number;
+  email?:   string;
+  fullName: string;
+};
+
+export type Exercise = {
+  id:           number;
+  name:         string;
+  description?: string;
+  muscleGroup?: string;
+  category?:    string;
+};
+
+export type SelectedExercise = {
+  exerciseId:          number;
+  sets:                number;
+  reps:                number;
+  weightRecommendedKg: number;
+};
+
 // ─── API ─────────────────────────────────────────────────────────────────────
 
 export const staffApi = {
@@ -112,5 +144,54 @@ export const staffApi = {
    */
   updateAppointmentStatus: async (id: number, status: string): Promise<void> => {
     await staffClient.patch(`/api/staff/appointments/${id}/status`, { status });
+  },
+
+  getScheduleReservations: async (scheduleId: number): Promise<ScheduleReservation[]> => {
+    const response = await staffClient.get('/api/reservations', {
+      params: { gymActivityScheduleId: scheduleId },
+    });
+    const data = response.data?.data ?? response.data;
+    return Array.isArray(data) ? data : [];
+  },
+
+  bulkUpdateStatus: async (
+    reservationIds: number[],
+    status: 'COMPLETADA' | 'FALTO',
+  ): Promise<void> => {
+    await staffClient.patch('/api/reservations/bulk-status', { reservationIds, status });
+  },
+
+  createWalkIn: async (userId: string, scheduleId: number): Promise<void> => {
+    await staffClient.post('/api/reservations/walk-in', { userId, scheduleId });
+  },
+
+  getExercises: async (): Promise<Exercise[]> => {
+    const response = await staffClient.get('/api/exercises');
+    const data = response.data?.data ?? response.data;
+    return Array.isArray(data) ? data : [];
+  },
+
+  createRoutine: async (payload: {
+    trainerId:      string;
+    assignedUserId: number;
+    exercises:      SelectedExercise[];
+  }): Promise<void> => {
+    await staffClient.post('/api/routines', payload);
+  },
+
+  searchUsers: async (query: string): Promise<UserSearchResult[]> => {
+    const response = await staffClient.get('/api/users', {
+      params: { search: query, limit: 10 },
+    });
+    const data = response.data?.data ?? response.data;
+    if (!Array.isArray(data)) return [];
+    return data.map((u: any) => ({
+      id:       u.id,
+      email:    u.email,
+      fullName: (u.profile?.fullName
+                ?? [u.profile?.firstName, u.profile?.lastName].filter(Boolean).join(' '))
+                || u.email
+                || `#${u.id}`,
+    }));
   },
 };

@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { staffApi, StaffClass } from '../../../app/Providers/staff/api/staff.api';
 
@@ -24,6 +25,7 @@ const ocupColor = (pct: number | null) =>
 
 export const InstructorDashboard = () => {
   const { user } = useAuth();
+  const navigation = useNavigation<any>();
   const firstName = (user as any)?.profile?.firstName ?? (user as any)?.firstName ?? 'Instructor';
   const hora      = new Date().getHours();
   const saludo    = hora < 12 ? 'Buenos días' : hora < 18 ? 'Buenas tardes' : 'Buenas noches';
@@ -107,7 +109,16 @@ export const InstructorDashboard = () => {
           const pct   = ocupPct(c);
           const color = ocupColor(pct);
           return (
-            <View key={c.id} style={s.card}>
+            <TouchableOpacity
+              key={c.id}
+              style={s.card}
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate('ClaseDetalle', {
+                scheduleId:   c.id,
+                activityName: c.activityName,
+                startTime:    c.startTime,
+              })}
+            >
               <View style={s.timeCol}>
                 <Text style={s.timeStart}>{fmt5(c.startTime)}</Text>
                 <View style={s.timeLine} />
@@ -135,7 +146,7 @@ export const InstructorDashboard = () => {
                 )}
                 <Text style={s.enrollLabel}>alumnos</Text>
               </View>
-            </View>
+            </TouchableOpacity>
           );
         })}
 
