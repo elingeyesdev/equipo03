@@ -132,19 +132,7 @@
   box-sizing: border-box;
 }
 
-.login-card {
-  background-color: rgba(20, 20, 22, 0.65);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  padding: 3rem 2.5rem;
-  border-radius: 28px;
-  width: 100%;
-  max-width: 460px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.1);
-  position: relative;
-  box-sizing: border-box;
-}
+/* .login-card → migrado a Tailwind (bg-white dark:bg-[#1e1e2d]) */
 
 .close-btn {
   position: absolute;
@@ -152,7 +140,7 @@
   right: 1.5rem;
   background: transparent;
   border: none;
-  color: #8E8E93;
+  color: #64748b;
   cursor: pointer;
   padding: 0.2rem;
   border-radius: 50%;
@@ -163,35 +151,11 @@
 }
 
 .close-btn:hover {
-  color: #FFFFFF;
-  background: rgba(255, 255, 255, 0.1);
+  color: #0f172a;
+  background: rgba(0, 0, 0, 0.06);
 }
 
-.brand-logo-small {
-  font-size: 1.5rem;
-  font-weight: 800;
-  color: #FFFFFF;
-  margin-bottom: 0.5rem;
-  text-align: center;
-  letter-spacing: -1px;
-}
-.brand-logo-small span {
-  color: #00D9FF;
-}
-
-.login-title {
-  color: #FFFFFF;
-  font-size: 1.5rem;
-  text-align: center;
-  margin: 0 0 0.5rem 0;
-}
-
-.login-subtitle {
-  color: #8E8E93;
-  text-align: center;
-  font-size: 0.9rem;
-  margin-bottom: 2rem;
-}
+/* .brand-logo-small / .login-title / .login-subtitle → migrados a Tailwind */
 
 .login-error {
   background-color: rgba(255, 94, 0, 0.15);
@@ -215,39 +179,17 @@
 .input-icon {
   position: absolute;
   left: 1rem;
-  color: #8E8E93;
+  color: #94a3b8;
   pointer-events: none;
   transition: color 0.3s;
   display: flex;
   align-items: center;
 }
 
-.input-group input {
-  width: 100%;
-  background-color: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #FFFFFF;
-  padding: 1.1rem 3rem 1.1rem 3.2rem;
-  border-radius: 14px;
-  font-size: 1.05rem;
-  outline: none;
-  transition: all 0.3s ease;
-  box-sizing: border-box;
-}
+/* .input-group input → migrado a Tailwind (bg-slate-50 dark:bg-[#151521]) */
 
-.input-group input:focus {
-  border-color: #00D9FF;
-  box-shadow: 0 0 0 4px rgba(0, 217, 255, 0.1);
-  background-color: rgba(10, 10, 10, 0.8);
-}
-
-.input-group input:focus ~ .input-icon,
 .input-group:focus-within .input-icon {
-  color: #00D9FF;
-}
-
-.input-group input::placeholder {
-  color: #636366;
+  color: #2ecc71;
 }
 
 /* Ojo de contraseña */
@@ -256,7 +198,7 @@
   right: 1.2rem;
   background: transparent;
   border: none;
-  color: #8E8E93;
+  color: #94a3b8;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -268,8 +210,8 @@
 
 .password-toggle-btn:hover,
 .password-toggle-btn:focus {
-  color: #FFFFFF;
-  background-color: rgba(255, 255, 255, 0.05);
+  color: #0f172a;
+  background-color: rgba(0, 0, 0, 0.05);
   outline: none;
 }
 
@@ -326,7 +268,5 @@
     font-size: 0.85rem;
   }
   
-  .login-card {
-    padding: 2rem 1.5rem;
-  }
+  /* .login-card → migrado a Tailwind */
 }

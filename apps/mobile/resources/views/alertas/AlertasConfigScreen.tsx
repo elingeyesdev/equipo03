@@ -12,6 +12,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { AlertasController, AlertaFrequencia } from '../../../app/Http/Controllers/alertas/AlertasController';
+import { useAuth } from '../../../app/Shared/hooks/useAuth';
+
+const KEYWORD_TIPS: { keywords: string[]; tip: string; icon: string }[] = [
+  { keywords: ['asma'],                          tip: 'Recuerda llevar tu inhalador a la sesión.',              icon: 'lungs'       },
+  { keywords: ['rodilla', 'rodillas', 'menisco'], tip: 'Evita ejercicios de alto impacto en rodillas.',          icon: 'run-fast'    },
+  { keywords: ['hipertensión', 'presión'],        tip: 'Monitorea tu presión arterial antes y después de entrenar.', icon: 'heart-pulse' },
+  { keywords: ['diabetes', 'glucosa'],            tip: 'Ten glucosa disponible durante el entrenamiento.',        icon: 'needle'      },
+  { keywords: ['corazón', 'cardíaco', 'cardiaco'], tip: 'Consulta tu médico antes de entrenamientos intensos.',  icon: 'heart'       },
+  { keywords: ['columna', 'espalda', 'lumbar'],   tip: 'Mantén postura correcta. Evita cargas en flexión.',      icon: 'human'       },
+];
 
 const FRECUENCIA_OPTIONS: { value: AlertaFrequencia; label: string; desc: string }[] = [
   { value: 'AL_INICIAR', label: 'Al iniciar la app', desc: 'Recibirás alerta cada vez que abras GymSync.' },
@@ -20,7 +30,9 @@ const FRECUENCIA_OPTIONS: { value: AlertaFrequencia; label: string; desc: string
 ];
 
 export const AlertasConfigScreen = () => {
-  const vm = AlertasController();
+  const { user }            = useAuth();
+  const medicalConditions   = (user as any)?.profile?.medicalConditions as string | undefined;
+  const vm                  = AlertasController(medicalConditions);
 
   if (vm.isLoading) {
     return (
@@ -44,6 +56,21 @@ export const AlertasConfigScreen = () => {
         <Text style={styles.subtitle}>
           Configura notificaciones automáticas basadas en tus restricciones médicas registradas.
         </Text>
+
+        {/* Tarjeta estado médico */}
+        {medicalConditions ? (
+          <View style={styles.alertCard}>
+            <MaterialCommunityIcons name="alert-triangle" size={32} color="#ff3333" />
+            <Text style={styles.alertTitle}>Atención Médica Requerida</Text>
+            <Text style={styles.alertText}>{medicalConditions}</Text>
+            <Text style={styles.alertHint}>Esta información se compartirá con tu instructor por seguridad.</Text>
+          </View>
+        ) : (
+          <View style={styles.safeCard}>
+            <MaterialCommunityIcons name="check-circle" size={32} color="#00C853" />
+            <Text style={styles.safeTitle}>No tienes restricciones médicas registradas.</Text>
+          </View>
+        )}
 
         {/* Global toggle */}
         <View style={styles.card}>
@@ -101,39 +128,53 @@ export const AlertasConfigScreen = () => {
                 No tienes restricciones médicas registradas.
               </Text>
               <Text style={styles.emptySubtext}>
-                Agrega restricciones desde la sección de Perfil para activar alertas automáticas.
+                Agrega condiciones médicas en Mis Datos Personales para activar alertas automáticas.
               </Text>
             </View>
           ) : (
-            vm.alertas.map((alerta, idx) => (
-              <View key={idx} style={styles.alertaRow}>
-                <View style={styles.alertaLeft}>
-                  <View
-                    style={[
-                      styles.severidadDot,
-                      { backgroundColor: severidadColor(alerta.severidad) },
-                    ]}
-                  />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.alertaCondicion}>{alerta.condicion}</Text>
-                    <Text style={styles.alertaSeveridad}>
-                      Severidad: {alerta.severidad}
-                    </Text>
-                    {alerta.recomendaciones ? (
-                      <Text style={styles.alertaRec} numberOfLines={2}>
-                        {alerta.recomendaciones}
+            <>
+              {vm.alertas.map((alerta, idx) => (
+                <View key={idx} style={styles.alertaRow}>
+                  <View style={styles.alertaLeft}>
+                    <View
+                      style={[
+                        styles.severidadDot,
+                        { backgroundColor: severidadColor(alerta.severidad) },
+                      ]}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.alertaCondicion}>{alerta.condicion}</Text>
+                      <Text style={styles.alertaSeveridad}>
+                        Severidad: {alerta.severidad}
                       </Text>
-                    ) : null}
+                      {alerta.recomendaciones ? (
+                        <Text style={styles.alertaRec} numberOfLines={2}>
+                          {alerta.recomendaciones}
+                        </Text>
+                      ) : null}
+                    </View>
                   </View>
+                  <Switch
+                    value={alerta.enabled}
+                    onValueChange={() => vm.toggleAlerta(alerta.condicion)}
+                    trackColor={{ false: '#333', true: '#f05b22' }}
+                    thumbColor="#fff"
+                  />
                 </View>
-                <Switch
-                  value={alerta.enabled}
-                  onValueChange={() => vm.toggleAlerta(alerta.condicion)}
-                  trackColor={{ false: '#333', true: '#f05b22' }}
-                  thumbColor="#fff"
-                />
-              </View>
-            ))
+              ))}
+
+              {/* Tips por palabras clave */}
+              {KEYWORD_TIPS.filter(t =>
+                vm.alertasActivas.some(a =>
+                  t.keywords.some(k => a.condicion.toLowerCase().includes(k))
+                )
+              ).map((t, i) => (
+                <View key={i} style={styles.tipCard}>
+                  <MaterialCommunityIcons name={t.icon as any} size={18} color="#ffa726" />
+                  <Text style={styles.tipText}>⚠️ {t.tip}</Text>
+                </View>
+              ))}
+            </>
           )}
         </View>
 
@@ -337,5 +378,67 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  alertCard: {
+    backgroundColor: '#1a0000',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#ff3333',
+    alignItems: 'center',
+    gap: 10,
+  },
+  alertTitle: {
+    color: '#ff4444',
+    fontSize: 16,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  alertText: {
+    color: '#ffaaaa',
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  alertHint: {
+    color: '#cc5555',
+    fontSize: 12,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    lineHeight: 18,
+  },
+  safeCard: {
+    backgroundColor: '#001a08',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#00C853',
+    alignItems: 'center',
+    gap: 10,
+  },
+  safeTitle: {
+    color: '#00C853',
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  tipCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#1a1100',
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#332500',
+  },
+  tipText: {
+    color: '#ffa726',
+    fontSize: 13,
+    flex: 1,
+    lineHeight: 18,
   },
 });

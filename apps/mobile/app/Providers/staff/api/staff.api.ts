@@ -32,6 +32,7 @@ export type StaffClass = {
   maxAttendees?: number;
   location?:    string;
   status?:      string;
+  reservations?: { id: number; user?: { id: number; email?: string } }[];
 };
 
 export type StaffAppointment = {
@@ -41,6 +42,25 @@ export type StaffAppointment = {
   patientName: string;
   notes?:      string;
   status?:     string;
+};
+
+export type MyStudent = {
+  id:         number;
+  name?:      string;
+  firstName?: string;
+  lastName?:  string;
+  email?:     string;
+  avatarUrl?: string;
+};
+
+export type MyAppointment = {
+  id:              number;
+  startTime:       string;   // HH:mm
+  endTime:         string;   // HH:mm
+  patientName:     string;
+  appointmentType?: string;  // PLAN_DIETA | SEGUIMIENTO | EVALUACION | etc.
+  notes?:          string;
+  status:          string;   // PENDIENTE | COMPLETADA | CANCELADA
 };
 
 // ─── API ─────────────────────────────────────────────────────────────────────
@@ -64,5 +84,33 @@ export const staffApi = {
     const response = await staffClient.get('/api/staff/agenda/appointments');
     const data = response.data?.data ?? response.data;
     return Array.isArray(data) ? data : [];
+  },
+
+  /**
+   * GET /api/routines/my-students
+   * Alumnos asignados al entrenador autenticado vía rutinas.
+   */
+  getMyStudents: async (): Promise<MyStudent[]> => {
+    const response = await staffClient.get('/api/routines/my-students');
+    const data = response.data?.data ?? response.data;
+    return Array.isArray(data) ? data : [];
+  },
+
+  /**
+   * GET /api/staff/appointments
+   * Todas las citas del nutricionista autenticado.
+   */
+  getMyAppointments: async (): Promise<MyAppointment[]> => {
+    const response = await staffClient.get('/api/staff/appointments');
+    const data = response.data?.data ?? response.data;
+    return Array.isArray(data) ? data : [];
+  },
+
+  /**
+   * PATCH /api/staff/appointments/:id/status
+   * Actualiza el estado de una cita.
+   */
+  updateAppointmentStatus: async (id: number, status: string): Promise<void> => {
+    await staffClient.patch(`/api/staff/appointments/${id}/status`, { status });
   },
 };

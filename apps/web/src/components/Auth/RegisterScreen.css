@@ -99,36 +99,7 @@
   overflow-y: auto;
 }
 
-.register-card {
-  background-color: rgba(15, 15, 17, 0.85); /* REGLA DE ORO: Fondo glassmorphism */
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  padding: 2.5rem 2.2rem;
-  border-radius: 28px;
-  width: 100%;
-  max-width: 480px;
-  border: 1px solid rgba(255, 255, 255, 0.1); /* 1px solid blanco sutil */
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255,255,255,0.15);
-  position: relative;
-  box-sizing: border-box;
-  margin: auto;
-}
-
-.register-title {
-  color: #FFFFFF;
-  font-size: 1.6rem;
-  font-weight: 700;
-  text-align: center;
-  margin: 0 0 0.4rem 0;
-}
-
-.register-subtitle {
-  color: #8E8E93;
-  text-align: center;
-  font-size: 0.9rem;
-  margin-bottom: 1.8rem;
-  line-height: 1.4;
-}
+/* .register-card / .register-title / .register-subtitle → migrados a Tailwind */
 
 /* Banner de error de API NestJS */
 .register-api-error {
@@ -175,40 +146,17 @@
 .input-icon {
   position: absolute;
   left: 1.1rem;
-  color: #8E8E93;
+  color: #94a3b8;
   pointer-events: none;
   transition: color 0.3s;
   display: flex;
   align-items: center;
 }
 
-.input-group input {
-  width: 100%;
-  background-color: rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #FFFFFF;
-  padding: 0.95rem 3rem 0.95rem 3.2rem;
-  border-radius: 14px;
-  font-size: 1rem;
-  outline: none;
-  transition: all 0.3s ease;
-  box-sizing: border-box;
-}
+/* .input-group input → migrado a Tailwind (bg-slate-50 dark:bg-[#151521]) */
 
-/* Focus: Neon turquesa (#00D9FF) */
-.input-group input:focus {
-  border-color: #00D9FF;
-  box-shadow: 0 0 0 4px rgba(0, 217, 255, 0.15), 0 0 8px rgba(0, 217, 255, 0.3);
-  background-color: rgba(10, 10, 10, 0.85);
-}
-
-.input-group input:focus ~ .input-icon,
 .input-group:focus-within .input-icon {
-  color: #00D9FF;
-}
-
-.input-group input::placeholder {
-  color: #636366;
+  color: #2ecc71;
 }
 
 /* Error State in Inputs */
@@ -234,7 +182,7 @@
   right: 1.1rem;
   background: transparent;
   border: none;
-  color: #8E8E93;
+  color: #94a3b8;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -245,66 +193,18 @@
 }
 
 .password-toggle-btn:hover {
-  color: #FFFFFF;
-  background-color: rgba(255, 255, 255, 0.05);
+  color: #0f172a;
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 /* Password strength feedback */
-.password-requirements {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.2rem 0.5rem;
+/* .password-requirements container → migrado a Tailwind */
+
+.met {
+  color: #30D158 !important; /* Verde elegante para requerimiento cumplido */
 }
 
-.password-requirements span {
-  font-size: 0.78rem;
-  color: #636366;
-  transition: color 0.3s ease;
-  display: flex;
-  align-items: center;
-}
-
-.password-requirements span.met {
-  color: #30D158; /* Verde elegante para requerimiento cumplido */
-}
-
-/* Submit Button */
-.btn-register {
-  width: 100%;
-  background: linear-gradient(135deg, #00D9FF 0%, #0077ff 100%); /* Turquesa neón gradient */
-  color: #FFFFFF;
-  border: none;
-  padding: 1rem;
-  border-radius: 14px;
-  font-weight: 700;
-  font-size: 1.02rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-top: 0.75rem;
-  box-shadow: 0 6px 20px rgba(0, 217, 255, 0.25);
-  box-sizing: border-box;
-}
-
-.btn-register:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 217, 255, 0.45);
-}
-
-.btn-register:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-
-/* Footer Section */
-.register-footer {
-  text-align: center;
-  font-size: 0.88rem;
-  color: #8E8E93;
-  margin-top: 1.75rem;
-}
+/* .btn-register / .register-footer → migrados a Tailwind */
 
 .login-link {
   color: #00D9FF;
@@ -314,7 +214,7 @@
 }
 
 .login-link:hover {
-  color: #FFFFFF;
+  color: #0086d1;
   text-decoration: underline;
 }
 

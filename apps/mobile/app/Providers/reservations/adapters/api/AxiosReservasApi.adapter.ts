@@ -51,7 +51,7 @@ export class AxiosReservasApiAdapter implements IReservasApiService {
         }
       }
 
-      // Fallback si no hay coincidencia exacta de actividad
+      // Fallback 
       if (!resolvedScheduleId) {
         // Buscar cualquier horario disponible en las actividades de la sucursal
         for (const act of activities) {
@@ -65,11 +65,11 @@ export class AxiosReservasApiAdapter implements IReservasApiService {
 
       // Si aún no se pudo resolver, usamos un ID por defecto para cumplir con el contrato relacional
       if (!resolvedScheduleId) {
-        resolvedScheduleId = 1; // ID de fallback seguro
+        resolvedScheduleId = 1; 
       }
 
-      // 3. Crear el payload estructurado para el Backend NestJS
-      const dateParts = params.fecha.split('T')[0]; // Toma "YYYY-MM-DD"
+      // payload estructurado para el Backend NestJS
+      const dateParts = params.fecha.split('T')[0]; //"YYYY-MM-DD"
       
       const payload = {
         userId: Number(user.userId),
@@ -83,7 +83,7 @@ export class AxiosReservasApiAdapter implements IReservasApiService {
 
       console.log('[AxiosReservasApiAdapter] Servidor respondió con éxito:', response);
 
-      // 4. Traducir de vuelta a la entidad Reserva de dominio
+      //Traducir de vuelta a la entidad Reserva de dominio
       const reserva = Reserva.create({
         id: Identifier.create(response.id),
         userId: user.userId,

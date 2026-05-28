@@ -12,10 +12,7 @@ const forceLogout = () => {
 };
 
 const handleAccessDenied = (message?: string) => {
-  toast.error(message || 'Acceso Denegado: No tienes permisos.');
-  if (window.location.pathname !== '/dashboard/resumen' && window.location.pathname.startsWith('/dashboard')) {
-    window.location.href = '/dashboard/resumen?error=access_denied';
-  }
+  toast.error(message || 'Acceso Denegado: No tienes permisos para esta acción.');
 };
 
 export const createApiClient = (): AxiosInstance => {

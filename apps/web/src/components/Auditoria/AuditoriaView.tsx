@@ -10,6 +10,7 @@ import { reservationsApi } from '../../infrastructure/AxiosReservationsApi.adapt
 import { DB_ROLES } from '../../config/rbac.constants';
 import type { Reservation } from '../../infrastructure/Reservations.types';
 import { QrScannerModal } from '../Reservas/QrScannerModal';
+import { Eye, QrCode, CheckCircle, X, Loader2 } from 'lucide-react';
 import { RecordDetailModal, DetailField } from '../Dashboard/Shared/DashboardShared';
 import '../Reservas/ReservasView.css';
 
@@ -179,26 +180,25 @@ const GymReservasPanel = () => {
       {/* Cabecera */}
       <div className="view-header">
         <div>
-          <h1 className="view-title">Administración de Reservas</h1>
-          <p className="view-subtitle">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Administración de Reservas</h1>
+          <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">
             Reservas activas en <strong style={{ color: '#FF5E00' }}>{gymLabel}</strong> — acepta o rechaza solicitudes de tu sede
           </p>
         </div>
         <div className="view-filters">
-          <button className="btn-scan-qr" onClick={() => setShowScanner(true)}>
-            📷 Escanear QR
+          <button className="btn-scan-qr" onClick={() => setShowScanner(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+            <QrCode size={15} />
+            Escanear QR
           </button>
-          <div className="search-box">
-            <input
-              type="text"
-              placeholder="Buscar por Nombre o CI..."
-              value={searchTerm}
-              onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-              className="filter-input-search"
-            />
-            <span className="search-icon">🔍</span>
-          </div>
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="filter-select">
+          <input
+            type="text"
+            placeholder="Buscar por Nombre o CI..."
+            value={searchTerm}
+            onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+            className="w-full bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-800 text-slate-900 dark:text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors"
+            style={{ minWidth: '220px' }}
+          />
+          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-800 text-slate-900 dark:text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors">
             <option value="">Estado: Todos</option>
             <option value="CONFIRMED">Confirmadas</option>
             <option value="USED">Usadas</option>
@@ -209,21 +209,21 @@ const GymReservasPanel = () => {
       </div>
 
       {/* Tabla */}
-      <div className="data-grid-container">
+      <div className="bg-white dark:bg-[#1e1e2d] border border-slate-200 dark:border-gray-800 rounded-xl shadow-sm overflow-x-auto mt-4 transition-colors">
         {loading ? (
           <div className="loading-state">Cargando reservas...</div>
         ) : (
           <>
-            <table className="data-grid">
-              <thead>
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-slate-50 dark:bg-[#151521] border-b border-slate-200 dark:border-gray-800 text-slate-500 dark:text-gray-400 text-xs uppercase tracking-wider">
                 <tr>
-                  <th>Usuario</th>
-                  <th>Carnet (CI)</th>
-                  <th>Actividad</th>
-                  <th>Horario</th>
-                  <th>Fecha</th>
-                  <th>Estado</th>
-                  <th style={{ textAlign: 'center', minWidth: '180px' }}>Acciones</th>
+                  <th className="px-6 py-4">Usuario</th>
+                  <th className="px-6 py-4">Carnet (CI)</th>
+                  <th className="px-6 py-4">Actividad</th>
+                  <th className="px-6 py-4">Horario</th>
+                  <th className="px-6 py-4">Fecha</th>
+                  <th className="px-6 py-4">Estado</th>
+                  <th className="px-6 py-4 text-center" style={{ minWidth: '180px' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -231,42 +231,42 @@ const GymReservasPanel = () => {
                   const isLoading = actionLoading === res.id;
                   const isConfirmed = res.status === 'CONFIRMED';
                   return (
-                    <tr key={res.id}>
-                      <td>
-                        <div className="cell-user">
+                    <tr key={res.id} className="border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-slate-700 dark:text-gray-300 text-sm">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
                           <div className="user-avatar-mini">
                             {res.user?.profile?.fullName?.charAt(0) || 'U'}
                           </div>
-                          <div className="user-info-mini">
-                            <span className="name">{res.user?.profile?.fullName || 'Usuario'}</span>
-                            <span className="email">{res.user?.email}</span>
+                          <div className="flex-1 flex flex-col gap-0.5">
+                            <span className="font-semibold text-slate-900 dark:text-white">{res.user?.profile?.fullName || 'Usuario'}</span>
+                            <span className="text-xs text-slate-500 dark:text-gray-400">{res.user?.email}</span>
                           </div>
                         </div>
                       </td>
-                      <td className="cell-ci">{res.user?.profile?.ci || '—'}</td>
-                      <td className="cell-activity">{res.gymActivitySchedule?.gymActivity?.name || '—'}</td>
-                      <td>
-                        <span style={{ fontFamily: 'monospace', color: '#00D9FF' }}>
+                      <td className="px-6 py-4 cell-ci">{res.user?.profile?.ci || '—'}</td>
+                      <td className="px-6 py-4 cell-activity">{res.gymActivitySchedule?.gymActivity?.name || '—'}</td>
+                      <td className="px-6 py-4">
+                        <span className="font-mono text-[#00D9FF]">
                           {res.gymActivitySchedule?.startTime?.substring(0, 5) || '—'}
                           {res.gymActivitySchedule?.endTime ? ` – ${res.gymActivitySchedule.endTime.substring(0, 5)}` : ''}
                         </span>
                       </td>
-                      <td style={{ color: '#E5E5EA', fontSize: '0.85rem' }}>{res.reservationDate}</td>
-                      <td>
+                      <td className="px-6 py-4 text-slate-600 dark:text-gray-400 text-sm">{res.reservationDate}</td>
+                      <td className="px-6 py-4">
                         <span className={`badge-status ${res.status.toLowerCase()}`}>
                           {res.status}
                         </span>
                       </td>
-                      <td>
-                        <div className="action-group">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2.5">
                           {/* Ver detalle */}
                           <button
                             className="btn-action"
-                            style={{ background: 'rgba(0,217,255,0.1)', border: '1px solid rgba(0,217,255,0.3)', color: '#00D9FF', borderRadius: '6px', padding: '0.4rem', fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '36px' }}
+                            style={{ background: 'rgba(0,217,255,0.1)', border: '1px solid rgba(0,217,255,0.3)', color: '#00D9FF', borderRadius: '6px', padding: '0.4rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '36px' }}
                             title="Ver detalle"
                             onClick={() => setViewingReservation(res)}
                             disabled={isLoading}
-                          >👁️</button>
+                          ><Eye size={15} /></button>
 
                           {/* Escanear QR */}
                           <button
@@ -274,7 +274,7 @@ const GymReservasPanel = () => {
                             title="Escanear QR"
                             onClick={() => setShowScanner(true)}
                             disabled={isLoading}
-                          >📷</button>
+                          ><QrCode size={15} /></button>
 
                           {/* Aceptar entrada */}
                           <button
@@ -282,7 +282,7 @@ const GymReservasPanel = () => {
                             title="Aceptar entrada"
                             onClick={() => handleAccept(res)}
                             disabled={!isConfirmed || isLoading}
-                          >{isLoading ? '⏳' : '✅'}</button>
+                          >{isLoading ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle size={15} />}</button>
 
                           {/* Rechazar / Cancelar */}
                           <button
@@ -290,7 +290,7 @@ const GymReservasPanel = () => {
                             title="Rechazar reserva"
                             onClick={() => handleCancel(res.id)}
                             disabled={!isConfirmed || isLoading}
-                          >✕</button>
+                          ><X size={14} /></button>
                         </div>
                       </td>
                     </tr>
@@ -419,12 +419,12 @@ const AccesosPanel = () => {
     <div className="auditoria-view">
       <div className="view-header">
         <div>
-          <h1 className="view-title">Auditoría de Accesos</h1>
-          <p className="view-subtitle">Registros en tiempo real de la tabla <code>check_ins</code></p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Auditoría de Accesos</h1>
+          <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">Registros en tiempo real de la tabla <code>check_ins</code></p>
         </div>
         <div className="view-filters">
           {user?.role === 'SUPER_ADMIN' && (
-            <select value={filtroSede} onChange={e => setFiltroSede(e.target.value)} className="filter-select">
+            <select value={filtroSede} onChange={e => setFiltroSede(e.target.value)} className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-800 text-slate-900 dark:text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors">
               <option value="">Todas las Sedes</option>
               <option value="1">Smart Fit</option>
               <option value="2">Premier</option>
@@ -438,7 +438,7 @@ const AccesosPanel = () => {
               <option value="10">Power Club</option>
             </select>
           )}
-          <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)} className="filter-select">
+          <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)} className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-800 text-slate-900 dark:text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors">
             <option value="">Todos los Estados</option>
             <option value="AUTORIZADO">Autorizados</option>
             <option value="DENEGADO">Denegados</option>
@@ -452,35 +452,35 @@ const AccesosPanel = () => {
           <p>{errorAcceso}</p>
         </div>
       ) : (
-        <div className="data-grid-container">
-          <table className="data-grid">
-            <thead>
+        <div className="bg-white dark:bg-[#1e1e2d] border border-slate-200 dark:border-gray-800 rounded-xl shadow-sm overflow-x-auto mt-4 transition-colors">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-slate-50 dark:bg-[#151521] border-b border-slate-200 dark:border-gray-800 text-slate-500 dark:text-gray-400 text-xs uppercase tracking-wider">
               <tr>
-                <th>ID</th>
-                <th>Usuario</th>
-                <th>Sede</th>
-                <th>Fecha/Hora</th>
-                <th>Método</th>
-                <th>Estado</th>
-                <th>Detalle</th>
+                <th className="px-6 py-4">ID</th>
+                <th className="px-6 py-4">Usuario</th>
+                <th className="px-6 py-4">Sede</th>
+                <th className="px-6 py-4">Fecha/Hora</th>
+                <th className="px-6 py-4">Método</th>
+                <th className="px-6 py-4">Estado</th>
+                <th className="px-6 py-4">Detalle</th>
               </tr>
             </thead>
             <tbody>
               {accesos.map(acceso => {
                 const isDenied = acceso.status.estado === 'DENEGADO';
                 return (
-                  <tr key={acceso.id.value} className={isDenied ? 'row-denied' : ''}>
-                    <td data-label="ID" className="cell-id">...{acceso.id.value.slice(-6)}</td>
-                    <td data-label="Usuario">
-                      <div className="cell-user">
-                        <img src={acceso.userInfo.avatarUrl} alt="avatar" />
-                        <div className="cell-user-info">
-                          <span className="name">{acceso.userInfo.nombre}</span>
-                          <span className="email">{acceso.userInfo.email}</span>
+                  <tr key={acceso.id.value} className={`border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-slate-700 dark:text-gray-300 text-sm${isDenied ? ' row-denied' : ''}`}>
+                    <td data-label="ID" className="px-6 py-4 cell-id">...{acceso.id.value.slice(-6)}</td>
+                    <td data-label="Usuario" className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <img src={acceso.userInfo.avatarUrl} alt="avatar" className="w-8 h-8 rounded-full border border-slate-200 dark:border-gray-700 object-cover" />
+                        <div className="flex-1 flex flex-col gap-0.5">
+                          <span className="font-semibold text-slate-900 dark:text-white">{acceso.userInfo.nombre}</span>
+                          <span className="text-xs text-slate-500 dark:text-gray-400">{acceso.userInfo.email}</span>
                         </div>
                       </div>
                     </td>
-                    <td data-label="Sede">
+                    <td data-label="Sede" className="px-6 py-4">
                       <div className="cell-gym">
                         <span className="name">{acceso.gymInfo.nombre}</span>
                         <a
@@ -491,14 +491,14 @@ const AccesosPanel = () => {
                         </a>
                       </div>
                     </td>
-                    <td data-label="Fecha/Hora" className="cell-time">{acceso.checkInTime.toLocaleString()}</td>
-                    <td data-label="Método"><span className="badge-method">{acceso.method.tipo}</span></td>
-                    <td data-label="Estado">
+                    <td data-label="Fecha/Hora" className="px-6 py-4 cell-time">{acceso.checkInTime.toLocaleString()}</td>
+                    <td data-label="Método" className="px-6 py-4"><span className="badge-method">{acceso.method.tipo}</span></td>
+                    <td data-label="Estado" className="px-6 py-4">
                       <span className={`badge-status ${isDenied ? 'denegado' : 'autorizado'}`}>
                         {acceso.status.estado}
                       </span>
                     </td>
-                    <td data-label="Detalle" className="cell-reason">
+                    <td data-label="Detalle" className="px-6 py-4 cell-reason">
                       {isDenied ? acceso.status.motivoDenegacion : '-'}
                     </td>
                   </tr>

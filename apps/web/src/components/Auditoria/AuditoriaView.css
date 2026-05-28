@@ -37,17 +37,7 @@
   margin-bottom: 2rem;
 }
 
-.view-title {
-  font-size: 1.8rem;
-  font-weight: 700;
-  margin: 0 0 0.5rem 0;
-}
-
-.view-subtitle {
-  color: #8E8E93;
-  margin: 0;
-  font-size: 0.9rem;
-}
+/* .view-title / .view-subtitle → migrado a Tailwind */
 
 .view-subtitle code {
   color: #00D9FF;
@@ -62,15 +52,7 @@
   align-items: center;
 }
 
-.filter-select {
-  background-color: #1C1C1E;
-  color: #FFFFFF;
-  border: 1px solid #3A3A3C;
-  padding: 0.6rem 1rem;
-  border-radius: 8px;
-  outline: none;
-  font-size: 0.9rem;
-}
+/* .filter-select → migrado a Tailwind */
 
 .filter-readonly {
   background-color: rgba(255, 255, 255, 0.05);

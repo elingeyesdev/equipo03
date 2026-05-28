@@ -10,6 +10,7 @@ import 'leaflet/dist/leaflet.css';
 import { useAuth } from '../../contexts/AuthContext';
 import { UseCaseFactory } from '../../infrastructure/UseCaseFactory';
 import type { SucursalMapaDTO } from '@gymsync/core';
+import { Edit } from 'lucide-react';
 
 // ── Fix íconos Leaflet en Vite ────────────────────────────────────────────────
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -230,9 +231,13 @@ const PopupCard = ({ s, computedStatus }: { s: SucursalMapaDTO; computedStatus: 
             borderRadius: '6px',
             padding: '3px 10px',
             cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.3rem',
           }}
         >
-          ✏️ Editar Sucursal
+          <Edit size={11} />
+          Editar Sucursal
         </button>
       </div>
     </div>
@@ -267,7 +272,7 @@ const s = {
 
   subtitle: {
     margin: '0.25rem 0 0',
-    color: '#8E8E93',
+    color: '#64748b',
     fontSize: 'clamp(0.75rem, 1.5vw, 0.9rem)',
   } as React.CSSProperties,
 
@@ -291,7 +296,7 @@ const s = {
 
   statLabel: {
     fontSize: 'clamp(0.6rem, 1vw, 0.7rem)',
-    color: '#8E8E93',
+    color: '#64748b',
     textTransform: 'uppercase',
     letterSpacing: '0.06em',
   } as React.CSSProperties,
@@ -351,7 +356,7 @@ const s = {
 
   sectionLabel: {
     fontSize: '0.75rem',
-    color: '#8E8E93',
+    color: '#64748b',
     fontWeight: 600,
     flexShrink: 0,
     alignSelf: 'center',
@@ -409,7 +414,7 @@ const s = {
     alignItems: 'center',
     gap: '0.4rem',
     fontSize: '0.78rem',
-    color: '#8E8E93',
+    color: '#64748b',
   } as React.CSSProperties,
 
   legendDot: (color: string): React.CSSProperties => ({
@@ -561,7 +566,7 @@ export const MapaView: React.FC = () => {
 
       {/* Carga / error */}
       {loading && (
-        <div style={{ textAlign: 'center', padding: '3rem', color: '#8E8E93' }}>
+        <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
           <div style={{ fontSize: '2rem', marginBottom: '0.5rem', animation: 'pulse 1.5s infinite' }}>🗺️</div>
           Cargando datos geoespaciales...
         </div>

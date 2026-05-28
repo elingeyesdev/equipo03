@@ -1,205 +1,137 @@
 import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  RefreshControl,
+  View, Text, StyleSheet, FlatList,
+  TouchableOpacity, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
-import { staffApi, StaffClass } from '../../../app/Providers/staff/api/staff.api';
+import { staffApi, MyStudent } from '../../../app/Providers/staff/api/staff.api';
 
-const fmt5 = (t?: string) => t?.substring(0, 5) ?? '—';
-
-const ocupPct   = (c: StaffClass) =>
-  c.maxAttendees ? Math.round((c.enrolledCount / c.maxAttendees) * 100) : null;
-const ocupColor = (pct: number | null) =>
-  pct === null ? '#555' : pct > 85 ? '#EF4444' : pct > 60 ? '#F97316' : '#22C55E';
+const studentName = (s: MyStudent) =>
+  (s.name ?? [s.firstName, s.lastName].filter(Boolean).join(' ')) || `Alumno #${s.id}`;
 
 export const TrainerDashboard = () => {
   const { user } = useAuth();
   const firstName = (user as any)?.profile?.firstName ?? (user as any)?.firstName ?? 'Entrenador';
-  const hora      = new Date().getHours();
-  const saludo    = hora < 12 ? 'Buenos días' : hora < 18 ? 'Buenas tardes' : 'Buenas noches';
-  const hoy       = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+  const hora    = new Date().getHours();
+  const saludo  = hora < 12 ? 'Buenos días' : hora < 18 ? 'Buenas tardes' : 'Buenas noches';
 
-  const { data: clases = [], isLoading, isRefetching, refetch, isError } = useQuery({
-    queryKey:  ['staff-classes-today'],
-    queryFn:   staffApi.getTodayClasses,
+  const { data: students = [], isLoading, isError, refetch } = useQuery({
+    queryKey:  ['trainer-students'],
+    queryFn:   staffApi.getMyStudents,
     staleTime: 60_000,
     retry: 1,
   });
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={s.scroll}
-        refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#f05b22" colors={['#f05b22']} />
-        }
-      >
-        {/* Header */}
-        <View style={s.header}>
-          <View style={s.headerLeft}>
-            <Text style={s.saludo}>{saludo},</Text>
-            <Text style={s.nombre}>{firstName}</Text>
-            <Text style={s.sub}>Tu agenda de hoy</Text>
-          </View>
-          <View style={s.avatar}>
-            <MaterialCommunityIcons name="weight-lifter" size={28} color="#f05b22" />
-          </View>
+      {/* Header */}
+      <View style={s.header}>
+        <View style={s.headerLeft}>
+          <Text style={s.saludo}>{saludo},</Text>
+          <Text style={s.nombre}>{firstName}</Text>
+          <Text style={s.sub}>Mis Alumnos (Vía Rutinas)</Text>
         </View>
-
-        <View style={s.fechaRow}>
-          <MaterialCommunityIcons name="calendar-today" size={13} color="#555" />
-          <Text style={s.fechaTxt}>{hoy.charAt(0).toUpperCase() + hoy.slice(1)}</Text>
+        <View style={s.avatar}>
+          <MaterialCommunityIcons name="dumbbell" size={28} color="#f05b22" />
         </View>
+      </View>
 
-        {/* Resumen */}
-        <View style={s.summaryRow}>
-          <View style={s.summaryCard}>
-            <Text style={s.summaryNum}>{isLoading ? '—' : clases.length}</Text>
-            <Text style={s.summaryLabel}>Clases hoy</Text>
-          </View>
-          <View style={s.summaryCard}>
-            <Text style={s.summaryNum}>
-              {isLoading ? '—' : clases.reduce((acc, c) => acc + c.enrolledCount, 0)}
-            </Text>
-            <Text style={s.summaryLabel}>Alumnos total</Text>
-          </View>
+      {/* Loading */}
+      {isLoading && (
+        <View style={s.center}>
+          <ActivityIndicator color="#f05b22" size="large" />
+          <Text style={s.soft}>Cargando alumnos…</Text>
         </View>
+      )}
 
-        {/* Lista clases */}
-        <Text style={s.sectionTitle}>Próximas Clases</Text>
+      {/* Error */}
+      {isError && !isLoading && (
+        <View style={s.center}>
+          <MaterialCommunityIcons name="wifi-off" size={40} color="#333" />
+          <Text style={s.soft}>No se pudo cargar la lista.</Text>
+          <TouchableOpacity style={s.retryBtn} onPress={() => refetch()}>
+            <Text style={s.retryTxt}>Reintentar</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
-        {isLoading && (
-          <View style={s.center}>
-            <ActivityIndicator color="#f05b22" />
-            <Text style={s.soft}>Cargando agenda…</Text>
-          </View>
-        )}
-
-        {isError && (
-          <View style={s.center}>
-            <MaterialCommunityIcons name="wifi-off" size={36} color="#333" />
-            <Text style={s.soft}>No se pudo cargar la agenda.</Text>
-            <TouchableOpacity onPress={() => refetch()} style={s.retryBtn}>
-              <Text style={s.retryTxt}>Reintentar</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {!isLoading && !isError && clases.length === 0 && (
-          <View style={s.center}>
-            <MaterialCommunityIcons name="calendar-blank-outline" size={48} color="#222" />
-            <Text style={s.soft}>Sin clases asignadas para hoy.</Text>
-          </View>
-        )}
-
-        {!isLoading && clases.map((c) => {
-          const pct   = ocupPct(c);
-          const color = ocupColor(pct);
-          return (
-            <View key={c.id} style={[s.card, { borderLeftColor: '#f05b22' }]}>
-              <View style={s.timeCol}>
-                <Text style={s.timeStart}>{fmt5(c.startTime)}</Text>
-                <View style={s.timeLine} />
-                <Text style={s.timeEnd}>{fmt5(c.endTime)}</Text>
-              </View>
-              <View style={s.infoCol}>
-                <Text style={s.actName} numberOfLines={1}>{c.activityName}</Text>
-                {!!c.location && (
-                  <View style={s.metaRow}>
-                    <MaterialCommunityIcons name="map-marker-outline" size={12} color="#555" />
-                    <Text style={s.metaTxt}>{c.location}</Text>
-                  </View>
-                )}
-                {!!c.status && (
-                  <View style={s.statusBadge}>
-                    <Text style={s.statusTxt}>{c.status}</Text>
-                  </View>
-                )}
-              </View>
-              <View style={s.enrollCol}>
-                <MaterialCommunityIcons name="account-group-outline" size={16} color={color} />
-                <Text style={[s.enrollNum, { color }]}>{c.enrolledCount}</Text>
-                {c.maxAttendees != null && (
-                  <Text style={s.enrollMax}>/ {c.maxAttendees}</Text>
-                )}
-                <Text style={s.enrollLabel}>alumnos</Text>
-              </View>
+      {/* Lista */}
+      {!isLoading && !isError && (
+        <FlatList
+          data={students}
+          keyExtractor={(item) => String(item.id)}
+          contentContainerStyle={s.list}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={s.center}>
+              <MaterialCommunityIcons name="account-group-outline" size={52} color="#222" />
+              <Text style={s.emptyTitle}>Aún no tienes alumnos asignados a rutinas.</Text>
             </View>
-          );
-        })}
-
-        {/* Acciones */}
-        <Text style={[s.sectionTitle, { marginTop: 24 }]}>Accesos Rápidos</Text>
-        <View style={s.actionsRow}>
-          <TouchableOpacity style={s.actionBtn} activeOpacity={0.8}>
-            <MaterialCommunityIcons name="account-group-outline" size={26} color="#f05b22" />
-            <Text style={s.actionTxt}>Ver Alumnos</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.actionBtn} activeOpacity={0.8}>
-            <MaterialCommunityIcons name="calendar-month-outline" size={26} color="#9b5de5" />
-            <Text style={s.actionTxt}>Mi Calendario</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+          }
+          ListHeaderComponent={
+            students.length > 0 ? (
+              <View style={s.summaryCard}>
+                <Text style={s.summaryNum}>{students.length}</Text>
+                <Text style={s.summaryLabel}>Alumnos asignados</Text>
+              </View>
+            ) : null
+          }
+          renderItem={({ item }) => (
+            <View style={s.card}>
+              <View style={s.cardLeft}>
+                <View style={s.iconBadge}>
+                  <MaterialCommunityIcons name="account-outline" size={22} color="#f05b22" />
+                </View>
+                <View style={s.cardInfo}>
+                  <Text style={s.cardName}>{studentName(item)}</Text>
+                  {!!item.email && (
+                    <Text style={s.cardEmail} numberOfLines={1}>{item.email}</Text>
+                  )}
+                </View>
+              </View>
+              <TouchableOpacity style={s.expBtn} activeOpacity={0.8}>
+                <Text style={s.expBtnTxt}>Ver Expediente</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        />
+      )}
     </SafeAreaView>
   );
 };
 
 const s = StyleSheet.create({
   safe:   { flex: 1, backgroundColor: '#000' },
-  scroll: { padding: 20, paddingBottom: 100 },
-  center: { alignItems: 'center', justifyContent: 'center', padding: 32, gap: 10 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, gap: 12 },
 
-  header:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 },
+  header:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 20, paddingBottom: 12 },
   headerLeft: { flex: 1 },
   saludo:     { color: '#555', fontSize: 14 },
-  nombre:     { color: '#fff', fontSize: 28, fontWeight: '900', marginTop: 2 },
+  nombre:     { color: '#fff', fontSize: 26, fontWeight: '900', marginTop: 2 },
   sub:        { color: '#444', fontSize: 13, marginTop: 4 },
-  avatar:     { width: 52, height: 52, borderRadius: 26, backgroundColor: '#1c1c1e', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(240,91,34,0.3)' },
+  avatar:     { width: 50, height: 50, borderRadius: 25, backgroundColor: '#1c1c1e', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(240,91,34,0.3)' },
 
-  fechaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20 },
-  fechaTxt: { color: '#444', fontSize: 13 },
+  list:       { paddingHorizontal: 16, paddingBottom: 100 },
 
-  summaryRow:  { flexDirection: 'row', gap: 10, marginBottom: 24 },
-  summaryCard: { flex: 1, backgroundColor: '#0e0e0e', borderRadius: 12, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#1a1a1a' },
-  summaryNum:  { color: '#fff', fontSize: 26, fontWeight: '900' },
-  summaryLabel:{ color: '#444', fontSize: 11, marginTop: 2 },
+  summaryCard: { backgroundColor: '#0e0e0e', borderRadius: 12, padding: 16, alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: '#1a1a1a' },
+  summaryNum:  { color: '#fff', fontSize: 28, fontWeight: '900' },
+  summaryLabel:{ color: '#444', fontSize: 12, marginTop: 2 },
 
-  sectionTitle: { color: '#555', fontSize: 11, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12 },
+  card:     { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0e0e0e', borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: '#1a1a1a', gap: 12 },
+  cardLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 },
+  iconBadge:{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(240,91,34,0.1)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(240,91,34,0.2)' },
+  cardInfo: { flex: 1 },
+  cardName: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  cardEmail:{ color: '#555', fontSize: 11, marginTop: 2 },
 
-  card:     { flexDirection: 'row', backgroundColor: '#0e0e0e', borderRadius: 14, borderWidth: 1, borderColor: '#1a1a1a', borderLeftWidth: 3, padding: 14, marginBottom: 10, alignItems: 'center', gap: 12 },
-  timeCol:  { alignItems: 'center', width: 44 },
-  timeStart:{ color: '#f05b22', fontSize: 13, fontWeight: '800' },
-  timeLine: { width: 1.5, height: 14, backgroundColor: '#f05b2244', marginVertical: 4 },
-  timeEnd:  { color: '#444', fontSize: 11 },
+  expBtn:   { backgroundColor: '#1a1a1a', paddingVertical: 7, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: '#2a2a2a' },
+  expBtnTxt:{ color: '#f05b22', fontSize: 12, fontWeight: '700' },
 
-  infoCol:     { flex: 1 },
-  actName:     { color: '#fff', fontSize: 14, fontWeight: '700', marginBottom: 4 },
-  metaRow:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  metaTxt:     { color: '#555', fontSize: 11 },
-  statusBadge: { marginTop: 5, backgroundColor: '#1a1a1a', borderRadius: 5, paddingHorizontal: 7, paddingVertical: 2, alignSelf: 'flex-start' },
-  statusTxt:   { color: '#888', fontSize: 10, fontWeight: '600' },
-
-  enrollCol:   { alignItems: 'center', gap: 2 },
-  enrollNum:   { fontSize: 18, fontWeight: '900' },
-  enrollMax:   { color: '#444', fontSize: 11 },
-  enrollLabel: { color: '#444', fontSize: 9 },
-
-  soft:     { color: '#444', fontSize: 13, textAlign: 'center', marginTop: 6 },
-  retryBtn: { marginTop: 8, paddingHorizontal: 20, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: '#f05b22' },
-  retryTxt: { color: '#f05b22', fontWeight: '600' },
-
-  actionsRow: { flexDirection: 'row', gap: 12 },
-  actionBtn:  { flex: 1, backgroundColor: '#0e0e0e', borderRadius: 14, borderWidth: 1, borderColor: '#1a1a1a', paddingVertical: 20, alignItems: 'center', gap: 8 },
-  actionTxt:  { color: '#fff', fontSize: 12, fontWeight: '700', textAlign: 'center' },
+  emptyTitle:{ color: '#555', fontSize: 14, fontWeight: '600', textAlign: 'center', marginTop: 8 },
+  soft:      { color: '#444', fontSize: 13, textAlign: 'center', marginTop: 6 },
+  retryBtn:  { marginTop: 8, paddingHorizontal: 20, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: '#f05b22' },
+  retryTxt:  { color: '#f05b22', fontWeight: '600' },
 });

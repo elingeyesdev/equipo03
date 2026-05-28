@@ -182,15 +182,17 @@ export const RegisterScreen = () => {
 
       {/* Glassmorphism Card */}
       <div className="register-view-container">
-        <motion.div 
-          className="register-card"
+        <motion.div
+          className="w-full max-w-md bg-white dark:bg-[#1e1e2d] border border-slate-200 dark:border-gray-800 rounded-2xl shadow-xl p-8 transition-colors"
           initial={{ scale: 0.9, y: 30, opacity: 0 }}
           animate={{ scale: 1, y: 0, opacity: 1 }}
           transition={{ type: "spring", damping: 25, stiffness: 280 }}
         >
-          <div className="brand-logo-small">GymSync <span>Pro</span></div>
-          <h1 className="register-title">Crear Cuenta</h1>
-          <p className="register-subtitle">Únete como Cliente de la red de gimnasios más avanzada.</p>
+          <div className="text-xl font-extrabold text-slate-900 dark:text-white text-center mb-1 tracking-tight">
+            GymSync <span style={{ color: '#00D9FF' }}>Pro</span>
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white text-center">Crear Cuenta</h1>
+          <p className="text-sm text-slate-500 dark:text-gray-400 text-center mt-2 mb-6">Únete como Cliente de la red de gimnasios más avanzada.</p>
 
           {/* Banner de errores del Backend (HttpExceptionFilter de NestJS) */}
           <AnimatePresence>
@@ -217,15 +219,16 @@ export const RegisterScreen = () => {
                 <div className="input-icon">
                   <UserIcon size={18} />
                 </div>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={name}
                   onChange={(e) => {
                     setName(e.target.value);
                     if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
                   }}
-                  placeholder="Nombre Completo" 
-                  required 
+                  placeholder="Nombre Completo"
+                  required
+                  className="w-full bg-slate-50 dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-white rounded-lg pl-11 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all placeholder:text-slate-400 dark:placeholder:text-gray-500"
                 />
               </div>
               {errors.name && <span className="field-error-text">{errors.name}</span>}
@@ -237,15 +240,16 @@ export const RegisterScreen = () => {
                 <div className="input-icon">
                   <MailIcon size={18} />
                 </div>
-                <input 
-                  type="email" 
+                <input
+                  type="email"
                   value={email}
                   onChange={(e) => {
                     setEmail(e.target.value);
                     if (errors.email) setErrors(prev => ({ ...prev, email: '' }));
                   }}
-                  placeholder="Correo electrónico" 
-                  required 
+                  placeholder="Correo electrónico"
+                  required
+                  className="w-full bg-slate-50 dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-white rounded-lg pl-11 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all placeholder:text-slate-400 dark:placeholder:text-gray-500"
                 />
               </div>
               {errors.email && <span className="field-error-text">{errors.email}</span>}
@@ -257,11 +261,12 @@ export const RegisterScreen = () => {
                 <div className="input-icon">
                   <PhoneIcon size={18} />
                 </div>
-                <input 
-                  type="tel" 
+                <input
+                  type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="Número de celular (opcional)" 
+                  placeholder="Número de celular (opcional)"
+                  className="w-full bg-slate-50 dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-white rounded-lg pl-11 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all placeholder:text-slate-400 dark:placeholder:text-gray-500"
                 />
               </div>
             </div>
@@ -272,15 +277,16 @@ export const RegisterScreen = () => {
                 <div className="input-icon">
                   <LockIcon size={18} />
                 </div>
-                <input 
-                  type={showPassword ? "text" : "password"} 
+                <input
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => {
                     setPassword(e.target.value);
                     if (errors.password) setErrors(prev => ({ ...prev, password: '' }));
                   }}
-                  placeholder="Contraseña" 
-                  required 
+                  placeholder="Contraseña"
+                  required
+                  className="w-full bg-slate-50 dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-white rounded-lg pl-11 pr-11 py-3 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all placeholder:text-slate-400 dark:placeholder:text-gray-500"
                 />
                 <button 
                   type="button" 
@@ -296,20 +302,24 @@ export const RegisterScreen = () => {
             </div>
 
             {/* Ayuda de Contraseña */}
-            <div className="password-requirements">
-              <span className={password.length >= 8 ? 'met' : ''}>• Mínimo 8 caracteres</span>
-              <span className={/\d/.test(password) ? 'met' : ''}>• Al menos un número</span>
-              <span className={/[@#$*!%&?^+\-_=~]/.test(password) ? 'met' : ''}>• Al menos un símbolo</span>
+            <div className="text-xs text-slate-500 dark:text-gray-400 space-y-1 mt-1 pl-1">
+              <span className={`block ${password.length >= 8 ? 'met' : ''}`}>• Mínimo 8 caracteres</span>
+              <span className={`block ${/\d/.test(password) ? 'met' : ''}`}>• Al menos un número</span>
+              <span className={`block ${/[@#$*!%&?^+\-_=~]/.test(password) ? 'met' : ''}`}>• Al menos un símbolo</span>
             </div>
 
             {/* Botón de Submit */}
-            <button type="submit" className="btn-register" disabled={isSubmitting}>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full bg-[#009ef7] hover:bg-[#0086d1] text-white font-medium py-3 rounded-lg shadow-md transition-colors mt-6 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
               {isSubmitting ? 'Procesando cuenta...' : 'Crear Cuenta'}
             </button>
           </form>
 
           {/* Enlace para volver */}
-          <div className="register-footer">
+          <div className="text-sm text-slate-600 dark:text-gray-400 text-center mt-6">
             ¿Ya tienes una cuenta? <Link to="/login" className="login-link">Inicia sesión aquí</Link>
           </div>
         </motion.div>

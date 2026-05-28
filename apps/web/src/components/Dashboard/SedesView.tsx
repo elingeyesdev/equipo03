@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
 import { ModalOverlay, ConfirmModal, panelStyle } from './Shared/DashboardShared';
 import type { GymDto, GymScheduleDto, UserDto, CheckinDto, ScheduleEntry } from './Shared/DashboardTypes';
+import { Edit, Trash2 } from 'lucide-react';
 
 const DESC_MAX = 180;
 
@@ -68,90 +69,71 @@ const MarcaModal = ({ isOpen, onClose, marcaToEdit, onSave, existingGyms = [] }:
   const descOver    = descLen > DESC_MAX;
   const descNear    = descLen >= DESC_MAX * 0.85;
 
+  const inputCls = (err?: string) =>
+    `w-full bg-slate-50 dark:bg-[#151521] border ${err ? 'border-red-500' : 'border-slate-200 dark:border-gray-700'} text-slate-900 dark:text-white rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors`;
+  const labelCls = "text-xs font-semibold text-slate-500 dark:text-gray-500 uppercase tracking-wide";
+
   return (
     <ModalOverlay onClose={onClose}>
-      {/* Elimina el wrapper doble — ModalOverlay ya provee el contenedor */}
-      <div style={{ width: '100%' }}>
-        {/* Header */}
-        <h2 style={{ margin: '0 0 1.5rem', fontSize: '1.25rem', fontWeight: 700, color: '#fff' }}>
-          {marcaToEdit ? '✏️ Editar Marca' : '🏷️ Nueva Marca'}
-        </h2>
+      <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">
+        {marcaToEdit ? '✏️ Editar Marca' : '🏷️ Nueva Marca'}
+      </h2>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
 
-          {/* Nombre */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#8E8E93', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              Nombre de la Marca *
-            </label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={e => { setFormData({ ...formData, name: e.target.value }); setErrors(p => ({ ...p, name: '' })); }}
-              placeholder="Ej. Metro Flex"
-              style={{
-                width: '100%', boxSizing: 'border-box',
-                background: 'rgba(255,255,255,0.06)', border: `1px solid ${errors.name ? '#ef4444' : 'rgba(255,255,255,0.12)'}`,
-                borderRadius: '8px', color: '#E5E5EA', padding: '0.65rem 0.9rem',
-                fontSize: '0.9rem', outline: 'none',
-              }}
-            />
-            {errors.name && (
-              <span style={{ color: '#ef4444', fontSize: '12px' }}>{errors.name}</span>
-            )}
+        {/* Nombre */}
+        <div className="flex flex-col gap-1">
+          <label className={labelCls}>Nombre de la Marca *</label>
+          <input
+            type="text"
+            className={inputCls(errors.name)}
+            value={formData.name}
+            onChange={e => { setFormData({ ...formData, name: e.target.value }); setErrors(p => ({ ...p, name: '' })); }}
+            placeholder="Ej. Metro Flex"
+          />
+          {errors.name && <span className="text-red-500 text-xs">{errors.name}</span>}
+        </div>
+
+        {/* Descripción con auto-resize */}
+        <div className="flex flex-col gap-1">
+          <div className="flex justify-between items-baseline">
+            <label className={labelCls}>Descripción</label>
+            <span className={`text-xs ${descOver ? 'text-red-500' : descNear ? 'text-orange-400' : 'text-slate-400 dark:text-gray-500'}`}>
+              {descLen}/{DESC_MAX}
+            </span>
           </div>
+          <textarea
+            ref={textareaRef}
+            className={`${inputCls(errors.description || descOver ? 'err' : undefined)} resize-none overflow-hidden`}
+            value={formData.description}
+            onChange={e => {
+              setFormData({ ...formData, description: e.target.value });
+              setErrors(p => ({ ...p, description: '' }));
+              autoResize();
+            }}
+            placeholder="Ej. Cadena de gimnasios premium"
+            rows={3}
+            style={{ minHeight: '80px', lineHeight: '1.55' }}
+          />
+          {(errors.description || descOver) && (
+            <span className="text-red-500 text-xs">
+              {errors.description || `Máximo ${DESC_MAX} caracteres`}
+            </span>
+          )}
+        </div>
 
-          {/* Descripción con auto-resize */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#8E8E93', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                Descripción
-              </label>
-              <span style={{ fontSize: '11px', color: descOver ? '#ef4444' : descNear ? '#f97316' : '#555' }}>
-                {descLen}/{DESC_MAX}
-              </span>
-            </div>
-            <textarea
-              ref={textareaRef}
-              value={formData.description}
-              onChange={e => {
-                setFormData({ ...formData, description: e.target.value });
-                setErrors(p => ({ ...p, description: '' }));
-                autoResize();
-              }}
-              placeholder="Ej. Cadena de gimnasios premium"
-              rows={3}
-              style={{
-                width: '100%', boxSizing: 'border-box',
-                background: 'rgba(255,255,255,0.06)',
-                border: `1px solid ${errors.description || descOver ? '#ef4444' : 'rgba(255,255,255,0.12)'}`,
-                borderRadius: '8px', color: '#E5E5EA',
-                padding: '0.65rem 0.9rem', fontSize: '0.9rem',
-                outline: 'none', resize: 'none', overflow: 'hidden',
-                lineHeight: '1.55', minHeight: '80px',
-                transition: 'border-color 0.2s',
-              }}
-            />
-            {(errors.description || descOver) && (
-              <span style={{ color: '#ef4444', fontSize: '12px' }}>
-                {errors.description || `Máximo ${DESC_MAX} caracteres`}
-              </span>
-            )}
-          </div>
-
-          {/* Botones */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-            <button type="button" onClick={onClose}
-              style={{ background: 'rgba(255,255,255,0.07)', color: '#E5E5EA', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '0.55rem 1.1rem', cursor: 'pointer', fontSize: '0.875rem' }}>
-              Cancelar
-            </button>
-            <button type="submit"
-              style={{ background: '#00D9FF', color: '#0A0A0A', border: 'none', borderRadius: '8px', padding: '0.55rem 1.25rem', cursor: 'pointer', fontWeight: 700, fontSize: '0.875rem' }}>
-              {marcaToEdit ? 'Actualizar' : 'Crear'} Marca
-            </button>
-          </div>
-        </form>
-      </div>
+        {/* Botones */}
+        <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-gray-800">
+          <button type="button" onClick={onClose}
+            className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent">
+            Cancelar
+          </button>
+          <button type="submit"
+            className="px-4 py-2 bg-[#00D9FF] hover:bg-[#00c0e0] text-[#0A0A0A] font-bold rounded-lg border-0 cursor-pointer transition-colors">
+            {marcaToEdit ? 'Actualizar' : 'Crear'} Marca
+          </button>
+        </div>
+      </form>
     </ModalOverlay>
   );
 };
@@ -296,21 +278,21 @@ export const SedesView = () => {
 
   return (
     <section style={panelStyle} className="glass-panel">
-      <h1 style={{ marginTop: 0 }}>Gestión de Marcas (Sedes)</h1>
-      <p>
+      <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Gestión de Marcas (Sedes)</h1>
+      <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">
         {user.role === 'SUPER_ADMIN'
           ? 'Administra las marcas o franquicias del grupo. Cada marca puede tener múltiples sucursales (locales físicos).'
           : 'Solo los administradores pueden gestionar las marcas del sistema.'}
       </p>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+      <div className="flex flex-wrap justify-between items-center gap-3 mt-4 mb-4">
         <div style={{ color: '#8E8E93', fontSize: '0.9rem' }}>
           {loading ? 'Cargando marcas...' : `Total de marcas: ${gyms.length}`}
         </div>
         {user.role === 'SUPER_ADMIN' && (
           <button
             onClick={handleCreateSede}
-            style={{ background: '#00D9FF', color: '#0A0A0A', border: 'none', padding: '0.5rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
+            className="bg-[#00D9FF] text-[#0A0A0A] font-semibold px-4 py-2 rounded-lg border-0 cursor-pointer hover:bg-[#00c0e0] transition-colors whitespace-nowrap"
           >
             + Nueva Marca
           </button>
@@ -320,19 +302,20 @@ export const SedesView = () => {
 
       {/* ── Barra de filtros ── */}
       {!loading && !error && gyms.length > 0 && (
-        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center', marginTop: '0.85rem' }}>
+        <div className="flex flex-col md:flex-row flex-wrap gap-3 items-center mb-6">
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="🔍  Buscar marca por nombre..."
-            style={{ flex: 1, minWidth: '180px', background: '#1C1C1E', color: '#E5E5EA', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '0.5rem 0.9rem', fontSize: '0.85rem', outline: 'none' }}
+            className="flex-1 bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all placeholder:text-slate-400 dark:placeholder:text-gray-500"
+            style={{ minWidth: '180px' }}
           />
           <div style={{ position: 'relative' }}>
             <select value={sortOrder} onChange={e => setSortOrder(e.target.value as any)}
-              style={{ background: '#1C1C1E', color: '#E5E5EA', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '0.5rem 2rem 0.5rem 0.9rem', fontSize: '0.85rem', appearance: 'none', WebkitAppearance: 'none', cursor: 'pointer', outline: 'none' }}>
-              <option value="az"      style={{ background: '#1C1C1E' }}>Nombre A → Z</option>
-              <option value="za"      style={{ background: '#1C1C1E' }}>Nombre Z → A</option>
-              <option value="id_asc"  style={{ background: '#1C1C1E' }}>ID ↑</option>
-              <option value="id_desc" style={{ background: '#1C1C1E' }}>ID ↓</option>
+              className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all">
+              <option value="az"     >Nombre A → Z</option>
+              <option value="za"     >Nombre Z → A</option>
+              <option value="id_asc" >ID ↑</option>
+              <option value="id_desc">ID ↓</option>
             </select>
             <span style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#8E8E93', fontSize: '0.7rem' }}>▼</span>
           </div>
@@ -351,22 +334,23 @@ export const SedesView = () => {
       )}
 
       {!loading && !error && (
-        <div style={{ marginTop: '0.25rem', overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '400px' }}>
-            <thead>
+        <div className="bg-white dark:bg-[#1e1e2d] border border-slate-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden mt-4">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse" style={{ minWidth: '400px' }}>
+            <thead className="bg-slate-50 dark:bg-[#151521] border-b border-slate-200 dark:border-gray-800 text-slate-500 dark:text-gray-400 text-xs uppercase tracking-wider">
               <tr>
-                <th style={{ textAlign: 'left', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>ID</th>
-                <th style={{ textAlign: 'left', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Nombre de la Marca</th>
-                <th style={{ textAlign: 'center', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Acciones</th>
+                <th style={{ textAlign: 'left', padding: '0.6rem' }}>ID</th>
+                <th style={{ textAlign: 'left', padding: '0.6rem' }}>Nombre de la Marca</th>
+                <th style={{ textAlign: 'center', padding: '0.6rem' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {filteredGyms.length === 0 ? (
-                <tr><td colSpan={3} style={{ padding: '2rem', textAlign: 'center', color: '#8E8E93' }}>Sin resultados para los filtros aplicados.</td></tr>
+                <tr><td colSpan={3} className="px-4 py-8 text-center text-slate-400 dark:text-gray-500">Sin resultados para los filtros aplicados.</td></tr>
               ) : filteredGyms.map((g) => (
-                <tr key={g.id}>
-                  <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C' }}>{g.id}</td>
-                  <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C' }}>
+                <tr key={g.id} className="border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-slate-700 dark:text-gray-300 text-sm">
+                  <td style={{ padding: '0.6rem' }}>{g.id}</td>
+                  <td style={{ padding: '0.6rem' }}>
                     <span style={{
                       background: 'rgba(0, 217, 255, 0.15)',
                       backdropFilter: 'blur(10px)',
@@ -379,8 +363,8 @@ export const SedesView = () => {
                       {g.name}
                     </span>
                   </td>
-                  <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', alignItems: 'center' }}>
+                  <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', alignItems: 'center' }}>
                       {/* ── Botón info (siempre visible) ── */}
                       <button
                         title="Ver información"
@@ -398,14 +382,16 @@ export const SedesView = () => {
                       {user.role === 'SUPER_ADMIN' && (<>
                         <button
                           onClick={() => handleEditSede(g)}
-                          style={{ background: 'transparent', border: '1px solid #00D9FF', color: '#00D9FF', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                          style={{ background: 'transparent', border: '1px solid #00D9FF', color: '#00D9FF', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
                         >
+                          <Edit size={12} />
                           Editar
                         </button>
                         <button
                           onClick={() => handleDeleteSede(g)}
-                          style={{ background: 'transparent', border: '1px solid #FF5E00', color: '#FF5E00', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                          style={{ background: 'transparent', border: '1px solid #FF5E00', color: '#FF5E00', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
                         >
+                          <Trash2 size={12} />
                           Eliminar
                         </button>
                       </>)}
@@ -415,6 +401,7 @@ export const SedesView = () => {
               ))}
             </tbody>
           </table>
+        </div>
         </div>
       )}
 
@@ -472,9 +459,10 @@ export const SedesView = () => {
               {user.role === 'SUPER_ADMIN' && (
                 <button
                   onClick={() => { handleEditSede(infoSede); setInfoSede(null); }}
-                  style={{ background: 'transparent', border: '1px solid #00D9FF', color: '#00D9FF', borderRadius: '8px', padding: '0.5rem 1rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
+                  style={{ background: 'transparent', border: '1px solid #00D9FF', color: '#00D9FF', borderRadius: '8px', padding: '0.5rem 1rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                 >
-                  ✏️ Editar
+                  <Edit size={14} />
+                  Editar
                 </button>
               )}
               <button

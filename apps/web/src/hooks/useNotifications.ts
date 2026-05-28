@@ -28,7 +28,7 @@ export const useNotifications = () => {
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
 
     const token = localStorage.getItem('gymsync_token');
     if (!token) return;
@@ -38,10 +38,11 @@ export const useNotifications = () => {
 
     console.log(`[NotificationGateway]: Iniciando conexión WS para rol ${user.role}...`);
 
-    const socket = io('/', {
-      path: '/notifications',
-      auth: { token },                  // JWT en el handshake
+    const SOCKET_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/events`;
+
+    const socket = io(SOCKET_URL, {
       transports: ['websocket'],
+      auth: { token },
       reconnectionAttempts: 5,
       reconnectionDelay: 2000,
     });
@@ -104,10 +105,11 @@ export const useNotifications = () => {
 
     return () => {
       console.log('[NotificationGateway]: Limpiando conexión WS...');
+      socket.removeAllListeners();
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [user]);
+  }, [user?.id, user?.role, user?.gymId]);
 
   return socketRef;
 };

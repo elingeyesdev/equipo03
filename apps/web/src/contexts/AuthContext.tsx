@@ -52,10 +52,11 @@ function decodeJwtPayload(token: string): Record<string, any> {
 // Nunca usa heurísticas de email.
 function resolveRole(jwtPayload: Record<string, any>, userData: Record<string, any>): UserRole {
   // 1. Campo `role` en el JWT (fuente primaria — asignado por NestJS/Passport)
+  const rolesEntry = Array.isArray(jwtPayload.roles) ? jwtPayload.roles[0] : undefined;
   let rawRole: string =
     jwtPayload.role ||
-    // 2. Array `roles` en el JWT (formato alternativo de algunos guards)
-    (Array.isArray(jwtPayload.roles) ? jwtPayload.roles[0] : '') ||
+    // 2. Array `roles` en el JWT — puede ser string o { name: string }
+    (rolesEntry ? (typeof rolesEntry === 'string' ? rolesEntry : rolesEntry?.name ?? '') : '') ||
     // 3. Campo `role` en el objeto user devuelto por el endpoint de login
     (typeof userData?.role === 'string' ? userData.role : userData?.role?.name) ||
     '';

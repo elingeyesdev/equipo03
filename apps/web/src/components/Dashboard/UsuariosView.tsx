@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
 import { DB_ROLES, ROLE_ID_TO_NAME } from '../../config/rbac.constants';
 import { ModalOverlay, ConfirmModal, panelStyle, RecordDetailModal, DetailField } from './Shared/DashboardShared';
 import type { GymDto, UserDto } from './Shared/DashboardTypes';
+import { Eye, Edit, Trash2, Plus } from 'lucide-react';
 
 // ─── Roles que requieren asignación de sede (por nombre, no ID hardcodeado) ───
 const SEDE_ROLE_NAMES = new Set([
@@ -174,103 +175,89 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions }: {
 
   if (!isOpen) return null;
 
-  // ── Estilos compartidos ────────────────────────────────────────────────────────
-  const selectStyle = (invalid: boolean): React.CSSProperties => ({
-    width: '100%', padding: '0.5rem', borderRadius: '6px',
-    color: '#fff', background: '#0A0A0A',
-    border: invalid ? '1px solid #ef4444' : '1px solid #3A3A3C',
-  });
+  const inputCls = (err?: string) =>
+    `w-full bg-slate-50 dark:bg-[#151521] border ${err ? 'border-red-500' : 'border-slate-200 dark:border-gray-700'} text-slate-900 dark:text-white rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors`;
+  const labelCls = "block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1 mt-3";
 
   return (
     <ModalOverlay onClose={onClose}>
-      <div className="modal-header">
-        <h2 style={{ margin: 0 }}>{userToEdit ? 'Editar Usuario' : 'Nuevo Usuario'}</h2>
-      </div>
+      <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+        {userToEdit ? 'Editar Usuario' : 'Nuevo Usuario'}
+      </h2>
 
-      <div style={{ overflowY: 'auto', flex: 1, paddingRight: '0.25rem', marginTop: '1rem' }}>
-        <div className="modal-form-group">
-          <label>Nombre</label>
-          <input type="text" value={formData.firstName}
-            onChange={e => setFormData({ ...formData, firstName: e.target.value })}
-            placeholder="Ej. Juan" />
-        </div>
-        <div className="modal-form-group">
-          <label>Apellido</label>
-          <input type="text" value={formData.lastName}
-            onChange={e => setFormData({ ...formData, lastName: e.target.value })}
-            placeholder="Ej. Pérez" />
-        </div>
-        <div className="modal-form-group">
-          <label>Teléfono <span style={{ color: '#8E8E93', fontWeight: 400, fontSize: '0.8rem' }}>— opcional</span></label>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <select
-              value={formData.phonePrefix}
-              onChange={e => setFormData({ ...formData, phonePrefix: e.target.value })}
-              style={{
-                width: '95px', flexShrink: 0, padding: '0.5rem 0.3rem',
-                borderRadius: '6px', color: '#fff', background: '#0A0A0A',
-                border: errors.phone ? '1px solid #ef4444' : '1px solid #3A3A3C',
-                fontSize: '0.88rem', cursor: 'pointer',
-              }}
-            >
-              {PHONE_PREFIXES.map(p => (
-                <option key={p.code} value={p.code} style={{ background: '#0A0A0A' }}>
-                  {p.flag} {p.label}
-                </option>
-              ))}
-            </select>
-            <input
-              type="tel"
-              value={formData.phoneNumber}
-              onChange={e => {
-                setFormData({ ...formData, phoneNumber: e.target.value });
-                setErrors(p => ({ ...p, phone: '' }));
-              }}
-              placeholder="71234567"
-              maxLength={14}
-              style={errors.phone ? { borderColor: '#ef4444', flex: 1 } : { flex: 1 }}
-            />
-          </div>
-          {errors.phone && <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block' }}>{errors.phone}</span>}
-        </div>
-        <div className="modal-form-group">
-          <label>Carnet de Identidad (CI) <span style={{ color: '#8E8E93', fontWeight: 400, fontSize: '0.8rem' }}>— opcional</span></label>
+      <div style={{ overflowY: 'auto', flex: 1, paddingRight: '0.25rem' }}>
+        <label className={labelCls}>Nombre</label>
+        <input type="text" className={inputCls()} value={formData.firstName}
+          onChange={e => setFormData({ ...formData, firstName: e.target.value })}
+          placeholder="Ej. Juan" />
+
+        <label className={labelCls}>Apellido</label>
+        <input type="text" className={inputCls()} value={formData.lastName}
+          onChange={e => setFormData({ ...formData, lastName: e.target.value })}
+          placeholder="Ej. Pérez" />
+
+        <label className={labelCls}>
+          Teléfono <span className="text-slate-400 dark:text-gray-500 font-normal text-xs">— opcional</span>
+        </label>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <select
+            value={formData.phonePrefix}
+            onChange={e => setFormData({ ...formData, phonePrefix: e.target.value })}
+            className={`bg-slate-50 dark:bg-[#151521] border ${errors.phone ? 'border-red-500' : 'border-slate-200 dark:border-gray-700'} text-slate-900 dark:text-white rounded-lg px-2 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors text-sm cursor-pointer`}
+            style={{ width: '95px', flexShrink: 0 }}
+          >
+            {PHONE_PREFIXES.map(p => (
+              <option key={p.code} value={p.code}>{p.flag} {p.label}</option>
+            ))}
+          </select>
           <input
-            type="text"
-            value={formData.ci}
-            onChange={e => { setFormData({ ...formData, ci: e.target.value }); setErrors(p => ({ ...p, ci: '' })); }}
-            placeholder="Ej. 12345678 o 1234567-1A"
-            maxLength={20}
-            style={errors.ci ? { borderColor: '#ef4444' } : undefined}
+            type="tel"
+            value={formData.phoneNumber}
+            onChange={e => { setFormData({ ...formData, phoneNumber: e.target.value }); setErrors(p => ({ ...p, phone: '' })); }}
+            placeholder="71234567"
+            maxLength={14}
+            className={inputCls(errors.phone)}
+            style={{ flex: 1 }}
           />
-          {errors.ci && <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block' }}>{errors.ci}</span>}
         </div>
-        <div className="modal-form-group">
-          <label>Correo Electrónico</label>
+        {errors.phone && <span className="text-red-500 text-xs mt-1 block">{errors.phone}</span>}
+
+        <label className={labelCls}>
+          Carnet de Identidad (CI) <span className="text-slate-400 dark:text-gray-500 font-normal text-xs">— opcional</span>
+        </label>
+        <input
+          type="text"
+          className={inputCls(errors.ci)}
+          value={formData.ci}
+          onChange={e => { setFormData({ ...formData, ci: e.target.value }); setErrors(p => ({ ...p, ci: '' })); }}
+          placeholder="Ej. 12345678 o 1234567-1A"
+          maxLength={20}
+        />
+        {errors.ci && <span className="text-red-500 text-xs mt-1 block">{errors.ci}</span>}
+
+        <label className={labelCls}>Correo Electrónico</label>
+        <input
+          type="email"
+          className={inputCls(errors.email)}
+          value={formData.email}
+          onChange={e => { setFormData({ ...formData, email: e.target.value }); setErrors(p => ({ ...p, email: '' })); }}
+          placeholder="correo@ejemplo.com"
+        />
+        {errors.email && <span className="text-red-500 text-xs mt-1 block">{errors.email}</span>}
+
+        <label className={labelCls}>
+          Contraseña{' '}
+          {userToEdit && <span className="text-slate-400 dark:text-gray-500 font-normal text-xs">(vacío = sin cambios)</span>}
+        </label>
+        <div style={{ position: 'relative' }}>
           <input
-            type="email"
-            value={formData.email}
-            onChange={e => { setFormData({ ...formData, email: e.target.value }); setErrors(p => ({ ...p, email: '' })); }}
-            placeholder="correo@ejemplo.com"
-            style={errors.email ? { borderColor: '#ef4444' } : undefined}
+            type={showPassword ? 'text' : 'password'}
+            className={inputCls(errors.password)}
+            value={formData.password}
+            onChange={e => { setFormData({ ...formData, password: e.target.value }); setErrors(p => ({ ...p, password: '' })); }}
+            placeholder="••••••••"
+            style={{ paddingRight: '42px' }}
           />
-          {errors.email && <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block' }}>{errors.email}</span>}
-        </div>
-        <div className="modal-form-group">
-          <label>Contraseña{' '}
-            {userToEdit && <span style={{ color: '#8E8E93', fontSize: '0.8rem' }}>(vacío = sin cambios)</span>}
-          </label>
-          <div style={{ position: 'relative' }}>
-            <input
-              type={showPassword ? 'text' : 'password'}
-              value={formData.password}
-              onChange={e => { setFormData({ ...formData, password: e.target.value }); setErrors(p => ({ ...p, password: '' })); }}
-              placeholder="••••••••"
-              style={{
-                paddingRight: '42px',
-                ...(errors.password ? { borderColor: '#ef4444' } : {}),
-              }}
-            />
             <button
               type="button"
               onClick={() => setShowPassword(v => !v)}
@@ -299,65 +286,54 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions }: {
               )}
             </button>
           </div>
-          {errors.password && <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block' }}>{errors.password}</span>}
-        </div>
+          {errors.password && <span className="text-red-500 text-xs mt-1 block">{errors.password}</span>}
 
-        <div className="modal-form-group">
-          <label>Rol del Sistema</label>
-          <select value={formData.roleId}
-            onChange={e => {
-              setFormData({ ...formData, roleId: Number(e.target.value), gymIds: [] });
-              setSelectedSede('');
-            }}>
-            {roleOptions.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
-          </select>
-        </div>
+        <label className={labelCls}>Rol del Sistema</label>
+        <select
+          className={inputCls()}
+          value={formData.roleId}
+          onChange={e => {
+            setFormData({ ...formData, roleId: Number(e.target.value), gymIds: [] });
+            setSelectedSede('');
+          }}
+        >
+          {roleOptions.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
+        </select>
 
         {/* ── GERENTE: selección en dos pasos ──────────────────────────────────── */}
         {isGerente && (
-          <div style={{
-            background: 'rgba(255,94,0,0.05)',
-            border: '1px solid rgba(255,94,0,0.2)',
-            borderRadius: '10px',
-            padding: '1rem',
-            marginBottom: '0.75rem',
-            display: 'flex', flexDirection: 'column', gap: '0.75rem',
-          }}>
-            <p style={{ margin: 0, fontSize: '0.78rem', color: '#FF5E00', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+          <div className="bg-orange-50 dark:bg-orange-900/5 border border-orange-200 dark:border-orange-500/20 rounded-xl p-4 mt-3 mb-1 flex flex-col gap-3">
+            <p className="m-0 text-xs font-semibold tracking-widest uppercase text-orange-600 dark:text-orange-400">
               📍 Asignación de Sede y Sucursal
             </p>
-            <p style={{ margin: 0, fontSize: '0.8rem', color: '#8E8E93', lineHeight: 1.5 }}>
-              Una <strong style={{ color: '#E5E5EA' }}>Sede</strong> es la marca/organización (ej. "Smart Fit").
-              Una <strong style={{ color: '#E5E5EA' }}>Sucursal</strong> es el gimnasio físico que administrará el gerente (ej. "Smart Fit - Centro").
+            <p className="m-0 text-sm text-slate-600 dark:text-gray-400 leading-relaxed">
+              Una <strong className="text-slate-900 dark:text-gray-200">Sede</strong> es la marca/organización (ej. "Smart Fit").
+              Una <strong className="text-slate-900 dark:text-gray-200">Sucursal</strong> es el gimnasio físico que administrará el gerente (ej. "Smart Fit - Centro").
             </p>
 
             {/* Paso 1: Sede (Marca) */}
             <div>
-              <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.85rem', fontWeight: 600 }}>
-                1 · Sede (Marca) *
-              </label>
-              {loadingGyms ? <p style={{ color: '#8E8E93', fontSize: '0.85rem' }}>Cargando...</p> : (
+              <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">1 · Sede (Marca) *</label>
+              {loadingGyms ? <p className="text-sm text-slate-400 dark:text-gray-500">Cargando...</p> : (
                 <select
                   value={selectedSede}
                   onChange={e => {
                     setSelectedSede(Number(e.target.value) || '');
                     setFormData(p => ({ ...p, gymIds: [] }));
                   }}
-                  style={selectStyle(!selectedSede)}
+                  className={`w-full bg-slate-50 dark:bg-[#151521] border ${!selectedSede ? 'border-red-500' : 'border-slate-200 dark:border-gray-700'} text-slate-900 dark:text-white rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors`}
                 >
                   <option value="">— Seleccionar Sede (Marca) —</option>
-                  {sedes.map(s => <option key={s.id} value={s.id} style={{ background: '#0A0A0A' }}>{s.name}</option>)}
+                  {sedes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               )}
             </div>
 
             {/* Paso 2: Sucursal (habilitado tras elegir sede) */}
             <div style={{ opacity: selectedSede !== '' ? 1 : 0.4, transition: 'opacity 0.2s' }}>
-              <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.85rem', fontWeight: 600 }}>
-                2 · Sucursal a Administrar *
-              </label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">2 · Sucursal a Administrar *</label>
               {selectedSede !== '' && sucursalesParaSede.length === 0 ? (
-                <p style={{ margin: 0, color: '#EF4444', fontSize: '0.83rem', padding: '0.5rem', background: 'rgba(239,68,68,0.08)', borderRadius: '6px' }}>
+                <p className="m-0 text-sm text-red-500 p-2 bg-red-50 dark:bg-red-900/10 rounded-lg">
                   ⚠️ Esta sede no tiene sucursales registradas aún.
                 </p>
               ) : (
@@ -365,11 +341,11 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions }: {
                   value={formData.gymIds[0] ?? ''}
                   onChange={e => setFormData(p => ({ ...p, gymIds: e.target.value ? [Number(e.target.value)] : [] }))}
                   disabled={selectedSede === ''}
-                  style={selectStyle(selectedSede !== '' && formData.gymIds.length === 0)}
+                  className={`w-full bg-slate-50 dark:bg-[#151521] border ${selectedSede !== '' && formData.gymIds.length === 0 ? 'border-red-500' : 'border-slate-200 dark:border-gray-700'} text-slate-900 dark:text-white rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors disabled:opacity-40`}
                 >
                   <option value="">— Seleccionar Sucursal —</option>
                   {sucursalesParaSede.map(s => (
-                    <option key={s.id} value={s.id} style={{ background: '#0A0A0A' }}>{s.name}</option>
+                    <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>
               )}
@@ -379,74 +355,57 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions }: {
 
         {/* ── ENTRENADOR / NUTRICIONISTA: sucursales agrupadas por sede ────────── */}
         {needsMulti && (
-          <div className="modal-form-group">
-            <label>
+          <>
+            <label className={labelCls}>
               Sucursales Asignadas{' '}
-              <span style={{ color: '#8E8E93', fontWeight: 400, fontSize: '0.78rem' }}>— puede seleccionar múltiples</span>
+              <span className="text-slate-400 dark:text-gray-500 font-normal text-xs">— puede seleccionar múltiples</span>
             </label>
-            {loadingGyms ? <p style={{ color: '#8E8E93' }}>Cargando...</p> : (
-              <div style={{
-                display: 'flex', flexDirection: 'column', gap: '0.6rem',
-                maxHeight: '220px', overflowY: 'auto', padding: '0.6rem',
-                background: 'rgba(255,255,255,0.04)', borderRadius: '8px',
-                border: '1px solid rgba(255,255,255,0.08)',
-              }}>
+            {loadingGyms ? <p className="text-sm text-slate-400 dark:text-gray-500">Cargando...</p> : (
+              <div className="flex flex-col gap-2 max-h-56 overflow-y-auto p-3 bg-slate-50 dark:bg-black/10 rounded-lg border border-slate-200 dark:border-white/10">
                 {sedes.map(sede => {
                   const hijos = sucursales.filter(s => (s.parentId ?? s.parent?.id) === sede.id);
                   if (hijos.length === 0) return null;
                   return (
                     <div key={sede.id}>
-                      <div style={{
-                        color: '#8E8E93', fontSize: '0.7rem', fontWeight: 700,
-                        textTransform: 'uppercase', letterSpacing: '0.07em',
-                        marginBottom: '0.25rem', paddingBottom: '0.25rem',
-                        borderBottom: '1px solid rgba(255,255,255,0.06)',
-                      }}>
+                      <div className="text-xs font-bold text-slate-500 dark:text-gray-500 uppercase tracking-wider mb-1 pb-1 border-b border-slate-200 dark:border-white/10">
                         🏢 {sede.name}
                       </div>
                       {hijos.map(g => (
-                        <label key={g.id} style={{
-                          display: 'flex', alignItems: 'center', gap: '0.5rem',
-                          padding: '0.3rem 0.4rem', cursor: 'pointer', borderRadius: '4px',
-                          background: formData.gymIds.includes(Number(g.id)) ? 'rgba(0,217,255,0.08)' : 'transparent',
-                        }}>
+                        <label key={g.id} className="flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded-md"
+                          style={{ background: formData.gymIds.includes(Number(g.id)) ? 'rgba(0,217,255,0.08)' : 'transparent' }}>
                           <input type="checkbox" checked={formData.gymIds.includes(Number(g.id))}
                             onChange={() => toggleGym(Number(g.id))}
                             style={{ width: '15px', height: '15px', cursor: 'pointer', accentColor: '#00D9FF' }} />
-                          <span style={{ fontSize: '0.86rem' }}>🏪 {g.name}</span>
+                          <span className="text-sm text-slate-700 dark:text-gray-300">🏪 {g.name}</span>
                         </label>
                       ))}
                     </div>
                   );
                 })}
-                {/* Sucursales sin sede padre registrada */}
                 {sucursales.filter(s => !s.parentId && !s.parent?.id).map(g => (
-                  <label key={g.id} style={{
-                    display: 'flex', alignItems: 'center', gap: '0.5rem',
-                    padding: '0.3rem 0.4rem', cursor: 'pointer', borderRadius: '4px',
-                    background: formData.gymIds.includes(Number(g.id)) ? 'rgba(0,217,255,0.08)' : 'transparent',
-                  }}>
+                  <label key={g.id} className="flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded-md"
+                    style={{ background: formData.gymIds.includes(Number(g.id)) ? 'rgba(0,217,255,0.08)' : 'transparent' }}>
                     <input type="checkbox" checked={formData.gymIds.includes(Number(g.id))}
                       onChange={() => toggleGym(Number(g.id))}
                       style={{ width: '15px', height: '15px', cursor: 'pointer', accentColor: '#00D9FF' }} />
-                    <span style={{ fontSize: '0.86rem' }}>🏪 {g.name}</span>
+                    <span className="text-sm text-slate-700 dark:text-gray-300">🏪 {g.name}</span>
                   </label>
                 ))}
               </div>
             )}
-          </div>
+          </>
         )}
 
-        <div className="modal-form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div className="flex items-center gap-2 mt-3">
           <input type="checkbox" style={{ width: 'auto' }} checked={formData.isActive}
             onChange={e => setFormData({ ...formData, isActive: e.target.checked })} />
-          <label style={{ margin: 0 }}>Usuario Activo</label>
+          <label className="text-sm font-medium text-slate-700 dark:text-gray-300">Usuario Activo</label>
         </div>
       </div>
 
-      <div className="modal-actions" style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.1)', flexShrink: 0 }}>
-        <button className="btn-cancel" onClick={onClose}>Cancelar</button>
-        <button className="btn-primary" onClick={() => {
+      <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100 dark:border-gray-800 flex-shrink-0">
+        <button className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent" onClick={onClose}>Cancelar</button>
+        <button className="px-4 py-2 bg-[#009ef7] hover:bg-[#0086d1] text-white font-medium rounded-lg shadow-sm transition-colors border-0 cursor-pointer" onClick={() => {
           if (!validateForm()) return;
           if (isGerente) {
             if (!selectedSede) {
@@ -635,7 +594,7 @@ export const UsuariosView = () => {
         ...(formData.phone?.trim() ? { phone: formData.phone.trim() } : {}),
         ...(formData.ci?.trim()    ? { ci:    formData.ci.trim()    } : {}),
         roleId:    Number(formData.roleId),
-        gymIds: [DB_ROLES.SUPER_ADMIN, DB_ROLES.CLIENTE, DB_ROLES.USER].includes(Number(formData.roleId))
+        gymIds: (([DB_ROLES.SUPER_ADMIN, DB_ROLES.CLIENTE, DB_ROLES.USER] as number[]).includes(Number(formData.roleId)))
           ? []
           : (formData.gymIds || []).map(Number),
         isActive: formData.isActive,
@@ -682,20 +641,21 @@ export const UsuariosView = () => {
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <section style={panelStyle} className="glass-panel">
-      <h1 style={{ marginTop: 0 }}>Usuarios</h1>
-      <p>
+      <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Usuarios</h1>
+      <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">
         {user?.role === 'SUPER_ADMIN'
           ? 'Gestión de usuarios de toda la red.'
           : 'Gestión de usuarios de tus sucursales asignadas.'}
       </p>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
+      <div className="flex flex-wrap justify-between items-center gap-3 mt-4 mb-4">
         <div style={{ color: '#8E8E93', fontSize: '0.9rem' }}>
           {loading ? 'Cargando usuarios...' : `Total: ${users.length} | Activos: ${usuariosActivos}`}
         </div>
         {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE') && (
           <button onClick={() => { setUserToEdit(null); setIsModalOpen(true); }}
-            style={{ background: '#00D9FF', color: '#0A0A0A', border: 'none', padding: '0.5rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
+            className="bg-[#00D9FF] text-[#0A0A0A] font-semibold px-4 py-2 rounded-lg border-0 cursor-pointer hover:bg-[#00c0e0] transition-colors whitespace-nowrap inline-flex items-center gap-1.5">
+            <Plus size={15} />
             + Nuevo Usuario
           </button>
         )}
@@ -706,18 +666,19 @@ export const UsuariosView = () => {
 
       {/* ── Barra de filtros ── */}
       {!loading && !error && users.length > 0 && (
-        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center', marginTop: '1rem', marginBottom: '0.5rem' }}>
+        <div className="flex flex-col md:flex-row flex-wrap gap-3 items-center mb-6">
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="🔍  Buscar por nombre o email..."
-            style={{ flex: 1, minWidth: '200px', background: '#1C1C1E', color: '#E5E5EA', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '0.5rem 0.9rem', fontSize: '0.85rem', outline: 'none' }}
+            className="flex-1 bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all placeholder:text-slate-400 dark:placeholder:text-gray-500"
+            style={{ minWidth: '200px' }}
           />
           {/* Rol */}
           <div style={{ position: 'relative' }}>
             <select value={filterRole} onChange={e => setFilterRole(e.target.value)}
-              style={{ background: '#1C1C1E', color: '#E5E5EA', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '0.5rem 2rem 0.5rem 0.9rem', fontSize: '0.85rem', appearance: 'none', WebkitAppearance: 'none', cursor: 'pointer', outline: 'none' }}>
-              <option value="" style={{ background: '#1C1C1E' }}>Todos los roles</option>
-              {roleOptions.map(r => <option key={r.id} value={r.id} style={{ background: '#1C1C1E' }}>{r.label}</option>)}
+              className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all">
+              <option value="">Todos los roles</option>
+              {roleOptions.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
             </select>
             <span style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#8E8E93', fontSize: '0.7rem' }}>▼</span>
           </div>
@@ -725,9 +686,9 @@ export const UsuariosView = () => {
           {gymOptions.length > 0 && (
             <div style={{ position: 'relative' }}>
               <select value={filterGym} onChange={e => setFilterGym(e.target.value)}
-                style={{ background: '#1C1C1E', color: '#E5E5EA', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '0.5rem 2rem 0.5rem 0.9rem', fontSize: '0.85rem', appearance: 'none', WebkitAppearance: 'none', cursor: 'pointer', outline: 'none', maxWidth: '180px' }}>
-                <option value="" style={{ background: '#1C1C1E' }}>Todas las sedes</option>
-                {gymOptions.map(g => <option key={g.id} value={g.id} style={{ background: '#1C1C1E' }}>{g.name}</option>)}
+                className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all" style={{ maxWidth: '180px' }}>
+                <option value="">Todas las sedes</option>
+                {gymOptions.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
               </select>
               <span style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#8E8E93', fontSize: '0.7rem' }}>▼</span>
             </div>
@@ -735,21 +696,21 @@ export const UsuariosView = () => {
           {/* Estado */}
           <div style={{ position: 'relative' }}>
             <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)}
-              style={{ background: '#1C1C1E', color: '#E5E5EA', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '0.5rem 2rem 0.5rem 0.9rem', fontSize: '0.85rem', appearance: 'none', WebkitAppearance: 'none', cursor: 'pointer', outline: 'none' }}>
-              <option value="all"      style={{ background: '#1C1C1E' }}>Todos</option>
-              <option value="active"   style={{ background: '#1C1C1E' }}>Solo Activos</option>
-              <option value="inactive" style={{ background: '#1C1C1E' }}>Solo Inactivos</option>
+              className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all">
+              <option value="all"     >Todos</option>
+              <option value="active"  >Solo Activos</option>
+              <option value="inactive">Solo Inactivos</option>
             </select>
             <span style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#8E8E93', fontSize: '0.7rem' }}>▼</span>
           </div>
           {/* Orden */}
           <div style={{ position: 'relative' }}>
             <select value={sortOrder} onChange={e => setSortOrder(e.target.value as any)}
-              style={{ background: '#1C1C1E', color: '#E5E5EA', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '0.5rem 2rem 0.5rem 0.9rem', fontSize: '0.85rem', appearance: 'none', WebkitAppearance: 'none', cursor: 'pointer', outline: 'none' }}>
-              <option value="az"       style={{ background: '#1C1C1E' }}>Nombre A → Z</option>
-              <option value="za"       style={{ background: '#1C1C1E' }}>Nombre Z → A</option>
-              <option value="id_asc"   style={{ background: '#1C1C1E' }}>ID ↑</option>
-              <option value="id_desc"  style={{ background: '#1C1C1E' }}>ID ↓</option>
+              className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all">
+              <option value="az"      >Nombre A → Z</option>
+              <option value="za"      >Nombre Z → A</option>
+              <option value="id_asc"  >ID ↑</option>
+              <option value="id_desc" >ID ↓</option>
             </select>
             <span style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#8E8E93', fontSize: '0.7rem' }}>▼</span>
           </div>
@@ -779,18 +740,19 @@ export const UsuariosView = () => {
       )}
 
       {!loading && !error && users.length > 0 && (
-        <div style={{ marginTop: '0.5rem', overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '850px' }}>
-            <thead>
+        <div className="bg-white dark:bg-[#1e1e2d] border border-slate-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden mt-4">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse" style={{ minWidth: '850px' }}>
+            <thead className="bg-slate-50 dark:bg-[#151521] border-b border-slate-200 dark:border-gray-800 text-slate-500 dark:text-gray-400 text-xs uppercase tracking-wider">
               <tr>
                 {['ID', 'Nombre', 'Email', 'Rol', 'Sucursal / Sede', 'Estado', 'Acciones'].map(h => (
-                  <th key={h} style={{ textAlign: h === 'Acciones' ? 'center' : 'left', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>{h}</th>
+                  <th key={h} style={{ textAlign: h === 'Acciones' ? 'center' : 'left', padding: '0.6rem' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filteredUsers.length === 0 ? (
-                <tr><td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#8E8E93' }}>Sin resultados para los filtros aplicados.</td></tr>
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400 dark:text-gray-500">Sin resultados para los filtros aplicados.</td></tr>
               ) : filteredUsers.map(u => {
                 const fullName  = [u?.profile?.firstName, u?.profile?.lastName].filter(Boolean).join(' ').trim() || '-';
                 const roleId    = Number(u?.userRoles?.[0]?.roleId ?? 0);
@@ -805,12 +767,12 @@ export const UsuariosView = () => {
                 const showSedes = SEDE_ROLE_NAMES.has(roleNameRaw) && gymNames.length > 0;
 
                 return (
-                  <tr key={u.id}>
-                    <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C' }}>{u.id}</td>
-                    <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C' }}>{fullName}</td>
-                    <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C' }}>{u.email ?? '-'}</td>
-                    <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93', fontSize: '0.85rem' }}>{roleDisplay}</td>
-                    <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C' }}>
+                  <tr key={u.id} className="border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-slate-700 dark:text-gray-300 text-sm">
+                    <td style={{ padding: '0.6rem' }}>{u.id}</td>
+                    <td style={{ padding: '0.6rem' }}>{fullName}</td>
+                    <td style={{ padding: '0.6rem' }}>{u.email ?? '-'}</td>
+                    <td style={{ padding: '0.6rem', color: '#8E8E93', fontSize: '0.85rem' }}>{roleDisplay}</td>
+                    <td style={{ padding: '0.6rem' }}>
                       {showSedes ? (() => {
                         const first  = gymsList[0] as any;
                         const extras = gymsList.length - 1;
@@ -853,22 +815,25 @@ export const UsuariosView = () => {
                         <span style={{ color: '#8E8E93', fontSize: '0.82rem' }}>Sin asignar</span>
                       )}
                     </td>
-                    <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: u.isActive ? '#30D158' : '#FF5E00' }}>
+                    <td style={{ padding: '0.6rem', color: u.isActive ? '#30D158' : '#FF5E00' }}>
                       {u.isActive ? 'ACTIVO' : 'INACTIVO'}
                     </td>
-                    <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C', textAlign: 'center' }}>
-                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                    <td style={{ padding: '0.6rem', textAlign: 'center' }}>
+                      <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
                         <button onClick={() => setViewingUser(u)}
-                          style={{ background: 'rgba(0,217,255,0.1)', color: '#00D9FF', border: '1px solid rgba(0,217,255,0.3)', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
-                          👁️ Detalle
+                          style={{ background: 'rgba(0,217,255,0.1)', color: '#00D9FF', border: '1px solid rgba(0,217,255,0.3)', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                          <Eye size={13} />
+                          Detalle
                         </button>
                         {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE') && (<>
                           <button onClick={() => { setUserToEdit(u); setIsModalOpen(true); }}
-                            style={{ background: '#00D9FF', color: '#0A0A0A', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
+                            style={{ background: '#00D9FF', color: '#0A0A0A', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                            <Edit size={13} />
                             Editar
                           </button>
                           <button onClick={() => setDeleteConfirmUser(u)}
-                            style={{ background: 'rgba(255,94,0,0.1)', color: '#FF5E00', border: '1px solid #FF5E00', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
+                            style={{ background: 'rgba(255,94,0,0.1)', color: '#FF5E00', border: '1px solid #FF5E00', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                            <Trash2 size={13} />
                             Eliminar
                           </button>
                         </>)}
@@ -879,6 +844,7 @@ export const UsuariosView = () => {
               })}
             </tbody>
           </table>
+        </div>
         </div>
       )}
 

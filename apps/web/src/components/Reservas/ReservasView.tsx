@@ -7,6 +7,7 @@ import type { Reservation } from '../../infrastructure/Reservations.types';
 import { QrScannerModal } from './QrScannerModal';
 import { RecordDetailModal, DetailField } from '../Dashboard/Shared/DashboardShared';
 import './ReservasView.css';
+import { Eye, QrCode, CheckCircle, X, Loader2 } from 'lucide-react';
 
 export const ReservasView = () => {
   const { user } = useAuth();
@@ -211,28 +212,28 @@ export const ReservasView = () => {
       {/* ── Cabecera ── */}
       <div className="view-header">
         <div>
-          <h1 className="view-title">Gestión de Reservas</h1>
-          <p className="view-subtitle">Historial de las últimas reservas realizadas</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Gestión de Reservas</h1>
+          <p className="text-sm text-slate-600 dark:text-gray-400 mt-1">Historial de las últimas reservas realizadas</p>
         </div>
 
         <div className="view-filters">
-          <button className="btn-scan-qr" onClick={() => setShowScanner(true)}>
-            📷 Escanear QR
+          <button className="btn-scan-qr" onClick={() => setShowScanner(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+            <QrCode size={15} />
+            Escanear QR
           </button>
 
-          <div className="search-box">
-            <input
-              type="text"
-              placeholder="Buscar por Nombre o CI..."
-              value={searchTerm}
-              onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-              className="filter-input-search"
-            />
-            <span className="search-icon">🔍</span>
-          </div>
+          <input
+            type="text"
+            placeholder="Buscar por Nombre o CI..."
+            value={searchTerm}
+            onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+            className="w-full bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-800 text-slate-900 dark:text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors"
+            style={{ minWidth: '220px' }}
+          />
 
           {!isGerente && sucursales.length > 0 && (
-            <select value={filterGym} onChange={e => setFilterGym(e.target.value)} className="filter-select">
+            <select value={filterGym} onChange={e => setFilterGym(e.target.value)}
+              className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-800 text-slate-900 dark:text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors">
               <option value="">Sucursal: Todas</option>
               {sucursales.map(s => (
                 <option key={s.id} value={s.id}>{s.name}</option>
@@ -240,7 +241,8 @@ export const ReservasView = () => {
             </select>
           )}
 
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="filter-select">
+          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+            className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-800 text-slate-900 dark:text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors">
             <option value="">Estado: Todos</option>
             <option value="CONFIRMED">Confirmadas</option>
             <option value="USED">Usadas</option>
@@ -252,21 +254,21 @@ export const ReservasView = () => {
       </div>
 
       {/* ── Tabla ── */}
-      <div className="data-grid-container">
+      <div className="bg-white dark:bg-[#1e1e2d] border border-slate-200 dark:border-gray-800 rounded-xl shadow-sm overflow-x-auto mt-4 transition-colors">
         {loading ? (
           <div className="loading-state">Cargando registros...</div>
         ) : (
           <>
-            <table className="data-grid">
-              <thead>
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-slate-50 dark:bg-[#151521] border-b border-slate-200 dark:border-gray-800 text-slate-500 dark:text-gray-400 text-xs uppercase tracking-wider">
                 <tr>
-                  <th>Usuario</th>
-                  <th>Carnet (CI)</th>
-                  <th>Actividad</th>
-                  <th>Sucursal</th>
-                  <th>Horario</th>
-                  <th>Estado</th>
-                  <th style={{ textAlign: 'center', minWidth: '220px' }}>Acciones</th>
+                  <th className="px-6 py-4">Usuario</th>
+                  <th className="px-6 py-4">Carnet (CI)</th>
+                  <th className="px-6 py-4">Actividad</th>
+                  <th className="px-6 py-4">Sucursal</th>
+                  <th className="px-6 py-4">Horario</th>
+                  <th className="px-6 py-4">Estado</th>
+                  <th className="px-6 py-4 text-center" style={{ minWidth: '220px' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -274,47 +276,47 @@ export const ReservasView = () => {
                   const isLoading = actionLoading === res.id;
                   const isConfirmed = res.status === 'CONFIRMED';
                   return (
-                    <tr key={res.id}>
-                      <td>
-                        <div className="cell-user">
+                    <tr key={res.id} className="border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-slate-700 dark:text-gray-300 text-sm">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
                           <div className="user-avatar-mini">
                             {res.user?.profile?.fullName?.charAt(0) || 'U'}
                           </div>
-                          <div className="user-info-mini">
-                            <span className="name">{res.user?.profile?.fullName || 'Usuario'}</span>
-                            <span className="email">{res.user?.email}</span>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-semibold text-slate-900 dark:text-white text-sm">{res.user?.profile?.fullName || 'Usuario'}</span>
+                            <span className="text-xs text-slate-500 dark:text-gray-400">{res.user?.email}</span>
                           </div>
                         </div>
                       </td>
-                      <td className="cell-ci">{res.user?.profile?.ci || '—'}</td>
-                      <td className="cell-activity">{res.gymActivitySchedule?.gymActivity?.name || '—'}</td>
-                      <td>{(() => {
+                      <td className="px-6 py-4 cell-ci">{res.user?.profile?.ci || '—'}</td>
+                      <td className="px-6 py-4 cell-activity">{res.gymActivitySchedule?.gymActivity?.name || '—'}</td>
+                      <td className="px-6 py-4">{(() => {
                         const gId = res.gymActivitySchedule?.gymActivity?.gymId;
                         const info = gId ? gymInfoMap.get(gId) : undefined;
                         return info ? info.sucursalName : (gId ? `Sucursal #${gId}` : '—');
                       })()}</td>
-                      <td>
+                      <td className="px-6 py-4">
                         <div className="cell-time">
                           <span className="time">{res.gymActivitySchedule?.startTime?.substring(0, 5)}</span>
                           <span className="date">{res.reservationDate}</span>
                         </div>
                       </td>
-                      <td>
+                      <td className="px-6 py-4">
                         <span className={`badge-status ${res.status.toLowerCase()}`}>
                           {res.status}
                         </span>
                       </td>
-                      <td>
-                        <div className="action-group">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
                           {/* Detalle */}
                           <button
                             className="btn-action"
-                            style={{ background: 'rgba(0, 217, 255, 0.1)', border: '1px solid rgba(0, 217, 255, 0.3)', color: '#00D9FF', borderRadius: '6px', padding: '0.4rem', fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '36px' }}
+                            style={{ background: 'rgba(0, 217, 255, 0.1)', border: '1px solid rgba(0, 217, 255, 0.3)', color: '#00D9FF', borderRadius: '6px', padding: '0.4rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '36px' }}
                             title="Ver detalle completo de reserva"
                             onClick={() => setViewingReservation(res)}
                             disabled={isLoading}
                           >
-                            👁️
+                            <Eye size={15} />
                           </button>
 
                           {/* Escanear QR — siempre disponible */}
@@ -324,7 +326,7 @@ export const ReservasView = () => {
                             onClick={() => setShowScanner(true)}
                             disabled={isLoading}
                           >
-                            📷
+                            <QrCode size={15} />
                           </button>
 
                           {/* Aceptar — solo para CONFIRMED */}
@@ -334,7 +336,7 @@ export const ReservasView = () => {
                             onClick={() => handleAccept(res)}
                             disabled={!isConfirmed || isLoading}
                           >
-                            {isLoading ? '⏳' : '✅'}
+                            {isLoading ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle size={15} />}
                           </button>
 
                           {/* Cancelar — solo para CONFIRMED */}
@@ -344,7 +346,7 @@ export const ReservasView = () => {
                             onClick={() => handleCancel(res.id)}
                             disabled={!isConfirmed || isLoading}
                           >
-                            ✕
+                            <X size={14} />
                           </button>
                         </div>
                       </td>

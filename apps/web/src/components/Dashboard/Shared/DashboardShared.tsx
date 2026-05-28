@@ -2,42 +2,17 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties } from 'react';
 
-// ─── Estilos del Portal (immune a z-index del Dashboard) ─────────────────────
 const backdropStyle: CSSProperties = {
   position: 'fixed',
   inset: 0,
   zIndex: 9999,
-  background: 'rgba(0, 0, 0, 0.80)',
+  background: 'rgba(0, 0, 0, 0.70)',
   backdropFilter: 'blur(6px)',
   display: 'grid',
   placeItems: 'center',
   padding: '1rem',
 };
 
-const modalBodyStyle: CSSProperties = {
-  position: 'relative',
-  background: 'rgba(15, 15, 17, 0.95)',
-  backdropFilter: 'blur(20px)',
-  width: '100%',
-  maxWidth: '440px',
-  borderRadius: '16px',
-  border: '1px solid rgba(255, 255, 255, 0.1)',
-  padding: '1.75rem',
-  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
-  maxHeight: '90vh',
-  height: 'auto',
-  minHeight: '0',
-  display: 'flex',
-  flexDirection: 'column',
-  overflow: 'hidden',
-  animation: 'modalFadeIn 0.25s ease',
-};
-
-/**
- * ModalOverlay v2 — React Portal.
- * Se monta directamente en document.body, saliendo del árbol del Dashboard.
- * Inmune al z-index del header (10000) y a cualquier overflow:hidden padre.
- */
 export const ModalOverlay = ({ children, onClose }: { children: React.ReactNode; onClose: () => void }) => {
   React.useEffect(() => {
     document.body.setAttribute('data-modal-open', 'true');
@@ -50,7 +25,11 @@ export const ModalOverlay = ({ children, onClose }: { children: React.ReactNode;
 
   return createPortal(
     <div style={backdropStyle} onClick={handleBackdropClick}>
-      <div style={modalBodyStyle} onClick={e => e.stopPropagation()}>
+      <div
+        className="bg-white dark:bg-[#1e1e2d] w-full max-w-md md:max-w-lg rounded-2xl shadow-2xl border border-slate-200 dark:border-gray-800 p-6 relative transition-colors flex flex-col overflow-hidden"
+        style={{ maxHeight: '90vh', animation: 'modalFadeIn 0.25s ease' }}
+        onClick={e => e.stopPropagation()}
+      >
         {children}
       </div>
     </div>,
@@ -69,15 +48,17 @@ export const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message }: {
   if (!isOpen) return null;
   return (
     <ModalOverlay onClose={onClose}>
-      <div className="modal-header">
-        <h2 style={{ color: '#FF5E00', margin: 0 }}>{title}</h2>
-      </div>
-      <p style={{ color: '#E5E5EA', lineHeight: '1.6', margin: '1rem 0 1.5rem' }}>{message}</p>
-      <div className="modal-actions">
-        <button className="btn-cancel" onClick={onClose}>Cancelar</button>
+      <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">{title}</h2>
+      <p className="text-slate-600 dark:text-gray-400 leading-relaxed mb-6">{message}</p>
+      <div className="flex gap-3 justify-end">
         <button
-          className="btn-primary"
-          style={{ background: '#FF5E00', color: '#FFFFFF' }}
+          className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 dark:text-gray-300 bg-slate-100 dark:bg-gray-800 hover:bg-slate-200 dark:hover:bg-gray-700 transition-colors cursor-pointer border-0"
+          onClick={onClose}
+        >
+          Cancelar
+        </button>
+        <button
+          className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 transition-colors cursor-pointer border-0"
           onClick={onConfirm}
         >
           Confirmar Eliminación
@@ -95,21 +76,11 @@ export const DetailField = ({
   value: React.ReactNode;
   isFullWidth?: boolean;
 }) => (
-  <div style={{
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.35rem',
-    gridColumn: isFullWidth ? 'span 2' : 'span 1',
-    background: 'rgba(255, 255, 255, 0.03)',
-    padding: '0.75rem',
-    borderRadius: '8px',
-    border: '1px solid rgba(255, 255, 255, 0.05)',
-    boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.05)',
-  }}>
-    <span style={{ fontSize: '0.7rem', color: '#8E8E93', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+  <div className={`flex flex-col gap-1 bg-slate-50 dark:bg-black/10 p-3 rounded-lg border border-slate-200 dark:border-white/5 ${isFullWidth ? 'col-span-2' : 'col-span-1'}`}>
+    <span className="text-xs font-semibold text-slate-500 dark:text-gray-500 uppercase tracking-wide">
       {label}
     </span>
-    <div style={{ fontSize: '0.9rem', color: '#FFFFFF', fontWeight: 500 }}>
+    <div className="text-sm font-medium text-slate-900 dark:text-white">
       {value || '-'}
     </div>
   </div>
@@ -127,42 +98,31 @@ export const RecordDetailModal = ({
   if (!isOpen) return null;
   return (
     <ModalOverlay onClose={onClose}>
-      <div style={{
-        width: '100%', maxWidth: '100%',
-        border: '1px solid rgba(0, 217, 255, 0.3)',
-        boxShadow: '0 0 15px rgba(0, 217, 255, 0.1)',
-        display: 'flex', flexDirection: 'column', flex: 1,
-        minHeight: 0, overflow: 'hidden',
-      }}>
-        {/* Header fijo */}
-        <div className="modal-header" style={{
-          borderBottom: '1px solid rgba(0, 217, 255, 0.2)',
-          paddingBottom: '0.75rem',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          flexShrink: 0,
-        }}>
-          <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#00D9FF', margin: 0, fontSize: '1.3rem' }}>
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+        {/* Header */}
+        <div className="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-gray-700 flex-shrink-0 mb-0">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             👁️ {title}
           </h2>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#8E8E93', fontSize: '1.2rem', cursor: 'pointer' }}>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-gray-300 text-xl transition-colors bg-transparent border-0 cursor-pointer leading-none"
+          >
             ✕
           </button>
         </div>
 
         {/* Contenido scrollable */}
-        <div style={{
-          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem',
-          marginTop: '1.25rem',
-          overflowY: 'auto', flex: 1, minHeight: 0,
-          paddingRight: '0.4rem',
-          paddingBottom: '0.5rem',
-        }}>
+        <div className="grid grid-cols-2 gap-3 mt-5 overflow-y-auto flex-1 min-h-0 pr-1 pb-2">
           {children}
         </div>
 
-        {/* Footer fijo */}
-        <div className="modal-actions" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', marginTop: '1rem', paddingTop: '0.75rem', flexShrink: 0 }}>
-          <button className="btn-cancel" style={{ width: '100%', background: 'rgba(255,255,255,0.05)' }} onClick={onClose}>
+        {/* Footer */}
+        <div className="border-t border-slate-200 dark:border-gray-700 mt-4 pt-3 flex-shrink-0">
+          <button
+            className="w-full px-4 py-2 rounded-lg text-sm font-medium text-slate-600 dark:text-gray-300 bg-slate-100 dark:bg-gray-800 hover:bg-slate-200 dark:hover:bg-gray-700 transition-colors cursor-pointer border-0"
+            onClick={onClose}
+          >
             Cerrar Detalle
           </button>
         </div>

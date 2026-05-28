@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
 import { ModalOverlay, ConfirmModal, panelStyle } from './Shared/DashboardShared';
 import type { GymDto, GymScheduleDto, UserDto, CheckinDto, ScheduleEntry } from './Shared/DashboardTypes';
+import { Edit, Trash2, Plus } from 'lucide-react';
 
 type RoleDto = {
   id: number;
@@ -388,18 +389,19 @@ export const RolesView = () => {
 
   return (
     <section style={panelStyle} className="glass-panel">
-      <h1 style={{ marginTop: 0 }}>Gestión de Roles</h1>
-      <p style={{ color: '#8E8E93' }}>Administración de roles y jerarquías del sistema. Solo visible para Super Administradores.</p>
+      <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Gestión de Roles</h1>
+      <p className="text-sm text-slate-600 dark:text-gray-400 mt-1">Administración de roles y jerarquías del sistema. Solo visible para Super Administradores.</p>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
-        <div style={{ color: '#8E8E93', fontSize: '0.9rem' }}>
+        <div className="text-sm text-slate-500 dark:text-gray-400">
           {loading ? 'Cargando roles...' : `${roles.length} roles registrados`}
         </div>
         <button
           onClick={() => { setRoleToEdit(null); setIsModalOpen(true); }}
-          style={{ background: '#00D9FF', color: '#0A0A0A', border: 'none', padding: '0.5rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
+          style={{ background: '#00D9FF', color: '#0A0A0A', border: 'none', padding: '0.5rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
         >
-          + Nuevo Rol
+          <Plus size={15} />
+          Nuevo Rol
         </button>
       </div>
 
@@ -441,7 +443,7 @@ export const RolesView = () => {
                 </div>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ fontWeight: 700, fontSize: '0.95rem', fontFamily: 'monospace', color: '#E5E5EA' }}>
+                    <span className="font-bold text-slate-900 dark:text-[#E5E5EA]" style={{ fontSize: '0.95rem', fontFamily: 'monospace' }}>
                       {role.name}
                     </span>
                     {role.isSystemRole && (
@@ -454,7 +456,7 @@ export const RolesView = () => {
                     </span>
                   </div>
                   {role.description && (
-                    <span style={{ fontSize: '0.82rem', color: '#8E8E93', marginTop: '2px', display: 'block' }}>
+                    <span className="text-sm text-slate-600 dark:text-slate-400 mt-0.5 block">
                       {role.description}
                     </span>
                   )}
@@ -465,8 +467,9 @@ export const RolesView = () => {
               <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
                 <button
                   onClick={() => { setRoleToEdit(role); setIsModalOpen(true); }}
-                  style={{ background: '#00D9FF', color: '#0A0A0A', border: 'none', padding: '0.3rem 0.75rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
+                  style={{ background: '#00D9FF', color: '#0A0A0A', border: 'none', padding: '0.3rem 0.75rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
                 >
+                  <Edit size={13} />
                   Editar
                 </button>
                 <button
@@ -482,8 +485,12 @@ export const RolesView = () => {
                     cursor: role.isSystemRole ? 'not-allowed' : 'pointer',
                     fontSize: '0.8rem',
                     fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
                   }}
                 >
+                  <Trash2 size={13} />
                   Eliminar
                 </button>
               </div>
@@ -491,7 +498,7 @@ export const RolesView = () => {
           ))}
 
           {roles.length === 0 && !loading && (
-            <div style={{ textAlign: 'center', color: '#8E8E93', padding: '2rem' }}>
+            <div className="text-center text-slate-500 dark:text-gray-400" style={{ padding: '2rem' }}>
               No hay roles registrados. Crea el primero con el botón de arriba.
             </div>
           )}
