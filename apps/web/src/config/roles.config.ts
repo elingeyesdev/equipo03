@@ -14,8 +14,6 @@ export interface NavRoute {
   path: string;
   /** Etiqueta visible en el sidebar */
   label: string;
-  /** Emoji/ícono */
-  icon: string;
   /** Roles que pueden acceder. Si el usuario no tiene uno de estos, no se monta. */
   allowedRoles: UserRole[];
 }
@@ -25,72 +23,17 @@ export interface NavRoute {
  * La propiedad `allowedRoles` es la misma lista que consume RoleGuard.
  */
 export const NAV_ROUTES: NavRoute[] = [
-  {
-    path: 'resumen',
-    label: 'Resumen',
-    icon: '📊',
-    allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'ENTRENADOR', 'NUTRICIONISTA', 'CLIENTE', 'USER'],
-  },
-  {
-    path: 'auditoria',
-    label: 'Auditoría',
-    icon: '🛡️',
-    allowedRoles: ['SUPER_ADMIN', 'GERENTE'],
-  },
-  {
-    path: 'usuarios',
-    label: 'Usuarios',
-    icon: '👥',
-    allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'ENTRENADOR', 'NUTRICIONISTA'],
-  },
-  {
-    path: 'sedes',
-    label: 'Sedes (Marcas)',
-    icon: '🏢',
-    allowedRoles: ['SUPER_ADMIN'],
-  },
-  {
-    path: 'sucursales',
-    label: 'Sucursales',
-    icon: '🏪',
-    allowedRoles: ['SUPER_ADMIN'],
-  },
-  {
-    path: 'roles',
-    label: 'Roles',
-    icon: '🔑',
-    allowedRoles: ['SUPER_ADMIN'],
-  },
-  {
-    path: 'mapa',
-    label: 'Mapa de Red',
-    icon: '🌐',
-    allowedRoles: ['SUPER_ADMIN'],
-  },
-  {
-    path: 'rutinas',
-    label: 'Rutinas',
-    icon: '🏋️',
-    allowedRoles: ['SUPER_ADMIN', 'ENTRENADOR', 'NUTRICIONISTA', 'CLIENTE'],
-  },
-  {
-    path: 'actividades',
-    label: 'Catálogo de Servicios',
-    icon: '🏃',
-    allowedRoles: ['SUPER_ADMIN', 'GERENTE'],
-  },
-  {
-    path: 'reservas',
-    label: 'Reservas',
-    icon: '📅',
-    allowedRoles: ['SUPER_ADMIN', 'CLIENTE'],
-  },
-  {
-    path: 'medidas',
-    label: 'Medidas',
-    icon: '📏',
-    allowedRoles: ['CLIENTE'],
-  },
+  { path: 'resumen',     label: 'Resumen',              allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'ENTRENADOR', 'NUTRICIONISTA', 'CLIENTE', 'USER'] },
+  { path: 'auditoria',   label: 'Auditoría',             allowedRoles: ['SUPER_ADMIN', 'GERENTE'] },
+  { path: 'usuarios',    label: 'Usuarios',              allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'ENTRENADOR', 'NUTRICIONISTA'] },
+  { path: 'sedes',       label: 'Sedes (Marcas)',         allowedRoles: ['SUPER_ADMIN'] },
+  { path: 'sucursales',  label: 'Sucursales',             allowedRoles: ['SUPER_ADMIN'] },
+  { path: 'roles',       label: 'Roles',                  allowedRoles: ['SUPER_ADMIN'] },
+  { path: 'mapa',        label: 'Mapa de Red',            allowedRoles: ['SUPER_ADMIN'] },
+  { path: 'rutinas',     label: 'Rutinas',                allowedRoles: ['SUPER_ADMIN', 'ENTRENADOR', 'NUTRICIONISTA', 'CLIENTE'] },
+  { path: 'actividades', label: 'Catálogo de Servicios',  allowedRoles: ['SUPER_ADMIN', 'GERENTE'] },
+  { path: 'reservas',    label: 'Reservas',               allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'CLIENTE'] },
+  { path: 'medidas',     label: 'Medidas',                allowedRoles: ['CLIENTE'] },
 ];
 
 /** Helper: devuelve solo las rutas visibles para un rol dado. */
