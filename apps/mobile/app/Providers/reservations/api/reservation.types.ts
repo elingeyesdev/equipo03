@@ -97,9 +97,13 @@ export interface UserReservation {
 
 // Mapa de errores personalizado para la UI
 export const ERROR_MAP: Record<string, string> = {
-  SUBSCRIPTION_INACTIVE: 'Necesitas una membresía activa para reservar.',
-  SLOT_FULL: 'Este horario ya está agotado.',
-  DUPLICATE_RESERVATION: 'Ya tienes una reserva para este horario.',
-  TOO_CLOSE_TO_START: 'No se pueden reservar clases con menos de 1h de anticipación.',
-  CANCEL_WINDOW_EXPIRED: 'El plazo de cancelación gratuita ha expirado.',
+  SUBSCRIPTION_INACTIVE:  'Necesitas una membresía activa para reservar.',
+  SLOT_FULL:              'Este horario ya está agotado.',
+  DUPLICATE_RESERVATION:  'Ya tienes una reserva activa para esta actividad en esa fecha. Revisa "Mis Reservas".',
+  TOO_CLOSE_TO_START:     'No se pueden reservar clases con menos de 1h de anticipación.',
+  CANCEL_WINDOW_EXPIRED:  'El plazo de cancelación gratuita ha expirado.',
+  // Variantes en español del backend
+  RESERVA_DUPLICADA:      'Ya tienes una reserva activa para esta actividad en esa fecha. Revisa "Mis Reservas".',
+  CUPO_AGOTADO:           'Este horario ya está agotado.',
+  SUSCRIPCION_INACTIVA:   'Necesitas una membresía activa para reservar.',
 };

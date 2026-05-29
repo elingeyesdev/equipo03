@@ -38,16 +38,30 @@ export const useNotifications = () => {
 
     console.log(`[NotificationGateway]: Iniciando conexión WS para rol ${user.role}...`);
 
-    const SOCKET_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/events`;
+    // Usar el mismo origen que la web (pasa por el proxy de Vite → puerto 3000)
+    const SOCKET_URL = import.meta.env.VITE_API_URL ?? window.location.origin;
 
+    // autoConnect:false evita que el WS arranque antes de que podamos cancelarlo
+    // (necesario para React 18 Strict Mode que ejecuta cleanup antes del segundo mount)
     const socket = io(SOCKET_URL, {
-      transports: ['websocket'],
+      path: '/socket.io',
+      transports: ['websocket', 'polling'],
       auth: { token },
       reconnectionAttempts: 5,
       reconnectionDelay: 2000,
+      autoConnect: false,
     });
 
     socketRef.current = socket;
+
+    let isMounted = true;
+
+    // Conectar en el siguiente tick — si el cleanup llega primero (StrictMode),
+    // isMounted=false y nunca abrimos el WebSocket, sin error.
+    const connectTimer = setTimeout(() => {
+      if (!isMounted) return;
+      socket.connect();
+    }, 0);
 
     socket.on('connect', () => {
       console.log(`[NotificationGateway]: Conexión establecida. Socket ID: ${socket.id}`);
@@ -104,6 +118,8 @@ export const useNotifications = () => {
     });
 
     return () => {
+      isMounted = false;
+      clearTimeout(connectTimer);
       console.log('[NotificationGateway]: Limpiando conexión WS...');
       socket.removeAllListeners();
       socket.disconnect();

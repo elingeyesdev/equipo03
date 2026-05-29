@@ -5,7 +5,7 @@ import { useAuth } from '../../../Shared/hooks/useAuth';
 
 const CLIENT_ROLES = new Set(['USER', 'CLIENTE']);
 
-export const useMyReservationsQuery = () => {
+export const useMyReservationsQuery = (refetchInterval?: number) => {
   const { user } = useAuth();
   const isCliente = CLIENT_ROLES.has(user?.role?.toUpperCase() ?? '');
 
@@ -15,5 +15,6 @@ export const useMyReservationsQuery = () => {
     enabled: !!user && isCliente,
     staleTime: 1000 * 60,
     retry: 1,
+    refetchInterval,
   });
 };

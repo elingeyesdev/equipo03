@@ -32,30 +32,39 @@ const formatRoleName = (name: string): string => {
   return map[name] ?? name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 };
 
+// ─── Prefijos telefónicos y helper de parseo (fuera del componente — constantes) ─
+const PHONE_PREFIXES = [
+  { code: '+591', flag: '🇧🇴', label: '+591' },
+  { code: '+54',  flag: '🇦🇷', label: '+54'  },
+  { code: '+56',  flag: '🇨🇱', label: '+56'  },
+  { code: '+55',  flag: '🇧🇷', label: '+55'  },
+  { code: '+51',  flag: '🇵🇪', label: '+51'  },
+  { code: '+57',  flag: '🇨🇴', label: '+57'  },
+  { code: '+52',  flag: '🇲🇽', label: '+52'  },
+  { code: '+1',   flag: '🇺🇸', label: '+1'   },
+];
+
+const splitPhone = (raw: string): { prefix: string; number: string } => {
+  for (const p of PHONE_PREFIXES) {
+    if (raw.startsWith(p.code)) {
+      return { prefix: p.code, number: raw.slice(p.code.length).trim() };
+    }
+  }
+  return { prefix: '+591', number: raw.replace(/^\+\d{1,3}\s?/, '') };
+};
+
+// ─── Tipos para el formulario de usuario ──────────────────────────────────────
+type UserFormData = {
+  firstName: string; lastName: string; email: string; password: string;
+  phone: string; phonePrefix: string; phoneNumber: string; ci: string;
+  roleId: number; gymIds: number[]; isActive: boolean;
+};
+
 // ─── Componente Modal de creación/edición (usa Portal via ModalOverlay) ───────
 const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions }: {
-  isOpen: boolean; onClose: () => void; userToEdit: any; onSave: (d: any) => void;
+  isOpen: boolean; onClose: () => void; userToEdit: UserDto | null; onSave: (d: UserFormData) => void;
   roleOptions: RoleOption[];
 }) => {
-  const PHONE_PREFIXES = [
-    { code: '+591', flag: '🇧🇴', label: '+591' },
-    { code: '+54',  flag: '🇦🇷', label: '+54'  },
-    { code: '+56',  flag: '🇨🇱', label: '+56'  },
-    { code: '+55',  flag: '🇧🇷', label: '+55'  },
-    { code: '+51',  flag: '🇵🇪', label: '+51'  },
-    { code: '+57',  flag: '🇨🇴', label: '+57'  },
-    { code: '+52',  flag: '🇲🇽', label: '+52'  },
-    { code: '+1',   flag: '🇺🇸', label: '+1'   },
-  ];
-
-  const splitPhone = (raw: string): { prefix: string; number: string } => {
-    for (const p of PHONE_PREFIXES) {
-      if (raw.startsWith(p.code)) {
-        return { prefix: p.code, number: raw.slice(p.code.length).trim() };
-      }
-    }
-    return { prefix: '+591', number: raw.replace(/^\+\d{1,3}\s?/, '') };
-  };
 
   const [formData, setFormData] = useState({
     firstName: '', lastName: '', email: '', password: '', phone: '',
@@ -80,6 +89,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions }: {
   // ── Cargar gyms al abrir: marcas (/gyms/brands) + sucursales (/gyms) ─────────
   useEffect(() => {
     if (!isOpen) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoadingGyms(true);
     Promise.all([
       apiClient.get('/gyms/brands').catch(() => ({ data: [] })),
@@ -96,9 +106,12 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions }: {
   useEffect(() => {
     if (!isOpen) return;
     if (userToEdit) {
-      const gymsFromRoles = (userToEdit.userRoles ?? []).map((ur: any) => ur?.gym).filter(Boolean);
+      const gymsFromRoles = (userToEdit.userRoles ?? [])
+        .map(ur => ur.gym)
+        .filter((g): g is NonNullable<typeof g> => g != null);
       const rawPhone = userToEdit.profile?.phone ?? '';
       const { prefix, number } = splitPhone(rawPhone);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData({
         firstName:   userToEdit.profile?.firstName ?? '',
         lastName:    userToEdit.profile?.lastName  ?? '',
@@ -109,7 +122,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions }: {
         email:       userToEdit.email ?? '',
         password:    '',
         roleId:      Number(userToEdit.userRoles?.[0]?.roleId) || DB_ROLES.USER,
-        gymIds:      gymsFromRoles.map((g: any) => Number(g.id)),
+        gymIds:      gymsFromRoles.map(g => Number(g.id)),
         isActive:    userToEdit.isActive ?? true,
       });
     } else {
@@ -125,6 +138,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions }: {
     if (!sucursalId) return;
     const sucursal = gyms.find(g => g.id === sucursalId);
     const sedeId   = sucursal?.parentId ?? sucursal?.parent?.id;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (sedeId) setSelectedSede(sedeId);
   }, [gyms, formData.gymIds, formData.roleId, isOpen, userToEdit]);
 
@@ -586,7 +600,6 @@ export const UsuariosView = () => {
       const emailTrimmed = formData.email?.trim();
       const payload: any = {
 
-        // Solo envía email si tiene valor (evita error 400 de @IsEmail con cadena vacía)
         ...(emailTrimmed ? { email: emailTrimmed } : {}),
         firstName: formData.firstName?.trim() || undefined,
         lastName:  formData.lastName?.trim()  || undefined,
@@ -600,7 +613,6 @@ export const UsuariosView = () => {
         isActive: formData.isActive,
       };
 
-      // 🔐 RBAC GERENTE: forzar gymId propio
       if (user?.role === 'GERENTE' && user?.gymId) {
         payload.gymIds = [Number(user.gymId)];
       }
@@ -847,7 +859,17 @@ export const UsuariosView = () => {
         </div>
       )}
 
-      <UserModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} userToEdit={userToEdit} onSave={handleSaveUser} roleOptions={roleOptions} />
+      <UserModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        userToEdit={userToEdit}
+        onSave={handleSaveUser}
+        roleOptions={
+          user?.role === 'GERENTE'
+            ? roleOptions.filter(r => r.name !== 'SUPER_ADMIN' && r.name !== 'GERENTE')
+            : roleOptions
+        }
+      />
 
       <ConfirmModal
         isOpen={!!deleteConfirmUser}

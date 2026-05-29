@@ -370,7 +370,25 @@ const ClientDashboard = () => {
           />
         )}
 
-        {/* ── Tus primeros pasos con GymSync ── */}
+        {/* ── Acceso rápido: Historial de Gimnasios ── */}
+        <TouchableOpacity
+          style={styles.historialBtn}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('Buscar', { screen: 'Historial' })}
+        >
+          <View style={styles.historialBtnLeft}>
+            <View style={styles.historialBtnIcon}>
+              <MaterialCommunityIcons name="history" size={20} color="#f05b22" />
+            </View>
+            <View>
+              <Text style={styles.historialBtnTitle}>Historial de Gimnasios</Text>
+              <Text style={styles.historialBtnSub}>Ver tus visitas registradas</Text>
+            </View>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={22} color="#444" />
+        </TouchableOpacity>
+
+        {/* ── Explora Disciplinas ── */}
         <View style={styles.onboardSection}>
           <View style={styles.sectionIconRow}>
             <MaterialCommunityIcons name="lightning-bolt" size={26} color="#f05b22" />
@@ -591,6 +609,42 @@ const styles = StyleSheet.create({
   retryBtnText: {
     color: '#f05b22',
     fontWeight: 'bold',
+  },
+  historialBtn: {
+    marginHorizontal: 20,
+    marginTop: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#111',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#222',
+  },
+  historialBtnLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  historialBtnIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: 'rgba(240,91,34,0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  historialBtnTitle: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  historialBtnSub: {
+    color: '#555',
+    fontSize: 11,
+    marginTop: 2,
   },
   onboardSection: {
     paddingHorizontal: 20,

@@ -18,6 +18,13 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      // WebSocket de Socket.IO — proxeado para evitar CORS en desarrollo
+      '/socket.io': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+        ws: true,
+      },
     },
   },
 });

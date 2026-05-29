@@ -101,7 +101,7 @@ export class AuthService {
       return { success: true, user: autenticacionContext };
     } catch (error: any) {
       const errorMsg = error?.message || 'Error de conexión con el servidor';
-      console.error('[AuthService] Error:', errorMsg);
+      console.log('[AuthService] Error:', errorMsg);
       return { success: false, error: errorMsg };
     }
   }

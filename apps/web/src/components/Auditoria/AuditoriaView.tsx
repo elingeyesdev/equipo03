@@ -142,6 +142,32 @@ const CheckInScannerModal = ({ onClose, onSuccess }: { onClose: () => void; onSu
   );
 };
 
+// ── Avatar de letra por rol ───────────────────────────────────────────────────
+const ROLE_AVATAR: Record<string, { letter: string; bg: string }> = {
+  ENTRENADOR:           { letter: 'E', bg: '#5e72e4' },
+  INSTRUCTOR:           { letter: 'I', bg: '#11cdef' },
+  NUTRICIONISTA:        { letter: 'N', bg: '#fb6340' },
+  PERSONAL_DE_LIMPIEZA: { letter: 'L', bg: '#6c757d' },
+  COORDINADOR:          { letter: 'C', bg: '#f5365c' },
+  GERENTE:              { letter: 'G', bg: '#8965e0' },
+  CLIENTE:              { letter: 'U', bg: '#2dce89' },
+  SUPER_ADMIN:          { letter: 'S', bg: '#172b4d' },
+};
+
+const RoleAvatar = ({ rol, nombre }: { rol?: string; nombre: string }) => {
+  const mapped = rol ? ROLE_AVATAR[rol.toUpperCase()] : undefined;
+  const letter = mapped?.letter ?? (nombre?.[0]?.toUpperCase() || 'U');
+  const bg     = mapped?.bg ?? '#adb5bd';
+  return (
+    <div
+      className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold text-white select-none"
+      style={{ background: bg }}
+    >
+      {letter}
+    </div>
+  );
+};
+
 // ── Panel de Accesos ─────────────────────────────────────────────────────────
 const AccesosPanel = () => {
   const { user } = useAuth();
@@ -323,11 +349,7 @@ const AccesosPanel = () => {
                     <td data-label="ID" className="px-6 py-4 cell-id">...{acceso.id.value.slice(-6)}</td>
                     <td data-label="Usuario" className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <img
-                          src={acceso.userInfo.avatarUrl}
-                          alt="avatar"
-                          className="w-8 h-8 rounded-full border border-slate-200 dark:border-gray-700 object-cover"
-                        />
+                        <RoleAvatar rol={acceso.userInfo.rol} nombre={acceso.userInfo.nombre} />
                         <div className="flex-1 flex flex-col gap-0.5">
                           <span className="font-semibold text-slate-900 dark:text-white">{acceso.userInfo.nombre}</span>
                           <span className="text-xs text-slate-500 dark:text-gray-400">{acceso.userInfo.email}</span>

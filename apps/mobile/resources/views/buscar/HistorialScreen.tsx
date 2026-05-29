@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   FlatList,
   ActivityIndicator,
   TouchableOpacity,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -31,6 +32,33 @@ const fmtDuration = (min?: number): string | null => {
   return m > 0 ? `${h}h ${m}min` : `${h}h`;
 };
 
+// ─── Filtros de período ───────────────────────────────────────────────────────
+type FilterPeriod = 'all' | 'today' | 'week' | 'month';
+
+const FILTER_OPTIONS: { key: FilterPeriod; label: string }[] = [
+  { key: 'all',   label: 'Todas' },
+  { key: 'today', label: 'Hoy' },
+  { key: 'week',  label: 'Esta semana' },
+  { key: 'month', label: 'Este mes' },
+];
+
+const isInPeriod = (dateStr: string, period: FilterPeriod): boolean => {
+  const date = new Date(dateStr);
+  const now  = new Date();
+  if (period === 'all')   return true;
+  if (period === 'today') return date.toDateString() === now.toDateString();
+  if (period === 'week') {
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    return date >= weekAgo;
+  }
+  if (period === 'month') {
+    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    return date >= monthAgo;
+  }
+  return true;
+};
+
+// ─── Tipos internos ───────────────────────────────────────────────────────────
 interface DisplayVisit {
   id: string;
   gymId: number;
@@ -64,7 +92,10 @@ const localToDisplay = (v: GymVisitRecord): DisplayVisit => ({
   isActive:    !v.exitedAt,
 });
 
+// ─── Componente ───────────────────────────────────────────────────────────────
 export const HistorialScreen = () => {
+  const [activeFilter, setActiveFilter] = useState<FilterPeriod>('all');
+
   const {
     data: backendVisits = [],
     isLoading: loadingBackend,
@@ -88,6 +119,11 @@ export const HistorialScreen = () => {
     ...(activeLocalVisit ? [localToDisplay(activeLocalVisit)] : []),
     ...backendVisits.map(toDisplay),
   ].sort((a, b) => b.enteredAt.localeCompare(a.enteredAt));
+
+  // Visita activa siempre visible independientemente del filtro
+  const filteredVisits = allVisits.filter(
+    v => v.isActive || isInPeriod(v.enteredAt, activeFilter)
+  );
 
   if (loadingBackend) {
     return (
@@ -122,16 +158,55 @@ export const HistorialScreen = () => {
   return (
     <SafeAreaView style={s.root} edges={[]}>
       <FlatList
-        data={allVisits}
+        data={filteredVisits}
         keyExtractor={(item) => item.id}
         contentContainerStyle={s.list}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
-          <View style={s.header}>
-            <MaterialCommunityIcons name="history" size={22} color="#f05b22" />
-            <Text style={s.headerText}>
-              {allVisits.length} visita{allVisits.length !== 1 ? 's' : ''} registrada{allVisits.length !== 1 ? 's' : ''}
-            </Text>
+          <>
+            {/* ── Resumen ── */}
+            <View style={s.header}>
+              <MaterialCommunityIcons name="history" size={22} color="#f05b22" />
+              <Text style={s.headerText}>
+                {allVisits.length} visita{allVisits.length !== 1 ? 's' : ''} registrada{allVisits.length !== 1 ? 's' : ''}
+              </Text>
+            </View>
+
+            {/* ── Filtros de período ── */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.filtersRow}
+            >
+              {FILTER_OPTIONS.map(f => (
+                <TouchableOpacity
+                  key={f.key}
+                  style={[s.filterChip, activeFilter === f.key && s.filterChipActive]}
+                  onPress={() => setActiveFilter(f.key)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[s.filterChipText, activeFilter === f.key && s.filterChipTextActive]}>
+                    {f.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* ── Contador del filtro activo ── */}
+            {activeFilter !== 'all' && (
+              <Text style={s.filterCount}>
+                {filteredVisits.length} resultado{filteredVisits.length !== 1 ? 's' : ''}
+              </Text>
+            )}
+          </>
+        }
+        ListEmptyComponent={
+          <View style={s.emptyFilter}>
+            <MaterialCommunityIcons name="calendar-blank-outline" size={44} color="#333" />
+            <Text style={s.centerText}>Sin visitas en este período.</Text>
+            <TouchableOpacity onPress={() => setActiveFilter('all')}>
+              <Text style={s.linkText}>Ver todas las visitas</Text>
+            </TouchableOpacity>
           </View>
         }
         renderItem={({ item }: { item: DisplayVisit }) => {
@@ -193,8 +268,19 @@ const s = StyleSheet.create({
   retryBtn:   { backgroundColor: '#f05b22', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 24 },
   retryText:  { color: '#fff', fontWeight: '700' },
 
-  header:     { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#111', borderRadius: 12, padding: 14, marginBottom: 14 },
+  header:     { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#111', borderRadius: 12, padding: 14, marginBottom: 12 },
   headerText: { color: '#aaa', fontSize: 13 },
+
+  // Filtros
+  filtersRow:       { gap: 8, paddingBottom: 12 },
+  filterChip:       { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#1a1a1a', borderWidth: 1, borderColor: '#2a2a2a' },
+  filterChipActive: { backgroundColor: 'rgba(240,91,34,0.15)', borderColor: '#f05b22' },
+  filterChipText:   { color: '#666', fontSize: 13, fontWeight: '600' },
+  filterChipTextActive: { color: '#f05b22' },
+  filterCount:      { color: '#444', fontSize: 12, marginBottom: 10 },
+
+  emptyFilter: { alignItems: 'center', paddingVertical: 40, gap: 10 },
+  linkText:    { color: '#f05b22', fontSize: 13, fontWeight: '600', marginTop: 4 },
 
   card:       { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#111', borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: 'transparent' },
   cardActive: { borderColor: '#f05b22' },

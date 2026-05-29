@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Building, CheckCircle, Unlock, Ban, RefreshCw, Clock } from 'lucide-react';
+import { Building, CheckCircle, Unlock, Ban, RefreshCw, Clock, Users, Dumbbell, CalendarCheck, UserCheck } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
-import type { GymDto } from './Shared/DashboardTypes';
+import { DB_ROLES } from '../../config/rbac.constants';
+import type { GymDto, UserDto } from './Shared/DashboardTypes';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 type HistPoint = { v: number };
@@ -291,6 +292,7 @@ export const ResumenView = () => {
   const [error,     setError]     = useState<string | null>(null);
   const [summary,   setSummary]   = useState<SummaryData>({});
   const [gyms,      setGyms]      = useState<GymDto[]>([]);
+  const [allUsers,  setAllUsers]  = useState<UserDto[]>([]);
   const [updatedAt, setUpdatedAt] = useState<Date>(new Date());
 
   const fetchAll = async () => {
@@ -298,14 +300,19 @@ export const ResumenView = () => {
     setLoading(true);
     setError(null);
     try {
-      const [summaryRes, gymsRes] = await Promise.allSettled([
+      const [summaryRes, gymsRes, usersRes] = await Promise.allSettled([
         apiClient.get<SummaryData>('/dashboard/summary'),
         apiClient.get('/gyms'),
+        apiClient.get('/users'),
       ]);
       if (summaryRes.status === 'fulfilled') setSummary(summaryRes.value.data ?? {});
       if (gymsRes.status === 'fulfilled') {
         const raw = gymsRes.value.data;
         setGyms(Array.isArray(raw) ? raw : []);
+      }
+      if (usersRes.status === 'fulfilled') {
+        const raw = usersRes.value.data;
+        setAllUsers(Array.isArray(raw) ? raw : []);
       }
       setUpdatedAt(new Date());
     } catch (err: any) {
@@ -337,9 +344,27 @@ export const ResumenView = () => {
 
   const labels7 = lastDays(7);
 
+  const userGymId = user?.gymId ? Number(user.gymId) : null;
+  const userGym   = gyms.find(g => g.id === userGymId);
+  const gymName   = userGym?.name ?? 'N/A';
+
   const roleText = user?.role === 'SUPER_ADMIN'
     ? 'Vista global de toda la cadena de gimnasios.'
-    : `Métricas de tu sucursal (gym_id: ${user?.gymId ?? 'N/A'}).`;
+    : `Métricas de tu sucursal ${gymName}.`;
+
+  // Valores exclusivos para GERENTE (calculados desde /users)
+  const clientCount        = allUsers.filter(u => u.userRoles?.some(ur => ur.roleId === DB_ROLES.CLIENTE)).length;
+  const entrenadorCount    = allUsers.filter(u => u.userRoles?.some(ur => ur.roleId === DB_ROLES.ENTRENADOR)).length;
+  const nutricionistaCount = allUsers.filter(u => u.userRoles?.some(ur => ur.roleId === DB_ROLES.NUTRICIONISTA)).length;
+  const totalStaff       = entrenadorCount + nutricionistaCount;
+
+  const staffChartData: HistPoint[] = [
+    { v: entrenadorCount },
+    { v: nutricionistaCount },
+  ];
+  const staffChartLabels = ['Entrenadores', 'Nutricionistas'];
+
+  const isGerente = user?.role !== 'SUPER_ADMIN';
 
   return (
     <div className="space-y-6">
@@ -367,49 +392,106 @@ export const ResumenView = () => {
         </div>
       )}
 
-      {/* KPIs pequeños */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="Sedes Totales"  value={totalGyms}  icon={<Building size={24} color="#fff" />}    color="#11cdef" />
-        <KpiCard label="Sedes Activas"  value={activeGyms} icon={<CheckCircle size={24} color="#fff" />} color="#2dce89" />
-        <KpiCard label="Sedes Abiertas" value={openGyms}   icon={<Unlock size={24} color="#fff" />}      color="#fb6340" />
-        <KpiCard label="Denegados"      value={0}          icon={<Ban size={24} color="#fff" />}         color="#f5365c" accent />
-      </div>
+      {/* KPIs pequeños — condicional por rol */}
+      {isGerente ? (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <KpiCard label="Clientes"        value={clientCount}  icon={<Users size={24} color="#fff" />}        color="#11cdef" />
+          <KpiCard label="Entrenadores"    value={entrenadorCount} icon={<Dumbbell size={24} color="#fff" />}  color="#5e72e4" />
+          <KpiCard label="Nutricionistas"  value={nutricionistaCount} icon={<UserCheck size={24} color="#fff" />} color="#2dce89" />
+          <KpiCard label="Personal Total"  value={totalStaff}   icon={<CalendarCheck size={24} color="#fff" />} color="#fb6340" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <KpiCard label="Sedes Totales"  value={totalGyms}  icon={<Building size={24} color="#fff" />}    color="#11cdef" />
+          <KpiCard label="Sedes Activas"  value={activeGyms} icon={<CheckCircle size={24} color="#fff" />} color="#2dce89" />
+          <KpiCard label="Sedes Abiertas" value={openGyms}   icon={<Unlock size={24} color="#fff" />}      color="#fb6340" />
+          <KpiCard label="Denegados"      value={0}          icon={<Ban size={24} color="#fff" />}         color="#f5365c" accent />
+        </div>
+      )}
 
-      {/* Gráficos grandes */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <ChartCard
-          bg="#2dce89"
-          title="Usuarios registrados"
-          subtitle="Crecimiento de usuarios en la cadena"
-          total={totalUsers}
-          totalLabel="Total"
-          updatedAt={updatedAt}
-        >
-          <LineChartCard data={usersHist} labels={labels7} />
-        </ChartCard>
+      {/* Gráficos grandes — condicional por rol */}
+      {isGerente ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <ChartCard
+            bg="#2dce89"
+            title="Clientes registrados"
+            subtitle="Crecimiento de clientes en tu sucursal"
+            total={totalUsers}
+            totalLabel="Total"
+            updatedAt={updatedAt}
+          >
+            <LineChartCard data={usersHist} labels={labels7} />
+          </ChartCard>
 
-        <ChartCard
-          bg="#fb6340"
-          title="Reservas activas"
-          subtitle="Reservas registradas por día"
-          total={totalRes}
-          totalLabel="Total"
-          updatedAt={updatedAt}
-        >
-          <BarChartCard data={resHist} labels={labels7} />
-        </ChartCard>
+          <ChartCard
+            bg="#fb6340"
+            title="Reservas activas"
+            subtitle="Reservas registradas por día"
+            total={totalRes}
+            totalLabel="Total"
+            updatedAt={updatedAt}
+          >
+            <BarChartCard data={resHist} labels={labels7} />
+          </ChartCard>
 
-        <ChartCard
-          bg="#172b4d"
-          title="Check-ins"
-          subtitle="Accesos físicos confirmados"
-          total={totalCk}
-          totalLabel="Total"
-          updatedAt={updatedAt}
-        >
-          <LineChartCard data={checkinsHist} labels={labels7} />
-        </ChartCard>
-      </div>
+          <ChartCard
+            bg="#172b4d"
+            title="Check-ins"
+            subtitle="Accesos físicos confirmados en tu sucursal"
+            total={totalCk}
+            totalLabel="Total"
+            updatedAt={updatedAt}
+          >
+            <LineChartCard data={checkinsHist} labels={labels7} />
+          </ChartCard>
+
+          <ChartCard
+            bg="#5e72e4"
+            title="Personal por Rol"
+            subtitle="Distribución del equipo de tu sucursal"
+            total={totalStaff}
+            totalLabel="Total"
+            updatedAt={updatedAt}
+          >
+            <BarChartCard data={staffChartData} labels={staffChartLabels} />
+          </ChartCard>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <ChartCard
+            bg="#2dce89"
+            title="Usuarios registrados"
+            subtitle="Crecimiento de usuarios en la cadena"
+            total={totalUsers}
+            totalLabel="Total"
+            updatedAt={updatedAt}
+          >
+            <LineChartCard data={usersHist} labels={labels7} />
+          </ChartCard>
+
+          <ChartCard
+            bg="#fb6340"
+            title="Reservas activas"
+            subtitle="Reservas registradas por día"
+            total={totalRes}
+            totalLabel="Total"
+            updatedAt={updatedAt}
+          >
+            <BarChartCard data={resHist} labels={labels7} />
+          </ChartCard>
+
+          <ChartCard
+            bg="#172b4d"
+            title="Check-ins"
+            subtitle="Accesos físicos confirmados"
+            total={totalCk}
+            totalLabel="Total"
+            updatedAt={updatedAt}
+          >
+            <LineChartCard data={checkinsHist} labels={labels7} />
+          </ChartCard>
+        </div>
+      )}
 
       {loading && (
         <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-gray-400">

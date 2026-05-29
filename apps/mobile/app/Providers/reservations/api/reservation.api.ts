@@ -110,7 +110,7 @@ export const reservationApi = {
         const schedule     = r?.gymActivitySchedule ?? null;
         const isFreeAccess = schedule === null;
 
-        const freeAct    = r?.activity;                        // solo flujo libre
+        const freeAct    = r?.freeActivity ?? r?.activity;       // solo flujo libre
         const schedAct   = schedule?.gymActivity;              // solo flujo programado
         const instructor = schedule?.instructor;
 
@@ -118,8 +118,11 @@ export const reservationApi = {
         const lastName  = instructor?.profile?.lastName  ?? '';
         const instructorName = (firstName + ' ' + lastName).trim() || undefined;
 
-        const st = String(r?.startTime ?? '').slice(0, 5) || undefined;
-        const et = String(r?.endTime   ?? '').slice(0, 5) || undefined;
+        // startTime/endTime: top-level (flujo libre) o desde el schedule (programada)
+        const rawSt = r?.startTime ?? schedule?.startTime ?? '';
+        const rawEt = r?.endTime   ?? schedule?.endTime   ?? '';
+        const st = String(rawSt).slice(0, 5) || undefined;
+        const et = String(rawEt).slice(0, 5) || undefined;
 
         return {
           id:                  r?.id,
