@@ -8,6 +8,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { UseCaseFactory } from '../../infrastructure/UseCaseFactory';
 import type { SucursalMapaDTO } from '@gymsync/core';
 import { Edit } from 'lucide-react';
@@ -244,11 +245,11 @@ const PopupCard = ({ s, computedStatus }: { s: SucursalMapaDTO; computedStatus: 
   );
 };
 
-// ── Estilos ───────────────────────────────────────────────────────────────────
-const s = {
+// ── Estilos Dinámicos ──────────────────────────────────────────────────────────
+const getStyles = (isDark: boolean) => ({
   page: {
     padding: '1.25rem',
-    color: '#FFFFFF',
+    color: isDark ? '#FFFFFF' : '#0F172A',
     display: 'flex',
     flexDirection: 'column',
     gap: '1rem',
@@ -268,11 +269,12 @@ const s = {
     fontSize: 'clamp(1.2rem, 3vw, 1.75rem)',
     fontWeight: 700,
     lineHeight: 1.2,
+    color: isDark ? '#FFFFFF' : '#0F172A',
   } as React.CSSProperties,
 
   subtitle: {
     margin: '0.25rem 0 0',
-    color: '#64748b',
+    color: isDark ? '#94a3b8' : '#475569',
     fontSize: 'clamp(0.75rem, 1.5vw, 0.9rem)',
   } as React.CSSProperties,
 
@@ -284,8 +286,8 @@ const s = {
   } as React.CSSProperties,
 
   statCard: {
-    background: 'rgba(255,255,255,0.05)',
-    border: '1px solid rgba(255,255,255,0.1)',
+    background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.05)',
+    border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(15,23,42,0.08)',
     borderRadius: '10px',
     padding: '0.55rem 0.9rem',
     display: 'flex',
@@ -296,13 +298,13 @@ const s = {
 
   statLabel: {
     fontSize: 'clamp(0.6rem, 1vw, 0.7rem)',
-    color: '#64748b',
+    color: isDark ? '#94a3b8' : '#64748b',
     textTransform: 'uppercase',
     letterSpacing: '0.06em',
   } as React.CSSProperties,
 
   statValue: {
-    fontSize: 'clamp(1rem, 2.5vw, 1.25rem)',
+    fontSize: 'clamp(1.2rem, 3vw, 1.5rem)',
     fontWeight: 700,
   } as React.CSSProperties,
 
@@ -311,8 +313,8 @@ const s = {
     gap: '0.75rem',
     flexWrap: 'wrap',
     alignItems: 'center',
-    background: 'rgba(255,255,255,0.03)',
-    border: '1px solid rgba(255,255,255,0.07)',
+    background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(15,23,42,0.03)',
+    border: isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(15,23,42,0.08)',
     borderRadius: '12px',
     padding: '0.75rem 1rem',
   } as React.CSSProperties,
@@ -321,11 +323,11 @@ const s = {
     flex: '1 1 160px',
     minWidth: '140px',
     maxWidth: '240px',
-    background: 'rgba(255,255,255,0.06)',
-    border: '1px solid rgba(255,255,255,0.12)',
+    background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.05)',
+    border: isDark ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(15,23,42,0.1)',
     borderRadius: '8px',
     padding: '0.45rem 0.75rem 0.45rem 2rem',
-    color: '#FFFFFF',
+    color: isDark ? '#FFFFFF' : '#0F172A',
     fontSize: '0.85rem',
     outline: 'none',
   } as React.CSSProperties,
@@ -345,9 +347,9 @@ const s = {
   pillInactive: {
     padding: '0.3rem 0.75rem',
     borderRadius: '20px',
-    border: '1px solid rgba(255,255,255,0.12)',
-    background: 'rgba(255,255,255,0.04)',
-    color: '#8E8E93',
+    border: isDark ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(15,23,42,0.12)',
+    background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,23,42,0.04)',
+    color: isDark ? '#8E8E93' : '#64748b',
     fontSize: '0.78rem',
     cursor: 'pointer',
     fontWeight: 500,
@@ -356,7 +358,7 @@ const s = {
 
   sectionLabel: {
     fontSize: '0.75rem',
-    color: '#64748b',
+    color: isDark ? '#94a3b8' : '#475569',
     fontWeight: 600,
     flexShrink: 0,
     alignSelf: 'center',
@@ -365,16 +367,16 @@ const s = {
   divider: {
     width: '1px',
     height: '24px',
-    background: 'rgba(255,255,255,0.1)',
+    background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(15,23,42,0.1)',
     flexShrink: 0,
   } as React.CSSProperties,
 
   filterBtn: {
     padding: '0.3rem 0.8rem',
     borderRadius: '20px',
-    border: '1px solid rgba(255,255,255,0.15)',
-    background: 'rgba(255,255,255,0.05)',
-    color: '#E5E5EA',
+    border: isDark ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(15,23,42,0.15)',
+    background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.05)',
+    color: isDark ? '#E5E5EA' : '#475569',
     fontSize: '0.78rem',
     cursor: 'pointer',
     fontWeight: 500,
@@ -393,9 +395,9 @@ const s = {
     flex: 1,
     borderRadius: '16px',
     overflow: 'hidden',
-    border: '1px solid rgba(255,255,255,0.1)',
-    boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-    minHeight: '460px',
+    border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(15,23,42,0.1)',
+    boxShadow: isDark ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(15,23,42,0.15)',
+    minHeight: '560px',
   } as React.CSSProperties,
 
   legend: {
@@ -403,8 +405,8 @@ const s = {
     gap: '1rem',
     flexWrap: 'wrap',
     padding: '0.65rem 1rem',
-    background: 'rgba(255,255,255,0.03)',
-    border: '1px solid rgba(255,255,255,0.07)',
+    background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(15,23,42,0.03)',
+    border: isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(15,23,42,0.08)',
     borderRadius: '10px',
     alignItems: 'center',
   } as React.CSSProperties,
@@ -414,7 +416,7 @@ const s = {
     alignItems: 'center',
     gap: '0.4rem',
     fontSize: '0.78rem',
-    color: '#64748b',
+    color: isDark ? '#8e8e93' : '#475569',
   } as React.CSSProperties,
 
   legendDot: (color: string): React.CSSProperties => ({
@@ -422,11 +424,14 @@ const s = {
     background: color, flexShrink: 0,
     boxShadow: `0 0 5px ${color}`,
   }),
-};
+});
+
 
 // ── Componente principal ──────────────────────────────────────────────────────
 export const MapaView: React.FC = () => {
   const { user } = useAuth();
+  const { theme } = useTheme();
+  const s = getStyles(theme === 'dark');
 
   const [sucursales, setSucursales] = useState<SucursalMapaDTO[]>([]);
   const [sinGeo, setSinGeo]         = useState(0);
@@ -655,11 +660,11 @@ export const MapaView: React.FC = () => {
             <MapContainer
               center={[-17.7833, -63.1667]}
               zoom={12}
-              style={{ height: '100%', width: '100%', minHeight: '460px', background: '#0A0A0A' }}
+              style={{ height: '100%', width: '100%', minHeight: '560px', background: theme === 'dark' ? '#0A0A0A' : '#E5E5EA' }}
               zoomControl
             >
               <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                url={theme === 'dark' ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"}
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
                 maxZoom={19}
               />
@@ -718,7 +723,7 @@ export const MapaView: React.FC = () => {
           right: 6px !important;
           font-size: 15px !important;
         }
-        .leaflet-container { background: #0A0A0A !important; }
+        .leaflet-container { background: ${theme === 'dark' ? '#0A0A0A' : '#E5E5EA'} !important; }
         @keyframes pulse {
           0%, 100% { opacity: 0.5; }
           50% { opacity: 1; }

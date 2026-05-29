@@ -212,7 +212,7 @@ export const ReservasView = () => {
       <div className="view-header">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Gestión de Reservas</h1>
-          <p className="text-sm text-slate-600 dark:text-gray-400 mt-1">Historial de las últimas reservas realizadas</p>
+          <p className="text-sm text-slate-600 dark:text-gray-400 mt-1">Historial de las reservas de los clientes de la sucursal</p>
         </div>
 
         <div className="view-filters">

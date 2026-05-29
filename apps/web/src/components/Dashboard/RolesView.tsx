@@ -92,19 +92,26 @@ const RoleModal = ({ isOpen, onClose, roleToEdit, onSave, roles }: any) => {
   return (
     <ModalOverlay onClose={onClose}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-        <h2 style={{ margin: 0, fontSize: '1.15rem', color: '#FFFFFF' }}>
+      <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-gray-800 mb-4">
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white m-0">
           {roleToEdit ? 'Editar Rol' : 'Nuevo Rol'}
         </h2>
-        <button onClick={onClose} style={{ background: '#8e8e93', border: 'none', color: '#fff', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', padding: '0.25rem 0.6rem', borderRadius: '6px', lineHeight: 1 }}>X</button>
+        <button
+          onClick={onClose}
+          className="text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-gray-300 text-sm font-bold bg-slate-100 dark:bg-gray-800 px-2 py-1 rounded border-0 cursor-pointer transition-colors"
+        >
+          ✕
+        </button>
       </div>
 
       {/* Nombre */}
-      <div style={fgGroup}>
-        <label style={fgLabel}>Nombre del Rol</label>
+      <div className="flex flex-col mb-4">
+        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide mb-1">
+          Nombre del Rol
+        </label>
         <input
           type="text"
-          style={fgInput(!!errors.name)}
+          className={`w-full bg-slate-50 dark:bg-[#151521] border ${errors.name ? 'border-red-500' : 'border-slate-200 dark:border-gray-700'} text-slate-900 dark:text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors`}
           value={formData.name}
           onChange={e => {
             setFormData({ ...formData, name: e.target.value.toUpperCase().replace(/\s/g, '_') });
@@ -112,35 +119,24 @@ const RoleModal = ({ isOpen, onClose, roleToEdit, onSave, roles }: any) => {
           }}
           placeholder="Ej. COORDINADOR"
         />
-        {errors.name
-          ? <span style={errStyle}>{errors.name}</span>
-          : <small style={{ color: '#8E8E93', fontSize: '0.72rem', marginTop: '0.3rem' }}>Solo mayúsculas y guión bajo (AUTO)</small>
-        }
+        {errors.name ? (
+          <span className="text-red-500 text-xs mt-1 block">{errors.name}</span>
+        ) : (
+          <small className="text-slate-400 dark:text-gray-500 text-xs mt-1 block">
+            Solo mayúsculas y guión bajo (AUTO)
+          </small>
+        )}
       </div>
 
       {/* Descripción */}
-      <div style={fgGroup}>
-        <label style={fgLabel}>Descripción</label>
+      <div className="flex flex-col mb-4">
+        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide mb-1">
+          Descripción
+        </label>
         <textarea
           maxLength={250}
           rows={3}
-          style={{
-            width: '100%',
-            boxSizing: 'border-box',
-            background: 'rgba(255,255,255,0.06)',
-            border: `1px solid ${errors.description ? '#ef4444' : 'rgba(255,255,255,0.12)'}`,
-            borderRadius: '8px',
-            padding: '0.6rem 0.75rem',
-            color: '#FFFFFF',
-            fontSize: '0.9rem',
-            resize: 'none',
-            outline: 'none',
-            transition: 'border-color 0.2s',
-            fontFamily: 'inherit',
-            lineHeight: 1.5,
-          }}
-          onFocus={e => { if (!errors.description) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)'; }}
-          onBlur={e  => { if (!errors.description) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; }}
+          className={`w-full bg-slate-50 dark:bg-[#151521] border ${errors.description ? 'border-red-500' : 'border-slate-200 dark:border-gray-700'} text-slate-900 dark:text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors resize-none font-sans`}
           value={formData.description}
           onChange={e => {
             setFormData({ ...formData, description: e.target.value });
@@ -148,67 +144,67 @@ const RoleModal = ({ isOpen, onClose, roleToEdit, onSave, roles }: any) => {
           }}
           placeholder="Descripción del rol y sus permisos"
         />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.3rem' }}>
-          {errors.description
-            ? <span style={errStyle}>{errors.description}</span>
-            : <span />
-          }
-          <span style={{
-            fontSize: '0.68rem',
-            color: formData.description.length >= 230 ? '#ef4444' : formData.description.length >= 180 ? '#FF9F0A' : '#8E8E93',
-            marginLeft: 'auto',
-          }}>
+        <div className="flex justify-between items-center mt-1">
+          {errors.description ? (
+            <span className="text-red-500 text-xs block">{errors.description}</span>
+          ) : (
+            <span />
+          )}
+          <span className={`text-xs ml-auto ${formData.description.length >= 230 ? 'text-red-500 font-semibold' : 'text-slate-400 dark:text-gray-500'}`}>
             {formData.description.length} / 250
           </span>
         </div>
       </div>
 
       {/* Nivel Jerárquico */}
-      <div style={fgGroup}>
-        <label style={fgLabel}>Nivel Jerárquico</label>
+      <div className="flex flex-col mb-4">
+        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide mb-1">
+          Nivel Jerárquico
+        </label>
         <select
-          style={{ ...fgInput(false), cursor: 'pointer', background: '#0F0F12', colorScheme: 'dark' } as CSSProperties}
+          className="w-full bg-slate-50 dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
           value={formData.hierarchyLevel}
           onChange={e => setFormData({ ...formData, hierarchyLevel: Number(e.target.value) })}
         >
-          <option value={10} style={{ background: '#0F0F12', color: '#FFFFFF' }}>Máximo (10) — Super Administrador</option>
-          <option value={5}  style={{ background: '#0F0F12', color: '#FFFFFF' }}>Alto (5) — Gerentes / Coordinadores</option>
-          <option value={3}  style={{ background: '#0F0F12', color: '#FFFFFF' }}>Medio (3) — Entrenadores / Nutricionistas</option>
-          <option value={1}  style={{ background: '#0F0F12', color: '#FFFFFF' }}>Básico (1) — Usuarios / Clientes</option>
+          <option value={10} className="bg-white dark:bg-[#151521] text-slate-900 dark:text-white">Máximo (10) — Super Administrador</option>
+          <option value={5} className="bg-white dark:bg-[#151521] text-slate-900 dark:text-white">Alto (5) — Gerentes / Coordinadores</option>
+          <option value={3} className="bg-white dark:bg-[#151521] text-slate-900 dark:text-white">Medio (3) — Entrenadores / Nutricionistas</option>
+          <option value={1} className="bg-white dark:bg-[#151521] text-slate-900 dark:text-white">Básico (1) — Usuarios / Clientes</option>
         </select>
       </div>
 
       {/* Rol de Sistema */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
+      <div className="flex items-center gap-2 mb-4">
         <input
           type="checkbox"
-          style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#FF5E00' }}
+          className="w-4 h-4 cursor-pointer accent-blue-600 rounded"
+          id="isSystemRoleCheckbox"
           checked={formData.isSystemRole}
           onChange={e => setFormData({ ...formData, isSystemRole: e.target.checked })}
         />
-        <label style={{ margin: 0, fontSize: '0.85rem', color: '#C7C7CC', cursor: 'pointer' }}>
+        <label htmlFor="isSystemRoleCheckbox" className="text-sm font-semibold text-slate-700 dark:text-slate-300 cursor-pointer m-0">
           Rol de Sistema (no puede ser eliminado por usuarios)
         </label>
       </div>
 
       {/* Warning */}
       {roleToEdit?.isSystemRole && (
-        <div style={{ padding: '0.6rem 0.75rem', background: '#fb6340', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '0.8rem', fontWeight: 600, marginBottom: '1rem' }}>
+        <div className="p-3 bg-amber-500 text-white rounded-lg text-xs font-semibold mb-4">
           Atención: este es un rol de sistema. Modifícalo con precaución.
         </div>
       )}
 
       {/* Acciones */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+      <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-gray-800">
         <button
           onClick={onClose}
-          style={{ background: '#8e8e93', border: 'none', color: '#fff', padding: '0.55rem 1.1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600 }}
+          className="px-4 py-2 bg-slate-100 dark:bg-gray-800 hover:bg-slate-200 dark:hover:bg-gray-700 text-slate-700 dark:text-gray-300 text-sm font-semibold rounded-lg border-0 cursor-pointer transition-colors"
         >
           Cancelar
         </button>
         <button
           onClick={handleSubmit}
-          style={{ background: '#FF5E00', border: 'none', color: '#FFFFFF', padding: '0.55rem 1.25rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 700 }}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg border-0 cursor-pointer transition-colors"
         >
           {roleToEdit ? 'Actualizar Rol' : 'Crear Rol'}
         </button>

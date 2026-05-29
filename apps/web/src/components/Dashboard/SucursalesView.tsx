@@ -84,7 +84,7 @@ interface SucursalModalProps {
 }
 
 interface LocationMarkerProps {
-  position: { lat: number; lng: number } | null;
+  position: [number, number];
   setPosition: (pos: L.LatLng) => void;
 }
 
@@ -96,7 +96,7 @@ const LocationMarker = ({ position, setPosition }: LocationMarkerProps) => {
     },
   });
 
-  return position === null ? null : (
+  return (
     <Marker position={position}></Marker>
   );
 };
@@ -283,22 +283,29 @@ const SucursalModal = ({ isOpen, onClose, sucursalToEdit, onSave, parentGyms, ex
               {showMap ? 'Ocultar Mapa' : 'Ver Mapa'}
             </button>
           </div>
-          {showMap && (
-            <>
-              <p className="text-xs text-[#00D9FF] mb-2">
-                Desplázate y haz clic en el mapa para ubicar automáticamente la dirección y ciudad.
-              </p>
-              <div style={{ width: '100%', height: '220px', borderRadius: '8px', overflow: 'hidden', marginBottom: '0.75rem', cursor: 'crosshair' }}>
-                <MapContainer center={[formData.latitude || -17.7833, formData.longitude || -63.1667]} zoom={14} style={{ height: '100%', width: '100%' }}>
-                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                  <LocationMarker
-                    position={{ lat: formData.latitude || -17.7833, lng: formData.longitude || -63.1667 }}
-                    setPosition={(pos: L.LatLng) => fetchAddress(pos)}
-                  />
-                </MapContainer>
-              </div>
-            </>
-          )}
+          {showMap && (() => {
+            const lat = typeof formData.latitude === 'number' && !isNaN(formData.latitude) ? formData.latitude : parseFloat(formData.latitude as any) || -17.7833;
+            const lng = typeof formData.longitude === 'number' && !isNaN(formData.longitude) ? formData.longitude : parseFloat(formData.longitude as any) || -63.1667;
+            return (
+              <>
+                <p className="text-xs text-[#00D9FF] mb-2">
+                  Desplázate y haz clic en el mapa para ubicar automáticamente la dirección y ciudad.
+                </p>
+                <div style={{ width: '100%', height: '220px', minHeight: '220px', borderRadius: '8px', overflow: 'hidden', marginBottom: '0.75rem', cursor: 'crosshair', flexShrink: 0, display: 'block' }}>
+                  <MapContainer center={[lat, lng]} zoom={14} style={{ height: '100%', width: '100%', minHeight: '220px' }}>
+                    <TileLayer
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    />
+                    <LocationMarker
+                      position={[lat, lng]}
+                      setPosition={(pos: L.LatLng) => fetchAddress(pos)}
+                    />
+                  </MapContainer>
+                </div>
+              </>
+            );
+          })()}
           <input
             type="text"
             className={inputCls2}

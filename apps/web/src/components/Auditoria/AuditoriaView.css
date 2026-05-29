@@ -288,3 +288,82 @@
     font-size: 0.75rem;
   }
 }
+
+/* Estilos Premium para HTML5-QRCode */
+#qr-reader-auditoria {
+  border: none !important;
+  background-color: transparent !important;
+  padding: 0 !important;
+}
+
+#qr-reader-auditoria img[alt="Info icon"] {
+  display: none !important;
+}
+
+#qr-reader-auditoria img[alt="Camera icon"] {
+  width: 48px !important;
+  height: 48px !important;
+  margin: 12px auto !important;
+  opacity: 0.75;
+}
+
+#qr-reader-auditoria button {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 6px !important;
+  padding: 8px 16px !important;
+  font-size: 0.85rem !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  margin: 8px auto !important;
+  display: block !important;
+}
+
+#qr-reader-auditoria button:hover {
+  background-color: #1d4ed8 !important;
+}
+
+#qr-reader-auditoria button:active {
+  background-color: #1e40af !important;
+}
+
+#qr-reader-auditoria a {
+  color: #2563eb !important;
+  font-size: 0.85rem !important;
+  font-weight: 500 !important;
+  text-decoration: underline !important;
+  display: block !important;
+  margin: 10px auto !important;
+  text-align: center !important;
+  cursor: pointer !important;
+}
+
+#qr-reader-auditoria a:hover {
+  color: #1d4ed8 !important;
+}
+
+#qr-reader-auditoria input[type="file"] {
+  display: none !important;
+}
+
+#qr-reader-auditoria__dashboard {
+  padding: 8px !important;
+  background-color: transparent !important;
+}
+
+#qr-reader-auditoria__scan_region {
+  background-color: #0A0A0A !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Fix scan region constraints */
+#qr-reader-auditoria__scan_region video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 12px !important;
+}
+

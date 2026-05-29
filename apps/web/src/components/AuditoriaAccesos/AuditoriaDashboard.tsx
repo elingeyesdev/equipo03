@@ -64,10 +64,10 @@ export const AuditoriaDashboard: React.FC = () => {
       <aside className="admin-sidebar">
         <div className="brand">GymSync Pro</div>
         <nav className="nav-menu">
-          <button className="nav-item">📊 Resumen</button>
-          <button className="nav-item active">🛡️ Auditoría (Check-Ins)</button>
-          <button className="nav-item">👥 Usuarios</button>
-          <button className="nav-item">🏢 Sedes</button>
+          <button className="nav-item"> Resumen</button>
+          <button className="nav-item active"> Auditoría (Check-Ins)</button>
+          <button className="nav-item"> Usuarios</button>
+          <button className="nav-item"> Sedes</button>
         </nav>
       </aside>
 
