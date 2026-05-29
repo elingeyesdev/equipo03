@@ -74,29 +74,27 @@ const tdStyle: CSSProperties = {
 
 const badgeActive: CSSProperties = {
   display: 'inline-block', padding: '2px 10px', borderRadius: '99px',
-  fontSize: '0.75rem', fontWeight: 600,
-  background: 'rgba(52,199,89,0.15)', color: '#34C759',
-  border: '1px solid rgba(52,199,89,0.3)',
+  fontSize: '0.75rem', fontWeight: 700,
+  background: '#2dce89', color: '#fff', border: 'none',
 };
 
 const badgeInactive: CSSProperties = {
   ...badgeActive,
-  background: 'rgba(255,59,48,0.15)', color: '#FF3B30',
-  border: '1px solid rgba(255,59,48,0.3)',
+  background: '#f5365c', color: '#fff', border: 'none',
 };
 
 const btnPrimary: CSSProperties = {
-  background: '#FF5E00', color: '#fff', border: 'none',
+  background: '#fb6340', color: '#fff', border: 'none',
   borderRadius: '8px', padding: '0.5rem 1.2rem',
   cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem',
 };
 
-const btnSecondaryCls = "px-4 py-2 text-slate-600 dark:text-gray-300 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-200 dark:border-gray-700 rounded-lg cursor-pointer text-[0.85rem] transition-colors";
+const btnSecondaryCls = "px-4 py-2 text-white bg-[#5e72e4] hover:bg-[#4f63d2] border-0 rounded-lg cursor-pointer text-[0.85rem] font-semibold";
 
 const btnDanger: CSSProperties = {
-  background: 'rgba(255,59,48,0.15)', color: '#FF3B30',
-  border: '1px solid rgba(255,59,48,0.3)', borderRadius: '8px',
-  padding: '0.4rem 0.8rem', cursor: 'pointer', fontSize: '0.82rem',
+  background: '#f5365c', color: '#fff', border: 'none',
+  borderRadius: '8px', padding: '0.4rem 0.8rem', cursor: 'pointer',
+  fontSize: '0.82rem', fontWeight: 600,
 };
 
 const inputCls = "w-full bg-slate-50 dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-white rounded-lg px-[0.9rem] py-[0.6rem] text-[0.9rem] focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors box-border";
@@ -154,11 +152,11 @@ const ActivityDetailModal = ({
         <div className="flex justify-between items-start flex-shrink-0 mb-4">
           <div>
             <div className="text-[0.7rem] font-bold uppercase tracking-[0.08em] mb-[0.2rem]" style={{ color: '#FF5E00' }}>
-              🏃 Ficha del Servicio · #{activity.id}
+              Ficha del Servicio · #{activity.id}
             </div>
             <h2 className="m-0 text-[1.35rem] font-bold text-slate-900 dark:text-white">{activity.name}</h2>
           </div>
-          <button onClick={onClose} className="bg-transparent border-0 text-slate-400 dark:text-gray-500 text-[1.3rem] cursor-pointer p-[0.2rem] flex-shrink-0 hover:text-slate-600 dark:hover:text-gray-300 transition-colors">✕</button>
+          <button onClick={onClose} style={{ background: '#8e8e93', border: 'none', color: '#fff', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', padding: '0.25rem 0.6rem', borderRadius: '6px', flexShrink: 0 }}>X</button>
         </div>
 
         {/* Contenido scrollable */}
@@ -167,8 +165,8 @@ const ActivityDetailModal = ({
             {field('Gimnasio / Sucursal', activity.gym?.name ?? `Gym #${activity.gymId}`)}
             {field('Duración', activity.defaultDurationMin ? `${activity.defaultDurationMin} min` : 'No definida')}
             {field('Tipo', activity.isFreeAccess
-              ? <span style={{ color: '#FF5E00', fontWeight: 700 }}>🔓 Acceso Libre</span>
-              : <span style={{ color: '#0A84FF', fontWeight: 700 }}>📅 Con Horarios</span>
+              ? <span style={{ color: '#fb6340', fontWeight: 700 }}>Acceso Libre</span>
+              : <span style={{ color: '#5e72e4', fontWeight: 700 }}>Con Horarios</span>
             )}
             {field('Estado', activity.isActive
               ? <span style={{ color: '#34C759', fontWeight: 700 }}>● Activa</span>
@@ -181,7 +179,7 @@ const ActivityDetailModal = ({
           {!activity.isFreeAccess && (
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '1rem' }}>
               <div style={{ fontSize: '0.75rem', color: '#FF5E00', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.6rem' }}>
-                📅 Horarios de Clase
+                Horarios de Clase
               </div>
               {loading ? (
                 <p style={{ color: '#8E8E93', fontSize: '0.85rem', textAlign: 'center', padding: '1rem 0' }}>Cargando horarios...</p>
@@ -196,11 +194,11 @@ const ActivityDetailModal = ({
                         {s.startTime.substring(0, 5)} – {s.endTime.substring(0, 5)}
                       </span>
                       {(s as any).maxAttendees && (
-                        <span style={{ color: '#8E8E93', fontSize: '0.75rem' }}>👥 {(s as any).maxAttendees}</span>
+                        <span style={{ color: '#8E8E93', fontSize: '0.75rem' }}>{(s as any).maxAttendees} cupos</span>
                       )}
                       {(s as any).instructorId && (
                         <span style={{ color: '#8E8E93', fontSize: '0.75rem', maxWidth: '130px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          🎓 {instructorMap.get(Number((s as any).instructorId)) ?? (s as any).instructor?.email ?? `#${(s as any).instructorId}`}
+                          Inst. {instructorMap.get(Number((s as any).instructorId)) ?? (s as any).instructor?.email ?? `#${(s as any).instructorId}`}
                         </span>
                       )}
                     </div>
@@ -430,9 +428,9 @@ const ActivityFormModal = ({
       {/* Header fijo */}
       <div className="flex justify-between items-center mb-5 flex-shrink-0">
         <h2 className="m-0 text-[1.2rem] font-bold" style={{ color: '#FF5E00' }}>
-          {isEdit ? '✏️ Editar Servicio' : '➕ Nuevo Servicio'}
+          {isEdit ? 'Editar Servicio' : 'Nuevo Servicio'}
         </h2>
-        <button onClick={onClose} className="bg-transparent border-0 text-slate-400 dark:text-gray-500 cursor-pointer text-[1.3rem] hover:text-slate-600 dark:hover:text-gray-300 transition-colors">✕</button>
+        <button onClick={onClose} style={{ background: '#8e8e93', border: 'none', color: '#fff', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', padding: '0.25rem 0.6rem', borderRadius: '6px' }}>X</button>
       </div>
 
       {/* Contenido scrollable */}
@@ -895,8 +893,8 @@ export const ActividadesView = () => {
                   )}
                   <td style={tdStyle}>
                     {act.isFreeAccess
-                      ? <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: '99px', fontSize: '0.75rem', fontWeight: 600, background: 'rgba(255,94,0,0.15)', color: '#FF5E00', border: '1px solid rgba(255,94,0,0.3)' }}>🔓 Libre</span>
-                      : <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: '99px', fontSize: '0.75rem', fontWeight: 600, background: 'rgba(10,132,255,0.12)', color: '#0A84FF', border: '1px solid rgba(10,132,255,0.25)' }}>📅 Horarios</span>
+                      ? <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: '99px', fontSize: '0.75rem', fontWeight: 700, background: '#fb6340', color: '#fff' }}>Libre</span>
+                      : <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: '99px', fontSize: '0.75rem', fontWeight: 700, background: '#5e72e4', color: '#fff' }}>Horarios</span>
                     }
                   </td>
                   <td style={{ ...tdStyle, color: '#AEAEB2' }}>
@@ -912,7 +910,7 @@ export const ActividadesView = () => {
                       <button
                         title="Ver detalle"
                         onClick={() => setDetailTarget(act)}
-                        style={{ background: 'rgba(0,217,255,0.1)', color: '#00D9FF', border: '1px solid rgba(0,217,255,0.25)', borderRadius: '8px', padding: '0.4rem 0.65rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                        style={{ background: '#11cdef', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.4rem 0.65rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
                       ><Eye size={15} /></button>
                       <button className={`${btnSecondaryCls} inline-flex items-center gap-1`} onClick={() => setFormTarget(act)}><Edit size={13} />Editar</button>
                       <button style={{ ...btnDanger, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }} onClick={() => setDeleteTarget(act)}><Trash2 size={13} />Eliminar</button>

@@ -151,11 +151,11 @@ export const RutinasView = () => {
           {loading ? 'Cargando rutinas...' : `Total de rutinas: ${routines.length}`}
         </div>
         {user?.role !== 'CLIENTE' && (
-          <button 
+          <button
             onClick={() => { setRoutineToEdit(null); setIsModalOpen(true); }}
-            style={{ background: '#00D9FF', color: '#0A0A0A', border: 'none', padding: '0.5rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
+            style={{ background: '#5e72e4', color: '#fff', border: 'none', padding: '0.5rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
           >
-            + Nueva Rutina
+            Nueva Rutina
           </button>
         )}
       </div>
@@ -182,8 +182,9 @@ export const RutinasView = () => {
                       padding: '0.2rem 0.5rem',
                       borderRadius: '4px',
                       fontSize: '0.8rem',
-                      background: r.difficulty === 'FACIL' ? 'rgba(48, 209, 88, 0.1)' : r.difficulty === 'INTERMEDIO' ? 'rgba(255, 159, 10, 0.1)' : 'rgba(255, 94, 0, 0.1)',
-                      color: r.difficulty === 'FACIL' ? '#30D158' : r.difficulty === 'INTERMEDIO' ? '#FF9F0A' : '#FF5E00'
+                      fontWeight: 700,
+                      background: r.difficulty === 'FACIL' ? '#2dce89' : r.difficulty === 'INTERMEDIO' ? '#fb6340' : '#f5365c',
+                      color: '#fff',
                     }}>
                       {r.difficulty}
                     </span>
@@ -191,12 +192,12 @@ export const RutinasView = () => {
                   <td style={{ padding: '0.85rem 1rem' }}>{r.description || '-'}</td>
                   <td style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>
                     <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
-                      <button onClick={() => setViewingRoutine(r)} style={{ background: 'rgba(0, 217, 255, 0.1)', border: '1px solid rgba(0, 217, 255, 0.3)', color: '#00D9FF', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }} title="Ver ficha de rutina"><Eye size={13} />Detalle</button>
+                      <button onClick={() => setViewingRoutine(r)} style={{ background: '#11cdef', border: 'none', color: '#fff', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }} title="Ver ficha de rutina"><Eye size={13} />Detalle</button>
                       {user?.role !== 'CLIENTE' && (
                         <>
-                          <button onClick={() => { setRoutineToEdit(r); setIsModalOpen(true); }} style={{ background: '#00D9FF', color: '#0A0A0A', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}><Edit size={13} />Editar</button>
+                          <button onClick={() => { setRoutineToEdit(r); setIsModalOpen(true); }} style={{ background: '#5e72e4', color: '#fff', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}><Edit size={13} />Editar</button>
                           {canDelete && (
-                            <button onClick={() => handleDeleteRoutine(r)} style={{ background: 'rgba(255, 94, 0, 0.1)', color: '#FF5E00', border: '1px solid #FF5E00', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}><Trash2 size={13} />Eliminar</button>
+                            <button onClick={() => handleDeleteRoutine(r)} style={{ background: '#f5365c', color: '#fff', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}><Trash2 size={13} />Eliminar</button>
                           )}
                         </>
                       )}
@@ -240,8 +241,8 @@ export const RutinasView = () => {
               borderRadius: '4px', 
               fontSize: '0.8rem',
               fontWeight: 700,
-              background: viewingRoutine?.difficulty === 'FACIL' ? 'rgba(48, 209, 88, 0.15)' : viewingRoutine?.difficulty === 'INTERMEDIO' ? 'rgba(255, 159, 10, 0.15)' : 'rgba(255, 94, 0, 0.15)',
-              color: viewingRoutine?.difficulty === 'FACIL' ? '#30D158' : viewingRoutine?.difficulty === 'INTERMEDIO' ? '#FF9F0A' : '#FF5E00' 
+              background: viewingRoutine?.difficulty === 'FACIL' ? '#2dce89' : viewingRoutine?.difficulty === 'INTERMEDIO' ? '#fb6340' : '#f5365c',
+              color: '#fff'
             }}>
               {viewingRoutine?.difficulty}
             </span>

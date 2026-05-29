@@ -202,7 +202,7 @@ const PopupCard = ({ s, computedStatus }: { s: SucursalMapaDTO; computedStatus: 
 
       {/* Dirección */}
       <div style={{ fontSize: '0.75rem', color: '#8E8E93', marginBottom: '10px', lineHeight: 1.4 }}>
-        📍 {s.address}
+        {s.address}
       </div>
 
       {/* Aforo */}
@@ -526,7 +526,7 @@ export const MapaView: React.FC = () => {
       {/* Header */}
       <div style={s.header}>
         <div>
-          <h1 style={s.title}>🌐 Mapa de Red de Sucursales</h1>
+          <h1 style={s.title}>Mapa de Red de Sucursales</h1>
           <p style={s.subtitle}>Visualización geoespacial de toda la red de gimnasios GymSync Pro</p>
         </div>
 
@@ -559,21 +559,20 @@ export const MapaView: React.FC = () => {
 
       {/* Aviso sin geo */}
       {sinGeo > 0 && !loading && (
-        <div style={{ background: 'rgba(255,159,10,0.1)', border: '1px solid rgba(255,159,10,0.3)', borderRadius: '8px', padding: '0.5rem 0.85rem', fontSize: '0.8rem', color: '#FF9F0A', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          ⚠️ <span><strong>{sinGeo} sucursal{sinGeo > 1 ? 'es' : ''}</strong> sin coordenadas GPS — no se {sinGeo > 1 ? 'muestran' : 'muestra'} en el mapa.</span>
+        <div style={{ background: '#fb6340', border: 'none', borderRadius: '8px', padding: '0.5rem 0.85rem', fontSize: '0.8rem', color: '#fff', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span><strong>{sinGeo} sucursal{sinGeo > 1 ? 'es' : ''}</strong> sin coordenadas GPS — no se {sinGeo > 1 ? 'muestran' : 'muestra'} en el mapa.</span>
         </div>
       )}
 
       {/* Carga / error */}
       {loading && (
         <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
-          <div style={{ fontSize: '2rem', marginBottom: '0.5rem', animation: 'pulse 1.5s infinite' }}>🗺️</div>
-          Cargando datos geoespaciales...
+          <div style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Cargando datos geoespaciales...</div>
         </div>
       )}
       {error && !loading && (
-        <div style={{ background: 'rgba(255,94,0,0.1)', border: '1px solid #FF5E00', borderRadius: '8px', padding: '1rem', color: '#FF5E00' }}>
-          ⚠️ {error}
+        <div style={{ background: '#f5365c', border: 'none', borderRadius: '8px', padding: '1rem', color: '#fff', fontWeight: 600 }}>
+          {error}
         </div>
       )}
 

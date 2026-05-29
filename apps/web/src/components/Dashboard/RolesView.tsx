@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
 import { ModalOverlay, ConfirmModal, panelStyle } from './Shared/DashboardShared';
 import type { GymDto, GymScheduleDto, UserDto, CheckinDto, ScheduleEntry } from './Shared/DashboardTypes';
-import { Edit, Trash2, Plus } from 'lucide-react';
+import { Edit, Trash2, Plus, Shield } from 'lucide-react';
 
 type RoleDto = {
   id: number;
@@ -94,9 +94,9 @@ const RoleModal = ({ isOpen, onClose, roleToEdit, onSave, roles }: any) => {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
         <h2 style={{ margin: 0, fontSize: '1.15rem', color: '#FFFFFF' }}>
-          {roleToEdit ? '✏️ Editar Rol' : '🔑 Nuevo Rol'}
+          {roleToEdit ? 'Editar Rol' : 'Nuevo Rol'}
         </h2>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#8E8E93', fontSize: '1.2rem', cursor: 'pointer', lineHeight: 1 }}>✕</button>
+        <button onClick={onClose} style={{ background: '#8e8e93', border: 'none', color: '#fff', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', padding: '0.25rem 0.6rem', borderRadius: '6px', lineHeight: 1 }}>X</button>
       </div>
 
       {/* Nombre */}
@@ -113,7 +113,7 @@ const RoleModal = ({ isOpen, onClose, roleToEdit, onSave, roles }: any) => {
           placeholder="Ej. COORDINADOR"
         />
         {errors.name
-          ? <span style={errStyle}>⚠ {errors.name}</span>
+          ? <span style={errStyle}>{errors.name}</span>
           : <small style={{ color: '#8E8E93', fontSize: '0.72rem', marginTop: '0.3rem' }}>Solo mayúsculas y guión bajo (AUTO)</small>
         }
       </div>
@@ -150,7 +150,7 @@ const RoleModal = ({ isOpen, onClose, roleToEdit, onSave, roles }: any) => {
         />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.3rem' }}>
           {errors.description
-            ? <span style={errStyle}>⚠ {errors.description}</span>
+            ? <span style={errStyle}>{errors.description}</span>
             : <span />
           }
           <span style={{
@@ -193,8 +193,8 @@ const RoleModal = ({ isOpen, onClose, roleToEdit, onSave, roles }: any) => {
 
       {/* Warning */}
       {roleToEdit?.isSystemRole && (
-        <div style={{ padding: '0.6rem 0.75rem', background: 'rgba(255, 159, 10, 0.08)', border: '1px solid rgba(255, 159, 10, 0.3)', borderRadius: '8px', color: '#FF9F0A', fontSize: '0.8rem', marginBottom: '1rem' }}>
-          ⚠️ Este es un rol de sistema. Modifícalo con precaución.
+        <div style={{ padding: '0.6rem 0.75rem', background: '#fb6340', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '0.8rem', fontWeight: 600, marginBottom: '1rem' }}>
+          Atención: este es un rol de sistema. Modifícalo con precaución.
         </div>
       )}
 
@@ -202,7 +202,7 @@ const RoleModal = ({ isOpen, onClose, roleToEdit, onSave, roles }: any) => {
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
         <button
           onClick={onClose}
-          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: '#C7C7CC', padding: '0.55rem 1.1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600 }}
+          style={{ background: '#8e8e93', border: 'none', color: '#fff', padding: '0.55rem 1.1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600 }}
         >
           Cancelar
         </button>
@@ -232,7 +232,7 @@ export const RolesView = () => {
     return (
       <section style={panelStyle} className="glass-panel">
         <div style={{ padding: '3rem', textAlign: 'center', color: '#FF5E00' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔒</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '1rem', letterSpacing: '0.1em' }}>ACCESO DENEGADO</div>
           <h2>Acceso Denegado</h2>
           <p style={{ color: '#8E8E93' }}>Solo el Super Administrador puede gestionar los roles del sistema.</p>
         </div>
@@ -398,7 +398,7 @@ export const RolesView = () => {
         </div>
         <button
           onClick={() => { setRoleToEdit(null); setIsModalOpen(true); }}
-          style={{ background: '#00D9FF', color: '#0A0A0A', border: 'none', padding: '0.5rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+          style={{ background: '#5e72e4', color: '#fff', border: 'none', padding: '0.5rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
         >
           <Plus size={15} />
           Nuevo Rol
@@ -435,11 +435,10 @@ export const RolesView = () => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '1rem',
                     flexShrink: 0,
                   }}
                 >
-                  🔑
+                  <Shield size={17} color={hierarchyColor(role.hierarchyLevel)} />
                 </div>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -447,7 +446,7 @@ export const RolesView = () => {
                       {role.name}
                     </span>
                     {role.isSystemRole && (
-                      <span style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255, 159, 10, 0.15)', color: '#FF9F0A', border: '1px solid rgba(255,159,10,0.3)' }}>
+                      <span style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', background: '#fb6340', color: '#fff', fontWeight: 700, border: 'none' }}>
                         SISTEMA
                       </span>
                     )}
@@ -467,7 +466,7 @@ export const RolesView = () => {
               <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
                 <button
                   onClick={() => { setRoleToEdit(role); setIsModalOpen(true); }}
-                  style={{ background: '#00D9FF', color: '#0A0A0A', border: 'none', padding: '0.3rem 0.75rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                  style={{ background: '#5e72e4', color: '#fff', border: 'none', padding: '0.3rem 0.75rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
                 >
                   <Edit size={13} />
                   Editar
@@ -477,9 +476,9 @@ export const RolesView = () => {
                   disabled={role.isSystemRole}
                   title={role.isSystemRole ? 'Los roles de sistema no pueden eliminarse' : 'Eliminar rol'}
                   style={{
-                    background: role.isSystemRole ? 'rgba(58,58,60,0.5)' : 'rgba(255, 94, 0, 0.1)',
-                    color: role.isSystemRole ? '#555' : '#FF5E00',
-                    border: `1px solid ${role.isSystemRole ? '#3A3A3C' : '#FF5E00'}`,
+                    background: role.isSystemRole ? '#cbd5e1' : '#f5365c',
+                    color: '#fff',
+                    border: 'none',
                     padding: '0.3rem 0.75rem',
                     borderRadius: '6px',
                     cursor: role.isSystemRole ? 'not-allowed' : 'pointer',
@@ -488,6 +487,7 @@ export const RolesView = () => {
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '0.3rem',
+                    opacity: role.isSystemRole ? 0.7 : 1,
                   }}
                 >
                   <Trash2 size={13} />

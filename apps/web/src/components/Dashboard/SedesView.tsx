@@ -76,7 +76,7 @@ const MarcaModal = ({ isOpen, onClose, marcaToEdit, onSave, existingGyms = [] }:
   return (
     <ModalOverlay onClose={onClose}>
       <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">
-        {marcaToEdit ? '✏️ Editar Marca' : '🏷️ Nueva Marca'}
+        {marcaToEdit ? 'Editar Marca' : 'Nueva Marca'}
       </h2>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -292,9 +292,9 @@ export const SedesView = () => {
         {user.role === 'SUPER_ADMIN' && (
           <button
             onClick={handleCreateSede}
-            className="bg-[#00D9FF] text-[#0A0A0A] font-semibold px-4 py-2 rounded-lg border-0 cursor-pointer hover:bg-[#00c0e0] transition-colors whitespace-nowrap"
+            className="bg-[#5e72e4] text-white font-semibold px-4 py-2 rounded-lg border-0 cursor-pointer hover:bg-[#4f63d2] whitespace-nowrap"
           >
-            + Nueva Marca
+            Nueva Marca
           </button>
         )}
       </div>
@@ -321,8 +321,8 @@ export const SedesView = () => {
           </div>
           {(search || sortOrder !== 'az') && (
             <button onClick={() => { setSearch(''); setSortOrder('az'); }}
-              style={{ background: 'none', color: '#8E8E93', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '0.45rem 0.85rem', cursor: 'pointer', fontSize: '0.8rem' }}>
-              ✕ Limpiar
+              style={{ background: '#8e8e93', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.45rem 0.85rem', cursor: 'pointer', fontSize: '0.8rem' }}>
+              Limpiar
             </button>
           )}
         </div>
@@ -352,13 +352,12 @@ export const SedesView = () => {
                   <td style={{ padding: '0.6rem' }}>{g.id}</td>
                   <td style={{ padding: '0.6rem' }}>
                     <span style={{
-                      background: 'rgba(0, 217, 255, 0.15)',
-                      backdropFilter: 'blur(10px)',
-                      color: '#00D9FF',
+                      background: '#11cdef',
+                      color: '#fff',
                       padding: '0.2rem 0.5rem',
                       borderRadius: '4px',
                       fontSize: '0.9rem',
-                      border: '1px solid rgba(0, 217, 255, 0.3)'
+                      fontWeight: 600,
                     }}>
                       {g.name}
                     </span>
@@ -369,7 +368,7 @@ export const SedesView = () => {
                       <button
                         title="Ver información"
                         onClick={() => setInfoSede(g)}
-                        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: '#AEAEB2', padding: '0.25rem 0.45rem', borderRadius: '4px', cursor: 'pointer', lineHeight: 1, display: 'flex', alignItems: 'center' }}
+                        style={{ background: '#8e8e93', border: 'none', color: '#fff', padding: '0.25rem 0.45rem', borderRadius: '4px', cursor: 'pointer', lineHeight: 1, display: 'flex', alignItems: 'center' }}
                       >
                         {/* SVG info circle */}
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -382,14 +381,14 @@ export const SedesView = () => {
                       {user.role === 'SUPER_ADMIN' && (<>
                         <button
                           onClick={() => handleEditSede(g)}
-                          style={{ background: 'transparent', border: '1px solid #00D9FF', color: '#00D9FF', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                          style={{ background: '#5e72e4', border: 'none', color: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
                         >
                           <Edit size={12} />
                           Editar
                         </button>
                         <button
                           onClick={() => handleDeleteSede(g)}
-                          style={{ background: 'transparent', border: '1px solid #FF5E00', color: '#FF5E00', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                          style={{ background: '#f5365c', border: 'none', color: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
                         >
                           <Trash2 size={12} />
                           Eliminar
@@ -438,12 +437,12 @@ export const SedesView = () => {
               </div>
               <button
                 onClick={() => setInfoSede(null)}
-                style={{ background: 'none', border: 'none', color: '#8E8E93', fontSize: '1.2rem', cursor: 'pointer', padding: '0.2rem', flexShrink: 0 }}
-              >✕</button>
+                style={{ background: '#8e8e93', border: 'none', color: '#fff', fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer', padding: '0.25rem 0.55rem', borderRadius: '6px', flexShrink: 0 }}
+              >X</button>
             </div>
 
             {/* Descripción */}
-            <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '1rem' }}>
+            <div style={{ background: '#f6f6f8', border: '1px solid #e2e2e8', borderRadius: '10px', padding: '1rem' }}>
               <div style={{ fontSize: '0.68rem', color: '#8E8E93', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>
                 Descripción
               </div>
@@ -459,7 +458,7 @@ export const SedesView = () => {
               {user.role === 'SUPER_ADMIN' && (
                 <button
                   onClick={() => { handleEditSede(infoSede); setInfoSede(null); }}
-                  style={{ background: 'transparent', border: '1px solid #00D9FF', color: '#00D9FF', borderRadius: '8px', padding: '0.5rem 1rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                  style={{ background: '#5e72e4', border: 'none', color: '#fff', borderRadius: '8px', padding: '0.5rem 1rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                 >
                   <Edit size={14} />
                   Editar
@@ -467,7 +466,7 @@ export const SedesView = () => {
               )}
               <button
                 onClick={() => setInfoSede(null)}
-                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: '#E5E5EA', borderRadius: '8px', padding: '0.5rem 1.1rem', cursor: 'pointer', fontSize: '0.85rem' }}
+                style={{ background: '#8e8e93', border: 'none', color: '#fff', borderRadius: '8px', padding: '0.5rem 1.1rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
               >
                 Cerrar
               </button>

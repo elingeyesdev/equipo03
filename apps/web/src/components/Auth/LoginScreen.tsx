@@ -217,7 +217,7 @@ export const LoginScreen = () => {
                   </button>
                 </div>
                 <button type="submit" className="btn-login" disabled={isSubmitting}>
-                  {isSubmitting ? 'Verificando credenciales...' : 'Ingresar al Dashboard'}
+                  {isSubmitting ? 'Verificando...' : 'Iniciar Sesión'}
                 </button>
               </form>
               <div className="text-sm text-slate-600 dark:text-gray-400 text-center mt-6">

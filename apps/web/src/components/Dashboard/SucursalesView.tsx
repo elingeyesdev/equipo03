@@ -679,9 +679,9 @@ export const SucursalesView = () => {
         {user.role === 'SUPER_ADMIN' && (
           <button
             onClick={handleCreateSucursal}
-            className="bg-[#00D9FF] text-[#0A0A0A] font-semibold px-4 py-2 rounded-lg border-0 cursor-pointer hover:bg-[#00c0e0] transition-colors whitespace-nowrap"
+            className="bg-[#5e72e4] text-white font-semibold px-4 py-2 rounded-lg border-0 cursor-pointer hover:bg-[#4f63d2] whitespace-nowrap"
           >
-            + Nueva Sucursal
+            Nueva Sucursal
           </button>
         )}
       </div>
@@ -732,8 +732,8 @@ export const SucursalesView = () => {
           </div>
           {hasFilters && (
             <button onClick={resetFilters}
-              style={{ background: 'none', color: '#8E8E93', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '0.45rem 0.85rem', cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-              ✕ Limpiar
+              style={{ background: '#8e8e93', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.45rem 0.85rem', cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap', fontWeight: 600 }}>
+              Limpiar
             </button>
           )}
         </div>
@@ -770,13 +770,12 @@ export const SucursalesView = () => {
                   <td style={{ padding: '0.6rem' }}>{g.name}</td>
                   <td style={{ padding: '0.6rem' }}>
                     <span style={{
-                      background: 'rgba(0, 217, 255, 0.15)',
-                      backdropFilter: 'blur(10px)',
-                      color: '#00D9FF',
+                      background: '#11cdef',
+                      color: '#fff',
                       padding: '0.2rem 0.5rem',
                       borderRadius: '4px',
                       fontSize: '0.75rem',
-                      border: '1px solid rgba(0, 217, 255, 0.3)'
+                      fontWeight: 600,
                     }}>
                       {g.parent?.name || (g.parentId ? parentGyms[g.parentId] : 'Sin Sede')}
                     </span>
@@ -802,7 +801,7 @@ export const SucursalesView = () => {
                             setViewingSucursal(g);
                           }
                         }}
-                        style={{ background: 'rgba(0, 217, 255, 0.1)', border: '1px solid rgba(0, 217, 255, 0.3)', color: '#00D9FF', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                        style={{ background: '#11cdef', border: 'none', color: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
                         title="Ver detalles de la sucursal"
                       >
                         <Eye size={12} />
@@ -812,14 +811,14 @@ export const SucursalesView = () => {
                         <>
                           <button
                             onClick={() => handleEditSucursal(g)}
-                            style={{ background: 'transparent', border: '1px solid #00D9FF', color: '#00D9FF', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                            style={{ background: '#5e72e4', border: 'none', color: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
                           >
                             <Edit size={12} />
                             Editar
                           </button>
                           <button
                             onClick={() => handleDeleteSucursal(g)}
-                            style={{ background: 'transparent', border: '1px solid #FF5E00', color: '#FF5E00', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                            style={{ background: '#f5365c', border: 'none', color: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
                           >
                             <Trash2 size={12} />
                             Eliminar
@@ -895,7 +894,7 @@ export const SucursalesView = () => {
           label="Estado de Puertas" 
           value={
             <span style={{ color: viewingSucursal?.isOpen ? '#00D9FF' : '#8E8E93', fontWeight: 700 }}>
-              {viewingSucursal?.isOpen ? '🚪 ABIERTA AL PÚBLICO' : '🔒 CERRADA'}
+              {viewingSucursal?.isOpen ? 'ABIERTA AL PÚBLICO' : 'CERRADA'}
             </span>
           } 
         />

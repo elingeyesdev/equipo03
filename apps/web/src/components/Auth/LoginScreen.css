@@ -218,7 +218,7 @@
 /* Botón Acción */
 .btn-login {
   width: 100%;
-  background: linear-gradient(135deg, #00D9FF 0%, #0077ff 100%);
+  background: #0088cc;
   color: #FFFFFF;
   border: none;
   padding: 1.1rem;
@@ -226,21 +226,16 @@
   font-weight: 700;
   font-size: 1.05rem;
   cursor: pointer;
-  transition: all 0.3s ease;
   margin-top: 1rem;
-  box-shadow: 0 6px 20px rgba(0, 217, 255, 0.25);
 }
 
 .btn-login:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 217, 255, 0.4);
+  background: #0077b5;
 }
 
 .btn-login:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
 }
 
 .login-loading {

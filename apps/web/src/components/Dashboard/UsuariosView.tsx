@@ -304,7 +304,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions }: {
         {isGerente && (
           <div className="bg-orange-50 dark:bg-orange-900/5 border border-orange-200 dark:border-orange-500/20 rounded-xl p-4 mt-3 mb-1 flex flex-col gap-3">
             <p className="m-0 text-xs font-semibold tracking-widest uppercase text-orange-600 dark:text-orange-400">
-              📍 Asignación de Sede y Sucursal
+              Asignación de Sede y Sucursal
             </p>
             <p className="m-0 text-sm text-slate-600 dark:text-gray-400 leading-relaxed">
               Una <strong className="text-slate-900 dark:text-gray-200">Sede</strong> es la marca/organización (ej. "Smart Fit").
@@ -334,7 +334,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions }: {
               <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">2 · Sucursal a Administrar *</label>
               {selectedSede !== '' && sucursalesParaSede.length === 0 ? (
                 <p className="m-0 text-sm text-red-500 p-2 bg-red-50 dark:bg-red-900/10 rounded-lg">
-                  ⚠️ Esta sede no tiene sucursales registradas aún.
+                  Atención: esta sede no tiene sucursales registradas aún.
                 </p>
               ) : (
                 <select
@@ -372,11 +372,11 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions }: {
                       </div>
                       {hijos.map(g => (
                         <label key={g.id} className="flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded-md"
-                          style={{ background: formData.gymIds.includes(Number(g.id)) ? 'rgba(0,217,255,0.08)' : 'transparent' }}>
+                          style={{ background: formData.gymIds.includes(Number(g.id)) ? '#e7f7fb' : 'transparent' }}>
                           <input type="checkbox" checked={formData.gymIds.includes(Number(g.id))}
                             onChange={() => toggleGym(Number(g.id))}
                             style={{ width: '15px', height: '15px', cursor: 'pointer', accentColor: '#00D9FF' }} />
-                          <span className="text-sm text-slate-700 dark:text-gray-300">🏪 {g.name}</span>
+                          <span className="text-sm text-slate-700 dark:text-gray-300">{g.name}</span>
                         </label>
                       ))}
                     </div>
@@ -384,7 +384,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions }: {
                 })}
                 {sucursales.filter(s => !s.parentId && !s.parent?.id).map(g => (
                   <label key={g.id} className="flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded-md"
-                    style={{ background: formData.gymIds.includes(Number(g.id)) ? 'rgba(0,217,255,0.08)' : 'transparent' }}>
+                    style={{ background: formData.gymIds.includes(Number(g.id)) ? '#e7f7fb' : 'transparent' }}>
                     <input type="checkbox" checked={formData.gymIds.includes(Number(g.id))}
                       onChange={() => toggleGym(Number(g.id))}
                       style={{ width: '15px', height: '15px', cursor: 'pointer', accentColor: '#00D9FF' }} />
@@ -654,9 +654,9 @@ export const UsuariosView = () => {
         </div>
         {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE') && (
           <button onClick={() => { setUserToEdit(null); setIsModalOpen(true); }}
-            className="bg-[#00D9FF] text-[#0A0A0A] font-semibold px-4 py-2 rounded-lg border-0 cursor-pointer hover:bg-[#00c0e0] transition-colors whitespace-nowrap inline-flex items-center gap-1.5">
+            className="bg-[#5e72e4] text-white font-semibold px-4 py-2 rounded-lg border-0 cursor-pointer hover:bg-[#4f63d2] whitespace-nowrap inline-flex items-center gap-1.5">
             <Plus size={15} />
-            + Nuevo Usuario
+            Nuevo Usuario
           </button>
         )}
       </div>
@@ -717,7 +717,7 @@ export const UsuariosView = () => {
           {hasActiveFilters && (
             <button onClick={resetFilters}
               style={{ background: 'none', color: '#8E8E93', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '0.45rem 0.85rem', cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-              ✕ Limpiar
+              Limpiar
             </button>
           )}
         </div>
@@ -734,7 +734,6 @@ export const UsuariosView = () => {
 
       {!loading && !error && users.length === 0 && (
         <div style={{ marginTop: '2rem', textAlign: 'center', color: '#8E8E93', padding: '2rem', borderRadius: '12px', background: 'rgba(255,255,255,0.03)' }}>
-          <p style={{ fontSize: '1.5rem', margin: '0 0 0.5rem' }}>👥</p>
           <p>No hay usuarios disponibles en esta sede.</p>
         </div>
       )}
@@ -784,14 +783,14 @@ export const UsuariosView = () => {
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                             {/* Primera sucursal siempre visible */}
                             <span style={{
-                              background: 'rgba(0,217,255,0.12)', color: '#00D9FF',
+                              background: '#11cdef', color: '#fff',
                               padding: '0.18rem 0.5rem', borderRadius: '4px',
-                              fontSize: '0.75rem', border: '1px solid rgba(0,217,255,0.25)',
+                              fontSize: '0.75rem',
                               fontWeight: 600, display: 'inline-block',
-                            }}>🏪 {sucursalName}</span>
+                            }}>{sucursalName}</span>
                             {sedeName && (
                               <span style={{ fontSize: '0.68rem', color: '#8E8E93', paddingLeft: '0.2rem' }}>
-                                🏢 {sedeName}
+                                {sedeName}
                               </span>
                             )}
                             {/* Badge compacto si hay más */}
@@ -821,18 +820,18 @@ export const UsuariosView = () => {
                     <td style={{ padding: '0.6rem', textAlign: 'center' }}>
                       <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
                         <button onClick={() => setViewingUser(u)}
-                          style={{ background: 'rgba(0,217,255,0.1)', color: '#00D9FF', border: '1px solid rgba(0,217,255,0.3)', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                          style={{ background: '#11cdef', color: '#fff', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
                           <Eye size={13} />
                           Detalle
                         </button>
                         {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE') && (<>
                           <button onClick={() => { setUserToEdit(u); setIsModalOpen(true); }}
-                            style={{ background: '#00D9FF', color: '#0A0A0A', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                            style={{ background: '#5e72e4', color: '#fff', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
                             <Edit size={13} />
                             Editar
                           </button>
                           <button onClick={() => setDeleteConfirmUser(u)}
-                            style={{ background: 'rgba(255,94,0,0.1)', color: '#FF5E00', border: '1px solid #FF5E00', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                            style={{ background: '#f5365c', color: '#fff', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
                             <Trash2 size={13} />
                             Eliminar
                           </button>
@@ -910,7 +909,7 @@ export const UsuariosView = () => {
                   value={<span style={{ color: '#FF5E00', fontWeight: 600 }}>{sedeName}</span>}
                 />
                 <DetailField
-                  label="🏪 Sucursal Asignada"
+                  label="Sucursal Asignada"
                   value={<span style={{ color: '#00D9FF', fontWeight: 600 }}>{sucursalName}</span>}
                 />
               </>
@@ -920,7 +919,7 @@ export const UsuariosView = () => {
           // ENTRENADOR / NUTRICIONISTA: puede tener varias → una fila por sucursal
           return (
             <DetailField
-              label={`🏪 Sucursales Asignadas (${gymsInRoles.length})`}
+              label={`Sucursales Asignadas (${gymsInRoles.length})`}
               isFullWidth
               value={
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.25rem' }}>
@@ -932,14 +931,13 @@ export const UsuariosView = () => {
                     return (
                       <div key={i} style={{
                         padding: '0.5rem 0.75rem',
-                        background: 'rgba(0,217,255,0.06)',
+                        background: '#11cdef',
                         borderRadius: '6px',
-                        border: '1px solid rgba(0,217,255,0.15)',
                       }}>
-                        <div style={{ color: '#00D9FF', fontWeight: 600, fontSize: '0.88rem' }}>🏪 {sucursalName}</div>
+                        <div style={{ color: '#fff', fontWeight: 600, fontSize: '0.88rem' }}>{sucursalName}</div>
                         {sedeName && (
-                          <div style={{ color: '#8E8E93', fontSize: '0.78rem', marginTop: '0.2rem' }}>
-                            🏢 {sedeName}
+                          <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.78rem', marginTop: '0.2rem' }}>
+                            {sedeName}
                           </div>
                         )}
                       </div>

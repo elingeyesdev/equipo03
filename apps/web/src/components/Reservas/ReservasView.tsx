@@ -7,7 +7,7 @@ import type { Reservation } from '../../infrastructure/Reservations.types';
 import { QrScannerModal } from './QrScannerModal';
 import { RecordDetailModal, DetailField } from '../Dashboard/Shared/DashboardShared';
 import './ReservasView.css';
-import { Eye, QrCode, CheckCircle, X, Loader2 } from 'lucide-react';
+import { Eye, QrCode, CheckCircle, X, Loader2, RotateCw } from 'lucide-react';
 
 export const ReservasView = () => {
   const { user } = useAuth();
@@ -163,12 +163,11 @@ export const ReservasView = () => {
           <div className="confirm-card premium" onClick={e => e.stopPropagation()}>
             <div className="confirm-header">
               <div className="status-badge-valid">QR VÁLIDO</div>
-              <button className="close-btn" onClick={() => setScannedReservation(null)}>✕</button>
+              <button onClick={() => setScannedReservation(null)} style={{ background: '#8e8e93', border: 'none', color: '#fff', fontSize: '0.85rem', fontWeight: 700, padding: '0.25rem 0.6rem', borderRadius: '6px', cursor: 'pointer' }}>X</button>
             </div>
             
             <div className="confirm-icon-wrapper">
-              <div className="check-ring" />
-              <span className="check-icon">✅</span>
+              <CheckCircle size={48} color="#2dce89" />
             </div>
 
             <div className="confirm-content">
@@ -217,7 +216,7 @@ export const ReservasView = () => {
         </div>
 
         <div className="view-filters">
-          <button className="btn-scan-qr" onClick={() => setShowScanner(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+          <button onClick={() => setShowScanner(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: '#fb6340', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}>
             <QrCode size={15} />
             Escanear QR
           </button>
@@ -249,7 +248,9 @@ export const ReservasView = () => {
             <option value="CANCELLED">Canceladas</option>
           </select>
 
-          <button onClick={loadReservations} className="btn-refresh" title="Refrescar">🔄</button>
+          <button onClick={loadReservations} title="Refrescar" style={{ background: '#172b4d', border: 'none', color: '#fff', borderRadius: '8px', padding: '0.5rem 0.75rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+            <RotateCw size={15} />
+          </button>
         </div>
       </div>
 
@@ -310,8 +311,7 @@ export const ReservasView = () => {
                         <div className="flex items-center gap-2">
                           {/* Detalle */}
                           <button
-                            className="btn-action"
-                            style={{ background: 'rgba(0, 217, 255, 0.1)', border: '1px solid rgba(0, 217, 255, 0.3)', color: '#00D9FF', borderRadius: '6px', padding: '0.4rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '36px' }}
+                            style={{ background: '#11cdef', border: 'none', color: '#fff', borderRadius: '6px', padding: '0.4rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '36px' }}
                             title="Ver detalle completo de reserva"
                             onClick={() => setViewingReservation(res)}
                             disabled={isLoading}
@@ -321,7 +321,7 @@ export const ReservasView = () => {
 
                           {/* Escanear QR — siempre disponible */}
                           <button
-                            className="btn-action btn-action-scan"
+                            style={{ background: '#fb6340', border: 'none', color: '#fff', borderRadius: '6px', padding: '0.4rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '36px' }}
                             title="Escanear QR de este usuario"
                             onClick={() => setShowScanner(true)}
                             disabled={isLoading}
@@ -331,7 +331,7 @@ export const ReservasView = () => {
 
                           {/* Aceptar — solo para CONFIRMED */}
                           <button
-                            className="btn-action btn-action-accept"
+                            style={{ background: isConfirmed ? '#2dce89' : '#cbd5e1', border: 'none', color: '#fff', borderRadius: '6px', padding: '0.4rem', cursor: isConfirmed ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '36px', opacity: isConfirmed ? 1 : 0.7 }}
                             title="Aceptar entrada"
                             onClick={() => handleAccept(res)}
                             disabled={!isConfirmed || isLoading}
@@ -341,7 +341,7 @@ export const ReservasView = () => {
 
                           {/* Cancelar — solo para CONFIRMED */}
                           <button
-                            className="btn-action btn-action-cancel-icon"
+                            style={{ background: isConfirmed ? '#f5365c' : '#cbd5e1', border: 'none', color: '#fff', borderRadius: '6px', padding: '0.4rem', cursor: isConfirmed ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '36px', opacity: isConfirmed ? 1 : 0.7 }}
                             title="Cancelar reserva"
                             onClick={() => handleCancel(res.id)}
                             disabled={!isConfirmed || isLoading}
@@ -434,7 +434,7 @@ export const ReservasView = () => {
             label="Token de Seguridad QR" 
             isFullWidth 
             value={
-              <code style={{ wordBreak: 'break-all', background: 'rgba(0,0,0,0.4)', padding: '0.4rem 0.6rem', borderRadius: '6px', color: '#00D9FF', fontSize: '0.8rem', display: 'block', border: '1px solid rgba(0, 217, 255, 0.1)' }}>
+              <code style={{ wordBreak: 'break-all', background: '#172b4d', padding: '0.4rem 0.6rem', borderRadius: '6px', color: '#fff', fontSize: '0.8rem', display: 'block' }}>
                 {viewingReservation.qrToken}
               </code>
             } 
