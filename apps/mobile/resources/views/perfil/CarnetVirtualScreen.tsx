@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
+import { AuthService } from '../../../app/Providers/auth/AuthService';
+import { Env } from '../../../app/Providers/geolocation/config/environment';
 
 type Tab = 'CARNET' | 'USUARIO';
 
@@ -18,6 +20,37 @@ const ROLE_COLOR: Record<string, string> = {
 export const CarnetVirtualScreen = () => {
   const { user } = useAuth();
   const [tab, setTab] = useState<Tab>('CARNET');
+  const [gymName,   setGymName]   = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  // Obtener email y nombre real de sucursal desde el perfil completo
+  useEffect(() => {
+    AuthService.fetchUserProfile().then(async data => {
+      // Email
+      const mail = data?.email ?? null;
+      if (mail) setUserEmail(mail);
+
+      // Sucursal: prioridad → userRoles[0].gym.name (asignación real del backend)
+      // Fallback → fetch /api/gyms/:gymId con el gymId del contexto de auth
+      const roleGymName = data?.userRoles?.[0]?.gym?.name ?? null;
+      if (roleGymName) {
+        setGymName(roleGymName);
+        return;
+      }
+
+      // Fallback: usar gymId del contexto si el perfil no trae userRoles
+      const rawGymId = user?.gymId;
+      if (!rawGymId) return;
+      const token = await AuthService.getToken();
+      if (!token) return;
+      fetch(`${Env.API_BASE_URL}/api/gyms/${rawGymId}`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      })
+        .then(r => r.json())
+        .then(body => { const g = body?.data ?? body; if (g?.name) setGymName(g.name); })
+        .catch(() => {});
+    }).catch(() => {});
+  }, [user?.gymId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const p           = (user as any)?.profile;
   const firstName   = p?.firstName ?? '';
@@ -28,8 +61,8 @@ export const CarnetVirtualScreen = () => {
   const role        = user?.role?.toUpperCase() ?? '';
   const avatarIcon  = p?.avatarIcon ?? p?.avatarUrl ?? 'account-circle';
   const gender      = p?.gender     ?? '—';
-  const email       = (user as any)?.email ?? '—';
-  const gymId       = user?.gymId ? `Sede #${user.gymId}` : 'Sin sede asignada';
+  const email       = userEmail ?? (user as any)?.email ?? '—';
+  const gymId       = gymName ?? (user?.gymId ? `Sede #${user.gymId}` : 'Sin sede asignada');
   const qrValue     = String((user as any)?.userId ?? (user as any)?.id ?? 'NO_ID');
   const accent      = ROLE_COLOR[role] ?? '#f05b22';
 
@@ -84,7 +117,7 @@ export const CarnetVirtualScreen = () => {
         <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
           <View style={s.dataCard}>
             {[
-              { label: 'Sede',   value: gymId,  icon: 'office-building-outline'  },
+              { label: 'Sucursal', value: gymId, icon: 'office-building-outline'  },
               { label: 'Rol',    value: role,   icon: 'shield-account-outline'   },
               { label: 'Género', value: gender, icon: 'gender-male-female'       },
               { label: 'Correo', value: email,  icon: 'email-outline'            },

@@ -45,6 +45,33 @@ export const visitsApi = {
   getMyVisits: async (): Promise<VisitRecord[]> => {
     const res = await visitsClient.get('/api/visits/me');
     const raw = res.data?.data ?? res.data;
-    return Array.isArray(raw) ? raw : [];
+    const visits: VisitRecord[] = Array.isArray(raw) ? raw : [];
+
+    // Si el backend no popula gym.name, lo buscamos por ID para cada gymId único
+    const sinNombre = visits.filter(v => !v.gym?.name);
+    if (sinNombre.length === 0) return visits;
+
+    const uniqueIds = [...new Set(sinNombre.map(v => v.gymId))];
+    const gymMap = new Map<number, VisitRecord['gym']>();
+
+    await Promise.allSettled(
+      uniqueIds.map(async (gymId) => {
+        try {
+          const r = await visitsClient.get(`/api/gyms/${gymId}`);
+          const g = r.data?.data ?? r.data;
+          if (g?.id && g?.name) {
+            gymMap.set(Number(g.id), {
+              id: Number(g.id),
+              name: g.name,
+              location: g.location,
+            });
+          }
+        } catch { /* sin datos del gym, el fallback mostrará el ID */ }
+      })
+    );
+
+    return visits.map(v =>
+      v.gym?.name ? v : { ...v, gym: gymMap.get(v.gymId) ?? v.gym }
+    );
   },
 };

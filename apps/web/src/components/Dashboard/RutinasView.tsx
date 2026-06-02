@@ -11,9 +11,23 @@ import { Eye, Edit, Trash2 } from 'lucide-react';
 type RoutineDto = {
   id: number;
   name: string;
-  difficulty: string;
+  difficulty?: string;      // campo legacy (puede no venir)
+  difficultyLevel?: string; // campo real del backend
   description: string;
 };
+
+// Normaliza el valor de dificultad independientemente del campo o formato del backend
+const getDifficulty = (r: RoutineDto): string =>
+  (r.difficultyLevel ?? r.difficulty ?? '').toUpperCase().replace(/[^A-Z]/g, '');
+
+const DIFF_META: Record<string, { label: string; color: string; bg: string }> = {
+  FACIL:      { label: 'Fácil',      color: '#fff', bg: '#2dce89' },
+  INTERMEDIO: { label: 'Intermedio', color: '#fff', bg: '#f59e0b' },
+  AVANZADO:   { label: 'Avanzado',   color: '#fff', bg: '#f5365c' },
+};
+
+const diffMeta = (r: RoutineDto) =>
+  DIFF_META[getDifficulty(r)] ?? { label: getDifficulty(r) || '—', color: '#fff', bg: '#8e8e93' };
 
 const RoutineModal = ({ isOpen, onClose, routineToEdit, onSave }: any) => {
   const [formData, setFormData] = useState({
@@ -183,10 +197,10 @@ export const RutinasView = () => {
                       borderRadius: '4px',
                       fontSize: '0.8rem',
                       fontWeight: 700,
-                      background: r.difficulty === 'FACIL' ? '#2dce89' : r.difficulty === 'INTERMEDIO' ? '#fb6340' : '#f5365c',
-                      color: '#fff',
+                      background: diffMeta(r).bg,
+                      color: diffMeta(r).color,
                     }}>
-                      {r.difficulty}
+                      {diffMeta(r).label}
                     </span>
                   </td>
                   <td style={{ padding: '0.85rem 1rem' }}>{r.description || '-'}</td>
@@ -241,10 +255,10 @@ export const RutinasView = () => {
               borderRadius: '4px', 
               fontSize: '0.8rem',
               fontWeight: 700,
-              background: viewingRoutine?.difficulty === 'FACIL' ? '#2dce89' : viewingRoutine?.difficulty === 'INTERMEDIO' ? '#fb6340' : '#f5365c',
+              background: viewingRoutine ? diffMeta(viewingRoutine).bg : '#8e8e93',
               color: '#fff'
             }}>
-              {viewingRoutine?.difficulty}
+              {viewingRoutine ? diffMeta(viewingRoutine).label : '—'}
             </span>
           } 
         />

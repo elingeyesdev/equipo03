@@ -219,6 +219,92 @@ const BarChartCard = ({ data, labels }: { data: HistPoint[]; labels: string[] })
   );
 };
 
+// ── PieChart SVG sobre fondo de color ────────────────────────────────────────
+const PieChartCard = ({ data, labels, colors }: { data: number[]; labels: string[], colors: string[] }) => {
+  const W = 600;
+  const H = 220;
+  const cx = W / 2 - 80; 
+  const cy = H / 2;
+  const r = 85;
+
+  const total = data.reduce((a, b) => a + b, 0);
+  if (total === 0) return <EmptyChart />;
+
+  let currentAngle = -90;
+
+  return (
+    <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" style={{ display: 'block' }}>
+      {data.map((value, i) => {
+        if (value === 0) return null;
+        const sliceAngle = (value / total) * 360;
+        
+        if (value === total) {
+           return <circle key={i} cx={cx} cy={cy} r={r} fill={colors[i]} />;
+        }
+
+        const x1 = cx + r * Math.cos((currentAngle * Math.PI) / 180);
+        const y1 = cy + r * Math.sin((currentAngle * Math.PI) / 180);
+        currentAngle += sliceAngle;
+        const x2 = cx + r * Math.cos((currentAngle * Math.PI) / 180);
+        const y2 = cy + r * Math.sin((currentAngle * Math.PI) / 180);
+
+        const largeArcFlag = sliceAngle > 180 ? 1 : 0;
+        const d = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
+
+        return <path key={i} d={d} fill={colors[i]} stroke="rgba(255,255,255,0.15)" strokeWidth="2" />;
+      })}
+      
+      {/* Legend */}
+      <g transform={`translate(${cx + r + 40}, ${cy - (data.filter(v => v > 0).length * 28) / 2 + 12})`}>
+        {labels.map((lbl, i) => {
+          if (data[i] === 0) return null;
+          return (
+            <g key={i} transform={`translate(0, ${i * 28})`}>
+              <circle cx="0" cy="-5" r="7" fill={colors[i]} />
+              <text x="16" y="0" fill="#ffffff" fontSize="15" fontFamily="system-ui" fontWeight="500">
+                {lbl} ({data[i]})
+              </text>
+            </g>
+          );
+        })}
+      </g>
+    </svg>
+  );
+};
+
+// ── RingChart SVG sobre fondo de color ───────────────────────────────────────
+const RingChartCard = ({ label, current, max, color }: { label: string; current: number; max: number; color: string }) => {
+  const W = 600;
+  const H = 220;
+  const cx = W / 2;
+  const cy = H / 2 + 5;
+  const r = 75;
+  const strokeWidth = 18;
+  const perimeter = 2 * Math.PI * r;
+  
+  const percentage = max > 0 ? Math.min(1, Math.max(0, current / max)) : 0;
+  const dash = percentage * perimeter;
+  const gap = perimeter - dash;
+  
+  return (
+    <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" style={{ display: 'block' }}>
+      <circle cx={cx} cy={cy} r={r} fill="transparent" stroke="rgba(255,255,255,0.15)" strokeWidth={strokeWidth} />
+      <circle 
+        cx={cx} cy={cy} r={r} fill="transparent" stroke={color} strokeWidth={strokeWidth} 
+        strokeDasharray={`${dash} ${gap}`} 
+        transform={`rotate(-90 ${cx} ${cy})`}
+        strokeLinecap="round"
+      />
+      <text x={cx} y={cy + 4} fill="#ffffff" fontSize="32" fontWeight="bold" textAnchor="middle" fontFamily="system-ui">
+        {Math.round(percentage * 100)}%
+      </text>
+      <text x={cx} y={cy + 24} fill="rgba(255,255,255,0.8)" fontSize="13" textAnchor="middle" fontFamily="system-ui">
+        {current} / {max} {label}
+      </text>
+    </svg>
+  );
+};
+
 const EmptyChart = () => (
   <div className="w-full h-full flex items-center justify-center text-white/50 text-sm">
     Sin datos suficientes
@@ -364,6 +450,18 @@ export const ResumenView = () => {
   ];
   const staffChartLabels = ['Entrenadores', 'Nutricionistas'];
 
+  // Valores exclusivos para SUPER_ADMIN (Gráfico circular de roles)
+  const adminClientes = allUsers.filter(u => u.userRoles?.some(ur => ur.roleId === DB_ROLES.CLIENTE || ur.roleId === DB_ROLES.USER)).length;
+  const adminPersonal = allUsers.filter(u => u.userRoles?.some(ur => [DB_ROLES.ENTRENADOR, DB_ROLES.NUTRICIONISTA, DB_ROLES.INSTRUCTOR].includes(ur.roleId))).length;
+  const adminGerentes = allUsers.filter(u => u.userRoles?.some(ur => ur.roleId === DB_ROLES.GERENTE || ur.roleId === DB_ROLES.SUPER_ADMIN)).length;
+  const adminPieData = [adminClientes, adminPersonal, adminGerentes];
+  const adminPieLabels = ['Clientes', 'Personal', 'Administración'];
+  const adminPieColors = ['#ffffff', 'rgba(255,255,255,0.65)', 'rgba(255,255,255,0.3)'];
+
+  // Capacidad de la cadena (Gráfico de Anillo)
+  const adminTotalAforo = gyms.reduce((acc, g) => acc + (g.aforoActual || 0), 0);
+  const adminMaxCapacity = gyms.reduce((acc, g) => acc + (g.maxCapacity || 0), 0);
+
   const isGerente = user?.role !== 'SUPER_ADMIN';
 
   return (
@@ -457,7 +555,7 @@ export const ResumenView = () => {
           </ChartCard>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
           <ChartCard
             bg="#2dce89"
             title="Usuarios registrados"
@@ -467,6 +565,17 @@ export const ResumenView = () => {
             updatedAt={updatedAt}
           >
             <LineChartCard data={usersHist} labels={labels7} />
+          </ChartCard>
+
+          <ChartCard
+            bg="#11cdef"
+            title="Distribución de Roles"
+            subtitle="Composición total de la plataforma"
+            total={allUsers.length}
+            totalLabel="Total Usuarios"
+            updatedAt={updatedAt}
+          >
+            <PieChartCard data={adminPieData} labels={adminPieLabels} colors={adminPieColors} />
           </ChartCard>
 
           <ChartCard
@@ -489,6 +598,17 @@ export const ResumenView = () => {
             updatedAt={updatedAt}
           >
             <LineChartCard data={checkinsHist} labels={labels7} />
+          </ChartCard>
+
+          <ChartCard
+            bg="#8e44ad"
+            title="Ocupación Global"
+            subtitle="Capacidad de la red de sucursales"
+            total={adminMaxCapacity}
+            totalLabel="Capacidad Max"
+            updatedAt={updatedAt}
+          >
+            <RingChartCard label="personas" current={adminTotalAforo} max={adminMaxCapacity} color="#ffffff" />
           </ChartCard>
         </div>
       )}
