@@ -1,28 +1,145 @@
-import { IsEmail, IsString, IsOptional, MinLength, IsBoolean, IsNumber, IsArray } from 'class-validator';
+import {
+  IsEmail,
+  IsString,
+  IsOptional,
+  IsNotEmpty,
+  IsBoolean,
+  IsNumber,
+  IsArray,
+  Matches,
+  IsPhoneNumber,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+
+const PASSWORD_REGEX = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+const PASSWORD_MSG   = 'La contraseña debe tener mínimo 8 caracteres, incluir un número y un carácter especial';
+const CI_REGEX       = /^\d{6,9}(-[a-zA-Z0-9]{1,2})?$/;
+const CI_MSG         = 'Formato de documento de identidad inválido';
+const PHONE_MSG      = 'El número de teléfono debe ser un formato internacional válido (ej. +59170000000)';
+
+export class UpdatePushTokenDto {
+  @ApiProperty({ example: 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]', description: 'Token de Expo para notificaciones push' })
+  @IsString()
+  token!: string;
+}
+
+export class UpdateProfileDto {
+  @ApiPropertyOptional({ example: 'Carlos' })
+  @IsOptional()
+  @IsString()
+  firstName?: string;
+
+  @ApiPropertyOptional({ example: 'López' })
+  @IsOptional()
+  @IsString()
+  lastName?: string;
+
+  @ApiPropertyOptional({ example: '+59170099999' })
+  @IsOptional()
+  @IsPhoneNumber(undefined, { message: PHONE_MSG })
+  phone?: string;
+
+  @ApiPropertyOptional({ example: 'Masculino' })
+  @IsOptional()
+  @IsString()
+  gender?: string;
+
+  @ApiPropertyOptional({ example: '1995-06-15' })
+  @IsOptional()
+  @IsString()
+  dateOfBirth?: string;
+
+  @ApiPropertyOptional({ example: 75.5 })
+  @IsOptional()
+  @IsNumber()
+  weightKg?: number;
+
+  @ApiPropertyOptional({ example: 18.4 })
+  @IsOptional()
+  @IsNumber()
+  bodyFatPercentage?: number;
+
+  @ApiPropertyOptional({ example: 38.2 })
+  @IsOptional()
+  @IsNumber()
+  muscleMassKg?: number;
+
+  @ApiPropertyOptional({ example: 82.0 })
+  @IsOptional()
+  @IsNumber()
+  waistCm?: number;
+
+  @ApiPropertyOptional({ example: 95.0 })
+  @IsOptional()
+  @IsNumber()
+  chestCm?: number;
+
+  @ApiPropertyOptional({ example: 'Medición post-ciclo' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @ApiPropertyOptional({ example: '1234567' })
+  @IsOptional()
+  @Matches(CI_REGEX, { message: CI_MSG })
+  ci?: string;
+
+  @ApiPropertyOptional({ example: 170.5 })
+  @IsOptional()
+  @IsNumber()
+  heightCm?: number;
+
+  @ApiPropertyOptional({ example: 'INTERMEDIO', description: 'PRINCIPIANTE | INTERMEDIO | AVANZADO' })
+  @IsOptional()
+  @IsString()
+  experienceLevel?: string;
+
+  @ApiPropertyOptional({ example: 'Diabetes tipo 2, hipertensión' })
+  @IsOptional()
+  @IsString()
+  medicalConditions?: string;
+
+  @ApiPropertyOptional({ example: ['Fútbol', 'Natación'] })
+  @IsOptional()
+  @IsArray()
+  favoriteSports?: string[];
+
+  @ApiPropertyOptional({ example: 'avatar_3.png' })
+  @IsOptional()
+  @IsString()
+  avatarUrl?: string;
+
+  @ApiPropertyOptional({ example: 'carl0s_fit' })
+  @IsOptional()
+  @IsString()
+  username?: string;
+}
 
 export class CreateUserDto {
   @ApiProperty({ example: 'admin@corpusgym.com', description: 'Correo electrónico único' })
-  @IsEmail()
-  email: string;
+  @IsNotEmpty()
+  @IsEmail({}, { message: 'Formato de correo electrónico inválido' })
+  email!: string;
 
-  @ApiProperty({ example: 'mi_password_seguro', description: 'Mínimo 6 caracteres' })
+  @ApiProperty({ example: 'MiClave123!', description: 'Mínimo 8 caracteres, 1 número y 1 carácter especial' })
   @IsString()
-  @MinLength(6)
-  password: string;
+  @IsNotEmpty()
+  @Matches(PASSWORD_REGEX, { message: PASSWORD_MSG })
+  password!: string;
 
   @ApiProperty({ example: 'RASB', description: 'Nombre' })
   @IsString()
-  firstName: string;
+  @IsNotEmpty()
+  firstName!: string;
 
   @ApiProperty({ example: 'Admin', description: 'Apellido' })
   @IsString()
-  lastName: string;
+  @IsNotEmpty()
+  lastName!: string;
 
-  @ApiPropertyOptional({ example: '+591 70012345', description: 'Teléfono de contacto' })
+  @ApiPropertyOptional({ example: '+59170012345', description: 'Teléfono de contacto' })
   @IsOptional()
-  @IsString()
+  @IsPhoneNumber(undefined, { message: PHONE_MSG })
   phone?: string;
 
   @ApiPropertyOptional({ example: '1995-06-15', description: 'Fecha de nacimiento (YYYY-MM-DD)' })
@@ -50,18 +167,23 @@ export class CreateUserDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ example: '1234567' })
+  @IsOptional()
+  @Matches(CI_REGEX, { message: CI_MSG })
+  ci?: string;
 }
 
 export class UpdateUserDto {
   @ApiPropertyOptional({ example: 'nuevo@corpusgym.com' })
   @IsOptional()
-  @IsEmail()
+  @IsEmail({}, { message: 'Formato de correo electrónico inválido' })
   email?: string;
 
-  @ApiPropertyOptional({ example: 'nuevo_password_2026' })
+  @ApiPropertyOptional({ example: 'NuevaClave123!' })
   @IsOptional()
   @IsString()
-  @MinLength(6)
+  @Matches(PASSWORD_REGEX, { message: PASSWORD_MSG })
   password?: string;
 
   @ApiPropertyOptional({ example: 'Carlos' })
@@ -74,9 +196,9 @@ export class UpdateUserDto {
   @IsString()
   lastName?: string;
 
-  @ApiPropertyOptional({ example: '+591 70099999' })
+  @ApiPropertyOptional({ example: '+59170099999' })
   @IsOptional()
-  @IsString()
+  @IsPhoneNumber(undefined, { message: PHONE_MSG })
   phone?: string;
 
   @ApiPropertyOptional({ example: true, description: 'Activar o desactivar cuenta' })
@@ -94,4 +216,9 @@ export class UpdateUserDto {
   @IsArray()
   @IsNumber({}, { each: true })
   gymIds?: number[];
+
+  @ApiPropertyOptional({ example: '1234567' })
+  @IsOptional()
+  @Matches(CI_REGEX, { message: CI_MSG })
+  ci?: string;
 }

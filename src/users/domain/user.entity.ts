@@ -25,6 +25,18 @@ export class User {
   @Column({ type: 'timestamp', name: 'updated_at', nullable: true })
   updatedAt: Date;
 
+  /** Token de notificación push (Expo). Nullable: solo usuarios con app instalada. */
+  @Column({ name: 'push_token', type: 'varchar', length: 500, nullable: true })
+  pushToken: string | null;
+
+  /** Código OTP de 6 dígitos para recuperación de contraseña. */
+  @Column({ name: 'otp_code', type: 'varchar', length: 6, nullable: true })
+  otpCode: string | null;
+
+  /** Expiración del OTP (15 min desde generación). */
+  @Column({ name: 'otp_expires_at', type: 'timestamp', nullable: true })
+  otpExpiresAt: Date | null;
+
   // ── Relations ─────────────────────────────────────
   @OneToOne(() => UserProfile, (profile) => profile.user, { cascade: true })
   profile: UserProfile;

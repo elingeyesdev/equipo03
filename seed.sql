@@ -69,9 +69,10 @@ INSERT INTO user_profiles (user_id, first_name, last_name, date_of_birth) VALUES
 -- ==========================================
 INSERT INTO roles (id, name, hierarchy_level, is_system_role) VALUES
 (1, 'SUPER_ADMIN', 100, true),
-(2, 'GERENTE', 80, true),
-(3, 'USER', 10, true),
-(4, 'ENTRENADOR', 50, true);
+(2, 'GERENTE',     80,  true),
+(3, 'USER',        10,  true),
+(4, 'ENTRENADOR',  50,  true),
+(5, 'INSTRUCTOR',  60,  true);   -- Imparte clases grupales con horario fijo
 
 INSERT INTO permissions (id, name, resource, action, is_active) VALUES
 (1, 'MANAGE_ALL', 'ALL', 'MANAGE', true),

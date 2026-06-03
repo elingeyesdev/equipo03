@@ -60,18 +60,48 @@ export class ActivitiesService {
     return this.actRepo.save(this.actRepo.create(merged));
   }
 
-  findAllActivities(gymId?: number) {
-    const mg = this.managerGymId();
-    const effective = this.resolveListGymFilter(mg, gymId === undefined ? undefined : Number(gymId));
+  async updateActivity(id: number, data: Partial<GymActivity>) {
+    const activity = await this.assertActivityInManagerScope(id);
 
+    // GERENTE no puede reasignar la actividad a una sede ajena
+    if (data.gymId !== undefined) {
+      const mg = this.managerGymId();
+      if (mg !== null && Number(data.gymId) !== mg) {
+        throw new ForbiddenException(
+          'No puede reasignar la actividad a una sede que no es la suya.',
+        );
+      }
+    }
+
+    Object.assign(activity, data);
+    return this.actRepo.save(activity);
+  }
+
+  async deleteActivity(id: number) {
+    await this.assertActivityInManagerScope(id);
+    await this.actRepo.update(id, { isActive: false } as Partial<GymActivity>);
+    return { message: `Actividad ${id} desactivada` };
+  }
+
+  findAllActivities(gymId?: number) {
+    const mg        = this.managerGymId();
+    const effective = this.resolveListGymFilter(
+      mg,
+      gymId === undefined ? undefined : Number(gymId),
+    );
+
+    // Propiedad en entidad: 'schedules' (GymActivity.schedules → GymActivitySchedule[])
+    // WHERE usa nombre de PROPIEDAD TypeORM (isActive), no columna (is_active)
     const qb = this.actRepo
       .createQueryBuilder('activity')
-      .leftJoinAndSelect('activity.gym', 'gym')
-      .leftJoinAndSelect('activity.schedules', 'schedules')
-      .where('activity.is_active = :active', { active: true });
+      .leftJoinAndSelect('activity.gym',              'actGym')
+      .leftJoinAndSelect('activity.schedules',        'sched')
+      .leftJoinAndSelect('sched.instructor',          'schedInstructor')
+      .leftJoinAndSelect('schedInstructor.profile',   'schedInstructorProfile')
+      .where('activity.isActive = :active', { active: true });
 
     if (effective !== undefined && effective !== null) {
-      qb.andWhere('activity.gym_id = :gymId', { gymId: effective });
+      qb.andWhere('activity.gymId = :gymId', { gymId: effective });
     }
 
     return qb.getMany();
@@ -208,6 +238,12 @@ export class ActivitiesService {
   async findSchedulesByActivity(gymActivityId: number) {
     await this.assertActivityInManagerScope(gymActivityId);
     return this.schedRepo.find({ where: { gymActivityId }, relations: ['instructor'] });
+  }
+
+  async deleteSchedule(scheduleId: number): Promise<{ message: string }> {
+    await this.assertScheduleInManagerScope(scheduleId);
+    await this.schedRepo.delete(scheduleId);
+    return { message: `Horario ${scheduleId} eliminado` };
   }
 
   async registerAttendance(data: Partial<GymActivityAttendance>) {

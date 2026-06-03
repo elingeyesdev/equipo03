@@ -85,6 +85,31 @@ export class RoutinesService {
     return qb.getMany();
   }
 
+  async getMyStudents(trainerId: number) {
+    const routines = await this.routinesRepo
+      .createQueryBuilder('routine')
+      .innerJoinAndSelect('routine.assignedUser', 'user')
+      .leftJoinAndSelect('user.profile', 'profile')
+      .where('routine.trainer_id = :trainerId', { trainerId })
+      .andWhere('routine.assigned_user_id IS NOT NULL')
+      .andWhere('routine.is_active = :isActive', { isActive: true })
+      .getMany();
+
+    const seen = new Set<number>();
+    return routines
+      .filter((r) => {
+        if (!r.assignedUserId || seen.has(r.assignedUserId)) return false;
+        seen.add(r.assignedUserId);
+        return true;
+      })
+      .map((r) => ({
+        id:       r.assignedUser.id,
+        email:    r.assignedUser.email,
+        isActive: r.assignedUser.isActive,
+        profile:  r.assignedUser.profile ?? null,
+      }));
+  }
+
   async findOne(id: number) {
     const mg = this.managerGymId();
     const qb = this.routinesRepo.createQueryBuilder('routine')

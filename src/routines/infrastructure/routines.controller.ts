@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Req, UseGuards, ParseIntPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
 import { RoutinesService } from '../application/routines.service';
 import { CreateRoutineDto, UpdateRoutineDto } from '../application/dtos/routines.dto';
+import type { RequestWithUser } from '../../common/security/gym-scope';
 
 @ApiTags('Routines')
 @Controller('routines')
@@ -22,6 +23,11 @@ export class RoutinesController {
 
   @Get('trainer/:trainerId') @ApiOperation({ summary: 'Rutinas creadas por entrenador' })
   findByTrainer(@Param('trainerId', ParseIntPipe) tid: number) { return this.svc.findByTrainer(tid); }
+
+  @Get('my-students') @ApiOperation({ summary: 'Listar alumnos del entrenador autenticado' })
+  getMyStudents(@Req() req: RequestWithUser) {
+    return this.svc.getMyStudents(Number(req.user!.userId));
+  }
 
   @Get(':id') @ApiOperation({ summary: 'Obtener rutina' })
   findOne(@Param('id', ParseIntPipe) id: number) { return this.svc.findOne(id); }

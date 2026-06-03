@@ -1,8 +1,9 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn,
+  Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn, Unique,
 } from 'typeorm';
 import { Gym } from './gym.entity';
 
+@Unique(['latitude', 'longitude'])
 @Entity('gym_location')
 export class GymLocation {
   @PrimaryGeneratedColumn()

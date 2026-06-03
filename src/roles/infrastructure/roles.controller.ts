@@ -1,12 +1,16 @@
 import { Controller, Get, Post, Delete, Body, Param, UseGuards, ParseIntPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesService } from '../application/roles.service';
 import { CreatePermissionDto, CreateRoleDto, AssignRoleDto } from '../application/dtos/roles.dto';
 
 @ApiTags('Roles & Permissions')
 @Controller('roles')
-@UseGuards(JwtAuthGuard) @ApiBearerAuth('access-token')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('SUPER_ADMIN')
+@ApiBearerAuth('access-token')
 export class RolesController {
   constructor(private readonly svc: RolesService) {}
 
@@ -25,6 +29,7 @@ export class RolesController {
   createRole(@Body() body: CreateRoleDto) { return this.svc.createRole(body); }
 
   @Get()
+  @Roles('SUPER_ADMIN', 'GERENTE')
   @ApiOperation({ summary: 'Listar roles' })
   findAllRoles() { return this.svc.findAllRoles(); }
 
@@ -34,7 +39,10 @@ export class RolesController {
 
   @Post(':roleId/permissions/:permissionId')
   @ApiOperation({ summary: 'Asignar permiso a rol' })
-  assignPermission(@Param('roleId', ParseIntPipe) roleId: number, @Param('permissionId', ParseIntPipe) permId: number) {
+  assignPermission(
+    @Param('roleId', ParseIntPipe) roleId: number,
+    @Param('permissionId', ParseIntPipe) permId: number,
+  ) {
     return this.svc.assignPermissionToRole(roleId, permId);
   }
 
@@ -42,7 +50,13 @@ export class RolesController {
   @ApiOperation({ summary: 'Asignar rol a usuario' })
   @ApiBody({ type: AssignRoleDto })
   assignRole(@Body() body: AssignRoleDto) {
-    return this.svc.assignRoleToUser(body.userId, body.roleId, body.gymId, body.assignedBy, body.expiresAt);
+    return this.svc.assignRoleToUser(
+      body.userId,
+      body.roleId,
+      body.gymId,
+      body.assignedBy,
+      body.expiresAt,
+    );
   }
 
   @Get('user/:userId')

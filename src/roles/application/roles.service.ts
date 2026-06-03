@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
 import { Permission } from '../domain/permission.entity';
@@ -20,7 +24,27 @@ export class RolesService {
   findAllPermissions() { return this.permissionsRepo.find(); }
 
   // ── Roles ───────────────────────────────────────────
-  createRole(data: Partial<Role>) { return this.rolesRepo.save(this.rolesRepo.create(data)); }
+  async createRole(data: Partial<Role>) {
+    if (data.name) {
+      const existing = await this.rolesRepo.findOneBy({ name: data.name });
+      if (existing) {
+        throw new ConflictException('Ya existe un rol con ese nombre.');
+      }
+    }
+    return this.rolesRepo.save(this.rolesRepo.create(data));
+  }
+
+  async updateRole(id: number, data: Partial<Role>) {
+    const role = await this.findOneRole(id);
+    if (data.name && data.name !== role.name) {
+      const existing = await this.rolesRepo.findOneBy({ name: data.name });
+      if (existing) {
+        throw new ConflictException('Ya existe un rol con ese nombre.');
+      }
+    }
+    Object.assign(role, data);
+    return this.rolesRepo.save(role);
+  }
   findAllRoles() { return this.rolesRepo.find({ relations: ['rolePermissions', 'rolePermissions.permission'] }); }
   async findOneRole(id: number) {
     const role = await this.rolesRepo.findOne({ where: { id }, relations: ['rolePermissions', 'rolePermissions.permission'] });
@@ -39,10 +63,7 @@ export class RolesService {
     return this.urRepo.save(this.urRepo.create({ userId, roleId, gymId, assignedBy, expiresAt: expiresAt ? new Date(expiresAt) : undefined }));
   }
 
-  /**
-   * Elimina todas las filas user_roles del usuario y vuelve a insertar una fila por sede,
-   * o una fila sin sede cuando gymIds está vacío.
-   */
+
   async replaceUserRoleAssignments(
     userId: number,
     roleId: number,

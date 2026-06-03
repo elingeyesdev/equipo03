@@ -24,6 +24,9 @@ export class GymActivity {
   @Column({ type: 'boolean', name: 'is_active', default: true })
   isActive: boolean;
 
+  @Column({ type: 'boolean', name: 'is_free_access', default: false })
+  isFreeAccess: boolean;
+
   // ── Relations ─────────────────────────────────────
   @ManyToOne(() => Gym, (g) => g.activities, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'gym_id' })

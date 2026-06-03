@@ -8,39 +8,39 @@ import { GymActivity } from '../../activities/domain/gym-activity.entity';
 @Entity('gyms')
 export class Gym {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
-  @Column({ type: 'varchar', length: 150 })
-  name: string;
+  @Column({ type: 'varchar', length: 150, unique: true })
+  name!: string;
 
   @Column({ type: 'text', nullable: true })
-  description: string;
+  description!: string;
 
   @Column({ type: 'integer', name: 'max_capacity' })
-  maxCapacity: number;
+  maxCapacity!: number;
 
   @Column({ type: 'boolean', name: 'is_active', default: true })
-  isActive: boolean;
+  isActive!: boolean;
 
   @Column({ type: 'boolean', name: 'is_open', default: true })
-  isOpen: boolean;
+  isOpen!: boolean;
 
   @Column({ type: 'integer', name: 'parent_id', nullable: true })
-  parentId: number | null;
+  parentId!: number | null;
 
   @CreateDateColumn({ name: 'created_at' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @Column({ type: 'timestamp', name: 'updated_at', nullable: true })
-  updatedAt: Date;
+  updatedAt!: Date;
 
   // ── Relations ─────────────────────────────────────
   @OneToOne(() => GymLocation, (loc) => loc.gym, { cascade: true })
-  location: GymLocation;
+  location!: GymLocation;
 
   @OneToMany(() => GymSchedule, (s) => s.gym, { cascade: true })
-  schedules: GymSchedule[];
+  schedules!: GymSchedule[];
 
   @OneToMany(() => GymActivity, (a) => a.gym)
-  activities: GymActivity[];
+  activities!: GymActivity[];
 }

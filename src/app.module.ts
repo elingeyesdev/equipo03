@@ -18,6 +18,9 @@ import { CheckinsModule } from './checkins/checkins.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { SystemModule } from './system/system.module';
+import { StaffModule } from './staff/staff.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { VisitsModule } from './visits/visits.module';
 
 @Module({
   imports: [
@@ -63,6 +66,9 @@ import { SystemModule } from './system/system.module';
     MetricsModule,
     NotificationsModule,
     SystemModule,
+    StaffModule,
+    DashboardModule,
+    VisitsModule,
   ],
 })
 export class AppModule {}
