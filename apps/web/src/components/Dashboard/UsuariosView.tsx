@@ -61,9 +61,10 @@ type UserFormData = {
 };
 
 // ─── Componente Modal de creación/edición (usa Portal via ModalOverlay) ───────
-const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions }: {
+const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteSucursalId }: {
   isOpen: boolean; onClose: () => void; userToEdit: UserDto | null; onSave: (d: UserFormData) => void;
   roleOptions: RoleOption[];
+  gerenteSucursalId?: number; // Si es Gerente, restringe las sucursales a su propia sede
 }) => {
 
   const [formData, setFormData] = useState({
@@ -85,6 +86,16 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions }: {
   const sucursalesParaSede = selectedSede !== ''
     ? sucursales.filter(s => (s.parentId ?? s.parent?.id) === selectedSede)
     : [];
+
+  // ── Filtro por sede del Gerente (solo aplica cuando gerenteSucursalId está presente) ──
+  // Deriva la sede-padre de la sucursal del gerente para restringir la lista en needsMulti
+  const sedeIdDelGerente = gerenteSucursalId
+    ? (gyms.find(g => g.id === gerenteSucursalId)?.parentId
+      ?? gyms.find(g => g.id === gerenteSucursalId)?.parent?.id
+      ?? null)
+    : null;
+  const sedesVisibles      = sedeIdDelGerente ? sedes.filter(s => s.id === sedeIdDelGerente) : sedes;
+  const sucursalesVisibles = sedeIdDelGerente ? sucursales.filter(s => (s.parentId ?? s.parent?.id) === sedeIdDelGerente) : sucursales;
 
   // ── Cargar gyms al abrir: marcas (/gyms/brands) + sucursales (/gyms) ─────────
   useEffect(() => {
@@ -376,8 +387,8 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions }: {
             </label>
             {loadingGyms ? <p className="text-sm text-slate-400 dark:text-gray-500">Cargando...</p> : (
               <div className="flex flex-col gap-2 max-h-56 overflow-y-auto p-3 bg-slate-50 dark:bg-black/10 rounded-lg border border-slate-200 dark:border-white/10">
-                {sedes.map(sede => {
-                  const hijos = sucursales.filter(s => (s.parentId ?? s.parent?.id) === sede.id);
+                {sedesVisibles.map(sede => {
+                  const hijos = sucursalesVisibles.filter(s => (s.parentId ?? s.parent?.id) === sede.id);
                   if (hijos.length === 0) return null;
                   return (
                     <div key={sede.id}>
@@ -396,7 +407,8 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions }: {
                     </div>
                   );
                 })}
-                {sucursales.filter(s => !s.parentId && !s.parent?.id).map(g => (
+                {/* Sucursales sin sede padre — solo se muestran si no hay restricción de gerente */}
+                {!sedeIdDelGerente && sucursales.filter(s => !s.parentId && !s.parent?.id).map(g => (
                   <label key={g.id} className="flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded-md"
                     style={{ background: formData.gymIds.includes(Number(g.id)) ? '#e7f7fb' : 'transparent' }}>
                     <input type="checkbox" checked={formData.gymIds.includes(Number(g.id))}
@@ -869,6 +881,7 @@ export const UsuariosView = () => {
             ? roleOptions.filter(r => r.name !== 'SUPER_ADMIN' && r.name !== 'GERENTE')
             : roleOptions
         }
+        gerenteSucursalId={user?.role === 'GERENTE' && user?.gymId ? Number(user.gymId) : undefined}
       />
 
       <ConfirmModal
