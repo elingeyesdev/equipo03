@@ -1,10 +1,23 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Alert } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  SafeAreaView,
+  Alert,
+  Platform,
+  ActivityIndicator,
+} from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
+import { userApi } from '../../../app/Providers/users/api/user.api';
 
 export const AjustesScreen = () => {
   const { logout, user } = useAuth();
+  const [pushLoading, setPushLoading] = useState(false);
 
   const handleLogout = () => {
     Alert.alert(
@@ -12,22 +25,64 @@ export const AjustesScreen = () => {
       '¿Estás seguro de que deseas salir de GymSync?',
       [
         { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Sí, salir', 
+        {
+          text: 'Sí, salir',
           style: 'destructive',
-          onPress: async () => {
-            await logout();
-            // Al hacer logout, el AuthContext cambia y RootNavigator te devuelve al LoginScreen automáticamente
-          }
-        }
-      ]
+          onPress: async () => { await logout(); },
+        },
+      ],
     );
+  };
+
+  const handlePushNotifications = async () => {
+    if (Platform.OS === 'web') {
+      Alert.alert('No disponible', 'Las notificaciones solo están disponibles en la app móvil.');
+      return;
+    }
+
+    try {
+      setPushLoading(true);
+
+      // 1. Verificar / solicitar permisos
+      const { status: existing } = await Notifications.getPermissionsAsync();
+      let finalStatus = existing;
+      if (existing !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (finalStatus !== 'granted') {
+        Alert.alert(
+          'Permisos denegados',
+          'Activa las notificaciones desde Ajustes del sistema > GymSync.',
+        );
+        return;
+      }
+
+      // 2. Obtener Expo Push Token
+      const projectId =
+        (Constants.expoConfig?.extra as any)?.eas?.projectId ??
+        (Constants as any).easConfig?.projectId;
+
+      const tokenResult = await Notifications.getExpoPushTokenAsync(
+        projectId ? { projectId } : undefined,
+      );
+      const expoPushToken = tokenResult.data;
+
+      // 3. Enviar token al backend
+      await userApi.updatePushToken(expoPushToken);
+
+      Alert.alert('✅ Notificaciones activadas', 'Recibirás alertas cuando se confirmen tus reservas.');
+    } catch (err: any) {
+      Alert.alert('Error', err?.message ?? 'No se pudieron activar las notificaciones.');
+    } finally {
+      setPushLoading(false);
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Cuenta</Text>
           <View style={styles.infoCard}>
@@ -38,12 +93,22 @@ export const AjustesScreen = () => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Opciones del Sistema</Text>
-          
-          <TouchableOpacity style={styles.menuItem}>
-            <MaterialCommunityIcons name="bell-outline" size={24} color="#ccc" style={styles.icon} />
-            <Text style={styles.menuText}>Notificaciones Push</Text>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={handlePushNotifications}
+            disabled={pushLoading}
+            activeOpacity={0.7}
+          >
+            {pushLoading
+              ? <ActivityIndicator size={24} color="#f05b22" style={styles.icon} />
+              : <MaterialCommunityIcons name="bell-badge-outline" size={24} color="#f05b22" style={styles.icon} />
+            }
+            <Text style={styles.menuText}>
+              {pushLoading ? 'Activando notificaciones…' : 'Notificaciones Push'}
+            </Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity style={styles.menuItem}>
             <MaterialCommunityIcons name="theme-light-dark" size={24} color="#ccc" style={styles.icon} />
             <Text style={styles.menuText}>Apariencia (Dark Mode)</Text>

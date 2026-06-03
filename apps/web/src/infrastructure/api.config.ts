@@ -12,10 +12,7 @@ const forceLogout = () => {
 };
 
 const handleAccessDenied = (message?: string) => {
-  toast.error(message || 'Acceso Denegado: No tienes permisos.');
-  if (window.location.pathname !== '/dashboard/resumen' && window.location.pathname.startsWith('/dashboard')) {
-    window.location.href = '/dashboard/resumen?error=access_denied';
-  }
+  toast.error(message || 'Acceso Denegado: No tienes permisos para esta acción.');
 };
 
 export const createApiClient = (): AxiosInstance => {
@@ -37,7 +34,7 @@ export const createApiClient = (): AxiosInstance => {
         config.headers.Authorization = `Bearer ${token}`;
       }
 
-      // 2. Inyección de Scope para GERENTE (solo en GET)
+      // 2. Inyección de Scope para GERENTE (solo en GET, con exclusiones)
       if (config.method?.toUpperCase() === 'GET') {
         const userStr = localStorage.getItem('gymsync_user');
         if (userStr) {
@@ -45,20 +42,26 @@ export const createApiClient = (): AxiosInstance => {
             const user = JSON.parse(userStr);
 
             if (user.role === 'GERENTE') {
-              config.params = config.params || {};
+              // Endpoints globales que no aceptan gym_id como query param
+              const GYM_SCOPE_EXCLUDED = [
+                '/gyms/brands',
+                '/roles',
+                '/auth/me',
+                '/reservations/validate',
+                '/reservations/check-in',
+                '/dashboard/summary',
+              ];
+              const url = config.url ?? '';
+              const isExcluded = GYM_SCOPE_EXCLUDED.some(p => url.startsWith(p) || url.includes(p));
 
-              if (user.gymId) {
-                // Caso normal: Gerente con sede asignada — inyecta filtro real
-                config.params.gym_id = user.gymId;
-              } else {
-                // ⚠️ BLINDAJE DE SEGURIDAD: Gerente SIN gymId.
-                // Inyecta gym_id = -1 para que el backend retorne vacío en lugar de
-                // exponer datos globales. Previene la fuga de información por estado incompleto.
-                config.params.gym_id = -1;
-                console.warn(
-                  '[RBAC Security]: Gerente sin gymId detectado. ' +
-                  'Petición bloqueada con gym_id=-1 para evitar exposición de datos globales.'
-                );
+              if (!isExcluded) {
+                config.params = config.params || {};
+                if (user.gymId) {
+                  config.params.gym_id = user.gymId;
+                } else {
+                  config.params.gym_id = -1;
+                  console.warn('[RBAC Security]: Gerente sin gymId detectado. Petición bloqueada con gym_id=-1.');
+                }
               }
             }
           } catch (e) {
@@ -95,7 +98,10 @@ export const createApiClient = (): AxiosInstance => {
       return response;
     },
     (error) => {
-      if (error.config?._skipErrorToast) {
+      // Suprimir toasts para endpoints que el caller ya maneja con .catch()
+      const SILENT_ON_ERROR = ['/gyms/brands', '/roles'];
+      const url = error.config?.url ?? '';
+      if (error.config?._skipErrorToast || SILENT_ON_ERROR.some(p => url.includes(p))) {
         return Promise.reject(error);
       }
 

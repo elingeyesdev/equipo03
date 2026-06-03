@@ -84,37 +84,42 @@ export const BuscarScreen = () => {
           <Text style={styles.sectionTitle}>Encuentra sedes aquí</Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.mapPlaceholderWrapper}
-          activeOpacity={0.8}
-          onPress={() => {
-            // Asegurarse de abrir como mapa real sin ListView forzado, o mantener estado actual
-            useMapScreenStore.setState({ isListView: false });
-            navigation.navigate('Mapa');
-          }}
-        >
-          <View pointerEvents="none" style={styles.mapPlaceholder}>
-            <MapView
-              style={StyleSheet.absoluteFillObject}
-              initialRegion={OSMConfig.defaults.initialRegion}
-              zoomEnabled={false}
-              pitchEnabled={false}
-              scrollEnabled={false}
-              rotateEnabled={false}
-              showsCompass={false}
-            >
-              <UrlTile
-                urlTemplate={OSMConfig.tileUrlTemplate}
-                maximumZ={OSMConfig.tiles.maximumZ}
-                flipY={OSMConfig.tiles.flipY}
-                tileSize={OSMConfig.tiles.tileSize}
-              />
-            </MapView>
-            <View style={styles.mapOverlay}>
+        {/* La preview del mapa usa altura fija para evitar el bug de MapView
+            dentro de ScrollView en iOS con overflow:hidden + borderRadius grande */}
+        <View style={styles.mapPlaceholderWrapper}>
+          <MapView
+            style={StyleSheet.absoluteFillObject}
+            initialRegion={OSMConfig.defaults.initialRegion}
+            zoomEnabled={false}
+            pitchEnabled={false}
+            scrollEnabled={false}
+            rotateEnabled={false}
+            showsCompass={false}
+            pointerEvents="none"
+          >
+            <UrlTile
+              urlTemplate={OSMConfig.tileUrlTemplate}
+              maximumZ={OSMConfig.tiles.maximumZ}
+              flipY={OSMConfig.tiles.flipY}
+              tileSize={OSMConfig.tiles.tileSize}
+            />
+          </MapView>
+
+          {/* Overlay táctil encima del mapa */}
+          <TouchableOpacity
+            style={styles.mapOverlay}
+            activeOpacity={0.85}
+            onPress={() => {
+              useMapScreenStore.setState({ isListView: false });
+              navigation.navigate('Mapa');
+            }}
+          >
+            <View style={styles.mapOverlayPill}>
+              <MaterialCommunityIcons name="map-search-outline" size={16} color="#fff" />
               <Text style={styles.mapOverlayText}>Toca para ver el mapa interactivo</Text>
             </View>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </View>
 
         {/* ¿Qué quieres entrenar hoy? */}
         <Text style={styles.categoriesTitle}>¿Que quieres entrenar hoy?</Text>
@@ -204,30 +209,34 @@ const styles = StyleSheet.create({
   mapPlaceholderWrapper: {
     marginHorizontal: 20,
     marginTop: 12,
-    height: height * 0.6,
+    height: 220,
     borderRadius: 16,
-    overflow: 'hidden',
+    // overflow:'hidden' se omite — bloquea el render de MapView en iOS
     borderWidth: 1,
     borderColor: '#333',
-  },
-  mapPlaceholder: {
-    flex: 1,
     backgroundColor: '#1c1c1e',
   },
   mapOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.18)',
+    justifyContent: 'flex-end',
     alignItems: 'center',
+    paddingBottom: 14,
+    borderRadius: 16,
+  },
+  mapOverlayPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 20,
   },
   mapOverlayText: {
     color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    fontWeight: '700',
+    fontSize: 13,
   },
   categoriesTitle: {
     fontSize: 18,

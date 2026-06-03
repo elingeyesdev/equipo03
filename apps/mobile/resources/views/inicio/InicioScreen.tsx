@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   FlatList,
   Dimensions,
   Platform,
+  Linking,
   RefreshControl,
   ActivityIndicator,
   Alert,
@@ -20,6 +21,12 @@ import { SedeConDistancia } from '@gymsync/core';
 import { GeolocationModule } from '../../../app/Providers/GeolocationModule.container';
 import { useMapScreenStore } from '../../../app/Http/Controllers/geolocation/MapScreen.Controller';
 import { useFilterStore } from '../../../app/Providers/geolocation/stores/FilterStore';
+import { useAuth } from '../../../app/Shared/hooks/useAuth';
+import { useMyReservationsQuery } from '../../../app/Providers/reservations/hooks/useMyReservationsQuery';
+import { UserReservation } from '../../../app/Providers/reservations/api/reservation.types';
+import { ManagerDashboard } from './ManagerDashboard';
+import { TrainerDashboard } from './TrainerDashboard';
+import { NutritionistDashboard } from './NutritionistDashboard';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.45;
@@ -36,7 +43,136 @@ const GALLERY_ICONS: Array<{ icon: string; color: string; label: string }> = [
   { icon: 'gymnastics', color: '#06d6a0', label: 'Gimnasia' },
 ];
 
-export const InicioScreen = () => {
+// ─── Placeholders para roles no-cliente ──────────────────────────────────────
+
+const ph = StyleSheet.create({
+  safe:   { flex: 1, backgroundColor: '#000' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, gap: 14 },
+  title:  { color: '#fff', fontSize: 22, fontWeight: '800', textAlign: 'center' },
+  sub:    { color: '#555', fontSize: 14, textAlign: 'center', lineHeight: 20 },
+});
+
+// ─── Próxima reserva activa (reemplaza botón estático) ───────────────────────
+
+const ACTIVE_STATUS = new Set(['CONFIRMADA', 'CONFIRMED', 'PENDIENTE']);
+
+function findUpcomingReservation(reservations: UserReservation[]): UserReservation | undefined {
+  const now        = new Date();
+  const today      = now.toISOString().split('T')[0];
+  const in3h       = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+
+  return reservations.find(r => {
+    if (!ACTIVE_STATUS.has(r.status ?? '')) return false;
+    if (r.reservationDate !== today)         return false;
+    if (!r.startTime)                        return false;
+
+    const [h, m] = r.startTime.split(':').map(Number);
+    const start  = new Date();
+    start.setHours(h, m, 0, 0);
+
+    return start >= now && start <= in3h;
+  });
+}
+
+const NextReservationBanner = ({ onBuscar }: { onBuscar: () => void }) => {
+  const { data: reservations = [] } = useMyReservationsQuery();
+
+  const next = useMemo(() => findUpcomingReservation(reservations), [reservations]);
+
+  const handleGetDirections = () => {
+    const q   = encodeURIComponent(next?.gymName ?? 'GymSync');
+    const url = Platform.OS === 'ios'
+      ? `maps://maps.apple.com/?q=${q}`
+      : `https://maps.google.com/?q=${q}`;
+    Linking.openURL(url).catch(() => {});
+  };
+
+  // Calcula tiempo restante en texto
+  const timeLabel = useMemo(() => {
+    if (!next?.startTime) return '';
+    const [h, m] = next.startTime.split(':').map(Number);
+    const start  = new Date();
+    start.setHours(h, m, 0, 0);
+    const diffMin = Math.round((start.getTime() - Date.now()) / 60000);
+    if (diffMin <= 0)  return 'Ahora';
+    if (diffMin < 60)  return `En ${diffMin} min`;
+    return `En ${Math.floor(diffMin / 60)}h ${diffMin % 60}min`;
+  }, [next]);
+
+  if (!next) {
+    // Sin reserva próxima → botón original
+    return (
+      <TouchableOpacity style={styles.actionBtn} onPress={onBuscar}>
+        <Text style={styles.actionBtnText}>Buscar Clases Disponibles</Text>
+        <MaterialCommunityIcons name="arrow-right" size={18} color="#fff" />
+      </TouchableOpacity>
+    );
+  }
+
+  // Reserva encontrada → tarjeta detallada
+  return (
+    <View style={nb.card}>
+      {/* Badge superior */}
+      <View style={nb.topRow}>
+        <View style={nb.badge}>
+          <MaterialCommunityIcons name="clock-fast" size={12} color="#f05b22" />
+          <Text style={nb.badgeText}>Próxima clase · {timeLabel}</Text>
+        </View>
+        <View style={nb.statusBadge}>
+          <Text style={nb.statusText}>{next.status}</Text>
+        </View>
+      </View>
+
+      {/* Nombre actividad */}
+      <Text style={nb.activityName} numberOfLines={1}>
+        {next.activityName ?? 'Clase programada'}
+      </Text>
+
+      {/* Horario */}
+      <View style={nb.infoRow}>
+        <MaterialCommunityIcons name="clock-outline" size={14} color="#f05b22" />
+        <Text style={nb.infoText}>
+          {next.startTime ?? '—'}{next.endTime ? ` – ${next.endTime}` : ''}
+        </Text>
+      </View>
+
+      {/* Instructor */}
+      {!!next.instructorName && (
+        <View style={nb.infoRow}>
+          <MaterialCommunityIcons name="account-tie-outline" size={14} color="#f05b22" />
+          <Text style={nb.infoText}>{next.instructorName}</Text>
+        </View>
+      )}
+
+      {/* Sucursal */}
+      {!!next.gymName && (
+        <View style={nb.infoRow}>
+          <MaterialCommunityIcons name="map-marker-outline" size={14} color="#f05b22" />
+          <Text style={nb.infoText} numberOfLines={1}>{next.gymName}</Text>
+        </View>
+      )}
+
+      {/* Fecha */}
+      <View style={nb.infoRow}>
+        <MaterialCommunityIcons name="calendar-outline" size={14} color="#555" />
+        <Text style={[nb.infoText, { color: '#555' }]}>{next.reservationDate}</Text>
+      </View>
+
+      {/* Divider */}
+      <View style={nb.divider} />
+
+      {/* Botón cómo llegar */}
+      <TouchableOpacity style={nb.directionsBtn} onPress={handleGetDirections} activeOpacity={0.8}>
+        <MaterialCommunityIcons name="navigation-outline" size={16} color="#fff" />
+        <Text style={nb.directionsBtnText}>Cómo llegar</Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+// ─── Dashboard del cliente (lógica intacta) ───────────────────────────────────
+
+const ClientDashboard = () => {
   const navigation = useNavigation<any>();
   const [sedes, setSedes] = useState<SedeConDistancia[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,7 +242,7 @@ export const InicioScreen = () => {
     const sedeEncontrada = sedes.find(item => {
       if (!item.sede.servicios) return false;
       // Verificamos si algún servicio del gimnasio coincide con alguna de nuestras palabras clave
-      return item.sede.servicios.some(servicio => 
+      return item.sede.servicios.some(servicio =>
         searchTerms.some(term => servicio.toLowerCase().includes(term))
       );
     });
@@ -114,13 +250,13 @@ export const InicioScreen = () => {
     if (sedeEncontrada) {
       useMapScreenStore.setState({ isListView: true });
       const matchedService = sedeEncontrada.sede.servicios?.find(s => searchTerms.some(term => s.toLowerCase().includes(term)));
-      
+
       if (matchedService) {
          useFilterStore.getState().setFiltros({ servicios: [matchedService as any] });
       } else {
          useFilterStore.getState().resetFiltros();
       }
-      
+
       navigation.navigate('Buscar');
     } else {
       Alert.alert(
@@ -131,16 +267,15 @@ export const InicioScreen = () => {
     }
   };
 
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={onRefresh} 
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
             tintColor="#f05b22"
             colors={['#f05b22']}
           />
@@ -152,7 +287,7 @@ export const InicioScreen = () => {
             <Text style={styles.welcomeText}>Bienvenido,</Text>
             <Text style={styles.title}>GymSync</Text>
           </View>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.searchBtn}
             onPress={() => {
               useMapScreenStore.setState({ isListView: true });
@@ -204,8 +339,8 @@ export const InicioScreen = () => {
             keyExtractor={(item) => item.sede.id.value.toString()}
             contentContainerStyle={styles.carouselContainer}
             renderItem={({ item, index }) => (
-              <TouchableOpacity 
-                style={styles.gymCard} 
+              <TouchableOpacity
+                style={styles.gymCard}
                 activeOpacity={0.8}
                 onPress={() => handleSedePress(item.sede)}
               >
@@ -213,9 +348,7 @@ export const InicioScreen = () => {
                   <MaterialCommunityIcons name={getIconForGym(item.sede.servicios) as any} size={48} color="#fff" />
                   <View style={styles.distanceBadge}>
                     <Text style={styles.distanceText}>
-                      {item.distanciaKm !== undefined && item.distanciaKm !== null 
-                        ? `${Number(item.distanciaKm).toFixed(1)} km` 
-                        : 'N/A km'}
+                      {item.distancia?.kmCorta ?? 'N/A'}
                     </Text>
                   </View>
                 </View>
@@ -237,7 +370,25 @@ export const InicioScreen = () => {
           />
         )}
 
-        {/* ── Tus primeros pasos con GymSync ── */}
+        {/* ── Acceso rápido: Historial de Gimnasios ── */}
+        <TouchableOpacity
+          style={styles.historialBtn}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('Buscar', { screen: 'Historial' })}
+        >
+          <View style={styles.historialBtnLeft}>
+            <View style={styles.historialBtnIcon}>
+              <MaterialCommunityIcons name="history" size={20} color="#f05b22" />
+            </View>
+            <View>
+              <Text style={styles.historialBtnTitle}>Historial de Gimnasios</Text>
+              <Text style={styles.historialBtnSub}>Ver tus visitas registradas</Text>
+            </View>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={22} color="#444" />
+        </TouchableOpacity>
+
+        {/* ── Explora Disciplinas ── */}
         <View style={styles.onboardSection}>
           <View style={styles.sectionIconRow}>
             <MaterialCommunityIcons name="lightning-bolt" size={26} color="#f05b22" />
@@ -249,9 +400,9 @@ export const InicioScreen = () => {
           {/* Gallery grid */}
           <View style={styles.galleryGrid}>
             {GALLERY_ICONS.map((item, index) => (
-              <TouchableOpacity 
-                key={index} 
-                style={styles.galleryItem} 
+              <TouchableOpacity
+                key={index}
+                style={styles.galleryItem}
                 activeOpacity={0.7}
                 onPress={() => handleDisciplinaPress(item.label)}
               >
@@ -261,7 +412,7 @@ export const InicioScreen = () => {
             ))}
           </View>
 
-          {/* Info card */}
+          {/* Info card — se adapta si hay reserva próxima */}
           <View style={styles.infoCard}>
             <View style={styles.infoContent}>
               <MaterialCommunityIcons name="information-outline" size={20} color="#f05b22" />
@@ -270,19 +421,37 @@ export const InicioScreen = () => {
                 no pierdas de vista tu bienestar.
               </Text>
             </View>
-            <TouchableOpacity 
-              style={styles.actionBtn}
-              onPress={() => navigation.navigate('Buscar')}
-            >
-              <Text style={styles.actionBtnText}>Buscar Clases Disponibles</Text>
-              <MaterialCommunityIcons name="arrow-right" size={18} color="#fff" />
-            </TouchableOpacity>
+            <NextReservationBanner onBuscar={() => navigation.navigate('Buscar')} />
           </View>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 };
+
+// ─── Enrutador por rol ────────────────────────────────────────────────────────
+
+export const InicioScreen = () => {
+  const { user } = useAuth();
+  const role = user?.role ?? '';
+
+  if (role === 'GERENTE' || role === 'COORDINADOR') return <ManagerDashboard />;
+  if (role === 'INSTRUCTOR' || role === 'ENTRENADOR') return <TrainerDashboard />;
+  if (role === 'NUTRICIONISTA') return <NutritionistDashboard />;
+  if (role === 'PERSONAL_DE_LIMPIEZA') return (
+    <SafeAreaView style={ph.safe} edges={['top']}>
+      <View style={ph.center}>
+        <MaterialCommunityIcons name="broom" size={56} color="#666" />
+        <Text style={ph.title}>Panel de Limpieza</Text>
+      </View>
+    </SafeAreaView>
+  );
+
+  // Fallback intocable para USER / CLIENTE / sin rol
+  return <ClientDashboard />;
+};
+
+// ─── Estilos del ClientDashboard ─────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {
@@ -441,6 +610,42 @@ const styles = StyleSheet.create({
     color: '#f05b22',
     fontWeight: 'bold',
   },
+  historialBtn: {
+    marginHorizontal: 20,
+    marginTop: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#111',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#222',
+  },
+  historialBtnLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  historialBtnIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: 'rgba(240,91,34,0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  historialBtnTitle: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  historialBtnSub: {
+    color: '#555',
+    fontSize: 11,
+    marginTop: 2,
+  },
   onboardSection: {
     paddingHorizontal: 20,
     marginTop: 35,
@@ -498,6 +703,92 @@ const styles = StyleSheet.create({
   actionBtnText: {
     color: '#fff',
     fontWeight: 'bold',
+    fontSize: 14,
+  },
+});
+
+// ─── Estilos del NextReservationBanner ───────────────────────────────────────
+const nb = StyleSheet.create({
+  card: {
+    marginTop: 16,
+    backgroundColor: '#0d0d0d',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#1e1e1e',
+    borderLeftWidth: 3,
+    borderLeftColor: '#f05b22',
+    gap: 8,
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(240,91,34,0.12)',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  badgeText: {
+    color: '#f05b22',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  statusBadge: {
+    backgroundColor: '#22C55E22',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: '#22C55E55',
+  },
+  statusText: {
+    color: '#22C55E',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  activityName: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '900',
+    letterSpacing: -0.3,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  infoText: {
+    color: '#ccc',
+    fontSize: 13,
+    fontWeight: '500',
+    flex: 1,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#1e1e1e',
+    marginVertical: 4,
+  },
+  directionsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#f05b22',
+    borderRadius: 12,
+    paddingVertical: 12,
+    marginTop: 4,
+  },
+  directionsBtnText: {
+    color: '#fff',
+    fontWeight: '800',
     fontSize: 14,
   },
 });

@@ -8,9 +8,10 @@
  *   const uc = UseCaseFactory.getObtenerUsuariosUC();
  *   const result = await uc.execute(authCtx);
  */
-import { ObtenerUsuariosUseCase, ObtenerSedesMapaUseCase } from '@gymsync/core';
+import { ObtenerUsuariosUseCase, ObtenerSedesMapaUseCase, RegistrarClienteUseCase } from '@gymsync/core';
 import { usersApiAdapter } from './AxiosUsersApi.adapter';
 import { gymsApiAdapter } from './AxiosGymsApi.adapter';
+import { authApiAdapter } from './AxiosAuthApi.adapter';
 
 export const UseCaseFactory = {
   /**
@@ -41,6 +42,20 @@ export const UseCaseFactory = {
     return (): ObtenerSedesMapaUseCase => {
       if (!instance) {
         instance = new ObtenerSedesMapaUseCase(gymsApiAdapter);
+      }
+      return instance;
+    };
+  })(),
+
+  /**
+   * Retorna la instancia del caso de uso RegistrarCliente
+   * con el adaptador de Axios inyectado.
+   */
+  getRegistrarClienteUC: (() => {
+    let instance: RegistrarClienteUseCase | null = null;
+    return (): RegistrarClienteUseCase => {
+      if (!instance) {
+        instance = new RegistrarClienteUseCase(authApiAdapter);
       }
       return instance;
     };

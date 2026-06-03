@@ -25,6 +25,7 @@ import { SedeConDistancia } from '@gymsync/core';
 import { Sede } from '@gymsync/core';
 import { OSMConfig } from '../../../../app/Providers/geolocation/config/osm.config';
 import { styles } from './MapScreen.styles';
+import { useAuth } from '../../../../app/Shared/hooks/useAuth';
 
 type MapScreenViewProps = {
   userLocation: Coordenadas | null;
@@ -55,6 +56,9 @@ export const MapScreenView: React.FC<MapScreenViewProps> = ({
   onReserve,
   onRetry,
 }) => {
+  const { user } = useAuth();
+  const isGerente = user?.role === 'GERENTE';
+
   const mapRef = useRef<MapView>(null);
   const [filterVisible, setFilterVisible] = useState(false);
   const [toastConfig, setToastConfig] = useState<{message: string, type: 'error' | 'success', key: number} | null>(null);
@@ -198,15 +202,21 @@ export const MapScreenView: React.FC<MapScreenViewProps> = ({
             />
           )}
 
-          {/* Marcadores de sedes */}
-          {sedes.map(({ sede, distancia }) => (
-            <SedeMarker
-              key={sede.id.value}
-              sede={sede}
-              distancia={distancia}
-              onPress={() => onMarkerPress(sede)}
-            />
-          ))}
+          {/* Marcadores de sedes — solo sucursales con coordenadas válidas */}
+          {sedes.map(({ sede, distancia }) => {
+            const lat = sede.coordenadas?.latitude;
+            const lng = sede.coordenadas?.longitude;
+            // Saltar si coordenadas vacías o (0,0) — dato ausente del mapper
+            if (!lat || !lng || (lat === 0 && lng === 0)) return null;
+            return (
+              <SedeMarker
+                key={sede.id.value}
+                sede={sede}
+                distancia={distancia}
+                onPress={() => onMarkerPress(sede)}
+              />
+            );
+          })}
         </MapView>
 
         {/* Atribución OSM */}
@@ -230,7 +240,8 @@ export const MapScreenView: React.FC<MapScreenViewProps> = ({
             visible={!!selectedSede}
             onClose={onModalClose}
             onNavigate={() => onNavigate(selectedSede)}
-            onReserve={() => onReserve(selectedSede)}
+            onReserve={isGerente ? undefined : () => onReserve(selectedSede)}
+            isAdmin={isGerente}
           />
         )}
       </View>

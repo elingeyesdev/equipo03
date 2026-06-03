@@ -3,10 +3,11 @@ import { WebGeolocationAdapter } from './infrastructure/WebGeolocation.adapter';
 import { ObtenerSedesCercanasUseCase, Sede, Coordenadas, Aforo, HorariosSede, Identifier, right } from '@gymsync/core';
 import type { ISedesApiService, Either } from '@gymsync/core';
 import { PerfilManager } from './components/PerfilManager/PerfilManager';
-import { AuditoriaDashboard } from './components/AuditoriaAccesos/AuditoriaDashboard';
+import { AuditoriaView } from './components/Auditoria/AuditoriaView';
+import { ReservasView } from './components/Reservas/ReservasView';
 import './App.css';
 
-type ActiveTab = 'SEDES' | 'PERFIL' | 'AUDITORIA';
+type ActiveTab = 'SEDES' | 'PERFIL' | 'AUDITORIA' | 'RESERVAS';
 
 // Mock de Sedes inyectado puramente para la demo Visual de la Web
 class WebMockSedesApi implements ISedesApiService {
@@ -104,11 +105,19 @@ function App() {
         >
           🛡️ Auditoría
         </button>
+        <button
+          className={`nav-tab ${activeTab === 'RESERVAS' ? 'active' : ''}`}
+          onClick={() => setActiveTab('RESERVAS')}
+        >
+          📅 Reservas
+        </button>
       </nav>
 
       <main className="web-main">
         {activeTab === 'AUDITORIA' ? (
-          <AuditoriaDashboard />
+          <AuditoriaView />
+        ) : activeTab === 'RESERVAS' ? (
+          <ReservasView />
         ) : activeTab === 'PERFIL' ? (
           <PerfilManager />
         ) : (

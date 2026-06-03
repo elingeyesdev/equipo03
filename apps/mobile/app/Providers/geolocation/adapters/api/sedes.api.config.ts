@@ -8,6 +8,7 @@
 import axios, { AxiosInstance } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { Env } from '../../config/environment';
+import { attach401Guard } from '../../../auth/axios401Guard';
 
 const TOKEN_STORAGE_KEY = 'gymsync.token';
 
@@ -79,6 +80,9 @@ export const createSedesApiClient = (): AxiosInstance => {
       return Promise.reject(error);
     }
   );
+
+  // ── Interceptor global 401 → alerta + logout + redirect al login ─────────────
+  attach401Guard(client);
 
   return client;
 };

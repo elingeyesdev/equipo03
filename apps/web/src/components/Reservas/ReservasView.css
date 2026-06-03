@@ -10,17 +10,7 @@
   margin-bottom: 32px;
 }
 
-.view-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: #ffffff;
-  margin-bottom: 4px;
-}
-
-.view-subtitle {
-  color: #a1a1aa;
-  font-size: 14px;
-}
+/* view-title / view-subtitle → migrado a Tailwind en ReservasView.tsx */
 
 .view-filters {
   display: flex;
@@ -35,44 +25,7 @@
   min-width: 280px;
 }
 
-.filter-input-search {
-  width: 100%;
-  background: #18181b;
-  border: 1px solid #27272a;
-  color: #ffffff;
-  padding: 8px 36px 8px 16px;
-  border-radius: 8px;
-  font-size: 14px;
-  outline: none;
-  transition: all 0.2s;
-}
-
-.filter-input-search:focus {
-  border-color: #f05b22;
-  box-shadow: 0 0 0 2px rgba(240, 91, 34, 0.1);
-}
-
-.search-icon {
-  position: absolute;
-  right: 12px;
-  color: #71717a;
-  pointer-events: none;
-}
-
-.filter-select {
-  background: #18181b;
-  border: 1px solid #27272a;
-  color: #ffffff;
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.2s;
-}
-
-.filter-select:focus {
-  border-color: #f05b22;
-}
+/* .filter-input-search / .filter-select / .search-icon → migrado a Tailwind */
 
 .btn-refresh {
   background: #27272a;
@@ -448,7 +401,11 @@
 
 .cell-activity {
   font-weight: 600;
-  color: #ffffff;
+  color: #0f172a;
+}
+
+.dark .cell-activity {
+  color: #f1f5f9;
 }
 
 .cell-time {

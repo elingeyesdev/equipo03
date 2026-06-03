@@ -7,11 +7,13 @@ import { Env } from '../../geolocation/config/environment';
 import {
   GymActivity,
   CreateReservationPayload,
+  CreateFreeReservationPayload,
   ReservationResponse,
   UserReservation,
   SubscriptionStatus,
 } from './reservation.types';
 import { AuthService } from '../../auth/AuthService';
+import { attach401Guard } from '../../auth/axios401Guard';
 
 const reservationClient = axios.create({
   baseURL: Env.API_BASE_URL,
@@ -22,34 +24,24 @@ const reservationClient = axios.create({
   },
 });
 
-// Interceptor: inyecta el JWT en cada petición
+// ── Interceptor de request: inyectar JWT ──────────────────────────────────────
 reservationClient.interceptors.request.use(
   async (config) => {
-    try {
-      const token = await AuthService.getToken();
-      if (token) config.headers.Authorization = `Bearer ${token}`;
-      if (Env.isDevelopment) {
-        console.log(`[API RESERVACIONES] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`, {
-          hasToken: !!token,
-          userId: config.url?.split('/').pop()
-        });
-      }
-      return config;
-    } catch (error: any) {
-      if (Env.isDevelopment) {
-        console.error('[API RESERVACIONES ERROR]', {
-          message: error.message,
-          code: error.code,
-          status: error.response?.status,
-          data: error.response?.data,
-          url: error.config?.url
-        });
-      }
-      throw error;
+    const raw = await AuthService.getToken();
+    if (!raw) {
+      console.error('[ERROR AUTH] No hay token en el llavero seguro');
+      return Promise.reject(new Error('Sin sesión activa.'));
     }
+    const token = raw.trim();
+    config.headers['Authorization'] = `Bearer ${token}`;
+    console.log(`[AUTH] ${config.method?.toUpperCase()} ${config.url} | Bearer ${token.substring(0, 25)}...`);
+    return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
+
+// ── Interceptor global 401 → alerta + logout + redirect al login ─────────────
+attach401Guard(reservationClient);
 
 export const reservationApi = {
 
@@ -84,6 +76,21 @@ export const reservationApi = {
     return response.data?.data ?? response.data;
   },
 
+  createFreeReservation: async (payload: CreateFreeReservationPayload): Promise<ReservationResponse> => {
+    // Construcción ESTRICTA: solo los campos del flujo libre.
+    // 'gymActivityScheduleId' NUNCA debe existir (ni como null, 0 o undefined).
+    // 'activityId' es REQUERIDO por el backend para flujo isFreeAccess=true.
+    const { gymId, activityId, reservationDate, startTime, endTime } = payload;
+    const response = await reservationClient.post('/api/reservations', {
+      gymId,
+      activityId,
+      reservationDate,
+      startTime,
+      endTime,
+    });
+    return response.data?.data ?? response.data;
+  },
+
   /**
    * GET /api/reservations/user/{userId}
    * El backend devuelve los datos anidados:
@@ -92,39 +99,131 @@ export const reservationApi = {
    *   reservation.gymActivitySchedule.dayOfWeek         → día
    */
   getMyReservations: async (): Promise<UserReservation[]> => {
-    const user = await AuthService.getCurrentUser();
-    if (!user?.userId) return [];
-    const response = await reservationClient.get(`/api/reservations/user/${user.userId}`);
-    const raw = response.data?.data ?? response.data;
-    const list: any[] = Array.isArray(raw) ? raw : [];
+    try {
+      const response = await reservationClient.get('/api/reservations/me');
+      const raw = response.data?.data ?? response.data;
+      const list: any[] = Array.isArray(raw) ? raw : [];
 
-    return list.map((r) => {
-      const schedule = r.gymActivitySchedule;
-      const activity = schedule?.gymActivity;
-      return {
-        id: r.id,
-        status: r.status,
-        reservationDate: r.reservationDate,
-        qrToken: r.qrToken ?? undefined,
-        cancelledAt: r.cancelledAt ?? null,
-        canCancel: !r.cancelledAt,
-        // Datos reales del backend — sin mocks
-        activityName: activity?.name,
-        activityDescription: activity?.description,
-        gymId: activity?.gymId,
-        startTime: schedule?.startTime,
-        endTime: schedule?.endTime,
-        dayOfWeek: schedule?.dayOfWeek,
-      };
-    });
+      return list.filter(Boolean).map((r: any) => {
+        // Flujo libre  → r.gymActivitySchedule = null, r.activity = GymActivity
+        // Flujo programado → r.gymActivitySchedule = Schedule, r.activity = null
+        const schedule     = r?.gymActivitySchedule ?? null;
+        const isFreeAccess = schedule === null;
+
+        const freeAct    = r?.freeActivity ?? r?.activity;       // solo flujo libre
+        const schedAct   = schedule?.gymActivity;              // solo flujo programado
+        const instructor = schedule?.instructor;
+
+        const firstName = instructor?.profile?.firstName ?? '';
+        const lastName  = instructor?.profile?.lastName  ?? '';
+        const instructorName = (firstName + ' ' + lastName).trim() || undefined;
+
+        // startTime/endTime: top-level (flujo libre) o desde el schedule (programada)
+        const rawSt = r?.startTime ?? schedule?.startTime ?? '';
+        const rawEt = r?.endTime   ?? schedule?.endTime   ?? '';
+        const st = String(rawSt).slice(0, 5) || undefined;
+        const et = String(rawEt).slice(0, 5) || undefined;
+
+        return {
+          id:                  r?.id,
+          status:              r?.status,
+          reservationDate:     typeof r?.reservationDate === 'string'
+                                 ? r.reservationDate.substring(0, 10)
+                                 : String(r?.reservationDate ?? '').substring(0, 10),
+          qrToken:             r?.qrToken ?? undefined,
+          cancelledAt:         r?.cancelledAt ?? null,
+          canCancel:           !r?.cancelledAt && !['CANCELADA','CANCELLED','COMPLETADA','USADA'].includes(r?.status),
+          isFreeAccess,
+          activityName:        isFreeAccess ? freeAct?.name : schedAct?.name,
+          activityDescription: isFreeAccess ? freeAct?.description : schedAct?.description,
+          gymId:               r?.gymId ?? schedAct?.gymId,
+          gymName:             r?.gym?.name ?? schedAct?.gym?.name ?? freeAct?.gym?.name ?? undefined,
+          createdAt:           r?.createdAt,
+          startTime:           st,
+          endTime:             et,
+          dayOfWeek:           schedule?.dayOfWeek,
+          instructorName,
+        };
+      });
+    } catch (err: any) {
+      const status = err?.response?.status;
+      console.error(`[Reservas] Error ${status ?? '?'}:`, err?.response?.data ?? err?.message);
+      // 401 → ya lo maneja attach401Guard (alerta + logout automático)
+      if (status === 403) {
+        const payload = await AuthService.getTokenPayload();
+        console.warn('[Reservas] JWT payload actual:', JSON.stringify(payload));
+        throw Object.assign(new Error('FORBIDDEN'), { isForbidden: true });
+      }
+      if (status === 404) return [];
+      throw err;
+    }
   },
 
   /**
    * PUT /api/reservations/{id}/cancel
-   * Cancelar una reserva (PUT, no POST).
    */
   cancelReservation: async (reservationId: number): Promise<{ success: boolean }> => {
     const response = await reservationClient.put(`/api/reservations/${reservationId}/cancel`);
+    return response.data?.data ?? response.data;
+  },
+
+  /**
+   * GET /api/reservations?date=YYYY-MM-DD
+   * Para GERENTE: el backend filtra por gymId del JWT automáticamente.
+   */
+  getGymReservations: async (date?: string): Promise<any[]> => {
+    const response = await reservationClient.get('/api/reservations', {
+      params: date ? { date } : undefined,
+    });
+    const raw = response.data?.data ?? response.data;
+    return Array.isArray(raw) ? raw : [];
+  },
+
+  /**
+   * GET /api/reservations/gym
+   * Auditoría de sede: gymId del JWT (applyListScope en backend).
+   * Sin filtro de fecha — devuelve todas las reservas de la sede.
+   */
+  getGymReservationsByGymId: async (_gymId: number, date?: string): Promise<any[]> => {
+    const response = await reservationClient.get('/api/reservations/gym', {
+      params: date ? { date } : undefined,
+    });
+    const raw = response.data?.data ?? response.data;
+    return Array.isArray(raw) ? raw : [];
+  },
+
+  /**
+   * PATCH /api/reservations/:id/check-in
+   * Marca la reserva como COMPLETADA (gerente valida QR de entrada).
+   */
+  checkInReservation: async (reservationId: number): Promise<{ success: boolean }> => {
+    const response = await reservationClient.patch(`/api/reservations/${reservationId}/check-in`);
+    return response.data?.data ?? response.data;
+  },
+
+  /**
+   * POST /api/reservations/check-in/token
+   * Check-in seguro: token opaco del QR → backend resuelve reservationId internamente.
+   */
+  checkInByToken: async (token: string): Promise<{ success: boolean; reservationId?: number }> => {
+    const response = await reservationClient.post('/api/reservations/check-in/token', { token });
+    return response.data?.data ?? response.data;
+  },
+
+  /**
+   * GET /api/reservations/:id/qr-token
+   * JWT temporal de 3 min para el QR del cliente.
+   */
+  getDynamicQRToken: async (reservationId: number): Promise<{ token: string }> => {
+    const response = await reservationClient.get(`/api/reservations/${reservationId}/qr-token`);
+    return response.data?.data ?? response.data;
+  },
+
+  /**
+   * PUT /api/reservations/{id}/confirm
+   */
+  confirmReservation: async (reservationId: number): Promise<{ success: boolean }> => {
+    const response = await reservationClient.put(`/api/reservations/${reservationId}/confirm`);
     return response.data?.data ?? response.data;
   },
 

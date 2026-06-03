@@ -149,24 +149,26 @@ export const LoginScreen = () => {
             exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
             transition={{ duration: 0.4 }}
           >
-            <motion.div 
-              className="login-card"
+            <motion.div
+              className="w-full max-w-md bg-white dark:bg-[#1e1e2d] border border-slate-200 dark:border-gray-800 rounded-2xl shadow-xl p-8 transition-colors relative"
               initial={{ scale: 0.9, y: 20, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.9, y: 20, opacity: 0 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
             >
-              <button 
-                className="close-btn" 
+              <button
+                className="close-btn"
                 onClick={() => setShowLogin(false)}
                 title="Volver"
               >
                 <XIcon size={24} />
               </button>
 
-              <div className="brand-logo-small">GymSync <span>Pro</span></div>
-              <h1 className="login-title">Acceso Corporativo</h1>
-              <p className="login-subtitle">Introduce tus credenciales para acceder al sistema.</p>
+              <div className="text-xl font-extrabold text-slate-900 dark:text-white text-center mb-1 tracking-tight">
+                GymSync <span style={{ color: '#00D9FF' }}>Pro</span>
+              </div>
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-white text-center">Acceso Corporativo</h1>
+              <p className="text-sm text-slate-500 dark:text-gray-400 text-center mt-2 mb-6">Introduce tus credenciales para acceder al sistema.</p>
               
               {error && (
                 <motion.div 
@@ -183,28 +185,30 @@ export const LoginScreen = () => {
                   <div className="input-icon">
                     <MailIcon size={18} />
                   </div>
-                  <input 
-                    type="email" 
+                  <input
+                    type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="admin@gymsync.com" 
-                    required 
+                    placeholder="admin@gymsync.com"
+                    required
+                    className="w-full bg-slate-50 dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-white rounded-lg pl-11 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all placeholder:text-slate-400 dark:placeholder:text-gray-500"
                   />
                 </div>
                 <div className="input-group">
                   <div className="input-icon">
                     <LockIcon size={18} />
                   </div>
-                  <input 
-                    type={showPassword ? "text" : "password"} 
+                  <input
+                    type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••" 
-                    required 
+                    placeholder="••••••••"
+                    required
+                    className="w-full bg-slate-50 dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-white rounded-lg pl-11 pr-11 py-3 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all placeholder:text-slate-400 dark:placeholder:text-gray-500"
                   />
-                  <button 
-                    type="button" 
-                    className="password-toggle-btn" 
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
                     onClick={() => setShowPassword(!showPassword)}
                     tabIndex={-1}
                     title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
@@ -213,9 +217,18 @@ export const LoginScreen = () => {
                   </button>
                 </div>
                 <button type="submit" className="btn-login" disabled={isSubmitting}>
-                  {isSubmitting ? 'Verificando credenciales...' : 'Ingresar al Dashboard'}
+                  {isSubmitting ? 'Verificando...' : 'Iniciar Sesión'}
                 </button>
               </form>
+              <div className="text-sm text-slate-600 dark:text-gray-400 text-center mt-6">
+                ¿No tienes una cuenta?{' '}
+                <span
+                  onClick={() => navigate('/register')}
+                  style={{ color: '#00D9FF', cursor: 'pointer', fontWeight: 600, textDecoration: 'underline' }}
+                >
+                  Regístrate aquí
+                </span>
+              </div>
             </motion.div>
           </motion.div>
         )}

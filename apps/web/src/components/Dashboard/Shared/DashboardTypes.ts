@@ -30,6 +30,12 @@ export type GymDto = {
   schedules?: GymScheduleDto[];
 };
 
+export type UserRoleDto = {
+  roleId: number;
+  gym?: { id: number; name?: string; parent?: { id: number; name?: string } } | null;
+  role?: { name?: string } | null;
+};
+
 export type UserDto = {
   id: number;
   email: string;
@@ -38,10 +44,9 @@ export type UserDto = {
     firstName?: string;
     lastName?: string;
     phone?: string;
+    ci?: string;
   };
-  userRoles?: Array<{
-    roleId: number;
-  }>;
+  userRoles?: UserRoleDto[];
   gyms?: Array<{
     id: number;
     name?: string;

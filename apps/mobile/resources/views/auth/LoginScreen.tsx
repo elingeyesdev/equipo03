@@ -20,8 +20,10 @@ import {
   Animated,
   Dimensions,
   Keyboard,
+  Linking,
 } from 'react-native';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
+import { useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
@@ -173,9 +175,40 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
+  forgotContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 20,
+    paddingVertical: 8,
+  },
+  forgotText: {
+    color: '#666',
+    fontSize: 13,
+  },
+  forgotTextBold: {
+    color: '#f05b22',
+    fontWeight: '700',
+  },
+  registerLinkContainer: {
+    marginTop: 10,
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  registerLinkText: {
+    color: '#aaa',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  registerLinkTextCyan: {
+    color: '#00D9FF',
+    fontWeight: 'bold',
+  },
 });
 
 export const LoginScreen = () => {
+  const navigation = useNavigation<any>();
   const { login, error, isLoading, clearError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -357,6 +390,30 @@ export const LoginScreen = () => {
               ) : (
                 <Text style={styles.loginButtonText}>Entrar al Sistema</Text>
               )}
+            </TouchableOpacity>
+
+            {/* Olvidaste contraseña */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.forgotContainer}
+              onPress={() => navigation.navigate('ForgotPassword')}
+            >
+              <MaterialCommunityIcons name="lock-reset" size={15} color="#f05b22" />
+              <Text style={styles.forgotText}>
+                ¿Has olvidado tu contraseña?{' '}
+                <Text style={styles.forgotTextBold}>Recupérala aquí</Text>
+              </Text>
+            </TouchableOpacity>
+
+            {/* Enlace para registrarse */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.registerLinkContainer}
+              onPress={() => navigation.navigate('Register')}
+            >
+              <Text style={styles.registerLinkText}>
+                ¿No tienes una cuenta? <Text style={styles.registerLinkTextCyan}>Regístrate aquí</Text>
+              </Text>
             </TouchableOpacity>
           </View>
 

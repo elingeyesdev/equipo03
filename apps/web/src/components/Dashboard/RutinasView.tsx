@@ -6,19 +6,34 @@ import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
 import { ModalOverlay, ConfirmModal, panelStyle, RecordDetailModal, DetailField } from './Shared/DashboardShared';
 import type { GymDto, GymScheduleDto, UserDto, CheckinDto, ScheduleEntry } from './Shared/DashboardTypes';
+import { Eye, Edit, Trash2 } from 'lucide-react';
 
 type RoutineDto = {
   id: number;
   name: string;
-  difficulty: string;
+  difficulty?: string;      // campo legacy (puede no venir)
+  difficultyLevel?: string; // campo real del backend
   description: string;
 };
+
+// Normaliza el valor de dificultad independientemente del campo o formato del backend
+const getDifficulty = (r: RoutineDto): string =>
+  (r.difficultyLevel ?? r.difficulty ?? '').toUpperCase().replace(/[^A-Z]/g, '');
+
+const DIFF_META: Record<string, { label: string; color: string; bg: string }> = {
+  FACIL:      { label: 'Fácil',      color: '#fff', bg: '#2dce89' },
+  INTERMEDIO: { label: 'Intermedio', color: '#fff', bg: '#f59e0b' },
+  AVANZADO:   { label: 'Avanzado',   color: '#fff', bg: '#f5365c' },
+};
+
+const diffMeta = (r: RoutineDto) =>
+  DIFF_META[getDifficulty(r)] ?? { label: getDifficulty(r) || '—', color: '#fff', bg: '#8e8e93' };
 
 const RoutineModal = ({ isOpen, onClose, routineToEdit, onSave }: any) => {
   const [formData, setFormData] = useState({
     name: '', difficulty: 'FACIL', description: ''
   });
-  
+
   useEffect(() => {
     if (routineToEdit) {
       setFormData({
@@ -33,32 +48,27 @@ const RoutineModal = ({ isOpen, onClose, routineToEdit, onSave }: any) => {
 
   if (!isOpen) return null;
 
+  const inputCls = "w-full bg-slate-50 dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-white rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors";
+  const labelCls = "block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1 mt-3";
+
   return (
     <ModalOverlay onClose={onClose}>
-      <div className="modal-content glass-panel">
-        <div className="modal-header">
-          <h2>{routineToEdit ? 'Editar Rutina' : 'Nueva Rutina'}</h2>
-        </div>
-        <div className="modal-form-group">
-          <label>Nombre de la Rutina</label>
-          <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="Ej. Hipertrofia Full Body" />
-        </div>
-        <div className="modal-form-group">
-          <label>Dificultad</label>
-          <select value={formData.difficulty} onChange={e => setFormData({...formData, difficulty: e.target.value})}>
-            <option value="FACIL">Fácil</option>
-            <option value="INTERMEDIO">Intermedio</option>
-            <option value="AVANZADO">Avanzado</option>
-          </select>
-        </div>
-        <div className="modal-form-group">
-          <label>Descripción</label>
-          <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Descripción general de la rutina..." style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', background: 'rgba(0, 0, 0, 0.2)', border: '1px solid #3A3A3C', color: '#FFF' }} rows={4} />
-        </div>
-        <div className="modal-actions">
-          <button className="btn-cancel" onClick={onClose}>Cancelar</button>
-          <button className="btn-primary" onClick={() => onSave(formData)}>Guardar Rutina</button>
-        </div>
+      <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">
+        {routineToEdit ? 'Editar Rutina' : 'Nueva Rutina'}
+      </h2>
+      <label className={labelCls}>Nombre de la Rutina</label>
+      <input type="text" className={inputCls} value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="Ej. Hipertrofia Full Body" />
+      <label className={labelCls}>Dificultad</label>
+      <select className={inputCls} value={formData.difficulty} onChange={e => setFormData({...formData, difficulty: e.target.value})}>
+        <option value="FACIL">Fácil</option>
+        <option value="INTERMEDIO">Intermedio</option>
+        <option value="AVANZADO">Avanzado</option>
+      </select>
+      <label className={labelCls}>Descripción</label>
+      <textarea className={inputCls} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Descripción general de la rutina..." rows={4} />
+      <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100 dark:border-gray-800">
+        <button className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent" onClick={onClose}>Cancelar</button>
+        <button className="px-4 py-2 bg-[#009ef7] hover:bg-[#0086d1] text-white font-medium rounded-lg shadow-sm transition-colors border-0 cursor-pointer" onClick={() => onSave(formData)}>Guardar Rutina</button>
       </div>
     </ModalOverlay>
   );
@@ -147,19 +157,19 @@ export const RutinasView = () => {
 
   return (
     <section style={panelStyle} className="glass-panel">
-      <h1 style={{ marginTop: 0 }}>Rutinas de Entrenamiento</h1>
-      <p>Gestión de planes de entrenamiento corporales.</p>
+      <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Rutinas de Entrenamiento</h1>
+      <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">Gestión de planes de entrenamiento corporales.</p>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
         <div style={{ color: '#8E8E93', fontSize: '0.9rem' }}>
           {loading ? 'Cargando rutinas...' : `Total de rutinas: ${routines.length}`}
         </div>
         {user?.role !== 'CLIENTE' && (
-          <button 
+          <button
             onClick={() => { setRoutineToEdit(null); setIsModalOpen(true); }}
-            style={{ background: '#00D9FF', color: '#0A0A0A', border: 'none', padding: '0.5rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
+            style={{ background: '#5e72e4', color: '#fff', border: 'none', padding: '0.5rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
           >
-            + Nueva Rutina
+            Nueva Rutina
           </button>
         )}
       </div>
@@ -167,40 +177,41 @@ export const RutinasView = () => {
       {error && <div style={{ marginTop: '0.75rem', color: '#FF5E00' }}>{error}</div>}
 
       {!loading && !error && (
-        <div style={{ marginTop: '1rem', overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '600px' }}>
-            <thead>
+        <div className="bg-white dark:bg-[#1e1e2d] border border-slate-200 dark:border-gray-800 rounded-xl shadow-sm overflow-x-auto mt-4 transition-colors">
+          <table className="w-full text-left border-collapse" style={{ minWidth: '600px' }}>
+            <thead className="bg-slate-50 dark:bg-[#151521] border-b border-slate-200 dark:border-gray-800 text-slate-500 dark:text-gray-400 text-xs uppercase tracking-wider">
               <tr>
-                <th style={{ textAlign: 'left', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Rutina</th>
-                <th style={{ textAlign: 'left', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Dificultad</th>
-                <th style={{ textAlign: 'left', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Descripción</th>
-                <th style={{ textAlign: 'center', padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#8E8E93' }}>Acciones</th>
+                <th style={{ textAlign: 'left', padding: '0.85rem 1rem' }}>Rutina</th>
+                <th style={{ textAlign: 'left', padding: '0.85rem 1rem' }}>Dificultad</th>
+                <th style={{ textAlign: 'left', padding: '0.85rem 1rem' }}>Descripción</th>
+                <th style={{ textAlign: 'center', padding: '0.85rem 1rem' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {routines.map((r) => (
-                <tr key={r.id}>
-                  <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C', fontWeight: 600 }}>{r.name}</td>
-                  <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C' }}>
-                    <span style={{ 
-                      padding: '0.2rem 0.5rem', 
-                      borderRadius: '4px', 
+                <tr key={r.id} className="border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-slate-700 dark:text-gray-300 text-sm">
+                  <td style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>{r.name}</td>
+                  <td style={{ padding: '0.85rem 1rem' }}>
+                    <span style={{
+                      padding: '0.2rem 0.5rem',
+                      borderRadius: '4px',
                       fontSize: '0.8rem',
-                      background: r.difficulty === 'FACIL' ? 'rgba(48, 209, 88, 0.1)' : r.difficulty === 'INTERMEDIO' ? 'rgba(255, 159, 10, 0.1)' : 'rgba(255, 94, 0, 0.1)',
-                      color: r.difficulty === 'FACIL' ? '#30D158' : r.difficulty === 'INTERMEDIO' ? '#FF9F0A' : '#FF5E00' 
+                      fontWeight: 700,
+                      background: diffMeta(r).bg,
+                      color: diffMeta(r).color,
                     }}>
-                      {r.difficulty}
+                      {diffMeta(r).label}
                     </span>
                   </td>
-                  <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C', color: '#E5E5EA' }}>{r.description || '-'}</td>
-                  <td style={{ padding: '0.6rem', borderBottom: '1px solid #3A3A3C', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                      <button onClick={() => setViewingRoutine(r)} style={{ background: 'rgba(0, 217, 255, 0.1)', border: '1px solid rgba(0, 217, 255, 0.3)', color: '#00D9FF', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }} title="Ver ficha de rutina">👁️ Detalle</button>
+                  <td style={{ padding: '0.85rem 1rem' }}>{r.description || '-'}</td>
+                  <td style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+                      <button onClick={() => setViewingRoutine(r)} style={{ background: '#11cdef', border: 'none', color: '#fff', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }} title="Ver ficha de rutina"><Eye size={13} />Detalle</button>
                       {user?.role !== 'CLIENTE' && (
                         <>
-                          <button onClick={() => { setRoutineToEdit(r); setIsModalOpen(true); }} style={{ background: '#00D9FF', color: '#0A0A0A', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>Editar</button>
+                          <button onClick={() => { setRoutineToEdit(r); setIsModalOpen(true); }} style={{ background: '#5e72e4', color: '#fff', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}><Edit size={13} />Editar</button>
                           {canDelete && (
-                            <button onClick={() => handleDeleteRoutine(r)} style={{ background: 'rgba(255, 94, 0, 0.1)', color: '#FF5E00', border: '1px solid #FF5E00', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>Eliminar</button>
+                            <button onClick={() => handleDeleteRoutine(r)} style={{ background: '#f5365c', color: '#fff', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}><Trash2 size={13} />Eliminar</button>
                           )}
                         </>
                       )}
@@ -212,6 +223,7 @@ export const RutinasView = () => {
           </table>
         </div>
       )}
+
 
       <RoutineModal 
         isOpen={isModalOpen} 
@@ -243,10 +255,10 @@ export const RutinasView = () => {
               borderRadius: '4px', 
               fontSize: '0.8rem',
               fontWeight: 700,
-              background: viewingRoutine?.difficulty === 'FACIL' ? 'rgba(48, 209, 88, 0.15)' : viewingRoutine?.difficulty === 'INTERMEDIO' ? 'rgba(255, 159, 10, 0.15)' : 'rgba(255, 94, 0, 0.15)',
-              color: viewingRoutine?.difficulty === 'FACIL' ? '#30D158' : viewingRoutine?.difficulty === 'INTERMEDIO' ? '#FF9F0A' : '#FF5E00' 
+              background: viewingRoutine ? diffMeta(viewingRoutine).bg : '#8e8e93',
+              color: '#fff'
             }}>
-              {viewingRoutine?.difficulty}
+              {viewingRoutine ? diffMeta(viewingRoutine).label : '—'}
             </span>
           } 
         />

@@ -1,16 +1,14 @@
-import { Injectable, Inject } from '@nestjs/common';
 import { ICheckInsRepository } from '../ports/output/ICheckInsRepository';
 import { IGymsRepository } from '../ports/output/IGymsRepository';
 import { IEventBus } from '../../shared/domain/events/IEventBus';
 import { AccessDeniedDomainEvent } from '../../domain/events/AccessDenied.event';
 import { CheckIn } from '../../domain/entities/CheckIn.entity';
 
-@Injectable()
 export class CheckinsService {
   constructor(
-    @Inject(ICheckInsRepository) private checkInsRepository: ICheckInsRepository,
-    @Inject(IGymsRepository) private gymsRepository: IGymsRepository,
-    @Inject(IEventBus) private eventBus: IEventBus,
+    private checkInsRepository: ICheckInsRepository,
+    private gymsRepository: IGymsRepository,
+    private eventBus: IEventBus,
   ) {}
 
   async processCheckIn(userId: number, gymId: number, method: 'QR' | 'NFC' | 'MANUAL'): Promise<CheckIn> {
