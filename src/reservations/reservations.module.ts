@@ -11,6 +11,9 @@ import { User } from '../users/domain/user.entity';
 import { CheckIn } from '../checkins/domain/check-in.entity';
 import { ReservationsService } from './application/reservations.service';
 import { ReservationsController } from './infrastructure/reservations.controller';
+import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
+import { UsersModule } from '../users/users.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -23,6 +26,9 @@ import { ReservationsController } from './infrastructure/reservations.controller
       User,
       CheckIn,
     ]),
+    PushNotificationsModule,
+    UsersModule,
+    NotificationsModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

@@ -38,6 +38,9 @@ import {
   aliasesForCanonicalDay,
 } from '../../activities/application/dtos/create-activity-schedule.dto';
 import type { CreateReservationDto } from './dtos/reservations.dto';
+import { PushNotificationsService } from '../../push-notifications/application/push-notifications.service';
+import { UsersService } from '../../users/application/users.service';
+import { GymGateway } from '../../notifications/infrastructure/gym.gateway';
 
 const DAY_UTC_INDEX: DayOfWeek[] = [
   DayOfWeek.DOMINGO,
@@ -63,6 +66,9 @@ export class ReservationsService {
     @Inject(DataSource) private readonly dataSource: DataSource,
     @Inject(REQUEST) private readonly request: RequestWithUser,
     private readonly jwtService: JwtService,
+    private readonly pushService: PushNotificationsService,
+    private readonly usersService: UsersService,
+    private readonly gymGateway: GymGateway,
   ) {}
 
   private managerGymId(): number | null {
@@ -387,7 +393,7 @@ export class ReservationsService {
         `[FREE] Reserva ${saved.id} activity=${activity.id} gym=${activity.gymId} user=${reservationUserId}`,
       );
       // Fire-and-forget: no bloquea la respuesta al cliente
-      this.notifyGymManagers(activity.gymId).catch(() => void 0);
+      this.notifyGymManagers(activity.gymId, saved.id).catch(() => void 0);
       return saved; // ← RETURN ABSOLUTO — nada más ejecuta
     }
     // ════════════════════════════════════════════════════════════════════════
@@ -502,7 +508,7 @@ export class ReservationsService {
       );
       // Fire-and-forget: no bloquea la respuesta al cliente
       if (saved.gymId) {
-        this.notifyGymManagers(saved.gymId).catch(() => void 0);
+        this.notifyGymManagers(saved.gymId, saved.id).catch(() => void 0);
       }
       return saved;
     } catch (error) {
@@ -1038,37 +1044,24 @@ export class ReservationsService {
    * Busca gerentes con pushToken asignados al gymId y les envía
    * una notificación Expo. Fire-and-forget: nunca bloquea la respuesta.
    */
-  private async notifyGymManagers(gymId: number): Promise<void> {
+  private async notifyGymManagers(gymId: number, reservationId?: number): Promise<void> {
     try {
-      const managers = await this.usersRepo
-        .createQueryBuilder('u')
-        .innerJoin('u.userRoles', 'ur', 'ur.gym_id = :gymId', { gymId })
-        .innerJoin('ur.role', 'r', "UPPER(r.name) = 'GERENTE'")
-        .where('u.is_active = true')
-        .andWhere('u.pushToken IS NOT NULL')
-        .select(['u.id', 'u.pushToken'])
-        .getMany();
-
-      if (managers.length === 0) return;
-
-      const messages = managers.map((m) => ({
-        to: m.pushToken,
-        title: 'Nueva Reserva',
-        body: 'Un cliente acaba de reservar en tu sucursal.',
-        sound: 'default',
-      }));
-
-      const res = await fetch('https://exp.host/--/api/v2/push/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify(messages),
+      const tokens = await this.usersService.getManagerPushTokens(gymId);
+      tokens.forEach((token) => {
+        this.pushService
+          .sendPushMessage(token, 'Nueva Reserva', 'Tienes una nueva reserva confirmada en tu sucursal.')
+          .catch(() => {});
       });
-
-      if (!res.ok) {
-        this.logger.warn(`[PUSH] Expo respondió ${res.status} para gym=${gymId}`);
-      } else {
-        this.logger.log(`[PUSH] ${managers.length} gerente(s) notificado(s) en gym=${gymId}`);
+      if (tokens.length > 0) {
+        this.logger.log(`[PUSH] ${tokens.length} gerente(s) notificado(s) en gym=${gymId}`);
       }
+
+      // Emisión en tiempo real para la Web
+      this.gymGateway.emitToGym(gymId, 'new_reservation', {
+        message: 'Tienes una nueva reserva confirmada',
+        reservationId,
+        gymId,
+      });
     } catch (err) {
       this.logger.warn(`[PUSH] Error notificando gerentes de gym=${gymId}: ${String(err)}`);
     }

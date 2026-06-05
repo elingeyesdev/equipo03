@@ -115,15 +115,30 @@ export class UsersController {
     return this.usersService.getMetricsHistory(Number(req.user!.userId));
   }
 
+  // TODO: [ESCALABILIDAD] Si en el futuro se requiere notificar a otros roles, agrégalos a este array.
   @Patch('me/push-token')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('GERENTE', 'INSTRUCTOR', 'ENTRENADOR', 'NUTRICIONISTA')
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Registrar token push del dispositivo (Expo) para el usuario autenticado' })
   @ApiBody({ type: UpdatePushTokenDto })
   @ApiResponse({ status: 200, description: 'Token registrado' })
   @ApiResponse({ status: 401, description: 'Token JWT inválido' })
+  @ApiResponse({ status: 403, description: 'Solo roles operativos' })
   savePushToken(@Req() req: RequestWithUser, @Body() body: UpdatePushTokenDto) {
     return this.usersService.savePushToken(Number(req.user!.userId), body.token);
+  }
+
+  // TODO: [ESCALABILIDAD] Si en el futuro se requiere notificar a otros roles, agrégalos a este array.
+  @Delete('me/push-token')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('GERENTE', 'INSTRUCTOR', 'ENTRENADOR', 'NUTRICIONISTA')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Eliminar token push del dispositivo del usuario autenticado' })
+  @ApiResponse({ status: 200, description: 'Token eliminado' })
+  @ApiResponse({ status: 403, description: 'Solo roles operativos' })
+  clearPushToken(@Req() req: RequestWithUser) {
+    return this.usersService.clearPushToken(Number(req.user!.userId));
   }
 
   @Delete(':id')

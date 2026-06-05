@@ -202,8 +202,24 @@ export class UsersService {
     return this.findOne(id);
   }
 
+  async getManagerPushTokens(gymId: number): Promise<string[]> {
+    const managers = await this.usersRepo
+      .createQueryBuilder('u')
+      .innerJoin('u.userRoles', 'ur', 'ur.gym_id = :gymId', { gymId })
+      .innerJoin('ur.role', 'r', "UPPER(r.name) = 'GERENTE'")
+      .where('u.is_active = true')
+      .andWhere('u.push_token IS NOT NULL')
+      .select(['u.id', 'u.pushToken'])
+      .getMany();
+    return managers.map((m) => m.pushToken as string);
+  }
+
   async savePushToken(userId: number, token: string): Promise<void> {
     await this.usersRepo.update(userId, { pushToken: token });
+  }
+
+  async clearPushToken(userId: number): Promise<void> {
+    await this.usersRepo.update(userId, { pushToken: null });
   }
 
   async remove(id: number): Promise<void> {
