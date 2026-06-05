@@ -29,12 +29,12 @@ userClient.interceptors.request.use(
 attach401Guard(userClient);
 
 export const userApi = {
-  /**
-   * PATCH /api/users/me/push-token
-   * Guarda el Expo Push Token del usuario autenticado en el backend.
-   */
   updatePushToken: async (token: string): Promise<{ success: boolean }> => {
     const response = await userClient.patch('/api/users/me/push-token', { token });
     return response.data?.data ?? response.data;
+  },
+
+  clearPushToken: async (): Promise<void> => {
+    await userClient.delete('/api/users/me/push-token');
   },
 };

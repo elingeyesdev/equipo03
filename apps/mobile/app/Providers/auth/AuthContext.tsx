@@ -11,6 +11,7 @@ import React, { createContext, useContext, useState, ReactNode, useEffect } from
 import type { AutenticacionContext } from '@gymsync/core';
 import { AuthService } from './AuthService';
 import { authEvents } from './authEvents';
+import { usePushNotifications } from '../notifications/usePushNotifications';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -25,10 +26,13 @@ interface AuthContextType {
 
 const AuthContextInstance = createContext<AuthContextType | undefined>(undefined);
 
+const ALLOWED_PUSH_ROLES = ['GERENTE', 'INSTRUCTOR', 'ENTRENADOR', 'NUTRICIONISTA'];
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AutenticacionContext | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { registerToken, clearToken } = usePushNotifications();
 
   /**
    * Al montar el componente, restaurar la sesión si existe
@@ -67,6 +71,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (result.success && result.user) {
         const userData = await AuthService.fetchUserProfile();
         setUser({ ...result.user, profile: userData?.profile ?? undefined });
+
+        if (ALLOWED_PUSH_ROLES.includes(result.user.role)) {
+          await registerToken();
+        }
+
         return true;
       } else {
         setError(result.error || 'Error al iniciar sesión');
@@ -84,6 +93,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = async (): Promise<void> => {
     setIsLoading(true);
     try {
+      await clearToken();
       await AuthService.logout();
       setUser(null);
       setError(null);
