@@ -153,12 +153,22 @@ export const MisReservasScreen = () => {
         style: 'destructive',
         onPress: async () => {
           setCancelingAll(true);
-          await Promise.allSettled(
-            targets.map((r) => r?.id ? reservationApi.cancelReservation(r.id) : Promise.resolve())
+          const results = await Promise.allSettled(
+            targets.map((r) =>
+              r?.id ? reservationApi.cancelReservation(r.id) : Promise.reject(new Error('Sin id')),
+            ),
           );
+          const failed = results.filter((r) => r.status === 'rejected').length;
           await queryClient.invalidateQueries({ queryKey: ['my-reservations'] });
           setCancelingAll(false);
-          Alert.alert('Listo', 'Reservas canceladas.');
+          if (failed > 0) {
+            Alert.alert(
+              'Cancelación parcial',
+              `${failed} de ${targets.length} reserva(s) no se pudieron cancelar.`,
+            );
+          } else {
+            Alert.alert('Listo', 'Reservas canceladas.');
+          }
         },
       },
     ]);

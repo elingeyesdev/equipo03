@@ -29,9 +29,16 @@ userClient.interceptors.request.use(
 attach401Guard(userClient);
 
 export const userApi = {
-  updatePushToken: async (token: string): Promise<{ success: boolean }> => {
+  updatePushToken: async (token: string): Promise<{ registered: boolean }> => {
     const response = await userClient.patch('/api/users/me/push-token', { token });
-    return response.data?.data ?? response.data;
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`PATCH push-token respondió ${response.status}`);
+    }
+    const root = response.data ?? {};
+    const payload = root.data ?? root;
+    const registered =
+      payload?.registered === true || root.success === true;
+    return { registered };
   },
 
   clearPushToken: async (): Promise<void> => {

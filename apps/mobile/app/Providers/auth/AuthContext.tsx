@@ -26,7 +26,14 @@ interface AuthContextType {
 
 const AuthContextInstance = createContext<AuthContextType | undefined>(undefined);
 
-const ALLOWED_PUSH_ROLES = ['GERENTE', 'INSTRUCTOR', 'ENTRENADOR', 'NUTRICIONISTA'];
+const ALLOWED_PUSH_ROLES = [
+  'GERENTE',
+  'INSTRUCTOR',
+  'ENTRENADOR',
+  'NUTRICIONISTA',
+  'CLIENTE',
+  'USER',
+];
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AutenticacionContext | null>(null);
@@ -44,6 +51,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (currentUser) {
           const userData = await AuthService.fetchUserProfile();
           setUser({ ...currentUser, profile: userData?.profile ?? (currentUser as any).profile ?? undefined });
+          if (ALLOWED_PUSH_ROLES.includes(currentUser.role)) {
+            await registerToken();
+          }
         }
       } catch (e) {
         console.error('[AuthContext] Error restaurando sesión:', e);
