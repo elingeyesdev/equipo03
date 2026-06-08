@@ -9,6 +9,7 @@ import { UserTrainingRestriction } from '../domain/user-training-restriction.ent
 import { EmergencyContact } from '../domain/emergency-contact.entity';
 import { WorkoutSession } from '../domain/workout-session.entity';
 import { WorkoutSet } from '../domain/workout-set.entity';
+import { UserSubscription } from '../../subscriptions/domain/user-subscription.entity';
 import { getManagerGymId, type RequestWithUser } from '../../common/security/gym-scope';
 
 @Injectable({ scope: Scope.REQUEST })
@@ -21,6 +22,7 @@ export class TrainingService {
     @InjectRepository(EmergencyContact) private ecRepo: Repository<EmergencyContact>,
     @InjectRepository(WorkoutSession) private sessionsRepo: Repository<WorkoutSession>,
     @InjectRepository(WorkoutSet) private setsRepo: Repository<WorkoutSet>,
+    @InjectRepository(UserSubscription) private subsRepo: Repository<UserSubscription>,
     @Inject(REQUEST) private readonly request: RequestWithUser,
   ) {}
 
@@ -51,6 +53,48 @@ export class TrainingService {
   removeEmergencyContact(id: number) { return this.ecRepo.delete(id); }
 
   // ── Workout Sessions ─────────────────────────────
+  async saveCompletedSession(userId: number, data: any) {
+    const mg = this.managerGymId();
+
+    let gymId: number | null;
+    if (mg !== null) {
+      gymId = mg;
+    } else if (data.gymId) {
+      gymId = Number(data.gymId);
+    } else {
+      const sub = await this.subsRepo.findOne({
+        where: { userId, status: 'ACTIVO' },
+        order: { createdAt: 'DESC' },
+      });
+      gymId = sub?.homeGymId ?? null;
+    }
+
+    const now = new Date();
+    const session = await this.sessionsRepo.save(
+      this.sessionsRepo.create({
+        userId,
+        gymId,
+        routineId: data.routineId ?? null,
+        sportType: data.sportType ?? null,
+        durationSeconds: data.durationSeconds ?? null,
+        caloriesBurned: data.caloriesBurned ?? null,
+        notes: data.notes ?? null,
+        status: 'FINISHED',
+        startedAt: now,
+        finishedAt: now,
+      }),
+    );
+
+    if (data.sets?.length) {
+      const items = (data.sets as any[]).map((s) =>
+        this.setsRepo.create({ ...s, sessionId: session.id } as DeepPartial<WorkoutSet>),
+      );
+      await this.setsRepo.save(items);
+    }
+
+    return this.findOneSession(session.id);
+  }
+
   async createSession(data: any) {
     const mg = this.managerGymId();
     const { sets, ...sData } = data;
@@ -71,7 +115,7 @@ export class TrainingService {
     return this.findOneSession(session.id);
   }
 
-  findAllSessions() {
+  findAllSessions(userId: number) {
     const mg = this.managerGymId();
     const qb = this.sessionsRepo.createQueryBuilder('session')
       .leftJoinAndSelect('session.routine', 'routine')
@@ -79,6 +123,7 @@ export class TrainingService {
       .leftJoinAndSelect('session.gym', 'gym')
       .leftJoinAndSelect('session.sets', 'sets')
       .leftJoinAndSelect('sets.routineExercise', 'routineExercise')
+      .where('session.user_id = :userId', { userId })
       .orderBy('session.started_at', 'DESC');
 
     if (mg !== null) {

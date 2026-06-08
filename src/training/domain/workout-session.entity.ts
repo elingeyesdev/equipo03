@@ -11,14 +11,17 @@ export class WorkoutSession {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'integer', name: 'routine_id' })
-  routineId: number;
+  @Column({ type: 'integer', name: 'routine_id', nullable: true })
+  routineId: number | null;
 
   @Column({ type: 'integer', name: 'user_id' })
   userId: number;
 
-  @Column({ type: 'integer', name: 'gym_id' })
-  gymId: number;
+  @Column({ type: 'integer', name: 'gym_id', nullable: true })
+  gymId: number | null;
+
+  @Column({ type: 'varchar', length: 50, name: 'sport_type', nullable: true })
+  sportType: string | null;
 
   @Column({ type: 'timestamp', name: 'started_at', default: () => 'now()' })
   startedAt: Date;
@@ -29,24 +32,27 @@ export class WorkoutSession {
   @Column({ type: 'varchar', length: 20, default: 'IN_PROGRESS' })
   status: string;
 
-  @Column({ type: 'integer', name: 'total_duration_minutes', nullable: true })
-  totalDurationMinutes: number;
+  @Column({ type: 'integer', name: 'duration_seconds', nullable: true })
+  durationSeconds: number | null;
+
+  @Column({ type: 'integer', name: 'calories_burned', nullable: true })
+  caloriesBurned: number | null;
 
   @Column({ type: 'text', nullable: true })
   notes: string;
 
   // ── Relations ─────────────────────────────────────
-  @ManyToOne(() => Routine, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Routine, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'routine_id' })
-  routine: Routine;
+  routine: Routine | null;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @ManyToOne(() => Gym, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Gym, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'gym_id' })
-  gym: Gym;
+  gym: Gym | null;
 
   @OneToMany(() => WorkoutSet, (ws) => ws.session, { cascade: true })
   sets: WorkoutSet[];

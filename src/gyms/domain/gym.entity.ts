@@ -1,5 +1,5 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, OneToOne, OneToMany,
+  Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, OneToOne, OneToMany, ManyToOne, JoinColumn,
 } from 'typeorm';
 import { GymLocation } from './gym-location.entity';
 import { GymSchedule } from './gym-schedule.entity';
@@ -27,6 +27,10 @@ export class Gym {
 
   @Column({ type: 'integer', name: 'parent_id', nullable: true })
   parentId!: number | null;
+
+  @ManyToOne(() => Gym, { nullable: true, eager: false })
+  @JoinColumn({ name: 'parent_id' })
+  parent?: Gym | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;

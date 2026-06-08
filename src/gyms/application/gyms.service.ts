@@ -73,7 +73,7 @@ export class GymsService {
     if (mg !== null) {
       const gym = await this.gymsRepo.findOne({
         where: { id: mg },
-        relations: ['location', 'schedules'],
+        relations: ['location', 'schedules', 'parent'],
       });
       return gym ? [this.mapGymToDto(gym)] : [];
     }
@@ -82,6 +82,7 @@ export class GymsService {
       .createQueryBuilder('gym')
       .leftJoinAndSelect('gym.location', 'location')
       .leftJoinAndSelect('gym.schedules', 'schedules')
+      .leftJoinAndSelect('gym.parent', 'parent')
       .where('gym.isActive = :active', { active: true })
       .andWhere('gym.parentId IS NOT NULL')
       .orderBy('gym.id', 'ASC')
@@ -123,7 +124,7 @@ export class GymsService {
   }
 
   async findOne(id: number) {
-    const gym = await this.gymsRepo.findOne({ where: { id }, relations: ['location', 'schedules', 'activities'] });
+    const gym = await this.gymsRepo.findOne({ where: { id }, relations: ['location', 'schedules', 'activities', 'parent'] });
     if (!gym) throw new NotFoundException(`Gimnasio ${id} no encontrado`);
     return this.mapGymToDto(gym);
   }
@@ -136,6 +137,7 @@ export class GymsService {
 
     return {
       ...gym,
+      parentName: gym.parent?.name ?? null,
       aforoActual: Math.floor(Math.random() * ((gym.maxCapacity || 100) / 2)),
       imagenUrl: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?q=80&w=1000&auto=format&fit=crop',
       rating: Number((Math.random() * (5.0 - 4.0) + 4.0).toFixed(1)),

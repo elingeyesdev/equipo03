@@ -1,6 +1,7 @@
 import * as nodemailer from 'nodemailer';
 import { Injectable, UnauthorizedException, ConflictException, BadRequestException, InternalServerErrorException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -12,25 +13,29 @@ import { Gym } from '../../gyms/domain/gym.entity';
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
-
-  private readonly mailer = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
+  private readonly mailer: nodemailer.Transporter;
 
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
     @InjectRepository(UserRole)
     private readonly userRolesRepo: Repository<UserRole>,
     @InjectRepository(Gym)
     private readonly gymRepo: Repository<Gym>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
-  ) {}
+  ) {
+    this.mailer = nodemailer.createTransport({
+      host: this.configService.get<string>('SMTP_HOST') ?? 'smtp.gmail.com',
+      port: this.configService.get<number>('SMTP_PORT') ?? 587,
+      secure: false, // STARTTLS en puerto 587 (no SSL)
+      auth: {
+        user: this.configService.get<string>('SMTP_USER'),
+        pass: this.configService.get<string>('SMTP_PASS'),
+      },
+    });
+  }
 
   // Jerarquía de roles: mayor índice = mayor prioridad
   private static readonly ROLE_PRIORITY: Record<string, number> = {
@@ -231,8 +236,9 @@ export class AuthService {
       await this.userRepo.update(user.id, { otpCode, otpExpiresAt });
 
       try {
+        await this.mailer.verify();
         await this.mailer.sendMail({
-          from: process.env.SMTP_USER,
+          from: this.configService.get<string>('SMTP_USER'),
           to: email,
           subject: 'Código de Verificación - Corpus Gym',
           html: `
@@ -248,8 +254,11 @@ export class AuthService {
           `,
         });
         this.logger.log(`[OTP] Correo enviado a ${email} vía Nodemailer`);
-      } catch (error) {
-        this.logger.error(`[SMTP ERROR CRÍTICO] Fallo al enviar a ${email}:`, error);
+      } catch (error: any) {
+        this.logger.error(
+          `[SMTP] Error al enviar OTP a ${email}: ${error?.message ?? error} | code=${error?.code ?? 'n/a'} | responseCode=${error?.responseCode ?? 'n/a'}`,
+          error?.stack,
+        );
         throw new InternalServerErrorException('Fallo interno del servidor SMTP.');
       }
     }

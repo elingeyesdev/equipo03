@@ -1,10 +1,11 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Req, UseGuards, ParseIntPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
+import type { RequestWithUser } from '../../common/security/gym-scope';
 import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
 import { TrainingService } from '../application/training.service';
 import {
   CreateTrainingProfileDto, CreateRestrictionDto, CreateEmergencyContactDto,
-  CreateSessionDto, UpdateSessionDto, AddSetDto,
+  CreateSessionDto, UpdateSessionDto, AddSetDto, SaveCompletedSessionDto,
 } from '../application/dtos/training.dto';
 
 @ApiTags('Training')
@@ -41,8 +42,14 @@ export class TrainingController {
   @ApiBody({ type: CreateSessionDto })
   createSession(@Body() body: CreateSessionDto) { return this.svc.createSession(body); }
 
-  @Get('sessions') @ApiOperation({ summary: 'Listar sesiones' })
-  findSessions() { return this.svc.findAllSessions(); }
+  @Post('sessions/completed') @ApiOperation({ summary: 'Guardar entrenamiento completado de un solo golpe' })
+  @ApiBody({ type: SaveCompletedSessionDto })
+  saveCompleted(@Req() req: RequestWithUser, @Body() body: SaveCompletedSessionDto) {
+    return this.svc.saveCompletedSession(Number(req.user!.userId), body);
+  }
+
+  @Get('sessions') @ApiOperation({ summary: 'Listar mis sesiones (filtradas por usuario autenticado)' })
+  findSessions(@Req() req: RequestWithUser) { return this.svc.findAllSessions(Number(req.user!.userId)); }
 
   @Get('sessions/user/:userId') @ApiOperation({ summary: 'Sesiones de usuario' })
   findByUser(@Param('userId', ParseIntPipe) uid: number) { return this.svc.findSessionsByUser(uid); }

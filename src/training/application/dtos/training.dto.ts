@@ -98,9 +98,9 @@ export class CreateEmergencyContactDto {
 
 // ── Workout Sessions ────────────────────────────────────
 export class CreateSessionDto {
-  @ApiProperty({ example: 1, description: 'ID de la rutina' })
-  @IsInt()
-  routineId: number;
+  @ApiPropertyOptional({ example: 1, description: 'ID de la rutina. Omitir para entrenamiento libre.' })
+  @IsOptional() @IsInt()
+  routineId?: number;
 
   @ApiProperty({ example: 1, description: 'ID del usuario' })
   @IsInt()
@@ -109,6 +109,10 @@ export class CreateSessionDto {
   @ApiProperty({ example: 1, description: 'ID del gimnasio' })
   @IsInt()
   gymId: number;
+
+  @ApiPropertyOptional({ example: 'MUSCULACION', description: 'MUSCULACION | CINTA | BICICLETA | NATACION | YOGA | OTRO' })
+  @IsOptional() @IsString()
+  sportType?: string;
 
   @ApiPropertyOptional({ example: 'Sesión de prueba' })
   @IsOptional() @IsString()
@@ -120,13 +124,47 @@ export class UpdateSessionDto {
   @IsOptional() @IsString()
   status?: string;
 
-  @ApiPropertyOptional({ example: 65 })
+  @ApiPropertyOptional({ example: 3720, description: 'Duración total en segundos' })
   @IsOptional() @IsInt()
-  totalDurationMinutes?: number;
+  durationSeconds?: number;
+
+  @ApiPropertyOptional({ example: 420, description: 'Calorías quemadas estimadas' })
+  @IsOptional() @IsInt()
+  caloriesBurned?: number;
 
   @ApiPropertyOptional({ example: 'Gran sesión, superé marcas' })
   @IsOptional() @IsString()
   notes?: string;
+}
+
+export class SaveCompletedSessionDto {
+  @ApiPropertyOptional({ example: 1, description: 'ID de la rutina. Omitir para entrenamiento libre.' })
+  @IsOptional() @IsInt()
+  routineId?: number;
+
+  @ApiPropertyOptional({ example: 1, description: 'ID del gimnasio. Si se omite, se resuelve desde la membresía activa del usuario.' })
+  @IsOptional() @IsInt()
+  gymId?: number;
+
+  @ApiPropertyOptional({ example: 'MUSCULACION', description: 'MUSCULACION | CINTA | BICICLETA | NATACION | YOGA | OTRO' })
+  @IsOptional() @IsString()
+  sportType?: string;
+
+  @ApiPropertyOptional({ example: 3720, description: 'Duración total en segundos' })
+  @IsOptional() @IsInt()
+  durationSeconds?: number;
+
+  @ApiPropertyOptional({ example: 420, description: 'Calorías quemadas estimadas' })
+  @IsOptional() @IsInt()
+  caloriesBurned?: number;
+
+  @ApiPropertyOptional({ example: 'Gran sesión, superé marcas' })
+  @IsOptional() @IsString()
+  notes?: string;
+
+  @ApiPropertyOptional({ description: 'Series completadas durante el entrenamiento', type: () => [AddSetDto] })
+  @IsOptional() @IsArray()
+  sets?: AddSetDto[];
 }
 
 export class AddSetDto {
