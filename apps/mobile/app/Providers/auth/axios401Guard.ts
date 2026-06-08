@@ -18,9 +18,9 @@ export function attach401Guard(client: AxiosInstance): void {
     async (error) => {
       if (error?.response?.status === 401) {
         if (!alertShown) {
+          // 1. Limpiar sesión — marcar alertShown solo si logout no lanza
+          try { await AuthService.logout(); } catch { /* sesión ya inválida */ }
           alertShown = true;
-          // 1. Limpiar sesión
-          await AuthService.logout();
           // 2. Avisar al usuario
           Alert.alert(
             'Sesión expirada',

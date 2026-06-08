@@ -72,7 +72,12 @@ const CheckInScannerModal = ({ onClose, onSuccess }: { onClose: () => void; onSu
               }, 3000);
             }
           },
-          () => {},
+          (errMsg: string) => {
+            // Html5Qrcode llama este callback en cada frame sin QR (NotFoundException es ruido normal)
+            if (errMsg && !errMsg.includes('NotFoundException') && !errMsg.toLowerCase().includes('no qr code')) {
+              console.warn('[QRScanner] Error de escaneo:', errMsg);
+            }
+          },
         );
         if (isMounted) setStatus('scanning');
       } catch (e) {
@@ -181,12 +186,28 @@ const AccesosPanel = () => {
   const [errorAcceso,  setErrorAcceso]  = useState<string | null>(null);
   const [refreshKey,   setRefreshKey]   = useState(0);
   const [showScanner,  setShowScanner]  = useState(false);
+  const [gyms,         setGyms]         = useState<{ id: number; name: string }[]>([]);
+
+  useEffect(() => {
+    if (user?.role !== 'SUPER_ADMIN') return;
+    apiClient.get<Array<{ id: unknown; name: unknown }>>('/gyms')
+      .then(res => {
+        const raw = Array.isArray(res.data) ? res.data : [];
+        setGyms(raw.map(g => ({ id: Number(g.id), name: String(g.name) })));
+      })
+      .catch(() => {});
+  }, [user?.role]);
 
   const cargarAccesos = useCallback(async (resetPage = false) => {
     if (!user) return;
     setLoading(true);
     setErrorAcceso(null);
-    const currentPage = resetPage ? 1 : page;
+
+    // Cuando hay filtro de tiempo activo, cargar todos los registros de una vez
+    // para que el filtro cliente-side tenga el universo completo y no solo la página actual
+    const timeFilterActive = Boolean(filtroTiempo);
+    const currentPage = (resetPage || timeFilterActive) ? 1 : page;
+    const limit = timeFilterActive ? 1000 : 20;
 
     // Gerente: Restringir a sucursal asociada a la cuenta del gerente
     const selectedGymId = user.role === 'GERENTE' ? (user.gymId || undefined) : (filtroSede || undefined);
@@ -195,20 +216,20 @@ const AccesosPanel = () => {
       gymId:  selectedGymId,
       estado: filtroEstado || undefined,
       page:   currentPage,
-      limit:  20,
+      limit,
     });
 
     if (result.isRight()) {
       const { data, total } = result.value;
-      setAccesos(prev => resetPage ? data : [...prev, ...data]);
-      setHasMore(data.length > 0 && (currentPage * 20) < total);
+      setAccesos(prev => (resetPage || timeFilterActive) ? data : [...prev, ...data]);
+      setHasMore(!timeFilterActive && data.length > 0 && (currentPage * 20) < total);
     } else {
       setErrorAcceso(result.value.message);
       setAccesos([]);
       setHasMore(false);
     }
     setLoading(false);
-  }, [filtroSede, filtroEstado, page, user]);
+  }, [filtroSede, filtroEstado, filtroTiempo, page, user]);
 
   useEffect(() => {
     cargarAccesos(true);
@@ -217,7 +238,7 @@ const AccesosPanel = () => {
 
   useEffect(() => {
     if (page > 1) cargarAccesos(false);
-  }, [page]);
+  }, [page, cargarAccesos]);
 
   const filteredAccesos = React.useMemo(() => {
     let list = accesos;
@@ -285,16 +306,9 @@ const AccesosPanel = () => {
               className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-800 text-slate-900 dark:text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors"
             >
               <option value="">Todas las Sedes</option>
-              <option value="1">Smart Fit</option>
-              <option value="2">Premier</option>
-              <option value="3">Bio Fitness</option>
-              <option value="4">Reyes Gym</option>
-              <option value="5">Megatlon</option>
-              <option value="6">Bodytech</option>
-              <option value="7">Energy Club</option>
-              <option value="8">Fitness 24/7</option>
-              <option value="9">Iron Gym</option>
-              <option value="10">Power Club</option>
+              {gyms.map(g => (
+                <option key={g.id} value={String(g.id)}>{g.name}</option>
+              ))}
             </select>
           )}
           <select

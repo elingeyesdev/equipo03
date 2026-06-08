@@ -47,6 +47,14 @@ export const styles = StyleSheet.create({
     flex: 1,
     marginRight: 12,
   },
+  sedeBrand: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#f05b22',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 3,
+  },
   sedeName: {
     fontSize: 22,
     fontWeight: '700',

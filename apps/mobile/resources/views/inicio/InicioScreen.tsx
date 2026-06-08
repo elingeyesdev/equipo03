@@ -374,7 +374,7 @@ const ClientDashboard = () => {
         <TouchableOpacity
           style={styles.historialBtn}
           activeOpacity={0.8}
-          onPress={() => navigation.navigate('Buscar', { screen: 'Historial' })}
+          onPress={() => (navigation as any).navigate('GymHistorial')}
         >
           <View style={styles.historialBtnLeft}>
             <View style={styles.historialBtnIcon}>
@@ -383,6 +383,42 @@ const ClientDashboard = () => {
             <View>
               <Text style={styles.historialBtnTitle}>Historial de Gimnasios</Text>
               <Text style={styles.historialBtnSub}>Ver tus visitas registradas</Text>
+            </View>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={22} color="#444" />
+        </TouchableOpacity>
+
+        {/* ── Historial de Entrenamientos ── */}
+        <TouchableOpacity
+          style={styles.historialBtn}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('WorkoutHistory')}
+        >
+          <View style={styles.historialBtnLeft}>
+            <View style={styles.historialBtnIcon}>
+              <MaterialCommunityIcons name="calendar-clock" size={20} color="#f05b22" />
+            </View>
+            <View>
+              <Text style={styles.historialBtnTitle}>Historial de Entrenamientos</Text>
+              <Text style={styles.historialBtnSub}>Revisa tus rutinas pasadas</Text>
+            </View>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={22} color="#444" />
+        </TouchableOpacity>
+
+        {/* ── Iniciar Entrenamiento ── */}
+        <TouchableOpacity
+          style={styles.historialBtn}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('WorkoutMode')}
+        >
+          <View style={styles.historialBtnLeft}>
+            <View style={styles.historialBtnIcon}>
+              <MaterialCommunityIcons name="play-circle-outline" size={20} color="#f05b22" />
+            </View>
+            <View>
+              <Text style={styles.historialBtnTitle}>Iniciar Entrenamiento</Text>
+              <Text style={styles.historialBtnSub}>Registra tu sesion activa</Text>
             </View>
           </View>
           <MaterialCommunityIcons name="chevron-right" size={22} color="#444" />

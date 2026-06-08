@@ -86,6 +86,7 @@ export class SedeDTOMapper {
       beneficios,
       imagenUrl: dto.imagenUrl as string | undefined,
       telefono: dto.telefono as string | undefined,
+      parentName: dto.parentName as string | undefined,
     });
   }
 

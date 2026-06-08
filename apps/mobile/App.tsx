@@ -1,4 +1,5 @@
 import React from 'react';
+import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -6,10 +7,23 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './app/Providers/auth/AuthContext';
 import { RootNavigator } from './routes/RootNavigator';
 import { useGymVisitTracker } from './app/Providers/geolocation/services/useGymVisitTracker';
+import { usePushNotificationListeners } from './app/Providers/notifications/usePushNotifications';
+import { useGymEventsSocket } from './app/Providers/notifications/useGymEventsSocket';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 const queryClient = new QueryClient();
 
 function AppWithTracking() {
+  usePushNotificationListeners();
+  useGymEventsSocket();
   useGymVisitTracker();
   return (
     <>

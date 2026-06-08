@@ -19,7 +19,7 @@ export interface VisitRecord {
   gym?: {
     id: number;
     name: string;
-    location?: { address?: string };
+    location?: { address?: string; latitude?: number; longitude?: number };
   };
 }
 

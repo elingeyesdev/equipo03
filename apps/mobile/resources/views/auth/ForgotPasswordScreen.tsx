@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   SafeAreaView, KeyboardAvoidingView, Platform, StatusBar,
-  ActivityIndicator, Animated,
+  ActivityIndicator, Animated, Keyboard,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -15,14 +15,18 @@ export const ForgotPasswordScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError]         = useState<string | null>(null);
 
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
     Animated.parallel([
       Animated.timing(fadeAnim,  { toValue: 1, duration: 700, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: 0, duration: 700, useNativeDriver: true }),
     ]).start();
+    return () => { showSub.remove(); hideSub.remove(); };
   }, []);
 
   const handleSend = async () => {
@@ -54,6 +58,13 @@ export const ForgotPasswordScreen = () => {
 
           <Text style={s.title}>Recuperar{'\n'}Contraseña</Text>
           <Text style={s.subtitle}>Te enviaremos un código OTP a tu correo</Text>
+
+          {/* Dismiss keyboard — solo iOS */}
+          {Platform.OS === 'ios' && isKeyboardVisible && (
+            <TouchableOpacity style={s.dismissBtn} onPress={() => Keyboard.dismiss()}>
+              <Text style={s.dismissBtnTxt}>LISTO</Text>
+            </TouchableOpacity>
+          )}
 
           {/* Error */}
           {error && (
@@ -137,6 +148,9 @@ const s = StyleSheet.create({
   inputFocused:   { borderColor: '#f05b22', backgroundColor: '#1a1a1c' },
   inputIcon:      { marginRight: 12 },
   input:          { flex: 1, color: '#fff', fontSize: 16, fontWeight: '500' },
+
+  dismissBtn:    { alignSelf: 'flex-end', backgroundColor: '#1c1c1e', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#333', marginBottom: 8 },
+  dismissBtnTxt: { color: '#f05b22', fontSize: 12, fontWeight: 'bold' },
 
   btn:         { backgroundColor: '#f05b22', borderRadius: 16, height: 58, justifyContent: 'center', alignItems: 'center', marginTop: 8, shadowColor: '#f05b22', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
   btnDisabled: { backgroundColor: '#333', shadowOpacity: 0 },

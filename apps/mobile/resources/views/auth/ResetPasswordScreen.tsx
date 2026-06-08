@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   SafeAreaView, KeyboardAvoidingView, Platform, StatusBar,
-  ActivityIndicator, Animated, Alert,
+  ActivityIndicator, Animated, Alert, Keyboard,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -21,20 +21,25 @@ export const ResetPasswordScreen = () => {
   const [isLoading, setIsLoading]       = useState(false);
   const [error, setError]               = useState<string | null>(null);
 
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
     Animated.parallel([
       Animated.timing(fadeAnim,  { toValue: 1, duration: 700, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: 0, duration: 700, useNativeDriver: true }),
     ]).start();
+    return () => { showSub.remove(); hideSub.remove(); };
   }, []);
 
   const handleReset = async () => {
-    if (!otp.trim())        { setError('Ingresa el código OTP');      return; }
-    if (!newPassword)       { setError('Ingresa la nueva contraseña'); return; }
-    if (newPassword.length < 6) { setError('La contraseña debe tener al menos 6 caracteres'); return; }
+    if (!otp.trim())             { setError('Ingresa el código OTP');                                      return; }
+    if (!newPassword)            { setError('Ingresa la nueva contraseña');                                return; }
+    if (newPassword.length < 8)  { setError('La contraseña debe tener al menos 8 caracteres');            return; }
+    if (!/[^a-zA-Z0-9]/.test(newPassword)) { setError('La contraseña debe incluir al menos un caracter especial'); return; }
     setError(null);
     setIsLoading(true);
     const result = await AuthService.resetPassword(email, otp.trim(), newPassword);
@@ -81,6 +86,13 @@ export const ResetPasswordScreen = () => {
             Código enviado a{'\n'}
             <Text style={s.emailHighlight}>{email}</Text>
           </Text>
+
+          {/* Dismiss keyboard — solo iOS */}
+          {Platform.OS === 'ios' && isKeyboardVisible && (
+            <TouchableOpacity style={s.dismissBtn} onPress={() => Keyboard.dismiss()}>
+              <Text style={s.dismissBtnTxt}>LISTO</Text>
+            </TouchableOpacity>
+          )}
 
           {/* Error */}
           {error && (
@@ -142,6 +154,18 @@ export const ResetPasswordScreen = () => {
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* Hints de contraseña — aparecen mientras el usuario escribe */}
+          {newPassword.length > 0 && (
+            <View style={s.hintBox}>
+              <Text style={[s.hint, newPassword.length >= 8 ? s.hintOk : s.hintFail]}>
+                {newPassword.length >= 8 ? '+ ' : '- '}Minimo 8 caracteres
+              </Text>
+              <Text style={[s.hint, /[^a-zA-Z0-9]/.test(newPassword) ? s.hintOk : s.hintFail]}>
+                {/[^a-zA-Z0-9]/.test(newPassword) ? '+ ' : '- '}Al menos 1 caracter especial
+              </Text>
+            </View>
+          )}
 
           {/* Button */}
           <TouchableOpacity
@@ -207,6 +231,14 @@ const s = StyleSheet.create({
   btn:         { backgroundColor: '#f05b22', borderRadius: 16, height: 58, justifyContent: 'center', alignItems: 'center', marginTop: 8, shadowColor: '#f05b22', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
   btnDisabled: { backgroundColor: '#333', shadowOpacity: 0 },
   btnTxt:      { color: '#fff', fontSize: 17, fontWeight: 'bold' },
+
+  dismissBtn:    { alignSelf: 'flex-end', backgroundColor: '#1c1c1e', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#333', marginBottom: 8 },
+  dismissBtnTxt: { color: '#f05b22', fontSize: 12, fontWeight: 'bold' },
+
+  hintBox: { marginTop: -10, marginBottom: 16, gap: 4 },
+  hint:    { fontSize: 12, fontWeight: '600' },
+  hintOk:  { color: '#2ecc71' },
+  hintFail:{ color: '#888' },
 
   resendRow: { marginTop: 20, alignItems: 'center' },
   resendTxt: { color: '#555', fontSize: 13 },

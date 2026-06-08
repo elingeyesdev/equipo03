@@ -30,6 +30,16 @@ import { NutritionistDashboard }  from '../resources/views/inicio/NutritionistDa
 import { ClaseDetalleScreen }      from '../resources/views/inicio/ClaseDetalleScreen';
 import { AsignarRutinaScreen }     from '../resources/views/inicio/AsignarRutinaScreen';
 
+// ── Workout (solo CLIENTE) ────────────────────────────────────────────────────
+import { WorkoutModeScreen }    from '../resources/views/workout/WorkoutModeScreen';
+import { WorkoutActiveScreen }  from '../resources/views/workout/WorkoutActiveScreen';
+import { WorkoutSummaryScreen } from '../resources/views/workout/WorkoutSummaryScreen';
+import { WorkoutHistoryScreen } from '../resources/views/workout/WorkoutHistoryScreen';
+
+// ── Historial de Gimnasios (acceso desde Inicio, fuera del tab Buscar) ────────
+import { HistorialScreen }     from '../resources/views/buscar/HistorialScreen';
+import { VisitedGymMapScreen } from '../resources/views/buscar/VisitedGymMapScreen';
+
 // ── Stacks de Perfil segregados ───────────────────────────────────────────────
 import { ClientePerfilStack, GerentePerfilStack } from './PerfilStack';
 
@@ -98,6 +108,16 @@ const ClienteTabs = () => (
   </ClienteTab.Navigator>
 );
 
+// Mini-stack para Historial de Gimnasios accedido desde InicioScreen.
+// Al hacer goBack() desde HistorialScreen vuelve al tab Inicio (no a BuscarStack).
+const GymHistorialNav = createNativeStackNavigator();
+const GymHistorialStack = () => (
+  <GymHistorialNav.Navigator screenOptions={{ headerShown: false }}>
+    <GymHistorialNav.Screen name="HistorialList"  component={HistorialScreen} />
+    <GymHistorialNav.Screen name="VisitedGymMap"  component={VisitedGymMapScreen} />
+  </GymHistorialNav.Navigator>
+);
+
 const ClienteNav = createNativeStackNavigator();
 const ClienteStack = () => (
   <ClienteNav.Navigator screenOptions={{ headerShown: false }}>
@@ -113,6 +133,31 @@ const ClienteStack = () => (
         headerTitleStyle:  { fontWeight: 'bold' },
         headerBackTitle:   'Atrás',
       }}
+    />
+    <ClienteNav.Screen
+      name="WorkoutHistory"
+      component={WorkoutHistoryScreen}
+      options={{ headerShown: false, gestureEnabled: true }}
+    />
+    <ClienteNav.Screen
+      name="WorkoutMode"
+      component={WorkoutModeScreen}
+      options={{ headerShown: false }}
+    />
+    <ClienteNav.Screen
+      name="WorkoutActive"
+      component={WorkoutActiveScreen}
+      options={{ headerShown: false, gestureEnabled: false }}
+    />
+    <ClienteNav.Screen
+      name="WorkoutSummary"
+      component={WorkoutSummaryScreen}
+      options={{ headerShown: false, gestureEnabled: false }}
+    />
+    <ClienteNav.Screen
+      name="GymHistorial"
+      component={GymHistorialStack}
+      options={{ headerShown: false }}
     />
   </ClienteNav.Navigator>
 );
