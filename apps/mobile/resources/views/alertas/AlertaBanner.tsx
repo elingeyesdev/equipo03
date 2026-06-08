@@ -19,7 +19,7 @@ export const AlertaBanner = () => {
 
   const firstAlta = alertasAltas[0];
   const mainMessage = hasAltas
-    ? `⚠️ ${firstAlta.condicion}: ${firstAlta.recomendaciones || 'Precaución extrema requerida'}`
+    ? ` ${firstAlta.condicion}: ${firstAlta.recomendaciones || 'Precaución extrema requerida'}`
     : `Tienes ${alertasActivas.length} restricción(es) médica(s) activa(s).`;
 
   const subMessage = hasAltas

@@ -54,6 +54,9 @@ export const SedeInfoModalView: React.FC<SedeInfoModalViewProps> = ({
           {/* Encabezado */}
           <View style={styles.headerSection}>
             <View style={styles.headerLeft}>
+              {!!sede.parentName && (
+                <Text style={styles.sedeBrand}>{sede.parentName}</Text>
+              )}
               <Text style={styles.sedeName}>{sede.nombre}</Text>
               <Text style={styles.sedeAddress}>📍 {sede.direccion}</Text>
             </View>

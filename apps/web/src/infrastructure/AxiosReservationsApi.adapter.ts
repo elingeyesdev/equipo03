@@ -6,10 +6,6 @@ export class AxiosReservationsApiAdapter {
     try {
       const response = await apiClient.get('/reservations', { params: filters });
       const raw: any[] = Array.isArray(response.data) ? response.data : [];
-      // Diagnóstico: muestra la estructura real del primer elemento en consola
-      if (raw.length > 0) {
-        console.log('[Reservations Debug] Estructura del primer ítem:', JSON.stringify(raw[0], null, 2));
-      }
       return raw;
     } catch (error) {
       console.error('[Reservations API] Error fetching:', error);
@@ -27,7 +23,7 @@ export class AxiosReservationsApiAdapter {
     }
   }
 
-  async acceptReservation(reservationId: number, userId: number, _gymId: number): Promise<{ success: boolean; error?: string }> {
+  async acceptReservation(reservationId: number, userId: number): Promise<{ success: boolean; error?: string }> {
     const is404or405 = (e: any) => e?.response?.status === 404 || e?.response?.status === 405;
 
     // Intento 1: PUT /reservations/{id}/confirm

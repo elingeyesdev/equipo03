@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { visitsApi, VisitRecord } from '../../../app/Providers/geolocation/services/visits.api';
 import { VisitStorageService, GymVisitRecord } from '../../../app/Providers/geolocation/services/VisitStorageService';
@@ -64,6 +65,8 @@ interface DisplayVisit {
   gymId: number;
   gymName: string;
   gymAddress?: string;
+  latitude?: number;
+  longitude?: number;
   enteredAt: string;
   exitedAt?: string;
   durationMin?: number;
@@ -75,6 +78,8 @@ const toDisplay = (v: VisitRecord): DisplayVisit => ({
   gymId:       v.gymId,
   gymName:     v.gym?.name ?? `Gimnasio #${v.gymId}`,
   gymAddress:  v.gym?.location?.address,
+  latitude:    v.gym?.location?.latitude,
+  longitude:   v.gym?.location?.longitude,
   enteredAt:   v.enteredAt,
   exitedAt:    v.exitedAt,
   durationMin: v.durationMin,
@@ -94,6 +99,7 @@ const localToDisplay = (v: GymVisitRecord): DisplayVisit => ({
 
 // ─── Componente ───────────────────────────────────────────────────────────────
 export const HistorialScreen = () => {
+  const navigation = useNavigation<any>();
   const [activeFilter, setActiveFilter] = useState<FilterPeriod>('all');
 
   const {
@@ -125,38 +131,58 @@ export const HistorialScreen = () => {
     v => v.isActive || isInPeriod(v.enteredAt, activeFilter)
   );
 
+  const header = (
+    <View style={s.topBar}>
+      <TouchableOpacity style={s.topBackBtn} onPress={() => navigation.goBack()}>
+        <MaterialCommunityIcons name="arrow-left" size={20} color="#f05b22" />
+      </TouchableOpacity>
+      <Text style={s.topTitle}>Historial de Gimnasios</Text>
+      <View style={s.topRight} />
+    </View>
+  );
+
   if (loadingBackend) {
     return (
-      <View style={s.center}>
-        <ActivityIndicator size="large" color="#f05b22" />
-      </View>
+      <SafeAreaView style={s.root} edges={['top']}>
+        {header}
+        <View style={s.center}>
+          <ActivityIndicator size="large" color="#f05b22" />
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (isError && !allVisits.length) {
     return (
-      <View style={s.center}>
-        <MaterialCommunityIcons name="wifi-off" size={48} color="#555" />
-        <Text style={s.centerText}>No se pudo cargar el historial.</Text>
-        <TouchableOpacity style={s.retryBtn} onPress={() => refetch()}>
-          <Text style={s.retryText}>Reintentar</Text>
-        </TouchableOpacity>
-      </View>
+      <SafeAreaView style={s.root} edges={['top']}>
+        {header}
+        <View style={s.center}>
+          <MaterialCommunityIcons name="wifi-off" size={48} color="#555" />
+          <Text style={s.centerText}>No se pudo cargar el historial.</Text>
+          <TouchableOpacity style={s.retryBtn} onPress={() => refetch()}>
+            <Text style={s.retryText}>Reintentar</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (!allVisits.length) {
     return (
-      <View style={s.center}>
-        <MaterialCommunityIcons name="map-marker-off-outline" size={56} color="#333" />
-        <Text style={s.centerText}>Aún no has visitado ningún gimnasio.</Text>
-        <Text style={s.centerSub}>La app detecta automáticamente cuando estás en una sede.</Text>
-      </View>
+      <SafeAreaView style={s.root} edges={['top']}>
+        {header}
+        <View style={s.center}>
+          <MaterialCommunityIcons name="map-marker-off-outline" size={56} color="#333" />
+          <Text style={s.centerText}>Aún no has visitado ningún gimnasio.</Text>
+          <Text style={s.centerSub}>La app detecta automáticamente cuando estás en una sede.</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={s.root} edges={[]}>
+    <SafeAreaView style={s.root} edges={['top']}>
+      {header}
       <FlatList
         data={filteredVisits}
         keyExtractor={(item) => item.id}
@@ -211,7 +237,17 @@ export const HistorialScreen = () => {
         }
         renderItem={({ item }: { item: DisplayVisit }) => {
           const idx = stableIdx(item.gymId);
+          const hasCoords = !!(item.latitude && item.longitude);
+          const handlePress = () => {
+            navigation.navigate('VisitedGymMap', {
+              gymId:     item.gymId,
+              name:      item.gymName,
+              latitude:  item.latitude,
+              longitude: item.longitude,
+            });
+          };
           return (
+            <TouchableOpacity activeOpacity={0.75} onPress={handlePress}>
             <View style={[s.card, item.isActive && s.cardActive]}>
               <View style={[s.cardIcon, { backgroundColor: ICON_COLORS[idx] }]}>
                 <MaterialCommunityIcons name={ICONS[idx] as any} size={24} color="#fff" />
@@ -250,8 +286,17 @@ export const HistorialScreen = () => {
                     <Text style={[s.meta, { color: '#f05b22' }]}>{fmtDuration(item.durationMin)}</Text>
                   </View>
                 )}
+
+                <View style={s.mapHint}>
+                  <MaterialCommunityIcons name="map-marker-outline" size={11} color="#f05b22" />
+                  <Text style={s.mapHintTxt}>
+                    {hasCoords ? 'Ver ubicación en mapa' : 'Ver mapa'}
+                  </Text>
+                  <MaterialCommunityIcons name="chevron-right" size={13} color="#333" style={{ marginLeft: 'auto' }} />
+                </View>
               </View>
             </View>
+            </TouchableOpacity>
           );
         }}
       />
@@ -260,8 +305,22 @@ export const HistorialScreen = () => {
 };
 
 const s = StyleSheet.create({
-  root:       { flex: 1, backgroundColor: '#000' },
-  list:       { padding: 16, paddingBottom: 120 },
+  root: { flex: 1, backgroundColor: '#000' },
+
+  topBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: '#1a1a1a',
+  },
+  topBackBtn: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: '#161618', borderWidth: 1, borderColor: '#222',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  topTitle: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  topRight: { width: 40 },
+
+  list: { padding: 16, paddingBottom: 120 },
   center:     { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000', gap: 10, padding: 30 },
   centerText: { color: '#666', fontSize: 14, textAlign: 'center' },
   centerSub:  { color: '#444', fontSize: 12, textAlign: 'center' },
@@ -293,4 +352,6 @@ const s = StyleSheet.create({
   activeBadgeText: { color: '#f05b22', fontSize: 10, fontWeight: '700' },
   row:        { flexDirection: 'row', alignItems: 'center', gap: 4 },
   meta:       { color: '#666', fontSize: 11 },
+  mapHint:    { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6, paddingTop: 6, borderTopWidth: 1, borderTopColor: '#1a1a1a' },
+  mapHintTxt: { color: '#f05b22', fontSize: 11, fontWeight: '600' },
 });

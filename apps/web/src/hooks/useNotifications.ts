@@ -39,10 +39,9 @@ export const useNotifications = () => {
     console.log(`[NotificationGateway]: Iniciando conexión WS para rol ${user.role}...`);
 
     // Usar el mismo origen que la web (pasa por el proxy de Vite → puerto 3000)
-    const SOCKET_URL = import.meta.env.VITE_API_URL ?? window.location.origin;
+    const BASE_URL = import.meta.env.VITE_API_URL ?? window.location.origin;
+    const SOCKET_URL = `${BASE_URL}/events`;
 
-    // autoConnect:false evita que el WS arranque antes de que podamos cancelarlo
-    // (necesario para React 18 Strict Mode que ejecuta cleanup antes del segundo mount)
     const socket = io(SOCKET_URL, {
       path: '/socket.io',
       transports: ['websocket', 'polling'],
@@ -68,12 +67,12 @@ export const useNotifications = () => {
 
       // Unirse a la sala correspondiente según rol
       if (user.role === 'GERENTE' && user.gymId) {
-        const room = `room_gym_${user.gymId}`;
+        const room = `gym_${user.gymId}`;
         socket.emit('join_room', { room, token });
         console.log(`[NotificationGateway]: GERENTE unido a sala: ${room}`);
       } else if (user.role === 'SUPER_ADMIN') {
-        socket.emit('join_room', { room: 'room_admin_all', token });
-        console.log(`[NotificationGateway]: SUPER_ADMIN unido a sala: room_admin_all`);
+        socket.emit('join_room', { room: 'admin_room', token });
+        console.log(`[NotificationGateway]: SUPER_ADMIN unido a sala: admin_room`);
       }
     });
 

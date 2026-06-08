@@ -5,7 +5,7 @@
  * Usa react-native-maps con tiles de OpenStreetMap.
  */
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Marker, UrlTile } from 'react-native-maps';
@@ -60,6 +60,7 @@ export const MapScreenView: React.FC<MapScreenViewProps> = ({
   const isGerente = user?.role === 'GERENTE';
 
   const mapRef = useRef<MapView>(null);
+
   const [filterVisible, setFilterVisible] = useState(false);
   const [toastConfig, setToastConfig] = useState<{message: string, type: 'error' | 'success', key: number} | null>(null);
 

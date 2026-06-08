@@ -486,14 +486,17 @@ export const UsuariosView = () => {
   // ── Catálogo de gyms para el mapa sede↔sucursal en la ficha detallada ────────
   const [gymsCatalog, setGymsCatalog] = useState<GymDto[]>([]);
   useEffect(() => {
+    let mounted = true;
     Promise.all([
       apiClient.get('/gyms/brands').catch(() => ({ data: [] })),
       apiClient.get('/gyms').catch(() => ({ data: [] })),
     ]).then(([brandsRes, sucursalesRes]) => {
+      if (!mounted) return;
       const brands: GymDto[]     = Array.isArray(brandsRes.data)     ? brandsRes.data     : [];
       const sucursales: GymDto[] = Array.isArray(sucursalesRes.data) ? sucursalesRes.data : [];
       setGymsCatalog([...brands, ...sucursales]);
     }).catch(() => {});
+    return () => { mounted = false; };
   }, []);
 
   /** Mapa sucursalId → { sucursalName, sedeId, sedeName } */

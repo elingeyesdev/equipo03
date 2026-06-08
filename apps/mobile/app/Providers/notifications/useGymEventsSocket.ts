@@ -98,6 +98,14 @@ export function useGymEventsSocket(): void {
 
       socket.on('connect', () => {
         console.log('[GymEvents] conectado', socket.id);
+        const trimmedToken = token.trim();
+        if (role === 'GERENTE' && user?.gymId) {
+          socket.emit('join_room', { room: `gym_${user.gymId}`, token: trimmedToken });
+          console.log(`[GymEvents] GERENTE unido a gym_${user.gymId}`);
+        } else if (role === 'SUPER_ADMIN') {
+          socket.emit('join_room', { room: 'admin_room', token: trimmedToken });
+          console.log('[GymEvents] SUPER_ADMIN unido a admin_room');
+        }
       });
 
       socket.on('disconnect', (reason) => {

@@ -82,9 +82,10 @@ export const createApiClient = (): AxiosInstance => {
       const body = response.data;
       if (body && typeof body === 'object' && 'success' in body) {
         if (body.success === false) {
+          const reqUrl = response.config?.url ?? '';
           if (body.statusCode === 403 || body.message?.includes('denegado')) {
             handleAccessDenied(body.message);
-          } else if (body.statusCode === 401) {
+          } else if (body.statusCode === 401 && !reqUrl.includes('/auth/login')) {
             forceLogout();
           } else {
             toast.error(body.message || 'Error en la operación');
@@ -99,7 +100,7 @@ export const createApiClient = (): AxiosInstance => {
     },
     (error) => {
       // Suprimir toasts para endpoints que el caller ya maneja con .catch()
-      const SILENT_ON_ERROR = ['/gyms/brands', '/roles'];
+      const SILENT_ON_ERROR = ['/gyms/brands', '/roles', '/auth/login'];
       const url = error.config?.url ?? '';
       if (error.config?._skipErrorToast || SILENT_ON_ERROR.some(p => url.includes(p))) {
         return Promise.reject(error);

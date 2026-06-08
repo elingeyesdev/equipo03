@@ -96,7 +96,8 @@ export const useGymVisitTracker = () => {
               }
             }
           }
-        } catch {
+        } catch (e) {
+          console.warn('[VisitTracker] Error al obtener posición GPS:', e);
         }
       };
 

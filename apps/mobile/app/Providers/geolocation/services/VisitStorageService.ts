@@ -18,7 +18,14 @@ const genId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 export const VisitStorageService = {
   getAll: async (): Promise<GymVisitRecord[]> => {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    try {
+      return JSON.parse(raw);
+    } catch {
+      console.warn('[VisitStorage] Datos de visitas corruptos en AsyncStorage — se reinicia el registro.');
+      await AsyncStorage.removeItem(STORAGE_KEY);
+      return [];
+    }
   },
 
   saveVisit: async (visit: GymVisitRecord): Promise<void> => {
@@ -48,7 +55,14 @@ export const VisitStorageService = {
   endVisit: async (): Promise<GymVisitRecord | null> => {
     const raw = await AsyncStorage.getItem(ACTIVE_VISIT_KEY);
     if (!raw) return null;
-    const active: GymVisitRecord = JSON.parse(raw);
+    let active: GymVisitRecord;
+    try {
+      active = JSON.parse(raw);
+    } catch {
+      console.warn('[VisitStorage] Visita activa corrupta en AsyncStorage — se descarta.');
+      await AsyncStorage.removeItem(ACTIVE_VISIT_KEY);
+      return null;
+    }
     const exitedAt = new Date().toISOString();
     const durationMin = Math.round(
       (new Date(exitedAt).getTime() - new Date(active.enteredAt).getTime()) / 60000
@@ -61,7 +75,14 @@ export const VisitStorageService = {
 
   getActiveVisit: async (): Promise<GymVisitRecord | null> => {
     const raw = await AsyncStorage.getItem(ACTIVE_VISIT_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      console.warn('[VisitStorage] Visita activa corrupta en AsyncStorage — se descarta.');
+      await AsyncStorage.removeItem(ACTIVE_VISIT_KEY);
+      return null;
+    }
   },
 
   clearAll: async (): Promise<void> => {

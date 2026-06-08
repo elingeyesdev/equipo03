@@ -152,7 +152,7 @@ export const ReservasView = () => {
   const handleAccept = async (res: Reservation) => {
     if (!window.confirm(`¿Confirmar entrada de ${res.user?.profile?.fullName || 'este usuario'}?`)) return;
     setActionLoading(res.id);
-    const result = await reservationsApi.acceptReservation(res.id, res.userId, res.gymActivitySchedule?.gymActivity?.gymId ?? 0);
+    const result = await reservationsApi.acceptReservation(res.id, res.userId);
     setActionLoading(null);
     if (result.success) {
       loadReservations();
