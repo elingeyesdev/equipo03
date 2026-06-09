@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Req, UseGuards, ParseIntPipe } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards, ParseIntPipe } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody, ApiQuery } from '@nestjs/swagger';
 import type { RequestWithUser } from '../../common/security/gym-scope';
 import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
 import { TrainingService } from '../application/training.service';
@@ -48,8 +48,19 @@ export class TrainingController {
     return this.svc.saveCompletedSession(Number(req.user!.userId), body);
   }
 
-  @Get('sessions') @ApiOperation({ summary: 'Listar mis sesiones (filtradas por usuario autenticado)' })
-  findSessions(@Req() req: RequestWithUser) { return this.svc.findAllSessions(Number(req.user!.userId)); }
+  @Get('sessions')
+  @ApiOperation({ summary: 'Listar mis sesiones paginadas (más recientes primero)' })
+  @ApiQuery({ name: 'limit', required: false, example: 50, description: 'Máx registros (default 50)' })
+  @ApiQuery({ name: 'offset', required: false, example: 0, description: 'Registros a saltar (default 0)' })
+  findSessions(
+    @Req() req: RequestWithUser,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    const take = Math.min(limit ? parseInt(limit, 10) : 50, 100);
+    const skip = offset ? parseInt(offset, 10) : 0;
+    return this.svc.findAllSessions(Number(req.user!.userId), take, skip);
+  }
 
   @Get('sessions/user/:userId') @ApiOperation({ summary: 'Sesiones de usuario' })
   findByUser(@Param('userId', ParseIntPipe) uid: number) { return this.svc.findSessionsByUser(uid); }

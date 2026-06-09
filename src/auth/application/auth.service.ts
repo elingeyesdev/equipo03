@@ -65,7 +65,6 @@ export class AuthService {
       order: { id: 'ASC' },
     });
 
-    // ── Log diagnóstico: todos los roles encontrados ──────────────────────────
     console.log(
       '[JWT] userId=%d email=%s roles encontrados en BD: [%s]',
       user.id,
@@ -78,7 +77,6 @@ export class AuthService {
       return { sub: user.id, email: user.email, role: null, gymId: null };
     }
 
-    // ── Elegir el rol de mayor prioridad ─────────────────────────────────────
     const sorted = [...userRoles].sort((a, b) => {
       const pa = AuthService.ROLE_PRIORITY[a.role?.name?.toUpperCase() ?? ''] ?? 0;
       const pb = AuthService.ROLE_PRIORITY[b.role?.name?.toUpperCase() ?? ''] ?? 0;
@@ -99,7 +97,6 @@ export class AuthService {
 
     // ── GERENTE — resuelve a Sucursal (gymId físico) ─────────────────────────
     if (topRoleName === 'GERENTE') {
-      // Entre todas las asignaciones GERENTE, prioriza la que tenga gymId no nulo
       const gerenteRoles = userRoles.filter(
         (a) => a.role?.name?.toUpperCase() === 'GERENTE',
       );

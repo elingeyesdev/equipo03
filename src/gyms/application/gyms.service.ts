@@ -15,7 +15,34 @@ import { GymLocation } from '../domain/gym-location.entity';
 import { GymSchedule } from '../domain/gym-schedule.entity';
 import { Reservation } from '../../reservations/domain/reservation.entity';
 import { CheckIn } from '../../checkins/domain/check-in.entity';
-import { getManagerGymId, type RequestWithUser } from '../../common/security/gym-scope';
+import { getManagerGymId, getStaffGymId, type RequestWithUser } from '../../common/security/gym-scope';
+
+// Códigos de día usados en gym_schedules.day_of_week
+const DAY_CODES = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'] as const;
+
+/**
+ * Calcula si un gimnasio está abierto AHORA según sus horarios registrados.
+ * Usa la zona horaria configurada en APP_TIMEZONE (defecto: America/La_Paz).
+ * Retorna false si no hay horario para el día actual o está fuera del rango.
+ */
+function isGymOpenNow(schedules: GymSchedule[]): boolean {
+  if (!schedules || schedules.length === 0) return false;
+
+  const tz  = process.env.APP_TIMEZONE ?? 'America/La_Paz';
+  const now  = new Date(new Date().toLocaleString('en-US', { timeZone: tz }));
+  const today = DAY_CODES[now.getDay()];
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  const todaySchedule = schedules.find(s => s.dayOfWeek === today && !s.isHoliday);
+  if (!todaySchedule) return false;
+
+  const [openH,  openM]  = todaySchedule.opensAt.split(':').map(Number);
+  const [closeH, closeM] = todaySchedule.closesAt.split(':').map(Number);
+  const openMinutes  = openH  * 60 + openM;
+  const closeMinutes = closeH * 60 + closeM;
+
+  return currentMinutes >= openMinutes && currentMinutes < closeMinutes;
+}
 
 @Injectable({ scope: Scope.REQUEST })
 export class GymsService {
@@ -30,6 +57,10 @@ export class GymsService {
 
   private managerGymId(): number | null {
     return getManagerGymId(this.request);
+  }
+
+  private staffGymId(): number | null {
+    return getStaffGymId(this.request);
   }
 
   async create(data: any) {
@@ -68,16 +99,38 @@ export class GymsService {
   }
 
   async findAll(lat?: number, lng?: number, radiusKm = 50) {
-    const mg = this.managerGymId();
+    const sg = this.staffGymId();
 
-    if (mg !== null) {
-      const gym = await this.gymsRepo.findOne({
-        where: { id: mg },
-        relations: ['location', 'schedules', 'parent'],
+    if (sg !== null) {
+      // Obtener la marca (parentId) de la sucursal del staff
+      const staffGym = await this.gymsRepo.findOne({
+        where: { id: sg },
+        select: ['id', 'parentId'],
       });
-      return gym ? [this.mapGymToDto(gym)] : [];
+
+      if (!staffGym) return [];
+
+      const brandId = staffGym.parentId;
+
+      // Si el gym no tiene padre (es él mismo la marca), mostrar solo esa sucursal
+      if (!brandId) {
+        const gym = await this.gymsRepo.findOne({
+          where: { id: sg },
+          relations: ['location', 'schedules', 'parent'],
+        });
+        return gym ? [this.mapGymToDto(gym)] : [];
+      }
+
+      // Devolver TODAS las sucursales activas de la misma marca, sin filtro de distancia
+      const brandGyms = await this.gymsRepo.find({
+        where: { parentId: brandId, isActive: true },
+        relations: ['location', 'schedules', 'parent'],
+        order: { id: 'ASC' },
+      });
+      return brandGyms.map((gym) => this.mapGymToDto(gym));
     }
 
+    // ── Path CLIENTE / SUPER_ADMIN: todas las sedes cercanas ─────────────────
     const qb = this.gymsRepo
       .createQueryBuilder('gym')
       .leftJoinAndSelect('gym.location', 'location')
@@ -137,6 +190,8 @@ export class GymsService {
 
     return {
       ...gym,
+      // Sobreescribe el campo estático isOpen con el cálculo dinámico basado en schedules
+      isOpen: isGymOpenNow(gym.schedules ?? []),
       parentName: gym.parent?.name ?? null,
       aforoActual: Math.floor(Math.random() * ((gym.maxCapacity || 100) / 2)),
       imagenUrl: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?q=80&w=1000&auto=format&fit=crop',

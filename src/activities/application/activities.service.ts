@@ -101,7 +101,19 @@ export class ActivitiesService {
       .where('activity.isActive = :active', { active: true });
 
     if (effective !== undefined && effective !== null) {
-      qb.andWhere('activity.gymId = :gymId', { gymId: effective });
+      if (mg !== null) {
+        // STAFF (GERENTE): scope estricto a su sucursal
+        qb.andWhere('activity.gymId = :gymId', { gymId: effective });
+      } else {
+        // CLIENTE: actividades de la sucursal seleccionada + de su marca padre
+        qb.andWhere(
+          `(activity.gymId = :gymId OR activity.gymId IN (
+              SELECT g.parent_id FROM gyms g
+              WHERE g.id = :gymId AND g.parent_id IS NOT NULL
+          ))`,
+          { gymId: effective },
+        );
+      }
     }
 
     return qb.getMany();

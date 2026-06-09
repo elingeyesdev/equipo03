@@ -20,6 +20,27 @@ export function getManagerGymId(req: RequestWithUser): number | null {
   return Number(user.gymId);
 }
 
+/**
+ * Para cualquier rol de staff con sede asignada (GERENTE, INSTRUCTOR, ENTRENADOR,
+ * NUTRICIONISTA, PERSONAL_DE_LIMPIEZA) devuelve su gymId.
+ * CLIENTE y SUPER_ADMIN → null (sin filtro por marca).
+ */
+const BRAND_SCOPED_ROLES = new Set([
+  'GERENTE',
+  'INSTRUCTOR',
+  'ENTRENADOR',
+  'NUTRICIONISTA',
+  'PERSONAL_DE_LIMPIEZA',
+]);
+
+export function getStaffGymId(req: RequestWithUser): number | null {
+  const user = req.user;
+  if (!user || !user.role) return null;
+  if (!BRAND_SCOPED_ROLES.has(user.role)) return null;
+  if (user.gymId === null || user.gymId === undefined) return null;
+  return Number(user.gymId);
+}
+
 export function ensureManagerMatchesResourceGym(managerGymId: number | null, resourceGymId: number | null | undefined): void {
   if (managerGymId === null) return;
   if (resourceGymId === null || resourceGymId === undefined) {

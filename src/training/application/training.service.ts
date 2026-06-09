@@ -115,7 +115,7 @@ export class TrainingService {
     return this.findOneSession(session.id);
   }
 
-  findAllSessions(userId: number) {
+  findAllSessions(userId: number, take = 50, skip = 0) {
     const mg = this.managerGymId();
     const qb = this.sessionsRepo.createQueryBuilder('session')
       .leftJoinAndSelect('session.routine', 'routine')
@@ -124,7 +124,9 @@ export class TrainingService {
       .leftJoinAndSelect('session.sets', 'sets')
       .leftJoinAndSelect('sets.routineExercise', 'routineExercise')
       .where('session.user_id = :userId', { userId })
-      .orderBy('session.started_at', 'DESC');
+      .orderBy('session.startedAt', 'DESC')
+      .take(take)
+      .skip(skip);
 
     if (mg !== null) {
       qb.andWhere('session.gym_id = :gymId', { gymId: mg });

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, IsBoolean, IsNumber, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsBoolean, IsNumber, IsArray, IsObject } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 // ── Training Profile ─────────────────────────────────────
@@ -168,21 +168,29 @@ export class SaveCompletedSessionDto {
 }
 
 export class AddSetDto {
-  @ApiProperty({ example: 1, description: 'ID del routine_exercise' })
-  @IsInt()
-  routineExerciseId: number;
+  @ApiPropertyOptional({ example: 1, description: 'ID del routine_exercise. Omitir en entrenamientos libres.' })
+  @IsOptional() @IsInt()
+  routineExerciseId?: number;
 
   @ApiProperty({ example: 1 })
   @IsInt()
   setNumber: number;
 
-  @ApiProperty({ example: 10 })
-  @IsInt()
-  repsCompleted: number;
+  @ApiPropertyOptional({ example: 10, description: 'Repeticiones completadas. Omitir en isométricos o cardio.' })
+  @IsOptional() @IsInt()
+  repsCompleted?: number;
 
-  @ApiPropertyOptional({ example: 80.5 })
+  @ApiPropertyOptional({ example: 80.5, description: 'Peso en kg. Omitir en ejercicios sin carga.' })
   @IsOptional() @IsNumber()
   weightUsedKg?: number;
+
+  @ApiPropertyOptional({ example: 60, description: 'Duración en segundos. Para isométricos o cardio.' })
+  @IsOptional() @IsInt()
+  durationSeconds?: number;
+
+  @ApiPropertyOptional({ example: 500, description: 'Distancia en metros. Para cardio métrico.' })
+  @IsOptional() @IsInt()
+  distanceMeters?: number;
 
   @ApiPropertyOptional({ example: 90 })
   @IsOptional() @IsInt()
@@ -191,4 +199,8 @@ export class AddSetDto {
   @ApiPropertyOptional({ example: 7, description: 'RPE 1-10' })
   @IsOptional() @IsInt()
   ratingPerceivedExertion?: number;
+
+  @ApiPropertyOptional({ example: { asistidaMaquina: true, lastre: '5kg' }, description: 'Datos arbitrarios del set.' })
+  @IsOptional() @IsObject()
+  metadata?: Record<string, unknown>;
 }
