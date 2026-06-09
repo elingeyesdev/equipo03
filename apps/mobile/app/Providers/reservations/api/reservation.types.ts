@@ -10,8 +10,8 @@ export interface SubscriptionStatus {
   isActive: boolean;
 }
 
-// Días de la semana tal como los devuelve el backend
-export type DayOfWeek = 'LUN' | 'MAR' | 'MIE' | 'JUE' | 'VIE' | 'SAB' | 'DOM';
+// Días de la semana tal como los almacena el backend (nombre completo en mayúsculas)
+export type DayOfWeek = 'LUNES' | 'MARTES' | 'MIERCOLES' | 'JUEVES' | 'VIERNES' | 'SABADO' | 'DOMINGO';
 
 export interface GymActivitySchedule {
   id: number;

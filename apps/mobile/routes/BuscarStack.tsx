@@ -2,6 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { BuscarScreen } from '../resources/views/buscar/BuscarScreen';
 import { MapScreenContainer } from '../resources/views/geolocation/MapScreen/MapScreen.container';
+import { StaffMapScreen }    from '../resources/views/geolocation/StaffMapScreen/StaffMapScreen';
 import { HistorialScreen }      from '../resources/views/buscar/HistorialScreen';
 import { VisitedGymMapScreen }  from '../resources/views/buscar/VisitedGymMapScreen';
 import { ScheduleSelectionScreen } from '../app/Providers/reservations/screens/ScheduleSelectionScreen';
@@ -10,9 +11,9 @@ import { MisReservasScreen } from '../app/Providers/reservations/screens/MisRese
 export type BuscarStackParamList = {
   BuscarHome: undefined;
   Mapa: undefined;
+  StaffMapa: undefined;
   Historial: undefined;
   VisitedGymMap: { gymId: number; name: string; latitude?: number; longitude?: number };
-  // gymId en lugar de activityId — el endpoint real es /api/gyms/:gymId/activities
   ScheduleSelection: { gymId: number; gymName: string };
   MisReservas: undefined;
 };
@@ -38,6 +39,11 @@ export const BuscarStack = () => {
           headerStyle: { backgroundColor: '#1E1E1E' },
           headerTintColor: '#fff',
         }}
+      />
+      <Stack.Screen
+        name="StaffMapa"
+        component={StaffMapScreen}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="Historial"

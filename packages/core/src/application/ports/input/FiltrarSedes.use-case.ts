@@ -12,6 +12,7 @@ export interface FiltrosCatalogo {
   beneficios?: BeneficioSede[];
   soloDisponibles?: boolean;
   soloAbiertos?: boolean;
+  marcas?: string[];
 }
 
 export class FiltrarSedesUseCase {
@@ -27,14 +28,20 @@ export class FiltrarSedesUseCase {
     }
 
     if (filtros.servicios && filtros.servicios.length > 0) {
-      result = result.filter(sede => 
+      result = result.filter(sede =>
         filtros.servicios!.every(servicioRequerido => sede.tieneServicio(servicioRequerido))
       );
     }
 
     if (filtros.beneficios && filtros.beneficios.length > 0) {
-      result = result.filter(sede => 
+      result = result.filter(sede =>
         filtros.beneficios!.every(beneficioRequerido => sede.beneficios.includes(beneficioRequerido))
+      );
+    }
+
+    if (filtros.marcas && filtros.marcas.length > 0) {
+      result = result.filter(sede =>
+        sede.parentName != null && filtros.marcas!.includes(sede.parentName)
       );
     }
 

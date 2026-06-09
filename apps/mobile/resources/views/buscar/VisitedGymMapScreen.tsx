@@ -41,10 +41,10 @@ export const VisitedGymMapScreen: React.FC = () => {
           setLat(fetchedLat);
           setLng(fetchedLng);
         } else {
-          setError('No se encontraron coordenadas para esta sede.');
+          setError('No se encontraron coordenadas para esta marca.');
         }
       } catch {
-        setError('No se pudo obtener la ubicación de la sede.');
+        setError('No se pudo obtener la ubicación de la marca.');
       } finally {
         setLoad(false);
       }
@@ -73,7 +73,7 @@ export const VisitedGymMapScreen: React.FC = () => {
         </TouchableOpacity>
         <View style={s.headerMid}>
           <Text style={s.headerTitle} numberOfLines={1}>{name}</Text>
-          <Text style={s.headerSub}>Sede visitada</Text>
+          <Text style={s.headerSub}>Marca visitada</Text>
         </View>
         <View style={s.headerRight} />
       </View>
@@ -126,14 +126,14 @@ export const VisitedGymMapScreen: React.FC = () => {
               coordinate={{ latitude: lat, longitude: lng }}
               pinColor="#f05b22"
               title={name}
-              description="Sede visitada"
+              description="Marca visitada"
               zIndex={999}
             >
               <Callout tooltip>
                 <View style={s.callout}>
                   <View style={s.calloutBadge}>
                     <MaterialCommunityIcons name="map-marker-check" size={14} color="#f05b22" />
-                    <Text style={s.calloutBadgeTxt}>Sede visitada</Text>
+                    <Text style={s.calloutBadgeTxt}>Marca visitada</Text>
                   </View>
                   <Text style={s.calloutName}>{name}</Text>
                 </View>

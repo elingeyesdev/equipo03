@@ -500,9 +500,9 @@ export const ResumenView = () => {
         </div>
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard label="Sedes Totales"  value={totalGyms}  icon={<Building size={24} color="#fff" />}    color="#11cdef" />
-          <KpiCard label="Sedes Activas"  value={activeGyms} icon={<CheckCircle size={24} color="#fff" />} color="#2dce89" />
-          <KpiCard label="Sedes Abiertas" value={openGyms}   icon={<Unlock size={24} color="#fff" />}      color="#fb6340" />
+          <KpiCard label="Marcas Totales"  value={totalGyms}  icon={<Building size={24} color="#fff" />}    color="#11cdef" />
+          <KpiCard label="Marcas Activas"  value={activeGyms} icon={<CheckCircle size={24} color="#fff" />} color="#2dce89" />
+          <KpiCard label="Marcas Abiertas" value={openGyms}   icon={<Unlock size={24} color="#fff" />}      color="#fb6340" />
           <KpiCard label="Denegados"      value={0}          icon={<Ban size={24} color="#fff" />}         color="#f5365c" accent />
         </div>
       )}

@@ -174,7 +174,7 @@ export const HistorialScreen = () => {
         <View style={s.center}>
           <MaterialCommunityIcons name="map-marker-off-outline" size={56} color="#333" />
           <Text style={s.centerText}>Aún no has visitado ningún gimnasio.</Text>
-          <Text style={s.centerSub}>La app detecta automáticamente cuando estás en una sede.</Text>
+          <Text style={s.centerSub}>La app detecta automáticamente cuando estás en una marca.</Text>
         </View>
       </SafeAreaView>
     );

@@ -95,7 +95,7 @@ export const SedesCatalog: React.FC<SedesCatalogProps> = ({
       <View style={styles.topBar}>
         <View style={{ flex: 1 }}>
           <Text style={styles.magazineLabel}>GYMSYNC PREMIUM</Text>
-          <Text style={styles.headerTitle}>Explorar Sedes</Text>
+          <Text style={styles.headerTitle}>Explorar Marcas</Text>
           
           {/* Active Filter Chips in Catalog */}
           {activeFiltersCount > 0 && (

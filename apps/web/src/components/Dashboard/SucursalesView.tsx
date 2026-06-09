@@ -260,14 +260,14 @@ const SucursalModal = ({ isOpen, onClose, sucursalToEdit, onSave, parentGyms, ex
             style={{ minHeight: '80px', resize: 'vertical', fontFamily: 'inherit' }}
           />
 
-          <label className={labelCls2}>Sede Principal (Marca)</label>
+          <label className={labelCls2}>Marca Principal</label>
           <select
             className={inputCls2}
             value={formData.parentId}
             onChange={e => setFormData({...formData, parentId: e.target.value})}
             required
           >
-            <option value="">Selecciona una sede principal</option>
+            <option value="">Selecciona una marca principal</option>
             {Object.entries(parentGyms).map(([id, name]) => (
               <option key={id} value={id}>{name as string}</option>
             ))}
@@ -675,7 +675,7 @@ export const SucursalesView = () => {
       <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Gestión de Sucursales</h1>
       <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">
         {user.role === 'SUPER_ADMIN'
-          ? 'Administra las sucursales vinculadas a cada marca principal. Cada sucursal pertenece a una sede principal.'
+          ? 'Administra las sucursales vinculadas a cada marca principal. Cada sucursal pertenece a una marca principal.'
           : `Acceso restringido a tus sucursales (gym_id: ${user.gymId || 'N/A'}).`}
       </p>
 
@@ -759,7 +759,7 @@ export const SucursalesView = () => {
               <tr>
                 <th style={{ textAlign: 'left', padding: '0.6rem' }}>ID</th>
                 <th style={{ textAlign: 'left', padding: '0.6rem' }}>Sucursal</th>
-                <th style={{ textAlign: 'left', padding: '0.6rem' }}>Sede Principal (Marca)</th>
+                <th style={{ textAlign: 'left', padding: '0.6rem' }}>Marca Principal</th>
                 <th style={{ textAlign: 'left', padding: '0.6rem' }}>Dirección</th>
                 <th style={{ textAlign: 'left', padding: '0.6rem' }}>Capacidad</th>
                 <th style={{ textAlign: 'left', padding: '0.6rem' }}>Estado</th>
@@ -784,7 +784,7 @@ export const SucursalesView = () => {
                       fontSize: '0.75rem',
                       fontWeight: 600,
                     }}>
-                      {g.parent?.name || (g.parentId ? parentGyms[g.parentId] : 'Sin Sede')}
+                      {g.parent?.name || (g.parentId ? parentGyms[g.parentId] : 'Sin Marca')}
                     </span>
                   </td>
                   <td style={{ padding: '0.6rem' }}>
@@ -869,8 +869,8 @@ export const SucursalesView = () => {
         <DetailField label="Nombre de Sucursal" value={viewingSucursal?.name} />
         
         <DetailField 
-          label="Sede Principal (Marca)" 
-          value={viewingSucursal?.parent?.name || (viewingSucursal?.parentId ? parentGyms[viewingSucursal.parentId] : 'Sin Sede Vinculada')} 
+          label="Marca Principal"
+          value={viewingSucursal?.parent?.name || (viewingSucursal?.parentId ? parentGyms[viewingSucursal.parentId] : 'Sin Marca Vinculada')}
         />
         <DetailField 
           label="Capacidad Máxima" 

@@ -441,7 +441,7 @@ export const ReservasView = () => {
           })()}
         />
         <DetailField
-          label="Sede (Marca)"
+          label="Marca"
           value={(() => {
             const gId = viewingReservation?.gymActivitySchedule?.gymActivity?.gymId;
             const info = gId ? gymInfoMap.get(gId) : undefined;

@@ -275,7 +275,7 @@ const AccesosPanel = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Control de Asistencia</h1>
           <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">
-            Historial diario de ingresos y cumplimiento de horarios del personal en todas las sedes.  
+            Historial diario de ingresos y cumplimiento de horarios del personal en todas las marcas.
           </p>
         </div>
         <div className="view-filters">
@@ -305,7 +305,7 @@ const AccesosPanel = () => {
               onChange={e => setFiltroSede(e.target.value)}
               className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-800 text-slate-900 dark:text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors"
             >
-              <option value="">Todas las Sedes</option>
+              <option value="">Todas las Marcas</option>
               {gyms.map(g => (
                 <option key={g.id} value={String(g.id)}>{g.name}</option>
               ))}
@@ -345,7 +345,7 @@ const AccesosPanel = () => {
               <tr>
                 <th className="px-6 py-4">ID</th>
                 <th className="px-6 py-4">Usuario</th>
-                <th className="px-6 py-4">Sede</th>
+                <th className="px-6 py-4">Marca</th>
                 <th className="px-6 py-4">Fecha/Hora</th>
                 <th className="px-6 py-4">Método</th>
                 <th className="px-6 py-4">Estado</th>
@@ -370,7 +370,7 @@ const AccesosPanel = () => {
                         </div>
                       </div>
                     </td>
-                    <td data-label="Sede" className="px-6 py-4">
+                    <td data-label="Marca" className="px-6 py-4">
                       <div className="cell-gym">
                         <span className="name">{acceso.gymInfo.nombre}</span>
                         <a

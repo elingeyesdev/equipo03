@@ -203,7 +203,7 @@ export const SedesView = () => {
       await apiClient.delete(`/gyms/${deleteConfirmSede.id}`);
       setGyms(prev => prev.filter(g => g.id !== deleteConfirmSede.id));
     } catch (err: any) {
-      alert(err?.response?.data?.message || err?.message || 'Error al eliminar sede.');
+      alert(err?.response?.data?.message || err?.message || 'Error al eliminar marca.');
     } finally {
       setDeleteConfirmSede(null);
     }
@@ -217,7 +217,7 @@ export const SedesView = () => {
   const handleEditSede = (sede: GymDto) => {
     if (user?.role === 'GERENTE' && user?.gymId && sede.id !== parseInt(user.gymId as string)) {
       console.warn(`[Security Guard]: Bloqueo de acceso a Sede ajena para Gerente ID ${user.id}`);
-      alert("Acceso denegado: No tienes permisos para editar una sede que no te pertenece.");
+      alert("Acceso denegado: No tienes permisos para editar una marca que no te pertenece.");
       return;
     }
     setSedeToEdit(sede);
@@ -278,7 +278,7 @@ export const SedesView = () => {
 
   return (
     <section style={panelStyle} className="glass-panel">
-      <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Gestión de Marcas (Sedes)</h1>
+      <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Gestión de Marcas</h1>
       <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">
         {user.role === 'SUPER_ADMIN'
           ? 'Administra las marcas o franquicias del grupo. Cada marca puede tener múltiples sucursales (locales físicos).'
@@ -417,7 +417,7 @@ export const SedesView = () => {
         onClose={() => setDeleteConfirmSede(null)}
         onConfirm={confirmDeleteSede}
         title="Confirmar Eliminación"
-        message={`¿Estás seguro de querer eliminar la sede "${deleteConfirmSede?.name}"? Esta acción no se puede deshacer y borrará los registros asociados permanentemente.`}
+        message={`¿Estás seguro de querer eliminar la marca "${deleteConfirmSede?.name}"? Esta acción no se puede deshacer y borrará los registros asociados permanentemente.`}
       />
 
       {/* ── Info card de marca ── */}

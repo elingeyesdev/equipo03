@@ -26,7 +26,7 @@ export const NAV_ROUTES: NavRoute[] = [
   { path: 'resumen',     label: 'Resumen',              allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'ENTRENADOR', 'NUTRICIONISTA', 'CLIENTE', 'USER'] },
   { path: 'auditoria',   label: 'Registros del Personal', allowedRoles: ['SUPER_ADMIN', 'GERENTE'] },
   { path: 'usuarios',    label: 'Usuarios',              allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'ENTRENADOR', 'NUTRICIONISTA'] },
-  { path: 'sedes',       label: 'Sedes (Marcas)',         allowedRoles: ['SUPER_ADMIN'] },
+  { path: 'sedes',       label: 'Marcas',                  allowedRoles: ['SUPER_ADMIN'] },
   { path: 'sucursales',  label: 'Sucursales',             allowedRoles: ['SUPER_ADMIN'] },
   { path: 'roles',       label: 'Roles',                  allowedRoles: ['SUPER_ADMIN'] },
   { path: 'mapa',        label: 'Mapa de Red',            allowedRoles: ['SUPER_ADMIN'] },

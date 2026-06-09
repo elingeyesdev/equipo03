@@ -137,7 +137,7 @@ export const LoginScreen = () => {
               <span className="hero-title-gradient">Gestión Fitness</span>
             </h1>
             <p className="hero-subtitle">
-              La plataforma corporativa integral para administrar sedes, usuarios y actividades con máxima eficiencia.
+              La plataforma corporativa integral para administrar marcas, usuarios y actividades con máxima eficiencia.
             </p>
           </motion.div>
         ) : (

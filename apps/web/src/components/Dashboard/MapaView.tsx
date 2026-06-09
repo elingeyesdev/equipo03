@@ -546,11 +546,11 @@ export const MapaView: React.FC = () => {
             <span style={{ ...s.statValue, color: '#30D158' }}>{loading ? '—' : sucursalesFiltradas.length}</span>
           </div>
           <div style={s.statCard}>
-            <span style={s.statLabel}>Sedes</span>
+            <span style={s.statLabel}>Marcas</span>
             <span style={{ ...s.statValue, color: '#BF5AF2' }}>{loading ? '—' : sedesUnicas.length}</span>
           </div>
           <div style={s.statCard}>
-            <span style={s.statLabel}>Sin sede</span>
+            <span style={s.statLabel}>Sin marca</span>
             <span style={{ ...s.statValue, color: '#8E8E93' }}>{loading ? '—' : sinSedeCnt}</span>
           </div>
           <div style={s.statCard}>
@@ -618,8 +618,8 @@ export const MapaView: React.FC = () => {
 
             <div style={s.divider} />
 
-            {/* Filtro sede */}
-            <span style={s.sectionLabel}>Sede:</span>
+            {/* Filtro marca */}
+            <span style={s.sectionLabel}>Marca:</span>
             <button
               style={{ ...s.filterBtn, ...(filtroSede === null ? s.filterBtnActive : {}) }}
               onClick={() => setFiltroSede(null)}
@@ -636,7 +636,7 @@ export const MapaView: React.FC = () => {
                 }}
                 onClick={() => setFiltroSede(filtroSede === '__sinSede__' ? null : '__sinSede__')}
               >
-                Sin Sede ({sinSedeCnt})
+                Sin Marca ({sinSedeCnt})
               </button>
             )}
             {sedesUnicas.map(({ nombre, id }) => {

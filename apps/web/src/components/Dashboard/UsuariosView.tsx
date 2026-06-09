@@ -329,16 +329,16 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteSu
         {isGerente && (
           <div className="bg-orange-50 dark:bg-orange-900/5 border border-orange-200 dark:border-orange-500/20 rounded-xl p-4 mt-3 mb-1 flex flex-col gap-3">
             <p className="m-0 text-xs font-semibold tracking-widest uppercase text-orange-600 dark:text-orange-400">
-              Asignación de Sede y Sucursal
+              Asignación de Marca y Sucursal
             </p>
             <p className="m-0 text-sm text-slate-600 dark:text-gray-400 leading-relaxed">
-              Una <strong className="text-slate-900 dark:text-gray-200">Sede</strong> es la marca/organización (ej. "Smart Fit").
+              Una <strong className="text-slate-900 dark:text-gray-200">Marca</strong> es la organización (ej. "Smart Fit").
               Una <strong className="text-slate-900 dark:text-gray-200">Sucursal</strong> es el gimnasio físico que administrará el gerente (ej. "Smart Fit - Centro").
             </p>
 
             {/* Paso 1: Sede (Marca) */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">1 · Sede (Marca) *</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">1 · Marca *</label>
               {loadingGyms ? <p className="text-sm text-slate-400 dark:text-gray-500">Cargando...</p> : (
                 <select
                   value={selectedSede}
@@ -348,7 +348,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteSu
                   }}
                   className={`w-full bg-slate-50 dark:bg-[#151521] border ${!selectedSede ? 'border-red-500' : 'border-slate-200 dark:border-gray-700'} text-slate-900 dark:text-white rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors`}
                 >
-                  <option value="">— Seleccionar Sede (Marca) —</option>
+                  <option value="">— Seleccionar Marca —</option>
                   {sedes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               )}
@@ -359,7 +359,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteSu
               <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">2 · Sucursal a Administrar *</label>
               {selectedSede !== '' && sucursalesParaSede.length === 0 ? (
                 <p className="m-0 text-sm text-red-500 p-2 bg-red-50 dark:bg-red-900/10 rounded-lg">
-                  Atención: esta sede no tiene sucursales registradas aún.
+                  Atención: esta marca no tiene sucursales registradas aún.
                 </p>
               ) : (
                 <select
@@ -435,7 +435,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteSu
           if (!validateForm()) return;
           if (isGerente) {
             if (!selectedSede) {
-              toast.error('Debes seleccionar la Sede (Marca) a la que pertenece el Gerente');
+              toast.error('Debes seleccionar la Marca a la que pertenece el Gerente');
               return;
             }
             if (formData.gymIds.length === 0) {
@@ -510,7 +510,7 @@ export const UsuariosView = () => {
       map.set(s.id, {
         sucursalName: s.name,
         sedeId,
-        sedeName: sedeId ? (sedesById.get(sedeId) ?? `Sede #${sedeId}`) : 'Sin Sede Registrada',
+        sedeName: sedeId ? (sedesById.get(sedeId) ?? `Marca #${sedeId}`) : 'Sin Marca Registrada',
       });
     });
     return map;
@@ -714,7 +714,7 @@ export const UsuariosView = () => {
             <div style={{ position: 'relative' }}>
               <select value={filterGym} onChange={e => setFilterGym(e.target.value)}
                 className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all" style={{ maxWidth: '180px' }}>
-                <option value="">Todas las sedes</option>
+                <option value="">Todas las marcas</option>
                 {gymOptions.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
               </select>
               <span style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#8E8E93', fontSize: '0.7rem' }}>▼</span>
@@ -761,7 +761,7 @@ export const UsuariosView = () => {
 
       {!loading && !error && users.length === 0 && (
         <div style={{ marginTop: '2rem', textAlign: 'center', color: '#8E8E93', padding: '2rem', borderRadius: '12px', background: 'rgba(255,255,255,0.03)' }}>
-          <p>No hay usuarios disponibles en esta sede.</p>
+          <p>No hay usuarios disponibles en esta marca.</p>
         </div>
       )}
 
@@ -771,7 +771,7 @@ export const UsuariosView = () => {
           <table className="w-full border-collapse" style={{ minWidth: '850px' }}>
             <thead className="bg-slate-50 dark:bg-[#151521] border-b border-slate-200 dark:border-gray-800 text-slate-500 dark:text-gray-400 text-xs uppercase tracking-wider">
               <tr>
-                {['ID', 'Nombre', 'Email', 'Rol', 'Sucursal / Sede', 'Estado', 'Acciones'].map(h => (
+                {['ID', 'Nombre', 'Email', 'Rol', 'Sucursal / Marca', 'Estado', 'Acciones'].map(h => (
                   <th key={h} style={{ textAlign: h === 'Acciones' ? 'center' : 'left', padding: '0.6rem' }}>{h}</th>
                 ))}
               </tr>

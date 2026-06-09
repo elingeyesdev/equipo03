@@ -12,16 +12,25 @@ import { SedeMarkerProps } from './SedeMarker.props';
 import { AforoBadge } from '../UI/AforoBadge/AforoBadge.component';
 
 export const SedeMarker: React.FC<SedeMarkerProps> = ({ sede, distancia, onPress }) => {
-  const pinColor = sede.estaDisponible ? '#2ecc71' : '#e74c3c';
+  const isClosed = !sede.estaAbierta;
+  const pinColor = isClosed
+    ? '#8e8e93'
+    : sede.estaDisponible
+    ? '#2ecc71'
+    : '#e74c3c';
+
+  const statusLabel = isClosed
+    ? 'Cerrado'
+    : sede.estaDisponible
+    ? 'Abierto ahora'
+    : 'Lleno';
 
   return (
     <Marker
       coordinate={sede.coordenadas.toMapCoordinate()}
       pinColor={pinColor}
       onPress={onPress}
-      accessibilityLabel={`Sede ${sede.nombre}, a ${distancia.legible}. ${
-        sede.estaDisponible ? 'Cupos disponibles' : 'Sin cupos'
-      }`}
+      accessibilityLabel={`Marca ${sede.nombre}, a ${distancia.legible}. ${statusLabel}`}
     >
       <Callout tooltip onPress={onPress}>
         <View style={styles.calloutContainer}>
@@ -32,6 +41,9 @@ export const SedeMarker: React.FC<SedeMarkerProps> = ({ sede, distancia, onPress
             <Text style={styles.calloutDistance}>📍 {distancia.kmCorta}</Text>
             <AforoBadge aforo={sede.aforo} size="small" />
           </View>
+          <Text style={[styles.calloutStatus, { color: pinColor }]}>
+            ● {statusLabel}
+          </Text>
           <Text style={styles.calloutHint}>Toca para más info →</Text>
         </View>
       </Callout>
@@ -70,6 +82,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#a0a0b8',
     fontWeight: '600',
+  },
+  calloutStatus: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 2,
   },
   calloutHint: {
     fontSize: 10,

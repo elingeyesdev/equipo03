@@ -598,7 +598,7 @@ const ActivityFormModal = ({
                     </div>
                     {instructors.length === 0 && (
                       <span className="text-[0.7rem] text-slate-400 dark:text-gray-600 mt-[0.2rem] block">
-                        Sin instructores asignados a esta sede
+                        Sin instructores asignados a esta marca
                       </span>
                     )}
                   </div>
