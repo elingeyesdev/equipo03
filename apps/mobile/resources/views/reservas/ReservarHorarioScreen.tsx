@@ -77,6 +77,7 @@ export const ReservarHorarioScreen = ({ route, navigation }: Props) => {
     if (!canConfirm || !selectedSlot) return;
     mutation.mutate({
       gymId,
+      activityId: selectedActivityId!,
       reservationDate: selectedDate!,
       startTime: selectedSlot.start,
       endTime: selectedSlot.end,

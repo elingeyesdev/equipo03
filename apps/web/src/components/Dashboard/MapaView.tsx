@@ -1,17 +1,17 @@
 /**
  * MapaView.tsx — Vista de Mapa de Red de Sucursales.
- * Exclusiva para SUPER_ADMIN. Mapa interactivo con filtros avanzados y popups JSX.
+ * Accesible para SUPER_ADMIN (red completa) y GERENTE (solo su marca).
  */
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import { UseCaseFactory } from '../../infrastructure/UseCaseFactory';
 import type { SucursalMapaDTO } from '@gymsync/core';
-import { Edit } from 'lucide-react';
+import { Edit, Calendar } from 'lucide-react';
+import { useMapaSucursales } from '../../hooks/useMapaSucursales';
 
 // ── Fix íconos Leaflet en Vite ────────────────────────────────────────────────
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -34,73 +34,68 @@ const ESTADO_CONFIG: Record<EstadoFiltro, { label: string; color: string; emoji:
   inactiva: { label: 'Inactiva', color: '#FF5E00', emoji: '🔴' },
 };
 
-// ── Motor de cálculo de estado ─────────────────────────────────────────────────
-/**
- * Obtiene día y minutos actuales forzados a 'America/La_Paz'.
- * Usa Intl.DateTimeFormat para ser independiente de la TZ del navegador.
- */
-const getNowLaPaz = (): { dayKey: string; minutesNow: number } => {
-  const now = new Date();
 
-  // Día de la semana en La Paz
-  const weekdayFmt = new Intl.DateTimeFormat('es-BO', {
-    timeZone: 'America/La_Paz',
-    weekday: 'long',
-  });
-  const weekdayRaw = weekdayFmt.format(now).toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-  // 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO'
-
-  // Hora y minuto en La Paz
-  const timeFmt = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/La_Paz',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-  const timeParts = timeFmt.formatToParts(now);
-  const hStr = timeParts.find(p => p.type === 'hour')?.value ?? '0';
-  const mStr = timeParts.find(p => p.type === 'minute')?.value ?? '0';
-
-  // '24' → medianoche → 0
-  const h = parseInt(hStr) % 24;
-  const m = parseInt(mStr);
-
-  return { dayKey: weekdayRaw, minutesNow: h * 60 + m };
+// Normaliza tanto abreviados (LUN, MAR…) como completos (LUNES, MARTES…) → forma completa.
+// El backend guarda los días como abreviados en gym_schedules.day_of_week.
+const DAY_ABBR_TO_FULL: Record<string, string> = {
+  LUN: 'LUNES',   LUNES:   'LUNES',
+  MAR: 'MARTES',  MARTES:  'MARTES',
+  MIE: 'MIERCOLES', MIERCOLES: 'MIERCOLES',
+  JUE: 'JUEVES',  JUEVES:  'JUEVES',
+  VIE: 'VIERNES', VIERNES: 'VIERNES',
+  SAB: 'SABADO',  SABADO:  'SABADO',
+  DOM: 'DOMINGO', DOMINGO: 'DOMINGO',
 };
 
-/**
- * calculateGymStatus — función pura.
- * Determina el estado real de la sucursal cruzando schedules vs hora actual en La Paz.
- * Fallback: si no hay schedules, usa el flag isOpen del backend.
- */
+const stripAccents = (s: string) =>
+  s.toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+const normDayKey = (day: string): string => {
+  const clean = stripAccents(day);
+  return DAY_ABBR_TO_FULL[clean] ?? clean;
+};
+
+const getNowLaPaz = (): { dayKey: string; minutesNow: number } => {
+  const tz  = 'America/La_Paz';
+  const now = new Date();
+
+  const weekdayRaw = new Intl.DateTimeFormat('es-BO', { timeZone: tz, weekday: 'long' })
+    .format(now);
+  // Normaliza a forma completa sin tilde: LUNES, MARTES, MIERCOLES…
+  const dayKey = normDayKey(weekdayRaw);
+
+  const timeParts = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(now);
+  const h = parseInt(timeParts.find(p => p.type === 'hour')?.value   ?? '0') % 24;
+  const m = parseInt(timeParts.find(p => p.type === 'minute')?.value ?? '0');
+
+  return { dayKey, minutesNow: h * 60 + m };
+};
+
 const calculateGymStatus = (s: SucursalMapaDTO): EstadoFiltro => {
-  // Regla 1: Inactiva
   if (!s.isActive) return 'inactiva';
 
-  // Regla 2: Sin horarios → confiar en flag isOpen del backend
+  // Sin horarios registrados → usar el flag calculado por el backend
   if (!s.schedules || s.schedules.length === 0) {
     return s.isOpen ? 'abierta' : 'cerrada';
   }
 
-  // Regla 3: Obtener día y hora actual en La Paz
   const { dayKey, minutesNow } = getNowLaPaz();
 
-  // Buscar horario del día actual (excluir feriados)
+  // Normaliza el dayOfWeek del backend (puede ser LUN o LUNES) antes de comparar
   const horarioHoy = s.schedules.find(
-    sch => sch.dayOfWeek.toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '') === dayKey
-         && !sch.isHoliday
+    sch => normDayKey(sch.dayOfWeek) === dayKey && !sch.isHoliday
   );
 
-  // Sin horario para hoy → CERRADA
   if (!horarioHoy) return 'cerrada';
 
-  // Regla 4: Cruce horario
   const [hO, mO] = (horarioHoy.opensAt  ?? '00:00').slice(0, 5).split(':').map(Number);
   const [hC, mC] = (horarioHoy.closesAt ?? '00:00').slice(0, 5).split(':').map(Number);
 
   const minOpen  = hO * 60 + mO;
   let   minClose = hC * 60 + mC;
-  if (minClose < minOpen) minClose += 24 * 60; // cruce medianoche
+  if (minClose < minOpen) minClose += 24 * 60;
 
   return minutesNow >= minOpen && minutesNow <= minClose ? 'abierta' : 'cerrada';
 };
@@ -152,7 +147,8 @@ const AutoFitBounds = ({ sucursales }: { sucursales: SucursalMapaDTO[] }) => {
 };
 
 // ── Popup JSX ─────────────────────────────────────────────────────────────────
-const PopupCard = ({ s, computedStatus }: { s: SucursalMapaDTO; computedStatus: EstadoFiltro }) => {
+const PopupCard = ({ s, computedStatus, role }: { s: SucursalMapaDTO; computedStatus: EstadoFiltro; role: string }) => {
+  const navigate   = useNavigate();
   const sedeColor  = getSedeColor(s.sedePrincipalId);
   const cfg        = ESTADO_CONFIG[computedStatus];
   const aforo      = s.aforoActual > 0 ? s.aforoActual : mockAforo(s.id, s.maxCapacity);
@@ -222,24 +218,45 @@ const PopupCard = ({ s, computedStatus }: { s: SucursalMapaDTO; computedStatus: 
         <span style={{ fontSize: '0.68rem', color: '#555', fontFamily: 'monospace' }}>
           {s.latitude.toFixed(4)}, {s.longitude.toFixed(4)}
         </span>
-        <button
-          onClick={e => e.stopPropagation()}
-          style={{
-            fontSize: '0.72rem', fontWeight: 700,
-            color: '#00D9FF',
-            background: 'rgba(0,217,255,0.1)',
-            border: '1px solid rgba(0,217,255,0.3)',
-            borderRadius: '6px',
-            padding: '3px 10px',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.3rem',
-          }}
-        >
-          <Edit size={11} />
-          Editar Sucursal
-        </button>
+        {role === 'GERENTE' ? (
+          <button
+            onClick={e => { e.stopPropagation(); navigate('/dashboard/reservas'); }}
+            style={{
+              fontSize: '0.72rem', fontWeight: 700,
+              color: '#30D158',
+              background: 'rgba(48,209,88,0.1)',
+              border: '1px solid rgba(48,209,88,0.3)',
+              borderRadius: '6px',
+              padding: '3px 10px',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.3rem',
+            }}
+          >
+            <Calendar size={11} />
+            Ver Reservas
+          </button>
+        ) : (
+          <button
+            onClick={e => { e.stopPropagation(); navigate('/dashboard/sucursales'); }}
+            style={{
+              fontSize: '0.72rem', fontWeight: 700,
+              color: '#00D9FF',
+              background: 'rgba(0,217,255,0.1)',
+              border: '1px solid rgba(0,217,255,0.3)',
+              borderRadius: '6px',
+              padding: '3px 10px',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.3rem',
+            }}
+          >
+            <Edit size={11} />
+            Ver Sucursales
+          </button>
+        )}
       </div>
     </div>
   );
@@ -433,65 +450,44 @@ export const MapaView: React.FC = () => {
   const { theme } = useTheme();
   const s = getStyles(theme === 'dark');
 
-  const [sucursales, setSucursales] = useState<SucursalMapaDTO[]>([]);
-  const [sinGeo, setSinGeo]         = useState(0);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState<string | null>(null);
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
 
-  // Filtros
+  // Filtros de UI
   const [filtroSede,    setFiltroSede]    = useState<string | null>(null);
   const [searchQuery,   setSearchQuery]   = useState('');
   const [filtroEstados, setFiltroEstados] = useState<Set<EstadoFiltro>>(new Set());
 
-  if (!user || user.role !== 'SUPER_ADMIN') {
+  // Guard — solo SUPER_ADMIN y GERENTE
+  if (!user || (user.role !== 'SUPER_ADMIN' && user.role !== 'GERENTE')) {
     return <Navigate to="/dashboard/resumen" replace />;
   }
 
-  useEffect(() => {
-    let mounted = true;
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const uc     = UseCaseFactory.getObtenerSedesMapaUC();
-        const result = await uc.execute({ role: user.role as 'SUPER_ADMIN' });
-        if (!mounted) return;
-        if (result.isLeft()) {
-          setError(result.value.message);
-        } else {
-          setSucursales(result.value.sucursales);
-          setSinGeo(result.value.sinGeolocalizacion);
-        }
-      } catch (err: any) {
-        if (mounted) setError(err?.message || 'Error al cargar el mapa.');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-    fetchData();
-    return () => { mounted = false; };
-  }, [user.role]);
+  // Hook compartido: fetch + filtrado por rol
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const { sucursales, sinGeo, loading, error, marcaNombre } = useMapaSucursales(user);
 
   // Sucursales enriquecidas con estado calculado (La Paz TZ + schedules)
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const processedGyms = useMemo(() =>
     sucursales.map(sc => ({ ...sc, computedStatus: calculateGymStatus(sc) })),
     [sucursales]
   );
 
-  // Sedes únicas
+  // Sedes únicas (solo relevante para SUPER_ADMIN)
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const sedesUnicas = useMemo(() => {
     const map = new Map<string, number | null>();
     sucursales.forEach(sc => map.set(sc.sedePrincipalNombre, sc.sedePrincipalId));
     return Array.from(map.entries()).map(([nombre, id]) => ({ nombre, id }));
   }, [sucursales]);
 
-  // Sucursales sin sede asignada
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const sinSedeCnt = useMemo(
     () => sucursales.filter(sc => sc.sedePrincipalId === null).length,
     [sucursales]
   );
 
-  // Conteos por estado — calculados, no desde backend flags
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const estadoCounts = useMemo(() => ({
     abierta:  processedGyms.filter(sc => sc.computedStatus === 'abierta').length,
     cerrada:  processedGyms.filter(sc => sc.computedStatus === 'cerrada').length,
@@ -501,18 +497,21 @@ export const MapaView: React.FC = () => {
   const toggleEstado = (e: EstadoFiltro) => {
     setFiltroEstados(prev => {
       const next = new Set(prev);
-      next.has(e) ? next.delete(e) : next.add(e);
+      if (next.has(e)) { next.delete(e); } else { next.add(e); }
       return next;
     });
   };
 
-  // Filtrado compuesto — usa processedGyms para estado calculado
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const sucursalesFiltradas = useMemo(() => {
     let list = processedGyms;
-    if (filtroSede === '__sinSede__') {
-      list = list.filter(sc => sc.sedePrincipalId === null);
-    } else if (filtroSede !== null) {
-      list = list.filter(sc => sc.sedePrincipalNombre === filtroSede);
+    // Filtro marca — solo aplica en SUPER_ADMIN (GERENTE ya recibe solo su marca)
+    if (isSuperAdmin) {
+      if (filtroSede === '__sinSede__') {
+        list = list.filter(sc => sc.sedePrincipalId === null);
+      } else if (filtroSede !== null) {
+        list = list.filter(sc => sc.sedePrincipalNombre === filtroSede);
+      }
     }
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
@@ -522,7 +521,7 @@ export const MapaView: React.FC = () => {
       list = list.filter(sc => filtroEstados.has(sc.computedStatus));
     }
     return list;
-  }, [processedGyms, filtroSede, searchQuery, filtroEstados]);
+  }, [processedGyms, filtroSede, searchQuery, filtroEstados, isSuperAdmin]);
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
@@ -531,8 +530,14 @@ export const MapaView: React.FC = () => {
       {/* Header */}
       <div style={s.header}>
         <div>
-          <h1 style={s.title}>Mapa de Red de Sucursales</h1>
-          <p style={s.subtitle}>Visualización geoespacial de toda la red de gimnasios GymSync Pro</p>
+          <h1 style={s.title}>
+            {isSuperAdmin ? 'Mapa de Red de Sucursales' : `Mapa de Sucursales${marcaNombre ? ` — ${marcaNombre}` : ''}`}
+          </h1>
+          <p style={s.subtitle}>
+            {isSuperAdmin
+              ? 'Visualización geoespacial de toda la red de gimnasios GymSync Pro'
+              : `Sucursales pertenecientes a tu marca${marcaNombre ? ` ${marcaNombre}` : ''}`}
+          </p>
         </div>
 
         {/* Stats cards */}
@@ -545,14 +550,18 @@ export const MapaView: React.FC = () => {
             <span style={s.statLabel}>En mapa</span>
             <span style={{ ...s.statValue, color: '#30D158' }}>{loading ? '—' : sucursalesFiltradas.length}</span>
           </div>
-          <div style={s.statCard}>
-            <span style={s.statLabel}>Marcas</span>
-            <span style={{ ...s.statValue, color: '#BF5AF2' }}>{loading ? '—' : sedesUnicas.length}</span>
-          </div>
-          <div style={s.statCard}>
-            <span style={s.statLabel}>Sin marca</span>
-            <span style={{ ...s.statValue, color: '#8E8E93' }}>{loading ? '—' : sinSedeCnt}</span>
-          </div>
+          {isSuperAdmin && (
+            <>
+              <div style={s.statCard}>
+                <span style={s.statLabel}>Marcas</span>
+                <span style={{ ...s.statValue, color: '#BF5AF2' }}>{loading ? '—' : sedesUnicas.length}</span>
+              </div>
+              <div style={s.statCard}>
+                <span style={s.statLabel}>Sin marca</span>
+                <span style={{ ...s.statValue, color: '#8E8E93' }}>{loading ? '—' : sinSedeCnt}</span>
+              </div>
+            </>
+          )}
           <div style={s.statCard}>
             <span style={s.statLabel}>Cap. total</span>
             <span style={{ ...s.statValue, color: '#FF9F0A' }}>
@@ -603,8 +612,8 @@ export const MapaView: React.FC = () => {
             {/* Filtro estado */}
             <span style={s.sectionLabel}>Estado:</span>
             {(Object.keys(ESTADO_CONFIG) as EstadoFiltro[]).map(key => {
-              const cfg  = ESTADO_CONFIG[key];
-              const on   = filtroEstados.has(key);
+              const cfg = ESTADO_CONFIG[key];
+              const on  = filtroEstados.has(key);
               return (
                 <button
                   key={key}
@@ -616,43 +625,46 @@ export const MapaView: React.FC = () => {
               );
             })}
 
-            <div style={s.divider} />
-
-            {/* Filtro marca */}
-            <span style={s.sectionLabel}>Marca:</span>
-            <button
-              style={{ ...s.filterBtn, ...(filtroSede === null ? s.filterBtnActive : {}) }}
-              onClick={() => setFiltroSede(null)}
-            >
-              Todas ({sucursales.length})
-            </button>
-            {sinSedeCnt > 0 && (
-              <button
-                style={{
-                  ...s.filterBtn,
-                  ...(filtroSede === '__sinSede__'
-                    ? { border: '1px solid #8E8E93', background: 'rgba(142,142,147,0.15)', color: '#8E8E93', fontWeight: 700 }
-                    : {}),
-                }}
-                onClick={() => setFiltroSede(filtroSede === '__sinSede__' ? null : '__sinSede__')}
-              >
-                Sin Marca ({sinSedeCnt})
-              </button>
-            )}
-            {sedesUnicas.map(({ nombre, id }) => {
-              const cnt   = sucursales.filter(sc => sc.sedePrincipalNombre === nombre).length;
-              const color = getSedeColor(id);
-              const on    = filtroSede === nombre;
-              return (
+            {/* Filtro marca — solo SUPER_ADMIN */}
+            {isSuperAdmin && (
+              <>
+                <div style={s.divider} />
+                <span style={s.sectionLabel}>Marca:</span>
                 <button
-                  key={nombre}
-                  style={{ ...s.filterBtn, ...(on ? { border: `1px solid ${color}`, background: `${color}22`, color, fontWeight: 700 } : {}) }}
-                  onClick={() => setFiltroSede(on ? null : nombre)}
+                  style={{ ...s.filterBtn, ...(filtroSede === null ? s.filterBtnActive : {}) }}
+                  onClick={() => setFiltroSede(null)}
                 >
-                  {nombre} ({cnt})
+                  Todas ({sucursales.length})
                 </button>
-              );
-            })}
+                {sinSedeCnt > 0 && (
+                  <button
+                    style={{
+                      ...s.filterBtn,
+                      ...(filtroSede === '__sinSede__'
+                        ? { border: '1px solid #8E8E93', background: 'rgba(142,142,147,0.15)', color: '#8E8E93', fontWeight: 700 }
+                        : {}),
+                    }}
+                    onClick={() => setFiltroSede(filtroSede === '__sinSede__' ? null : '__sinSede__')}
+                  >
+                    Sin Marca ({sinSedeCnt})
+                  </button>
+                )}
+                {sedesUnicas.map(({ nombre, id }) => {
+                  const cnt   = sucursales.filter(sc => sc.sedePrincipalNombre === nombre).length;
+                  const color = getSedeColor(id);
+                  const on    = filtroSede === nombre;
+                  return (
+                    <button
+                      key={nombre}
+                      style={{ ...s.filterBtn, ...(on ? { border: `1px solid ${color}`, background: `${color}22`, color, fontWeight: 700 } : {}) }}
+                      onClick={() => setFiltroSede(on ? null : nombre)}
+                    >
+                      {nombre} ({cnt})
+                    </button>
+                  );
+                })}
+              </>
+            )}
           </div>
 
           {/* ── Mapa ────────────────────────────────────────────────────────── */}
@@ -671,7 +683,6 @@ export const MapaView: React.FC = () => {
               <AutoFitBounds sucursales={sucursalesFiltradas} />
 
               {sucursalesFiltradas.map(sc => {
-                // Icono depende del estado CALCULADO, no del flag del backend
                 const icon = sc.computedStatus === 'inactiva'
                   ? iconInactiva
                   : sc.computedStatus === 'abierta'
@@ -680,7 +691,7 @@ export const MapaView: React.FC = () => {
                 return (
                   <Marker key={sc.id} position={[sc.latitude, sc.longitude]} icon={icon}>
                     <Popup className="gymsync-popup" maxWidth={280} minWidth={230}>
-                      <PopupCard s={sc} computedStatus={sc.computedStatus} />
+                      <PopupCard s={sc} computedStatus={sc.computedStatus} role={user.role} />
                     </Popup>
                   </Marker>
                 );
@@ -693,14 +704,16 @@ export const MapaView: React.FC = () => {
             <div style={s.legendItem}><div style={s.legendDot('#00D9FF')} /><span>Activa y Abierta</span></div>
             <div style={s.legendItem}><div style={s.legendDot('#FF9F0A')} /><span>Activa y Cerrada</span></div>
             <div style={s.legendItem}><div style={s.legendDot('#FF5E00')} /><span>Inactiva</span></div>
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
-              {sedesUnicas.slice(0, 6).map(({ nombre, id }) => (
-                <div key={nombre} style={s.legendItem}>
-                  <div style={s.legendDot(getSedeColor(id))} />
-                  <span style={{ color: getSedeColor(id) }}>{nombre}</span>
-                </div>
-              ))}
-            </div>
+            {isSuperAdmin && (
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                {sedesUnicas.slice(0, 6).map(({ nombre, id }) => (
+                  <div key={nombre} style={s.legendItem}>
+                    <div style={s.legendDot(getSedeColor(id))} />
+                    <span style={{ color: getSedeColor(id) }}>{nombre}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </>
       )}

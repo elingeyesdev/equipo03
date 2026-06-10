@@ -92,7 +92,7 @@ export const useNotifications = () => {
 
       // Toast proactivo con sonido y duración prolongada
       toast.error(
-        `⚠️ Alerta de Seguridad\nAcceso denegado a Usuario ${payload.attemptedUserId}\nen sede "${payload.gymName}"`,
+        ` Alerta de Seguridad\nAcceso denegado a Usuario ${payload.attemptedUserId}\nen sede "${payload.gymName}"`,
         {
           duration: 10000,
           style: {

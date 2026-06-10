@@ -16,8 +16,10 @@ export interface WebUser {
   role: UserRole;
   /** ID numérico del rol en la BD (sincronizado con DB_ROLES). */
   roleId: number;
-  /** ID del gimnasio asignado. Solo presente en roles con scope de sede. */
+  /** ID del gimnasio/sucursal asignado. Solo presente en GERENTE de sucursal u otros staff. */
   gymId?: string;
+  /** ID de la Marca asignada. Solo presente en GERENTE cuya asignación es a nivel de Marca. */
+  brandId?: number;
   /** Nombre real del usuario, extraído del perfil en el login. */
   firstName?: string;
   /** Apellido real del usuario, extraído del perfil en el login. */
@@ -83,17 +85,17 @@ function resolveRoleId(jwtPayload: Record<string, any>, roleName: UserRole): num
   return entry ? Number(entry[0]) : 3; // 3 = USER por defecto
 }
 
-// ─── Helper: resuelve gymId SOLO si es necesario para el rol ─────────────────
-// Para GERENTE: requiere gymId — no asigna fallback arbitrario.
-// Para otros roles: puede ser undefined.
-function resolveGymId(jwtPayload: Record<string, any>, userData: Record<string, any>, role: UserRole): string | undefined {
+// ─── Helper: resuelve gymId (sucursal) del JWT ────────────────────────────────
+function resolveGymId(jwtPayload: Record<string, any>, userData: Record<string, any>, _role: UserRole): string | undefined {
   const raw = jwtPayload.gymId ?? jwtPayload.gym_id ?? userData?.gymId ?? userData?.gym_id;
+  if (raw !== undefined && raw !== null) return String(raw);
+  return undefined;
+}
 
-  if (raw !== undefined && raw !== null) {
-    return String(raw);
-  }
-
-  // GERENTE sin gymId = identidad incompleta. Retorna undefined (se manejará en el interceptor).
+// ─── Helper: resuelve brandId (marca) del JWT — solo para GERENTE de Marca ───
+function resolveBrandId(jwtPayload: Record<string, any>): number | undefined {
+  const raw = jwtPayload.brandId ?? jwtPayload.brand_id;
+  if (raw !== undefined && raw !== null) return Number(raw);
   return undefined;
 }
 
@@ -180,6 +182,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const role = resolveRole(jwtPayload, userData);
       const roleId = resolveRoleId(jwtPayload, role);
       const gymId = resolveGymId(jwtPayload, userData, role);
+      const brandId = resolveBrandId(jwtPayload);
 
       // ID numérico del usuario (sub es el estándar JWT de NestJS)
       const id: number = Number(jwtPayload.sub || jwtPayload.id || userData.id || 0);
@@ -189,7 +192,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const lastName:  string = userData.profile?.lastName  || userData.lastName  || '';
       const gymName:   string = userData.gymName || userData.gym?.name || '';
 
-      const webUser: WebUser = { id, role, roleId, gymId, firstName, lastName, gymName };
+      const webUser: WebUser = { id, role, roleId, gymId, brandId, firstName, lastName, gymName };
 
       if (!ALLOWED_WEB_ROLES.has(roleId)) {
         return {

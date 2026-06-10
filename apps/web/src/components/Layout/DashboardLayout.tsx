@@ -130,18 +130,6 @@ export const DashboardLayout = () => {
                 <line x1="3" y1="18" x2="21" y2="18"/>
               </svg>
             </button>
-
-            {/* Buscador */}
-            <div className="hidden sm:flex items-center gap-2 bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 w-64">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
-                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-              </svg>
-              <input
-                type="text"
-                placeholder="Buscar registros..."
-                className="bg-transparent text-sm text-gray-600 placeholder-gray-400 outline-none w-full"
-              />
-            </div>
           </div>
 
           {/* Derecha */}

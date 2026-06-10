@@ -15,7 +15,6 @@ import { ResetPasswordScreen }  from '../resources/views/auth/ResetPasswordScree
 // ── Pantallas comunes ─────────────────────────────────────────────────────────
 import { InicioScreen }         from '../resources/views/inicio/InicioScreen';
 import { BuscarStack }          from './BuscarStack';
-import { ReservarHorarioScreen } from '../resources/views/reservas/ReservarHorarioScreen';
 
 // ── Pantallas exclusivas por rol ──────────────────────────────────────────────
 import { MisReservasScreen }      from '../app/Providers/reservations/screens/MisReservasScreen';
@@ -24,9 +23,6 @@ import { EscanerScreen }          from '../resources/views/audit/EscanerScreen';
 
 // ── Dashboards de inicio por rol ──────────────────────────────────────────────
 import { ManagerDashboard }       from '../resources/views/inicio/ManagerDashboard';
-import { InstructorDashboard }    from '../resources/views/inicio/InstructorDashboard';
-import { TrainerDashboard }       from '../resources/views/inicio/TrainerDashboard';
-import { NutritionistDashboard }  from '../resources/views/inicio/NutritionistDashboard';
 import { ClaseDetalleScreen }      from '../resources/views/inicio/ClaseDetalleScreen';
 import { AsignarRutinaScreen }     from '../resources/views/inicio/AsignarRutinaScreen';
 
@@ -123,18 +119,6 @@ const ClienteStack = () => (
   <ClienteNav.Navigator screenOptions={{ headerShown: false }}>
     <ClienteNav.Screen name="MainTabs"      component={ClienteTabs} />
     <ClienteNav.Screen
-      name="ReservarHorario"
-      component={ReservarHorarioScreen}
-      options={{
-        headerShown:       true,
-        title:             'Nueva Reserva',
-        headerStyle:       { backgroundColor: '#050505' },
-        headerTintColor:   '#00D9FF',
-        headerTitleStyle:  { fontWeight: 'bold' },
-        headerBackTitle:   'Atrás',
-      }}
-    />
-    <ClienteNav.Screen
       name="WorkoutHistory"
       component={WorkoutHistoryScreen}
       options={{ headerShown: false, gestureEnabled: true }}
@@ -187,23 +171,12 @@ const GerenteStack = () => (
   </GerenteNav.Navigator>
 );
 
-// ── Selector de inicio por subrole de Staff ───────────────────────────────────
-const StaffHomeSelector = () => {
-  const { user } = useAuth();
-  if (user?.role === 'NUTRICIONISTA') return <NutritionistDashboard />;
-  if (user?.role === 'INSTRUCTOR')    return <InstructorDashboard />;
-  if (user?.role === 'ENTRENADOR')    return <TrainerDashboard />;
-  return <InicioScreen />;
-};
-
-// ═══════════════════════════════════════════════════════════════════════════════
 // STAFF STACK — ENTRENADOR / INSTRUCTOR / NUTRICIONISTA
-// Sin MisReservasScreen ni rutas exclusivas de cliente
-// ═══════════════════════════════════════════════════════════════════════════════
+
 const StaffTab = createBottomTabNavigator();
 const StaffTabs = () => (
   <StaffTab.Navigator screenOptions={tabScreenOptions}>
-    <StaffTab.Screen name="Inicio"  component={StaffHomeSelector} />
+    <StaffTab.Screen name="Inicio"  component={InicioScreen} />
     <StaffTab.Screen name="Buscar"  component={BuscarStack} />
     <StaffTab.Screen name="Perfil"  component={ClientePerfilStack} />
   </StaffTab.Navigator>

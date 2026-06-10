@@ -29,7 +29,7 @@ export const NAV_ROUTES: NavRoute[] = [
   { path: 'sedes',       label: 'Marcas',                  allowedRoles: ['SUPER_ADMIN'] },
   { path: 'sucursales',  label: 'Sucursales',             allowedRoles: ['SUPER_ADMIN'] },
   { path: 'roles',       label: 'Roles',                  allowedRoles: ['SUPER_ADMIN'] },
-  { path: 'mapa',        label: 'Mapa de Red',            allowedRoles: ['SUPER_ADMIN'] },
+  { path: 'mapa',        label: 'Mapa de Red',            allowedRoles: ['SUPER_ADMIN', 'GERENTE'] },
   { path: 'rutinas',     label: 'Rutinas',                allowedRoles: ['SUPER_ADMIN', 'ENTRENADOR', 'NUTRICIONISTA', 'CLIENTE'] },
   { path: 'actividades', label: 'Catálogo de Servicios',  allowedRoles: ['SUPER_ADMIN', 'GERENTE'] },
   { path: 'reservas',    label: 'Gestion de Reservas',    allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'CLIENTE'] },

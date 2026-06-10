@@ -168,6 +168,7 @@ const RoleModal = ({ isOpen, onClose, roleToEdit, onSave, roles }: any) => {
         >
           <option value={10} className="bg-white dark:bg-[#151521] text-slate-900 dark:text-white">Máximo (10) — Super Administrador</option>
           <option value={5} className="bg-white dark:bg-[#151521] text-slate-900 dark:text-white">Alto (5) — Gerentes / Coordinadores</option>
+          <option value={4} className="bg-white dark:bg-[#151521] text-slate-900 dark:text-white">Medio-Alto (4) — Recepcionistas / Secretarios</option>
           <option value={3} className="bg-white dark:bg-[#151521] text-slate-900 dark:text-white">Medio (3) — Entrenadores / Nutricionistas</option>
           <option value={1} className="bg-white dark:bg-[#151521] text-slate-900 dark:text-white">Básico (1) — Usuarios / Clientes</option>
         </select>
@@ -379,6 +380,7 @@ export const RolesView = () => {
     if (!level) return '#8E8E93';
     if (level >= 10) return '#FF5E00';
     if (level >= 5) return '#FF9F0A';
+    if (level >= 4) return '#5E72E4';
     if (level >= 3) return '#00D9FF';
     return '#30D158';
   };
