@@ -112,13 +112,14 @@ export class GymsService {
 
       const brandId = staffGym.parentId;
 
-      // Si el gym no tiene padre (es él mismo la marca), mostrar solo esa sucursal
+      // Si el gym no tiene padre, sg ES la marca → devolver todas sus sucursales activas
       if (!brandId) {
-        const gym = await this.gymsRepo.findOne({
-          where: { id: sg },
+        const branches = await this.gymsRepo.find({
+          where: { parentId: sg, isActive: true },
           relations: ['location', 'schedules', 'parent'],
+          order: { id: 'ASC' },
         });
-        return gym ? [this.mapGymToDto(gym)] : [];
+        return branches.map((gym) => this.mapGymToDto(gym));
       }
 
       // Devolver TODAS las sucursales activas de la misma marca, sin filtro de distancia

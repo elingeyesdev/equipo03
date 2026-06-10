@@ -95,7 +95,7 @@ export class AuthService {
       return payload;
     }
 
-    // ── GERENTE — resuelve a Sucursal (gymId físico) ─────────────────────────
+    // ── GERENTE — emite brandId si se asignó a una Marca, gymId si es Sucursal ──
     if (topRoleName === 'GERENTE') {
       const gerenteRoles = userRoles.filter(
         (a) => a.role?.name?.toUpperCase() === 'GERENTE',
@@ -104,31 +104,24 @@ export class AuthService {
         gerenteRoles.find((a) => a.gymId !== null && a.gymId !== undefined)
         ?? gerenteRoles[0];
 
-      let resolvedGymId: number | null = gerenteRole.gymId ?? null;
+      const resolvedGymId: number | null = gerenteRole.gymId ?? null;
 
       if (resolvedGymId !== null) {
         const assignedGym =
           gerenteRole.gym ?? (await this.gymRepo.findOne({ where: { id: resolvedGymId } }));
 
         if (assignedGym && assignedGym.parentId === null) {
-          // Es una Marca → resolver a su primera Sucursal activa
-          const sucursal = await this.gymRepo.findOne({
-            where: { parentId: resolvedGymId, isActive: true },
-            order: { id: 'ASC' },
-          });
-          if (sucursal) {
-            console.log('[JWT] GERENTE userId=%d: Marca %d → Sucursal %d', user.id, resolvedGymId, sucursal.id);
-            resolvedGymId = sucursal.id;
-          } else {
-            console.warn('[JWT] GERENTE userId=%d: Marca %d sin sucursales activas → gymId=null', user.id, resolvedGymId);
-            resolvedGymId = null;
-          }
-        } else {
-          console.log('[JWT] GERENTE userId=%d: Sucursal directa id=%d', user.id, resolvedGymId);
+          // Es una Marca → emitir brandId directamente (no buscar sucursal hija)
+          console.log('[JWT] GERENTE userId=%d: Marca %d → brandId=%d', user.id, resolvedGymId, resolvedGymId);
+          const payload = { sub: user.id, email: user.email, role: 'GERENTE', gymId: null, brandId: resolvedGymId };
+          console.log('Generando JWT para:', user.email, 'con ROL:', payload.role, '| BRAND ID:', payload.brandId);
+          return payload;
         }
+
+        console.log('[JWT] GERENTE userId=%d: Sucursal directa id=%d', user.id, resolvedGymId);
       }
 
-      const payload = { sub: user.id, email: user.email, role: 'GERENTE', gymId: resolvedGymId };
+      const payload = { sub: user.id, email: user.email, role: 'GERENTE', gymId: resolvedGymId, brandId: null };
       console.log('Generando JWT para:', user.email, 'con ROL:', payload.role, '| SUCURSAL ID:', payload.gymId);
       return payload;
     }

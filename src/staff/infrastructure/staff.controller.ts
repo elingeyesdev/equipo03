@@ -1,11 +1,42 @@
-import { Controller, Get, Patch, Body, Param, Query, UseGuards, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, Req, UseGuards, ParseIntPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiParam, ApiQuery, ApiBody } from '@nestjs/swagger';
-import { IsIn, IsString } from 'class-validator';
+import { IsIn, IsString, IsInt, IsArray, ValidateNested, Matches, Min, Max } from 'class-validator';
+import { Type } from 'class-transformer';
+import { ApiProperty } from '@nestjs/swagger';
+import type { RequestWithUser } from '../../common/security/gym-scope';
 
 class UpdateAppointmentStatusDto {
   @IsString()
   @IsIn(['PENDIENTE', 'COMPLETADA', 'CANCELADA'])
   status!: string;
+}
+
+const HH_MM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+class ScheduleSlotDto {
+  @ApiProperty({ example: 1, description: '0=Dom, 1=Lun … 6=Sáb' })
+  @IsInt() @Min(0) @Max(6)
+  dayOfWeek!: number;
+
+  @ApiProperty({ example: '08:00', description: 'Formato 24h HH:mm' })
+  @Matches(HH_MM, { message: 'startTime debe tener formato HH:mm (24h), ej. 08:00' })
+  startTime!: string;
+
+  @ApiProperty({ example: '16:00', description: 'Formato 24h HH:mm' })
+  @Matches(HH_MM, { message: 'endTime debe tener formato HH:mm (24h), ej. 16:00' })
+  endTime!: string;
+}
+
+class AssignScheduleDto {
+  @ApiProperty({ example: 2, description: 'ID de la sucursal' })
+  @IsInt()
+  gymId!: number;
+
+  @ApiProperty({ type: [ScheduleSlotDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ScheduleSlotDto)
+  schedules!: ScheduleSlotDto[];
 }
 import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -71,6 +102,32 @@ export class StaffController {
     @Body() body: UpdateAppointmentStatusDto,
   ) {
     return this.svc.updateAppointmentStatus(id, body.status);
+  }
+
+  @Post(':userId/schedules')
+  @Roles('GERENTE', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Asignar horario laboral a un empleado (reemplaza el existente)' })
+  @ApiParam({ name: 'userId', example: 5 })
+  @ApiBody({ type: AssignScheduleDto })
+  @ApiResponse({ status: 201, description: 'Horario asignado' })
+  @ApiResponse({ status: 403, description: 'Sede fuera de la marca del gerente' })
+  assignSchedule(
+    @Req() req: RequestWithUser,
+    @Param('userId', ParseIntPipe) targetUserId: number,
+    @Body() body: AssignScheduleDto,
+  ) {
+    const isSuperAdmin = req.user!.role === 'SUPER_ADMIN';
+    const managerGymId = Number(req.user!.gymId ?? req.user!.brandId);
+    return this.svc.assignSchedule(managerGymId, targetUserId, body.gymId, body.schedules, isSuperAdmin);
+  }
+
+  @Get(':userId/schedules')
+  @Roles('GERENTE', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Ver horarios laborales de un empleado' })
+  @ApiParam({ name: 'userId', example: 5 })
+  @ApiResponse({ status: 200 })
+  getSchedules(@Param('userId', ParseIntPipe) targetUserId: number) {
+    return this.svc.getStaffSchedules(targetUserId);
   }
 
   /**
