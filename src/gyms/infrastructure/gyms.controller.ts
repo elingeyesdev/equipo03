@@ -70,13 +70,18 @@ export class GymsController {
 
   @Get('me/dashboard-stats')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('GERENTE', 'SUPER_ADMIN')
+  @Roles('GERENTE', 'SUPER_ADMIN', 'RECEPCIONISTA')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Estadísticas de HOY para la sede del gerente' })
+  @ApiOperation({ summary: 'Estadísticas de HOY para la sede del gerente/recepcionista' })
   @ApiQuery({ name: 'gymId', required: false, description: 'Solo SUPER_ADMIN' })
   @ApiResponse({ status: 200, schema: { example: { capacity: 100, occupancy: 12, totalToday: 28, pending: 16, completed: 12 } } })
-  @ApiResponse({ status: 403, description: 'Solo GERENTE o SUPER_ADMIN' })
-  getDashboardStats(@Query('gymId') rawGymId?: string) {
+  @ApiResponse({ status: 403, description: 'Solo GERENTE, RECEPCIONISTA o SUPER_ADMIN' })
+  getDashboardStats(@Req() req: RequestWithUser, @Query('gymId') rawGymId?: string) {
+    const role  = req.user?.role?.toUpperCase();
+    const gymId = req.user?.gymId;
+    if (role === 'RECEPCIONISTA' && gymId) {
+      return this.svc.getDashboardStats(Number(gymId));
+    }
     return this.svc.getDashboardStats(rawGymId !== undefined ? Number(rawGymId) : undefined);
   }
 

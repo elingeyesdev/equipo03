@@ -39,12 +39,13 @@ export class AuthService {
 
   // Jerarquía de roles: mayor índice = mayor prioridad
   private static readonly ROLE_PRIORITY: Record<string, number> = {
-    USER:        10,
-    CLIENTE:     10,
-    ENTRENADOR:  20,
-    INSTRUCTOR:  30,
-    GERENTE:     50,
-    SUPER_ADMIN: 99,
+    USER:          10,
+    CLIENTE:       10,
+    ENTRENADOR:    20,
+    INSTRUCTOR:    30,
+    RECEPCIONISTA: 40,
+    GERENTE:       50,
+    SUPER_ADMIN:   99,
   };
 
   private extractGymName(

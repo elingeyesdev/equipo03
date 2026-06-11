@@ -43,13 +43,13 @@ export class UsersController {
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GERENTE')
+  @Roles('SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Listar usuarios. GERENTE: solo su sede. SUPER_ADMIN: filtro opcional.' })
+  @ApiOperation({ summary: 'Listar usuarios. GERENTE/RECEPCIONISTA: solo su sede. SUPER_ADMIN: filtro opcional.' })
   @ApiQuery({ name: 'role', required: false, example: 'INSTRUCTOR' })
   @ApiQuery({ name: 'gymId', required: false, example: 1, description: 'Solo SUPER_ADMIN' })
   @ApiResponse({ status: 200 })
-  @ApiResponse({ status: 403, description: 'Solo SUPER_ADMIN o GERENTE' })
+  @ApiResponse({ status: 403, description: 'Solo SUPER_ADMIN, GERENTE o RECEPCIONISTA' })
   findAll(
     @Req() req: RequestWithUser,
     @Query('role') role?: string,
@@ -58,7 +58,7 @@ export class UsersController {
     const authUser = req.user!;
     const roleUp = authUser.role?.toUpperCase();
     const gymId =
-      roleUp === 'GERENTE'
+      (roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA')
         ? (authUser.gymId ?? undefined)
         : rawGymId != null
           ? Number(rawGymId)
@@ -78,7 +78,7 @@ export class UsersController {
 
   @Put(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GERENTE')
+  @Roles('SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA')
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Actualizar datos del usuario' })
   @ApiParam({ name: 'id', example: 1 })

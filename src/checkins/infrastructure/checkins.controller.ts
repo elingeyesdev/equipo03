@@ -16,7 +16,7 @@ export class CheckinsController {
 
   @Post()
   @UseGuards(RolesGuard)
-  @Roles('GERENTE', 'SUPER_ADMIN')
+  @Roles('GERENTE', 'SUPER_ADMIN', 'RECEPCIONISTA')
   @ApiOperation({ summary: 'Registrar ingreso de personal. gymId extraído del JWT del GERENTE.' })
   @ApiBody({ type: CreateCheckInDto })
   create(@Req() req: RequestWithUser, @Body() body: CreateCheckInDto) {
@@ -33,15 +33,20 @@ export class CheckinsController {
 
   @Get()
   @UseGuards(RolesGuard)
-  @Roles('SUPER_ADMIN', 'GERENTE')
-  @ApiOperation({ summary: 'Listar check-ins. GERENTE: filtrado a su sede.' })
-  findAll() {
+  @Roles('SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA')
+  @ApiOperation({ summary: 'Listar check-ins. GERENTE/RECEPCIONISTA: filtrado a su sede.' })
+  findAll(@Req() req: RequestWithUser) {
+    const role  = req.user?.role?.toUpperCase();
+    const gymId = req.user?.gymId;
+    if (role === 'RECEPCIONISTA' && gymId) {
+      return this.svc.findByGym(Number(gymId));
+    }
     return this.svc.findAll();
   }
 
   @Get('user/:userId')
   @UseGuards(RolesGuard)
-  @Roles('SUPER_ADMIN', 'GERENTE')
+  @Roles('SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA')
   @ApiOperation({ summary: 'Check-ins de un usuario específico' })
   findByUser(@Param('userId', ParseIntPipe) uid: number) {
     return this.svc.findByUser(uid);
@@ -49,7 +54,7 @@ export class CheckinsController {
 
   @Get('gym/:gymId')
   @UseGuards(RolesGuard)
-  @Roles('SUPER_ADMIN', 'GERENTE')
+  @Roles('SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA')
   @ApiOperation({ summary: 'Check-ins de una sede específica' })
   findByGym(@Param('gymId', ParseIntPipe) gid: number) {
     return this.svc.findByGym(gid);
@@ -57,7 +62,7 @@ export class CheckinsController {
 
   @Put(':id/checkout')
   @UseGuards(RolesGuard)
-  @Roles('GERENTE', 'SUPER_ADMIN')
+  @Roles('GERENTE', 'SUPER_ADMIN', 'RECEPCIONISTA')
   @ApiOperation({ summary: 'Registrar salida' })
   checkOut(@Param('id', ParseIntPipe) id: number) {
     return this.svc.checkOut(id);

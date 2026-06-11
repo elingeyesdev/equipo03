@@ -11,13 +11,14 @@ export type RequestUser = {
 
 export type RequestWithUser = Request & { user?: RequestUser };
 
-/** Cuando el rol es GERENTE devuelve su gymId o brandId; SUPER_ADMIN u otros → null (sin filtro). */
+/** Cuando el rol es GERENTE o RECEPCIONISTA devuelve su gymId (o brandId para gerente); otros → null (sin filtro). */
 export function getManagerGymId(req: RequestWithUser): number | null {
   const user = req.user;
-  if (!user || user.role !== 'GERENTE') return null;
+  if (!user) return null;
+  if (user.role !== 'GERENTE' && user.role !== 'RECEPCIONISTA') return null;
   if (user.gymId !== null && user.gymId !== undefined) return Number(user.gymId);
   if (user.brandId !== null && user.brandId !== undefined) return Number(user.brandId);
-  throw new ForbiddenException('El gerente no tiene un gimnasio asignado');
+  throw new ForbiddenException('El usuario no tiene un gimnasio asignado');
 }
 
 /**
@@ -27,6 +28,7 @@ export function getManagerGymId(req: RequestWithUser): number | null {
  */
 const BRAND_SCOPED_ROLES = new Set([
   'GERENTE',
+  'RECEPCIONISTA',
   'INSTRUCTOR',
   'ENTRENADOR',
   'NUTRICIONISTA',
