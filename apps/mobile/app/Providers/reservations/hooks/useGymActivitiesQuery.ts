@@ -2,15 +2,15 @@ import { useQuery } from '@tanstack/react-query';
 import { reservationApi } from '../api/reservation.api';
 import { GymActivity, GymActivitySchedule, DayOfWeek } from '../api/reservation.types';
 
-// Mapa de abreviaturas del backend a nombre completo en español
-export const DAY_LABELS: Record<DayOfWeek, string> = {
-  LUN: 'Lunes',
-  MAR: 'Martes',
-  MIE: 'Miércoles',
-  JUE: 'Jueves',
-  VIE: 'Viernes',
-  SAB: 'Sábado',
-  DOM: 'Domingo',
+// Nombres de día del backend (completo) → label formateado en español
+export const DAY_LABELS: Record<string, string> = {
+  LUNES: 'Lunes',     LUN: 'Lunes',
+  MARTES: 'Martes',   MAR: 'Martes',
+  MIERCOLES: 'Miércoles', MIE: 'Miércoles',
+  JUEVES: 'Jueves',   JUE: 'Jueves',
+  VIERNES: 'Viernes', VIE: 'Viernes',
+  SABADO: 'Sábado',   SAB: 'Sábado',
+  DOMINGO: 'Domingo', DOM: 'Domingo',
 };
 
 // Actividad enriquecida para la UI
@@ -59,7 +59,8 @@ export const useGymActivitiesQuery = (gymId: number | undefined) => {
       return enriched;
     },
     enabled: !!gymId,
-    staleTime: 1000 * 60 * 5, // 5 min de caché
+    staleTime: 0,
+    refetchOnMount: true,
     retry: 1,
   });
 };

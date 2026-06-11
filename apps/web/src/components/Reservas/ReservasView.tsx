@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { reservationsApi } from '../../infrastructure/AxiosReservationsApi.adapter';
 import { apiClient } from '../../infrastructure/api.config';
@@ -193,7 +193,7 @@ export const ReservasView = () => {
             </div>
             
             <div className="confirm-icon-wrapper">
-              <CheckCircle size={48} color="#2dce89" />
+              <CheckCircle size={48} color="#00E5A3" />
             </div>
 
             <div className="confirm-content">
@@ -242,7 +242,7 @@ export const ReservasView = () => {
         </div>
 
         <div className="view-filters">
-          <button onClick={() => setShowScanner(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: '#fb6340', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}>
+          <button onClick={() => setShowScanner(true)} className="bg-brand-orange text-white font-semibold px-4 py-2 rounded-lg border-0 cursor-pointer inline-flex items-center gap-1.5 text-sm">
             <QrCode size={15} />
             Escanear QR
           </button>
@@ -252,13 +252,13 @@ export const ReservasView = () => {
             placeholder="Buscar por Nombre o CI..."
             value={searchTerm}
             onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-            className="w-full bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-800 text-slate-900 dark:text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors"
+            className="w-full bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md px-4 py-2 focus:outline-none"
             style={{ minWidth: '220px' }}
           />
 
           {!isGerente && sucursales.length > 0 && (
             <select value={filterGym} onChange={e => setFilterGym(e.target.value)}
-              className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-800 text-slate-900 dark:text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors">
+              className="bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md px-4 py-2 focus:outline-none">
               <option value="">Sucursal: Todas</option>
               {sucursales.map(s => (
                 <option key={s.id} value={s.id}>{s.name}</option>
@@ -267,7 +267,7 @@ export const ReservasView = () => {
           )}
 
           <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setCurrentPage(1); }}
-            className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-800 text-slate-900 dark:text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors">
+            className="bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md px-4 py-2 focus:outline-none">
             <option value="">Todas las reservas</option>
             <option value="HOY">Hoy</option>
             <option value="CONFIRMADA">Recibidas</option>
@@ -275,20 +275,20 @@ export const ReservasView = () => {
             <option value="CANCELADA">Canceladas</option>
           </select>
 
-          <button onClick={loadReservations} title="Refrescar" style={{ background: '#172b4d', border: 'none', color: '#fff', borderRadius: '8px', padding: '0.5rem 0.75rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+          <button onClick={loadReservations} title="Refrescar" className="text-text-muted hover:text-brand-celeste dark:text-text-muted border border-gray-300 dark:border-gray-700 bg-transparent rounded-lg p-2 cursor-pointer inline-flex items-center">
             <RotateCw size={15} />
           </button>
         </div>
       </div>
 
       {/* ── Tabla ── */}
-      <div className="bg-white dark:bg-[#1e1e2d] border border-slate-200 dark:border-gray-800 rounded-xl shadow-sm overflow-x-auto mt-4 transition-colors">
+      <div className="bg-white dark:bg-bg-surface border border-gray-200 dark:border-bg-deep rounded-xl overflow-x-auto mt-4">
         {loading ? (
           <div className="loading-state">Cargando registros...</div>
         ) : (
           <>
             <table className="w-full text-left border-collapse">
-              <thead className="bg-slate-50 dark:bg-[#151521] border-b border-slate-200 dark:border-gray-800 text-slate-500 dark:text-gray-400 text-xs uppercase tracking-wider">
+              <thead className="bg-gray-50 dark:bg-bg-deep border-b border-gray-200 dark:border-bg-deep text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">
                 <tr>
                   <th className="px-6 py-4">Usuario</th>
                   <th className="px-6 py-4">Carnet (CI)</th>
@@ -316,7 +316,7 @@ export const ReservasView = () => {
                     res.gymActivity?.gymId ||
                     null;
                   return (
-                    <tr key={res.id} className="border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-slate-700 dark:text-gray-300 text-sm">
+                    <tr key={res.id} className="border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-bg-deep transition-colors text-slate-700 dark:text-gray-300 text-sm">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="user-avatar-mini">
@@ -354,7 +354,7 @@ export const ReservasView = () => {
                         <div className="flex items-center gap-2">
                           {/* Detalle */}
                           <button
-                            style={{ background: '#11cdef', border: 'none', color: '#fff', borderRadius: '6px', padding: '0.4rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '36px' }}
+                            className="bg-brand-celeste text-black p-1.5 rounded cursor-pointer flex items-center justify-center"
                             title="Ver detalle completo de reserva"
                             onClick={() => setViewingReservation(res)}
                             disabled={isLoading}
@@ -364,7 +364,7 @@ export const ReservasView = () => {
 
                           {/* Aceptar — solo para CONFIRMED */}
                           <button
-                            style={{ background: isConfirmed ? '#2dce89' : '#cbd5e1', border: 'none', color: '#fff', borderRadius: '6px', padding: '0.4rem', cursor: isConfirmed ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '36px', opacity: isConfirmed ? 1 : 0.7 }}
+                            className={`p-1.5 rounded flex items-center justify-center ${isConfirmed ? 'bg-brand-green text-black cursor-pointer' : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed opacity-50'}`}
                             title="Aceptar entrada"
                             onClick={() => handleAccept(res)}
                             disabled={!isConfirmed || isLoading}
@@ -374,7 +374,7 @@ export const ReservasView = () => {
 
                           {/* Cancelar — solo para CONFIRMED */}
                           <button
-                            style={{ background: isConfirmed ? '#f5365c' : '#cbd5e1', border: 'none', color: '#fff', borderRadius: '6px', padding: '0.4rem', cursor: isConfirmed ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '36px', opacity: isConfirmed ? 1 : 0.7 }}
+                            className={`bg-transparent border-0 p-1.5 rounded flex items-center justify-center ${isConfirmed ? 'text-gray-500 dark:text-text-muted cursor-pointer' : 'text-gray-300 opacity-50 cursor-not-allowed'}`}
                             title="Cancelar reserva"
                             onClick={() => handleCancel(res.id)}
                             disabled={!isConfirmed || isLoading}
@@ -441,7 +441,7 @@ export const ReservasView = () => {
           })()}
         />
         <DetailField
-          label="Sede (Marca)"
+          label="Marca"
           value={(() => {
             const gId = viewingReservation?.gymActivitySchedule?.gymActivity?.gymId;
             const info = gId ? gymInfoMap.get(gId) : undefined;
@@ -470,7 +470,7 @@ export const ReservasView = () => {
             label="Token de Seguridad QR" 
             isFullWidth 
             value={
-              <code style={{ wordBreak: 'break-all', background: '#172b4d', padding: '0.4rem 0.6rem', borderRadius: '6px', color: '#fff', fontSize: '0.8rem', display: 'block' }}>
+              <code style={{ wordBreak: 'break-all', background: '#0A0A0A', padding: '0.4rem 0.6rem', borderRadius: '6px', color: '#fff', fontSize: '0.8rem', display: 'block' }}>
                 {viewingReservation.qrToken}
               </code>
             } 

@@ -325,9 +325,9 @@ export const QrScannerModal = ({ onClose, onScanned }: QrScannerModalProps) => {
                     style={{
                       flex: '1 1 auto',
                       maxWidth: '200px',
-                      background:    isActive ? 'rgba(251,99,64,0.15)' : '#1e293b',
-                      border:        `1px solid ${isActive ? '#fb6340' : '#334155'}`,
-                      color:         isActive ? '#fb6340' : '#94a3b8',
+                      background:    isActive ? '#1C1C1E' : '#0A0A0A',
+                      border:        `1px solid ${isActive ? '#FF5E00' : '#3A3A3C'}`,
+                      color:         isActive ? '#FF5E00' : '#B0B0B0',
                       borderRadius:  '8px',
                       padding:       '5px 10px',
                       fontSize:      '0.75rem',
@@ -373,8 +373,8 @@ export const QrScannerModal = ({ onClose, onScanned }: QrScannerModalProps) => {
         {/* Panel de advertencia para actividades programadas */}
         {status === 'schedule-warn' && schedWarn && (
           <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div style={{ background: schedWarn.autoAccept ? 'rgba(45,206,137,0.12)' : 'rgba(251,99,64,0.12)', border: `1px solid ${schedWarn.autoAccept ? '#2dce89' : '#fb6340'}`, borderRadius: '10px', padding: '14px 16px' }}>
-              <p style={{ margin: 0, fontWeight: 700, fontSize: '0.9rem', color: schedWarn.autoAccept ? '#2dce89' : '#fb6340', marginBottom: '6px' }}>
+            <div style={{ background: '#1C1C1E', border: `1px solid ${schedWarn.autoAccept ? '#00E5A3' : '#FF5E00'}`, borderRadius: '10px', padding: '14px 16px' }}>
+              <p style={{ margin: 0, fontWeight: 700, fontSize: '0.9rem', color: schedWarn.autoAccept ? '#00E5A3' : '#FF5E00', marginBottom: '6px' }}>
                 {schedWarn.autoAccept ? '✓ Reserva vigente hoy' : '⚠ Reserva anticipada'}
               </p>
               <p style={{ margin: 0, fontSize: '0.85rem', color: '#e2e8f0', lineHeight: 1.5 }}>
@@ -388,7 +388,7 @@ export const QrScannerModal = ({ onClose, onScanned }: QrScannerModalProps) => {
               )}
             </div>
             {schedWarn.autoAccept ? (
-              <button onClick={handleSchedConfirm} style={{ background: '#2dce89', border: 'none', color: '#fff', borderRadius: '8px', padding: '12px', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer' }}>
+              <button onClick={handleSchedConfirm} style={{ background: '#00E5A3', border: 'none', color: '#000', borderRadius: '8px', padding: '12px', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer' }}>
                 Aceptar Entrada
               </button>
             ) : (
@@ -396,7 +396,7 @@ export const QrScannerModal = ({ onClose, onScanned }: QrScannerModalProps) => {
                 <button onClick={handleSchedCancel} style={{ flex: 1, background: 'transparent', border: '1px solid #475569', color: '#94a3b8', borderRadius: '8px', padding: '11px', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}>
                   No
                 </button>
-                <button onClick={handleSchedConfirm} style={{ flex: 2, background: '#fb6340', border: 'none', color: '#fff', borderRadius: '8px', padding: '11px', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}>
+                <button onClick={handleSchedConfirm} style={{ flex: 2, background: '#FF5E00', border: 'none', color: '#fff', borderRadius: '8px', padding: '11px', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}>
                   Sí, confirmar entrada
                 </button>
               </div>

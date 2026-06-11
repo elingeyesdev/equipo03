@@ -58,9 +58,11 @@ export const createApiClient = (): AxiosInstance => {
                 config.params = config.params || {};
                 if (user.gymId) {
                   config.params.gym_id = user.gymId;
+                } else if (user.brandId) {
+                  config.params.brand_id = user.brandId;
                 } else {
                   config.params.gym_id = -1;
-                  console.warn('[RBAC Security]: Gerente sin gymId detectado. Petición bloqueada con gym_id=-1.');
+                  console.warn('[RBAC Security]: Gerente sin gymId ni brandId detectado. Petición bloqueada con gym_id=-1.');
                 }
               }
             }

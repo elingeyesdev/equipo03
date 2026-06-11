@@ -11,6 +11,7 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { Audio } from 'expo-av';
 import { AuthService } from '../../../app/Providers/auth/AuthService';
 import { trainingApi } from '../../../app/Providers/training/api/training.api';
+import { TrackingType } from './WorkoutModeScreen';
 
 const CALORIE_RATE: Record<string, number> = {
   CARDIO:        0.15,
@@ -23,29 +24,46 @@ const CALORIE_RATE: Record<string, number> = {
 const formatTime = (sec: number): string =>
   `${Math.floor(sec / 60).toString().padStart(2, '0')}:${(sec % 60).toString().padStart(2, '0')}`;
 
-type Serie = { peso: string; reps: string };
+type Serie = {
+  // PESO_REPS
+  peso?: string;
+  reps?: string;
+  // TIME_BASED
+  duracionSec?: string;
+  // DISTANCE_TIME
+  distanciaM?: string;
+  tiempoMin?: string;
+  // ASSISTED_WEIGHT
+  ayudaKg?: string;
+};
 
 export const WorkoutActiveScreen = () => {
   useKeepAwake();
 
   const navigation = useNavigation<any>();
   const route      = useRoute<any>();
-  const { sport = 'DEFAULT', exerciseName } = route.params ?? {};
+  const { sport = 'DEFAULT', exerciseName, trackingType = 'PESO_REPS' as TrackingType } = route.params ?? {};
 
-  const displayName = (exerciseName ?? String(sport).toUpperCase()) as string;
-  const isCardio    = sport === 'CARDIO' || sport === 'HIIT';
+  const displayName  = (exerciseName ?? String(sport).toUpperCase()) as string;
+  const isCardio     = (trackingType as TrackingType) === 'DISTANCE_TIME';
 
   const [countdown, setCountdown]             = useState(3);
   const [startTime, setStartTime]             = useState(Date.now());
   const [elapsedSeconds, setElapsedSeconds]   = useState(0);
   const [isPaused, setIsPaused]               = useState(false);
-  const [peso, setPeso]                       = useState('');
-  const [reps, setReps]                       = useState('');
   const [completedSeries, setCompletedSeries] = useState<Serie[]>([]);
   const [restDuration, setRestDuration]       = useState(60);
   const [restEndTime, setRestEndTime]         = useState<number | null>(null);
   const [restTimeLeft, setRestTimeLeft]       = useState(0);
   const [isFinished, setIsFinished]           = useState(false);
+
+  // Inputs por tipo
+  const [peso, setPeso]           = useState(''); // PESO_REPS
+  const [reps, setReps]           = useState(''); // PESO_REPS, BODYWEIGHT_REPS, ASSISTED_WEIGHT
+  const [duracion, setDuracion]   = useState(''); // TIME_BASED
+  const [distancia, setDistancia] = useState(''); // DISTANCE_TIME
+  const [tiempoMin, setTiempoMin] = useState(''); // DISTANCE_TIME
+  const [ayuda, setAyuda]         = useState(''); // ASSISTED_WEIGHT
 
   const startTimeRef   = useRef(startTime);
   const pausedAtRef    = useRef<number | null>(null);
@@ -57,7 +75,6 @@ export const WorkoutActiveScreen = () => {
   startTimeRef.current   = startTime;
   restEndTimeRef.current = restEndTime;
 
-  // Beep de cuenta regresiva — guarda ref para corte forzado
   const playBeep = async () => {
     try {
       const { sound } = await Audio.Sound.createAsync(
@@ -70,7 +87,6 @@ export const WorkoutActiveScreen = () => {
     }
   };
 
-  // Beep corto para fin de descanso — auto-descarga, sin ref
   const playShortBeep = async () => {
     try {
       const { sound } = await Audio.Sound.createAsync(
@@ -85,7 +101,6 @@ export const WorkoutActiveScreen = () => {
     }
   };
 
-  // Cuenta regresiva inicial 3→0
   useEffect(() => {
     playBeep();
     countdownRef.current = setInterval(() => {
@@ -104,7 +119,6 @@ export const WorkoutActiveScreen = () => {
     return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Corta el audio de cuenta regresiva exactamente al llegar a 0
   useEffect(() => {
     if (countdown !== 0) return;
     (async () => {
@@ -112,21 +126,19 @@ export const WorkoutActiveScreen = () => {
         try {
           await soundRef.current.stopAsync();
           await soundRef.current.unloadAsync();
-        } catch { /* el sonido ya terminó por sí solo */ }
+        } catch { /* ya terminó */ }
         soundRef.current = null;
       }
     })();
   }, [countdown]);
 
-  // Tick principal: tiempo total + descanso en el mismo reloj
   const tick = useCallback(() => {
     if (pausedAtRef.current !== null) return;
     setElapsedSeconds(Math.floor((Date.now() - startTimeRef.current) / 1000));
-
     if (restEndTimeRef.current !== null) {
       const left = Math.ceil((restEndTimeRef.current - Date.now()) / 1000);
       if (left <= 0) {
-        restEndTimeRef.current = null; // inmediato para evitar doble disparo
+        restEndTimeRef.current = null;
         setRestEndTime(null);
         setRestTimeLeft(0);
         playShortBeep();
@@ -136,14 +148,12 @@ export const WorkoutActiveScreen = () => {
     }
   }, []);
 
-  // Cronómetro arranca cuando countdown llega a 0
   useEffect(() => {
     if (countdown > 0) return;
     intervalRef.current = setInterval(tick, 1000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [countdown, tick]);
 
-  // Recalcula tiempo total al volver de background
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
       if (next === 'active' && countdown === 0 && pausedAtRef.current === null)
@@ -184,9 +194,34 @@ export const WorkoutActiveScreen = () => {
   };
 
   const handleMarkSerie = () => {
-    if (!peso && !reps) return;
-    setCompletedSeries(prev => [...prev, { peso, reps }]);
-    setReps(''); // mantiene el peso para la siguiente serie
+    const serie: Serie = {};
+    switch (trackingType as TrackingType) {
+      case 'PESO_REPS':
+        if (!peso && !reps) return;
+        serie.peso = peso;
+        serie.reps = reps;
+        setReps('');
+        break;
+      case 'BODYWEIGHT_REPS':
+        if (!reps) return;
+        serie.reps = reps;
+        setReps('');
+        break;
+      case 'TIME_BASED':
+        if (!duracion) return;
+        serie.duracionSec = duracion;
+        setDuracion('');
+        break;
+      case 'ASSISTED_WEIGHT':
+        if (!ayuda && !reps) return;
+        serie.ayudaKg = ayuda;
+        serie.reps    = reps;
+        setReps('');
+        break;
+      default:
+        return;
+    }
+    setCompletedSeries(prev => [...prev, serie]);
     const end = Date.now() + restDuration * 1000;
     restEndTimeRef.current = end;
     setRestEndTime(end);
@@ -236,6 +271,94 @@ export const WorkoutActiveScreen = () => {
     });
   };
 
+  const renderSerieLabel = (ser: Serie): string => {
+    switch (trackingType as TrackingType) {
+      case 'PESO_REPS':       return `${ser.peso} kg × ${ser.reps} reps`;
+      case 'BODYWEIGHT_REPS': return `${ser.reps} reps`;
+      case 'TIME_BASED':      return `${ser.duracionSec} seg`;
+      case 'ASSISTED_WEIGHT': return `${ser.ayudaKg} kg ayuda × ${ser.reps} reps`;
+      default:                return '-';
+    }
+  };
+
+  const renderInputBlock = () => {
+    switch (trackingType as TrackingType) {
+      case 'PESO_REPS':
+        return (
+          <View style={s.inputsRow}>
+            <View style={s.inputWrap}>
+              <Text style={s.inputLabel}>Carga (kg)</Text>
+              <TextInput
+                style={s.inputField} value={peso} onChangeText={setPeso}
+                keyboardType="decimal-pad" placeholder="0" placeholderTextColor="#333" maxLength={6}
+              />
+            </View>
+            <View style={s.inputWrap}>
+              <Text style={s.inputLabel}>Repeticiones</Text>
+              <TextInput
+                style={s.inputField} value={reps} onChangeText={setReps}
+                keyboardType="number-pad" placeholder="0" placeholderTextColor="#333" maxLength={3}
+              />
+            </View>
+          </View>
+        );
+
+      case 'BODYWEIGHT_REPS':
+        return (
+          <View style={s.inputsRow}>
+            <View style={[s.inputWrap, { flex: 1 }]}>
+              <Text style={s.inputLabel}>Repeticiones completadas</Text>
+              <TextInput
+                style={s.inputField} value={reps} onChangeText={setReps}
+                keyboardType="number-pad" placeholder="0" placeholderTextColor="#333" maxLength={3}
+              />
+            </View>
+          </View>
+        );
+
+      case 'TIME_BASED':
+        return (
+          <View style={s.inputsRow}>
+            <View style={[s.inputWrap, { flex: 1 }]}>
+              <Text style={s.inputLabel}>Tiempo completado (seg)</Text>
+              <View style={s.timerInputRow}>
+                <TextInput
+                  style={[s.inputField, { flex: 1 }]} value={duracion} onChangeText={setDuracion}
+                  keyboardType="number-pad" placeholder="0" placeholderTextColor="#333" maxLength={4}
+                />
+                <TouchableOpacity style={s.copyTimerBtn} onPress={() => setDuracion(String(elapsedSeconds))}>
+                  <MaterialCommunityIcons name="timer-outline" size={22} color="#f05b22" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        );
+
+      case 'ASSISTED_WEIGHT':
+        return (
+          <View style={s.inputsRow}>
+            <View style={s.inputWrap}>
+              <Text style={s.inputLabel}>Ayuda máquina (kg)</Text>
+              <TextInput
+                style={s.inputField} value={ayuda} onChangeText={setAyuda}
+                keyboardType="decimal-pad" placeholder="0" placeholderTextColor="#333" maxLength={6}
+              />
+            </View>
+            <View style={s.inputWrap}>
+              <Text style={s.inputLabel}>Repeticiones</Text>
+              <TextInput
+                style={s.inputField} value={reps} onChangeText={setReps}
+                keyboardType="number-pad" placeholder="0" placeholderTextColor="#333" maxLength={3}
+              />
+            </View>
+          </View>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   // ── Cuenta regresiva ───────────────────────────────────────────────────────────
   if (countdown > 0) {
     return (
@@ -248,46 +371,68 @@ export const WorkoutActiveScreen = () => {
     );
   }
 
-  // ── CARDIO / HIIT ──────────────────────────────────────────────────────────────
+  // ── CARDIO (DISTANCE_TIME) ────────────────────────────────────────────────────
   if (isCardio) {
     return (
       <SafeAreaView style={s.container}>
-        <View style={s.topBackRow}>
-          <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
-            <MaterialCommunityIcons name="arrow-left" size={22} color="#f05b22" />
-          </TouchableOpacity>
-        </View>
-        <View style={s.cardioWrap}>
-          <Text style={s.sportLabel}>{displayName}</Text>
-          <Text style={s.timerBig}>{formatTime(elapsedSeconds)}</Text>
-          {isPaused && <Text style={s.pausedBadge}>PAUSADO</Text>}
-
-          <View style={s.statsRow}>
-            <View style={s.statCard}>
-              <Text style={s.statValue}>{Math.floor(elapsedSeconds * 0.15)}</Text>
-              <Text style={s.statLabel}>Calorias kcal</Text>
-            </View>
-            <View style={s.statCard}>
-              <Text style={s.statValue}>60-70%</Text>
-              <Text style={s.statLabel}>Zona Aerobica FC</Text>
-            </View>
-          </View>
-
-          <View style={s.actionsCardio}>
-            {isPaused
-              ? <TouchableOpacity style={[s.btn, s.btnResume]} onPress={handleResume}><Text style={s.btnTxt}>Reanudar</Text></TouchableOpacity>
-              : <TouchableOpacity style={[s.btn, s.btnPause]}  onPress={handlePause}><Text style={s.btnTxt}>Pausa</Text></TouchableOpacity>
-            }
-            <TouchableOpacity style={[s.btn, s.btnFinish]} onPress={handleFinish}>
-              <Text style={s.btnTxt}>Finalizar</Text>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={{ flex: 1 }}>
+          <View style={s.topBackRow}>
+            <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
+              <MaterialCommunityIcons name="arrow-left" size={22} color="#f05b22" />
             </TouchableOpacity>
           </View>
+          <View style={s.cardioWrap}>
+            <Text style={s.sportLabel}>{displayName}</Text>
+            <Text style={s.timerBig}>{formatTime(elapsedSeconds)}</Text>
+            {isPaused && <Text style={s.pausedBadge}>PAUSADO</Text>}
+
+            <View style={s.statsRow}>
+              <View style={s.statCard}>
+                <Text style={s.statValue}>{Math.floor(elapsedSeconds * 0.15)}</Text>
+                <Text style={s.statLabel}>Calorias kcal</Text>
+              </View>
+              <View style={s.statCard}>
+                <Text style={s.statValue}>60-70%</Text>
+                <Text style={s.statLabel}>Zona Aerobica FC</Text>
+              </View>
+            </View>
+
+            {/* Inputs distancia / tiempo para registrar al finalizar */}
+            <View style={[s.inputsRow, { marginTop: 24 }]}>
+              <View style={s.inputWrap}>
+                <Text style={s.inputLabel}>Distancia (metros)</Text>
+                <TextInput
+                  style={s.inputField} value={distancia} onChangeText={setDistancia}
+                  keyboardType="decimal-pad" placeholder="0" placeholderTextColor="#333" maxLength={6}
+                />
+              </View>
+              <View style={s.inputWrap}>
+                <Text style={s.inputLabel}>Tiempo (minutos)</Text>
+                <TextInput
+                  style={s.inputField} value={tiempoMin} onChangeText={setTiempoMin}
+                  keyboardType="decimal-pad" placeholder="0" placeholderTextColor="#333" maxLength={5}
+                />
+              </View>
+            </View>
+
+            <View style={s.actionsCardio}>
+              {isPaused
+                ? <TouchableOpacity style={[s.btn, s.btnResume]} onPress={handleResume}><Text style={s.btnTxt}>Reanudar</Text></TouchableOpacity>
+                : <TouchableOpacity style={[s.btn, s.btnPause]}  onPress={handlePause}><Text style={s.btnTxt}>Pausa</Text></TouchableOpacity>
+              }
+              <TouchableOpacity style={[s.btn, s.btnFinish]} onPress={handleFinish}>
+                <Text style={s.btnTxt}>Finalizar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
+        </TouchableWithoutFeedback>
       </SafeAreaView>
     );
   }
 
-  // ── MUSCULACIÓN ────────────────────────────────────────────────────────────────
+  // ── MUSCULACIÓN / HIIT / CORE ──────────────────────────────────────────────────
   const isResting = restEndTime !== null;
 
   return (
@@ -310,7 +455,6 @@ export const WorkoutActiveScreen = () => {
           <Text style={s.exerciseNameBig}>{displayName}</Text>
 
           {isResting ? (
-            /* ── Descanso activo ── */
             <View style={s.restBlock}>
               <Text style={s.restLabel}>DESCANSO</Text>
               <Text style={s.restTimer}>{formatTime(restTimeLeft)}</Text>
@@ -319,40 +463,13 @@ export const WorkoutActiveScreen = () => {
               </TouchableOpacity>
             </View>
           ) : (
-            /* ── Formulario de serie ── */
             <>
-              <View style={s.inputsRow}>
-                <View style={s.inputWrap}>
-                  <Text style={s.inputLabel}>Peso en Máquina/Mancuerna</Text>
-                  <TextInput
-                    style={s.inputField}
-                    value={peso}
-                    onChangeText={setPeso}
-                    keyboardType="decimal-pad"
-                    placeholder="0"
-                    placeholderTextColor="#333"
-                    maxLength={6}
-                  />
-                </View>
-                <View style={s.inputWrap}>
-                  <Text style={s.inputLabel}>Repeticiones completadas</Text>
-                  <TextInput
-                    style={s.inputField}
-                    value={reps}
-                    onChangeText={setReps}
-                    keyboardType="number-pad"
-                    placeholder="0"
-                    placeholderTextColor="#333"
-                    maxLength={3}
-                  />
-                </View>
-              </View>
+              {renderInputBlock()}
 
               <TouchableOpacity style={s.markBtn} activeOpacity={0.8} onPress={handleMarkSerie}>
                 <Text style={s.markBtnTxt}>Marcar Serie Completada</Text>
               </TouchableOpacity>
 
-              {/* Ajuste de descanso */}
               <View style={s.restControl}>
                 <Text style={s.restControlLabel}>Descanso entre series</Text>
                 <View style={s.restControlRow}>
@@ -376,7 +493,6 @@ export const WorkoutActiveScreen = () => {
             </>
           )}
 
-          {/* Historial de series — siempre visible */}
           {completedSeries.length > 0 && (
             <View style={s.seriesBox}>
               <Text style={s.seriesCount}>
@@ -384,7 +500,7 @@ export const WorkoutActiveScreen = () => {
               </Text>
               {completedSeries.slice(-3).map((ser, i) => (
                 <Text key={i} style={s.serieItem}>
-                  {completedSeries.length - Math.min(completedSeries.length, 3) + i + 1}.{'  '}{ser.peso} kg × {ser.reps} reps
+                  {completedSeries.length - Math.min(completedSeries.length, 3) + i + 1}.{'  '}{renderSerieLabel(ser)}
                 </Text>
               ))}
             </View>
@@ -437,7 +553,7 @@ const s = StyleSheet.create({
   statValue:  { color: '#fff', fontSize: 26, fontWeight: '900' },
   statLabel:  { color: '#555', fontSize: 11, marginTop: 6, textAlign: 'center' },
 
-  actionsCardio: { flexDirection: 'row', gap: 16, marginTop: 48 },
+  actionsCardio: { flexDirection: 'row', gap: 16, marginTop: 32 },
 
   musTopBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -462,6 +578,12 @@ const s = StyleSheet.create({
   inputField: {
     backgroundColor: '#161618', borderRadius: 14, borderWidth: 1, borderColor: '#222',
     height: 58, textAlign: 'center', color: '#fff', fontSize: 24, fontWeight: '700',
+  },
+
+  timerInputRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  copyTimerBtn: {
+    backgroundColor: '#161618', borderRadius: 14, borderWidth: 1, borderColor: '#f05b2244',
+    width: 58, height: 58, justifyContent: 'center', alignItems: 'center',
   },
 
   markBtn: {

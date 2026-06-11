@@ -7,6 +7,7 @@ import { styles } from './FilterBottomSheet.styles';
 interface Props {
   visible: boolean;
   onClose: () => void;
+  marcasDisponibles?: string[];
 }
 
 const SERVICIOS = [
@@ -29,8 +30,8 @@ const AMENIDADES = [
   { id: 'Nutricionista', icon: 'food-apple' }
 ];
 
-export const FilterBottomSheet: React.FC<Props> = ({ visible, onClose }) => {
-  const { filtros, toggleServicio, toggleBeneficio, resetFiltros } = useFilterStore();
+export const FilterBottomSheet: React.FC<Props> = ({ visible, onClose, marcasDisponibles = [] }) => {
+  const { filtros, toggleServicio, toggleBeneficio, toggleMarca, resetFiltros } = useFilterStore();
 
   return (
     <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
@@ -96,6 +97,33 @@ export const FilterBottomSheet: React.FC<Props> = ({ visible, onClose }) => {
                 );
               })}
             </View>
+            {marcasDisponibles.length > 0 && (
+              <>
+                <View style={{ height: 28 }} />
+                <Text style={styles.sectionTitle}>Marca</Text>
+                <View style={styles.chipsContainer}>
+                  {marcasDisponibles.map(marca => {
+                    const isActive = filtros.marcas?.includes(marca) ?? false;
+                    return (
+                      <TouchableOpacity
+                        key={marca}
+                        style={[styles.chip, isActive && styles.chipActive]}
+                        onPress={() => toggleMarca(marca)}
+                        activeOpacity={0.7}
+                      >
+                        <MaterialCommunityIcons
+                          name="office-building-outline"
+                          size={16}
+                          color={isActive ? '#FF5E00' : '#888'}
+                          style={{ marginRight: 6 }}
+                        />
+                        <Text style={[styles.chipText, isActive && styles.chipTextActive]}>{marca}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </>
+            )}
             <View style={{ height: 20 }} />
           </ScrollView>
           

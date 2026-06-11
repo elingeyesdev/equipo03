@@ -17,6 +17,10 @@ import MapView, { UrlTile } from 'react-native-maps';
 import { OSMConfig } from '../../../app/Providers/geolocation/config/osm.config';
 import { useFilterStore } from '../../../app/Providers/geolocation/stores/FilterStore';
 import { useMapScreenStore } from '../../../app/Http/Controllers/geolocation/MapScreen.Controller';
+import { useAuth } from '../../../app/Shared/hooks/useAuth';
+
+// Roles que deben ver el mapa filtrado por su marca (NO el mapa global de CLIENTE)
+const STAFF_ROLES = new Set(['GERENTE', 'INSTRUCTOR', 'ENTRENADOR', 'PERSONAL_DE_LIMPIEZA', 'NUTRICIONISTA']);
 
 const { width, height } = Dimensions.get('window');
 const GRID_GAP = 10;
@@ -34,19 +38,24 @@ const CATEGORIAS = [
 export const BuscarScreen = () => {
   const [query, setQuery] = useState('');
   const navigation = useNavigation<NavigationProp>();
-  
+  const { user }   = useAuth();
+
   const resetFiltros = useFilterStore(state => state.resetFiltros);
   const setFiltros = useFilterStore(state => state.setFiltros);
 
+  // Determinar si el usuario es staff (mapa de marca) o cliente (mapa global)
+  const isStaff = STAFF_ROLES.has(user?.role ?? '');
+  const mapaRoute: keyof BuscarStackParamList = isStaff ? 'StaffMapa' : 'Mapa';
+
   const handleCategoryPress = (categoryQuery: string) => {
+    if (isStaff) {
+      // Staff: navegar directamente al mapa de su marca sin filtros de categoría
+      navigation.navigate('StaffMapa');
+      return;
+    }
     resetFiltros();
-    // Añadir el servicio a los filtros
     setFiltros({ servicios: [categoryQuery as any] });
-    
-    // Forzar que el catálogo se abra en lugar de solo mapa
     useMapScreenStore.setState({ isListView: true });
-    
-    // Navegar
     navigation.navigate('Mapa');
   };
 
@@ -81,7 +90,7 @@ export const BuscarScreen = () => {
         {/* Explorar cerca de ti — abre el mapa real */}
         <View style={styles.sectionRow}>
           <MaterialCommunityIcons name="map-marker" size={22} color="#f05b22" />
-          <Text style={styles.sectionTitle}>Encuentra sedes aquí</Text>
+          <Text style={styles.sectionTitle}>Encuentra marcas aquí</Text>
         </View>
 
         {/* La preview del mapa usa altura fija para evitar el bug de MapView
@@ -110,8 +119,8 @@ export const BuscarScreen = () => {
             style={styles.mapOverlay}
             activeOpacity={0.85}
             onPress={() => {
-              useMapScreenStore.setState({ isListView: false });
-              navigation.navigate('Mapa');
+              if (!isStaff) useMapScreenStore.setState({ isListView: false });
+              navigation.navigate(mapaRoute);
             }}
           >
             <View style={styles.mapOverlayPill}>

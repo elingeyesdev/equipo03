@@ -21,13 +21,13 @@ const getDifficulty = (r: RoutineDto): string =>
   (r.difficultyLevel ?? r.difficulty ?? '').toUpperCase().replace(/[^A-Z]/g, '');
 
 const DIFF_META: Record<string, { label: string; color: string; bg: string }> = {
-  FACIL:      { label: 'Fácil',      color: '#fff', bg: '#2dce89' },
-  INTERMEDIO: { label: 'Intermedio', color: '#fff', bg: '#f59e0b' },
-  AVANZADO:   { label: 'Avanzado',   color: '#fff', bg: '#f5365c' },
+  FACIL:      { label: 'Fácil',      color: '#000', bg: '#00E5A3' },
+  INTERMEDIO: { label: 'Intermedio', color: '#000', bg: '#38BDF8' },
+  AVANZADO:   { label: 'Avanzado',   color: '#fff', bg: '#FF5E00' },
 };
 
 const diffMeta = (r: RoutineDto) =>
-  DIFF_META[getDifficulty(r)] ?? { label: getDifficulty(r) || '—', color: '#fff', bg: '#8e8e93' };
+  DIFF_META[getDifficulty(r)] ?? { label: getDifficulty(r) || '—', color: '#000', bg: '#B0B0B0' };
 
 const RoutineModal = ({ isOpen, onClose, routineToEdit, onSave }: any) => {
   const [formData, setFormData] = useState({
@@ -67,8 +67,8 @@ const RoutineModal = ({ isOpen, onClose, routineToEdit, onSave }: any) => {
       <label className={labelCls}>Descripción</label>
       <textarea className={inputCls} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Descripción general de la rutina..." rows={4} />
       <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100 dark:border-gray-800">
-        <button className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent" onClick={onClose}>Cancelar</button>
-        <button className="px-4 py-2 bg-[#009ef7] hover:bg-[#0086d1] text-white font-medium rounded-lg shadow-sm transition-colors border-0 cursor-pointer" onClick={() => onSave(formData)}>Guardar Rutina</button>
+        <button className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-bg-deep rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent" onClick={onClose}>Cancelar</button>
+        <button className="px-4 py-2 bg-brand-celeste text-black font-medium rounded-lg border-0 cursor-pointer" onClick={() => onSave(formData)}>Guardar Rutina</button>
       </div>
     </ModalOverlay>
   );
@@ -167,7 +167,7 @@ export const RutinasView = () => {
         {user?.role !== 'CLIENTE' && (
           <button
             onClick={() => { setRoutineToEdit(null); setIsModalOpen(true); }}
-            style={{ background: '#5e72e4', color: '#fff', border: 'none', padding: '0.5rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
+            className="bg-brand-orange text-white font-semibold px-4 py-2 rounded-lg border-0 cursor-pointer"
           >
             Nueva Rutina
           </button>
@@ -177,9 +177,9 @@ export const RutinasView = () => {
       {error && <div style={{ marginTop: '0.75rem', color: '#FF5E00' }}>{error}</div>}
 
       {!loading && !error && (
-        <div className="bg-white dark:bg-[#1e1e2d] border border-slate-200 dark:border-gray-800 rounded-xl shadow-sm overflow-x-auto mt-4 transition-colors">
+        <div className="bg-white dark:bg-bg-surface border border-gray-200 dark:border-bg-deep rounded-xl overflow-x-auto mt-4">
           <table className="w-full text-left border-collapse" style={{ minWidth: '600px' }}>
-            <thead className="bg-slate-50 dark:bg-[#151521] border-b border-slate-200 dark:border-gray-800 text-slate-500 dark:text-gray-400 text-xs uppercase tracking-wider">
+            <thead className="bg-gray-50 dark:bg-bg-deep border-b border-gray-200 dark:border-bg-deep text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">
               <tr>
                 <th style={{ textAlign: 'left', padding: '0.85rem 1rem' }}>Rutina</th>
                 <th style={{ textAlign: 'left', padding: '0.85rem 1rem' }}>Dificultad</th>
@@ -189,7 +189,7 @@ export const RutinasView = () => {
             </thead>
             <tbody>
               {routines.map((r) => (
-                <tr key={r.id} className="border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-slate-700 dark:text-gray-300 text-sm">
+                <tr key={r.id} className="border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-bg-deep transition-colors text-slate-700 dark:text-gray-300 text-sm">
                   <td style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>{r.name}</td>
                   <td style={{ padding: '0.85rem 1rem' }}>
                     <span style={{
@@ -206,12 +206,12 @@ export const RutinasView = () => {
                   <td style={{ padding: '0.85rem 1rem' }}>{r.description || '-'}</td>
                   <td style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>
                     <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
-                      <button onClick={() => setViewingRoutine(r)} style={{ background: '#11cdef', border: 'none', color: '#fff', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }} title="Ver ficha de rutina"><Eye size={13} />Detalle</button>
+                      <button onClick={() => setViewingRoutine(r)} className="bg-brand-celeste text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1" title="Ver ficha de rutina"><Eye size={13} />Detalle</button>
                       {user?.role !== 'CLIENTE' && (
                         <>
-                          <button onClick={() => { setRoutineToEdit(r); setIsModalOpen(true); }} style={{ background: '#5e72e4', color: '#fff', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}><Edit size={13} />Editar</button>
+                          <button onClick={() => { setRoutineToEdit(r); setIsModalOpen(true); }} className="bg-brand-celeste text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1"><Edit size={13} />Editar</button>
                           {canDelete && (
-                            <button onClick={() => handleDeleteRoutine(r)} style={{ background: '#f5365c', color: '#fff', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}><Trash2 size={13} />Eliminar</button>
+                            <button onClick={() => handleDeleteRoutine(r)} className="bg-transparent text-gray-500 dark:text-text-muted px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1"><Trash2 size={13} />Eliminar</button>
                           )}
                         </>
                       )}

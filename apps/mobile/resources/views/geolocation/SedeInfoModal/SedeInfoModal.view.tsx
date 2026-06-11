@@ -85,9 +85,19 @@ export const SedeInfoModalView: React.FC<SedeInfoModalViewProps> = ({
               <Text style={styles.quickInfoLabel}>Estado</Text>
               <Text style={[
                 styles.statusText,
-                { color: sede.estaDisponible ? '#2ecc71' : '#e74c3c' }
+                {
+                  color: !sede.estaAbierta
+                    ? '#8e8e93'
+                    : sede.estaDisponible
+                    ? '#2ecc71'
+                    : '#e74c3c',
+                }
               ]}>
-                {sede.estaDisponible ? 'Disponible' : 'Lleno'}
+                {!sede.estaAbierta
+                  ? 'Cerrado'
+                  : sede.estaDisponible
+                  ? 'Abierto ahora'
+                  : 'Lleno'}
               </Text>
             </View>
           </View>

@@ -5,12 +5,12 @@ import { apiClient } from '../../infrastructure/api.config';
 import { DB_ROLES, ROLE_ID_TO_NAME } from '../../config/rbac.constants';
 import { ModalOverlay, ConfirmModal, panelStyle, RecordDetailModal, DetailField } from './Shared/DashboardShared';
 import type { GymDto, UserDto } from './Shared/DashboardTypes';
-import { Eye, Edit, Trash2, Plus } from 'lucide-react';
+import { Eye, Edit, Trash2, Plus, Clock } from 'lucide-react';
 
 // ─── Roles que requieren asignación de sede (por nombre, no ID hardcodeado) ───
 const SEDE_ROLE_NAMES = new Set([
   'GERENTE', 'ENTRENADOR', 'NUTRICIONISTA', 'INSTRUCTOR',
-  'COORDINADOR', 'PERSONAL_DE_LIMPIEZA',
+  'COORDINADOR', 'PERSONAL_DE_LIMPIEZA', 'RECEPCIONISTA',
 ]);
 
 // ─── Interfaz para roles cargados dinámicamente ───────────────────────────────
@@ -29,7 +29,9 @@ const formatRoleName = (name: string): string => {
     COORDINADOR: 'Coordinador',
     PERSONAL_DE_LIMPIEZA: 'Personal de Limpieza',
   };
-  return map[name] ?? name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  return map[name] ?? name.replace(/_/g, ' ').split(' ')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
 };
 
 // ─── Prefijos telefónicos y helper de parseo (fuera del componente — constantes) ─
@@ -53,6 +55,329 @@ const splitPhone = (raw: string): { prefix: string; number: string } => {
   return { prefix: '+591', number: raw.replace(/^\+\d{1,3}\s?/, '') };
 };
 
+// ─── Tipos y constantes para horarios del personal ───────────────────────────
+type TimeSlot    = { startTime: string; endTime: string };
+type DaySchedule = { isOff: boolean; slots: TimeSlot[] };
+
+const WEEK_DAYS = [
+  { value: 1, label: 'Lunes' },
+  { value: 2, label: 'Martes' },
+  { value: 3, label: 'Miércoles' },
+  { value: 4, label: 'Jueves' },
+  { value: 5, label: 'Viernes' },
+  { value: 6, label: 'Sábado' },
+  { value: 0, label: 'Domingo' },
+];
+
+const initGymSchedule = (): Record<number, DaySchedule> => {
+  const r: Record<number, DaySchedule> = {};
+  WEEK_DAYS.forEach(d => { r[d.value] = { isOff: false, slots: [{ startTime: '08:00', endTime: '12:00' }] }; });
+  return r;
+};
+
+// ─── Input de hora en formato 24h estricto (sin AM/PM) ───────────────────────
+const TimeInput24h = ({
+  value, onChange, disabled = false,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) => {
+  const parts   = value.split(':');
+  const hh      = parts[0] ?? '08';
+  const mm      = parts[1] ?? '00';
+
+  const commit = (rawH: string, rawM: string) => {
+    const h = Math.min(23, Math.max(0, parseInt(rawH, 10) || 0)).toString().padStart(2, '0');
+    const m = Math.min(59, Math.max(0, parseInt(rawM, 10) || 0)).toString().padStart(2, '0');
+    onChange(`${h}:${m}`);
+  };
+
+  const numCls =
+    'w-10 text-center bg-slate-50 dark:bg-[#151521] border border-slate-200 dark:border-gray-700 ' +
+    'text-slate-900 dark:text-white rounded px-1 py-1 text-sm focus:outline-none focus:ring-2 ' +
+    'focus:ring-cyan-400 disabled:opacity-40 [appearance:textfield] ' +
+    '[&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';
+
+  return (
+    <div className="flex items-center gap-0.5" style={{ opacity: disabled ? 0.4 : 1 }}>
+      <input
+        type="number"
+        min={0} max={23}
+        value={parseInt(hh, 10)}
+        disabled={disabled}
+        onChange={e => commit(e.target.value, mm)}
+        onBlur={e  => commit(e.target.value, mm)}
+        className={numCls}
+      />
+      <span className="text-slate-500 dark:text-gray-400 font-bold text-sm select-none">:</span>
+      <input
+        type="number"
+        min={0} max={59} step={5}
+        value={parseInt(mm, 10)}
+        disabled={disabled}
+        onChange={e => commit(hh, e.target.value)}
+        onBlur={e  => commit(hh, e.target.value)}
+        className={numCls}
+      />
+    </div>
+  );
+};
+
+// ─── Modal de horarios laborales del personal ─────────────────────────────────
+const StaffScheduleModal = ({
+  isOpen, onClose, employee,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  employee: UserDto | null;
+}) => {
+  const gyms = (employee?.userRoles ?? [])
+    .map(ur => ur.gym)
+    .filter((g): g is NonNullable<typeof g> => g != null && !!g.id);
+
+  const [activeGymId, setActiveGymId] = useState<number | null>(null);
+  // gymId → dayOfWeek → DaySchedule
+  const [schedules, setSchedules] = useState<Record<number, Record<number, DaySchedule>>>({});
+  const [loading, setLoading]     = useState(false);
+  const [saving,  setSaving]      = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || !employee) return;
+    setActiveGymId(gyms[0]?.id ?? null);
+
+    const init: Record<number, Record<number, DaySchedule>> = {};
+    gyms.forEach(g => { init[g.id] = initGymSchedule(); });
+    setSchedules(init);
+
+    setLoading(true);
+    apiClient.get(`/staff/${employee.id}/schedules`)
+      .then(res => {
+        const rows: { gymId: number; dayOfWeek: number; startTime: string; endTime: string }[] =
+          Array.isArray(res.data) ? res.data : [];
+        setSchedules(prev => {
+          const updated = { ...prev };
+          for (const gymId of Object.keys(updated).map(Number)) {
+            const gymRows = rows.filter(r => r.gymId === gymId);
+            if (gymRows.length === 0) continue;
+            const dayMap: Record<number, DaySchedule> = {};
+            WEEK_DAYS.forEach(d => { dayMap[d.value] = { isOff: true, slots: [] }; });
+            for (const row of gymRows) {
+              const slot: TimeSlot = { startTime: row.startTime.slice(0, 5), endTime: row.endTime.slice(0, 5) };
+              if (!dayMap[row.dayOfWeek]) {
+                dayMap[row.dayOfWeek] = { isOff: false, slots: [slot] };
+              } else {
+                dayMap[row.dayOfWeek].isOff = false;
+                dayMap[row.dayOfWeek].slots.push(slot);
+              }
+            }
+            updated[gymId] = dayMap;
+          }
+          return updated;
+        });
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, employee?.id]);
+
+  const setDayOff = (gymId: number, dow: number, isOff: boolean) =>
+    setSchedules(prev => ({
+      ...prev,
+      [gymId]: { ...(prev[gymId] ?? initGymSchedule()), [dow]: { ...(prev[gymId]?.[dow] ?? { isOff: false, slots: [] }), isOff } },
+    }));
+
+  const updateSlot = (gymId: number, dow: number, idx: number, field: keyof TimeSlot, value: string) =>
+    setSchedules(prev => {
+      const day = prev[gymId]?.[dow] ?? { isOff: false, slots: [] };
+      const slots = day.slots.map((s, i) => i === idx ? { ...s, [field]: value } : s);
+      return { ...prev, [gymId]: { ...(prev[gymId] ?? {}), [dow]: { ...day, slots } } };
+    });
+
+  const addSlot = (gymId: number, dow: number) =>
+    setSchedules(prev => {
+      const day = prev[gymId]?.[dow] ?? { isOff: false, slots: [] };
+      return { ...prev, [gymId]: { ...(prev[gymId] ?? {}), [dow]: { ...day, slots: [...day.slots, { startTime: '08:00', endTime: '12:00' }] } } };
+    });
+
+  const removeSlot = (gymId: number, dow: number, idx: number) =>
+    setSchedules(prev => {
+      const day = prev[gymId]?.[dow] ?? { isOff: false, slots: [] };
+      return { ...prev, [gymId]: { ...(prev[gymId] ?? {}), [dow]: { ...day, slots: day.slots.filter((_, i) => i !== idx) } } };
+    });
+
+  const handleSave = async () => {
+    if (!employee) return;
+
+    // Validación client-side antes de enviar
+    for (const gymId of Object.keys(schedules).map(Number)) {
+      const gymSched = schedules[gymId] ?? {};
+      for (const { value: dow, label } of WEEK_DAYS) {
+        const day = gymSched[dow];
+        if (!day || day.isOff) continue;
+        for (const slot of day.slots) {
+          if (!slot.startTime || !slot.endTime) {
+            toast.error(`Completa los horarios del día ${label} antes de guardar.`);
+            return;
+          }
+          if (slot.startTime >= slot.endTime) {
+            toast.error(`${label}: la hora de entrada (${slot.startTime}) debe ser anterior a la salida (${slot.endTime}).`);
+            return;
+          }
+        }
+      }
+    }
+
+    setSaving(true);
+    try {
+      for (const gymId of Object.keys(schedules).map(Number)) {
+        const gymSched = schedules[gymId] ?? {};
+        const payload: { dayOfWeek: number; startTime: string; endTime: string }[] = [];
+        for (const { value: dow } of WEEK_DAYS) {
+          const day = gymSched[dow];
+          if (!day || day.isOff) continue;
+          for (const slot of day.slots) {
+            if (slot.startTime && slot.endTime) {
+              payload.push({ dayOfWeek: dow, startTime: slot.startTime, endTime: slot.endTime });
+            }
+          }
+        }
+        await apiClient.post(`/staff/${employee.id}/schedules`, { gymId, schedules: payload });
+      }
+      toast.success('Horarios guardados correctamente.');
+      onClose();
+    } catch (err: unknown) {
+      const apiErr = err as { response?: { data?: { message?: string } } };
+      const msg = apiErr?.response?.data?.message || 'Error al guardar horarios.';
+      toast.error(msg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  const gymSched = activeGymId !== null ? (schedules[activeGymId] ?? initGymSchedule()) : null;
+  const employeeName = [employee?.profile?.firstName, employee?.profile?.lastName].filter(Boolean).join(' ') || employee?.email || '';
+
+  return (
+    <ModalOverlay onClose={onClose}>
+      <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-0.5">Horarios Laborales</h2>
+      <p className="text-sm text-slate-500 dark:text-gray-400 mb-4">{employeeName}</p>
+
+      {gyms.length === 0 ? (
+        <p className="text-sm text-slate-500 dark:text-gray-400 py-6 text-center">
+          Este empleado no tiene sucursales asignadas.
+        </p>
+      ) : (
+        <>
+          {/* Tabs por sucursal */}
+          <div className="flex gap-1 border-b border-slate-200 dark:border-gray-700 mb-4 flex-wrap">
+            {gyms.map(g => (
+              <button
+                key={g.id}
+                onClick={() => setActiveGymId(g.id)}
+                style={{ background: 'none', border: 'none', outline: 'none', cursor: 'pointer' }}
+                className={[
+                  'px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors',
+                  activeGymId === g.id
+                    ? 'border-brand-celeste text-brand-celeste bg-gray-100 dark:bg-bg-surface'
+                    : 'border-transparent text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-200',
+                ].join(' ')}
+              >
+                {g.name ?? `Sede #${g.id}`}
+              </button>
+            ))}
+          </div>
+
+          {/* Lista de días con turnos múltiples */}
+          <div style={{ overflowY: 'auto', flex: 1, minHeight: 0, paddingRight: '0.25rem' }}>
+            {loading ? (
+              <p className="text-sm text-slate-400 dark:text-gray-500 text-center py-4">Cargando horarios...</p>
+            ) : gymSched === null ? null : (
+              <div className="flex flex-col divide-y divide-slate-100 dark:divide-gray-800">
+                {WEEK_DAYS.map(({ value: dow, label }) => {
+                  const day = gymSched[dow] ?? { isOff: false, slots: [{ startTime: '08:00', endTime: '12:00' }] };
+                  return (
+                    <div key={dow} className="py-3" style={{ opacity: day.isOff ? 0.5 : 1, transition: 'opacity 0.15s' }}>
+                      {/* Cabecera del día */}
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-semibold text-slate-700 dark:text-gray-200 w-24">{label}</span>
+                        <label className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-gray-400 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={day.isOff}
+                            onChange={e => activeGymId !== null && setDayOff(activeGymId, dow, e.target.checked)}
+                            style={{ width: '14px', height: '14px', cursor: 'pointer', accentColor: '#38BDF8' }}
+                          />
+                          Día libre
+                        </label>
+                      </div>
+
+                      {/* Turnos */}
+                      {!day.isOff && (
+                        <div className="flex flex-col gap-2 pl-2">
+                          {day.slots.map((slot, idx) => (
+                            <div key={idx} className="flex items-center gap-2">
+                              <TimeInput24h
+                                value={slot.startTime}
+                                onChange={v => activeGymId !== null && updateSlot(activeGymId, dow, idx, 'startTime', v)}
+                              />
+                              <span className="text-xs text-slate-400 dark:text-gray-500">—</span>
+                              <TimeInput24h
+                                value={slot.endTime}
+                                onChange={v => activeGymId !== null && updateSlot(activeGymId, dow, idx, 'endTime', v)}
+                              />
+                              {day.slots.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => activeGymId !== null && removeSlot(activeGymId, dow, idx)}
+                                  title="Eliminar turno"
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '2px 5px', fontSize: '13px', lineHeight: 1 }}
+                                  className="hover:opacity-70 rounded"
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => activeGymId !== null && addSlot(activeGymId, dow)}
+                            className="self-start text-xs text-brand-celeste bg-transparent border-0 cursor-pointer p-0 mt-0.5"
+                          >
+                            + Añadir turno
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100 dark:border-gray-800 flex-shrink-0">
+        <button
+          className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-bg-deep rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent"
+          onClick={onClose}
+        >
+          Cancelar
+        </button>
+        <button
+          disabled={saving || gyms.length === 0}
+          className="px-4 py-2 bg-brand-celeste disabled:opacity-50 text-black font-medium rounded-lg border-0 cursor-pointer"
+          onClick={handleSave}
+        >
+          {saving ? 'Guardando...' : 'Guardar Horarios'}
+        </button>
+      </div>
+    </ModalOverlay>
+  );
+};
+
 // ─── Tipos para el formulario de usuario ──────────────────────────────────────
 type UserFormData = {
   firstName: string; lastName: string; email: string; password: string;
@@ -60,11 +385,20 @@ type UserFormData = {
   roleId: number; gymIds: number[]; isActive: boolean;
 };
 
+interface RoleRaw { id: number; name: string; isActive?: boolean; hierarchyLevel?: number; }
+interface StaffScheduleRow { gymId: number; dayOfWeek: number; startTime: string; endTime: string; gym?: { id: number; name?: string } }
+
+interface UserPayload {
+  email?: string; firstName?: string; lastName?: string;
+  phone?: string; ci?: string; roleId: number; gymIds: number[];
+  isActive: boolean; password?: string;
+}
+
 // ─── Componente Modal de creación/edición (usa Portal via ModalOverlay) ───────
-const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteSucursalId }: {
+const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBrandId }: {
   isOpen: boolean; onClose: () => void; userToEdit: UserDto | null; onSave: (d: UserFormData) => void;
   roleOptions: RoleOption[];
-  gerenteSucursalId?: number; // Si es Gerente, restringe las sucursales a su propia sede
+  gerenteBrandId?: number; // Si es Gerente de Marca, restringe a las sucursales de esa Marca
 }) => {
 
   const [formData, setFormData] = useState({
@@ -78,24 +412,19 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteSu
   const [loadingGyms, setLoadingGyms] = useState(false);
   // Para GERENTE: selección en dos pasos (sede → sucursal)
   const [selectedSede, setSelectedSede] = useState<number | ''>('');
+  // Para staff multi-sede: arranca con la Marca del Gerente si aplica
+  const [selectedMarcaId, setSelectedMarcaId] = useState<number | ''>(gerenteBrandId || '');
 
-  // ── Derivados: marcas (sin padre) y sucursales físicas (con padre) ────────────
-  const sedes      = gyms.filter(g => !g.parentId && !g.parent?.id);
-  const sucursales = gyms.filter(g => !!(g.parentId ?? g.parent?.id));
+  // ── Derivados: marcas (parentId === null) y sucursales físicas (parentId !== null) ─
+  const sedes      = gyms.filter(g => g.parentId === null);
+  const sucursales = gyms.filter(g => g.parentId !== null && g.parentId !== undefined);
   // Sucursales que pertenecen a la sede seleccionada
   const sucursalesParaSede = selectedSede !== ''
     ? sucursales.filter(s => (s.parentId ?? s.parent?.id) === selectedSede)
     : [];
 
-  // ── Filtro por sede del Gerente (solo aplica cuando gerenteSucursalId está presente) ──
-  // Deriva la sede-padre de la sucursal del gerente para restringir la lista en needsMulti
-  const sedeIdDelGerente = gerenteSucursalId
-    ? (gyms.find(g => g.id === gerenteSucursalId)?.parentId
-      ?? gyms.find(g => g.id === gerenteSucursalId)?.parent?.id
-      ?? null)
-    : null;
-  const sedesVisibles      = sedeIdDelGerente ? sedes.filter(s => s.id === sedeIdDelGerente) : sedes;
-  const sucursalesVisibles = sedeIdDelGerente ? sucursales.filter(s => (s.parentId ?? s.parent?.id) === sedeIdDelGerente) : sucursales;
+  // ── Marca del Gerente (brandId viene directo del JWT nuevo) ─────────────────
+  const sedeIdDelGerente = gerenteBrandId ?? null;
 
   // ── Cargar gyms al abrir: marcas (/gyms/brands) + sucursales (/gyms) ─────────
   useEffect(() => {
@@ -140,7 +469,8 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteSu
       setFormData({ firstName: '', lastName: '', email: '', password: '', phone: '', phonePrefix: '+591', phoneNumber: '', ci: '', roleId: DB_ROLES.USER, gymIds: [], isActive: true });
     }
     setSelectedSede('');
-  }, [userToEdit, isOpen]);
+    setSelectedMarcaId(sedeIdDelGerente ?? '');
+  }, [userToEdit, isOpen, sedeIdDelGerente]);
 
   // ── Pre-poblar selectedSede al editar un GERENTE (espera que gyms cargue) ─────
   useEffect(() => {
@@ -152,6 +482,28 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteSu
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (sedeId) setSelectedSede(sedeId);
   }, [gyms, formData.gymIds, formData.roleId, isOpen, userToEdit]);
+
+  // ── Pre-poblar selectedMarcaId al editar staff multi-sede ─────────────────────
+  useEffect(() => {
+    if (!isOpen || !gyms.length) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (sedeIdDelGerente) { setSelectedMarcaId(sedeIdDelGerente); return; }
+    if (!userToEdit) return;
+    const roleName = roleOptions.find(r => r.id === formData.roleId)?.name ?? '';
+    if (!SEDE_ROLE_NAMES.has(roleName) || roleName === 'GERENTE') return;
+    const firstGymId = formData.gymIds[0];
+    if (!firstGymId) return;
+    const firstGym = gyms.find(g => g.id === firstGymId);
+    const marcaId  = firstGym?.parentId ?? firstGym?.parent?.id;
+    if (marcaId) setSelectedMarcaId(marcaId);
+  }, [isOpen, sedeIdDelGerente, gyms, formData.gymIds, formData.roleId, userToEdit, roleOptions]);
+
+  // ── Restaurar marca del Gerente si se limpió al cambiar de rol ────────────────
+  useEffect(() => {
+    if (!isOpen || !sedeIdDelGerente) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSelectedMarcaId(sedeIdDelGerente);
+  }, [isOpen, formData.roleId, sedeIdDelGerente]);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -210,7 +562,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteSu
         {userToEdit ? 'Editar Usuario' : 'Nuevo Usuario'}
       </h2>
 
-      <div style={{ overflowY: 'auto', flex: 1, paddingRight: '0.25rem' }}>
+      <div style={{ overflowY: 'auto', flex: 1, minHeight: 0, paddingRight: '0.25rem' }}>
         <label className={labelCls}>Nombre</label>
         <input type="text" className={inputCls()} value={formData.firstName}
           onChange={e => setFormData({ ...formData, firstName: e.target.value })}
@@ -320,6 +672,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteSu
           onChange={e => {
             setFormData({ ...formData, roleId: Number(e.target.value), gymIds: [] });
             setSelectedSede('');
+            setSelectedMarcaId('');
           }}
         >
           {roleOptions.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
@@ -327,18 +680,18 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteSu
 
         {/* ── GERENTE: selección en dos pasos ──────────────────────────────────── */}
         {isGerente && (
-          <div className="bg-orange-50 dark:bg-orange-900/5 border border-orange-200 dark:border-orange-500/20 rounded-xl p-4 mt-3 mb-1 flex flex-col gap-3">
-            <p className="m-0 text-xs font-semibold tracking-widest uppercase text-orange-600 dark:text-orange-400">
-              Asignación de Sede y Sucursal
+          <div className="bg-gray-50 dark:bg-bg-surface border border-brand-orange rounded-xl p-4 mt-3 mb-1 flex flex-col gap-3">
+            <p className="m-0 text-xs font-semibold tracking-widest uppercase text-brand-orange">
+              Asignación de Marca y Sucursal
             </p>
             <p className="m-0 text-sm text-slate-600 dark:text-gray-400 leading-relaxed">
-              Una <strong className="text-slate-900 dark:text-gray-200">Sede</strong> es la marca/organización (ej. "Smart Fit").
+              Una <strong className="text-slate-900 dark:text-gray-200">Marca</strong> es la organización (ej. "Smart Fit").
               Una <strong className="text-slate-900 dark:text-gray-200">Sucursal</strong> es el gimnasio físico que administrará el gerente (ej. "Smart Fit - Centro").
             </p>
 
             {/* Paso 1: Sede (Marca) */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">1 · Sede (Marca) *</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">1 · Marca *</label>
               {loadingGyms ? <p className="text-sm text-slate-400 dark:text-gray-500">Cargando...</p> : (
                 <select
                   value={selectedSede}
@@ -348,7 +701,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteSu
                   }}
                   className={`w-full bg-slate-50 dark:bg-[#151521] border ${!selectedSede ? 'border-red-500' : 'border-slate-200 dark:border-gray-700'} text-slate-900 dark:text-white rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors`}
                 >
-                  <option value="">— Seleccionar Sede (Marca) —</option>
+                  <option value="">— Seleccionar Marca —</option>
                   {sedes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               )}
@@ -358,8 +711,8 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteSu
             <div style={{ opacity: selectedSede !== '' ? 1 : 0.4, transition: 'opacity 0.2s' }}>
               <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">2 · Sucursal a Administrar *</label>
               {selectedSede !== '' && sucursalesParaSede.length === 0 ? (
-                <p className="m-0 text-sm text-red-500 p-2 bg-red-50 dark:bg-red-900/10 rounded-lg">
-                  Atención: esta sede no tiene sucursales registradas aún.
+                <p className="m-0 text-sm text-red-500 p-2 bg-red-50 dark:bg-bg-surface rounded-lg">
+                  Atención: esta marca no tiene sucursales registradas aún.
                 </p>
               ) : (
                 <select
@@ -381,44 +734,60 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteSu
         {/* ── ENTRENADOR / NUTRICIONISTA: sucursales agrupadas por sede ────────── */}
         {needsMulti && (
           <>
-            <label className={labelCls}>
-              Sucursales Asignadas{' '}
-              <span className="text-slate-400 dark:text-gray-500 font-normal text-xs">— puede seleccionar múltiples</span>
-            </label>
-            {loadingGyms ? <p className="text-sm text-slate-400 dark:text-gray-500">Cargando...</p> : (
-              <div className="flex flex-col gap-2 max-h-56 overflow-y-auto p-3 bg-slate-50 dark:bg-black/10 rounded-lg border border-slate-200 dark:border-white/10">
-                {sedesVisibles.map(sede => {
-                  const hijos = sucursalesVisibles.filter(s => (s.parentId ?? s.parent?.id) === sede.id);
-                  if (hijos.length === 0) return null;
-                  return (
-                    <div key={sede.id}>
-                      <div className="text-xs font-bold text-slate-500 dark:text-gray-500 uppercase tracking-wider mb-1 pb-1 border-b border-slate-200 dark:border-white/10">
-                        🏢 {sede.name}
-                      </div>
-                      {hijos.map(g => (
-                        <label key={g.id} className="flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded-md"
-                          style={{ background: formData.gymIds.includes(Number(g.id)) ? '#e7f7fb' : 'transparent' }}>
-                          <input type="checkbox" checked={formData.gymIds.includes(Number(g.id))}
-                            onChange={() => toggleGym(Number(g.id))}
-                            style={{ width: '15px', height: '15px', cursor: 'pointer', accentColor: '#00D9FF' }} />
-                          <span className="text-sm text-slate-700 dark:text-gray-300">{g.name}</span>
-                        </label>
-                      ))}
-                    </div>
-                  );
-                })}
-                {/* Sucursales sin sede padre — solo se muestran si no hay restricción de gerente */}
-                {!sedeIdDelGerente && sucursales.filter(s => !s.parentId && !s.parent?.id).map(g => (
-                  <label key={g.id} className="flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded-md"
-                    style={{ background: formData.gymIds.includes(Number(g.id)) ? '#e7f7fb' : 'transparent' }}>
-                    <input type="checkbox" checked={formData.gymIds.includes(Number(g.id))}
-                      onChange={() => toggleGym(Number(g.id))}
-                      style={{ width: '15px', height: '15px', cursor: 'pointer', accentColor: '#00D9FF' }} />
-                    <span className="text-sm text-slate-700 dark:text-gray-300">🏪 {g.name}</span>
-                  </label>
-                ))}
-              </div>
+            {/* Paso 1: Marca obligatoria (oculto si el contexto ya la impone) */}
+            {!sedeIdDelGerente && (
+              <>
+                <label className={labelCls}>
+                  1 · Marca <span className="text-red-500">*</span>
+                </label>
+                {loadingGyms ? <p className="text-sm text-slate-400 dark:text-gray-500">Cargando...</p> : (
+                  <select
+                    value={selectedMarcaId}
+                    onChange={e => {
+                      setSelectedMarcaId(Number(e.target.value) || '');
+                      setFormData(p => ({ ...p, gymIds: [] }));
+                    }}
+                    className={`w-full bg-slate-50 dark:bg-[#151521] border ${!selectedMarcaId ? 'border-amber-400' : 'border-slate-200 dark:border-gray-700'} text-slate-900 dark:text-white rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors`}
+                  >
+                    <option value="">— Seleccionar Marca —</option>
+                    {sedes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                )}
+              </>
             )}
+
+            {/* Paso 2: Checkboxes filtrados por la Marca seleccionada */}
+            {(selectedMarcaId !== '' || sedeIdDelGerente) && (() => {
+              const activeMarcaId = sedeIdDelGerente ?? Number(selectedMarcaId);
+              const checkboxSucursales = sucursales.filter(
+                s => (s.parentId ?? s.parent?.id) === activeMarcaId
+              );
+              return (
+                <>
+                  <label className={labelCls}>
+                    {sedeIdDelGerente ? 'Sucursales Asignadas' : '2 · Sucursales'}{' '}
+                    <span className="text-slate-400 dark:text-gray-500 font-normal text-xs">— puede seleccionar múltiples</span>
+                  </label>
+                  {loadingGyms ? <p className="text-sm text-slate-400 dark:text-gray-500">Cargando...</p>
+                    : checkboxSucursales.length === 0
+                      ? <p className="text-sm text-red-500 p-2 bg-red-50 dark:bg-bg-surface rounded-lg mt-1">Esta marca no tiene sucursales registradas.</p>
+                      : (
+                        <div className="flex flex-col gap-1 max-h-48 overflow-y-auto p-3 bg-slate-50 dark:bg-bg-deep rounded-lg border border-slate-200 dark:border-bg-deep">
+                          {checkboxSucursales.map(g => (
+                            <label key={g.id} className="flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded-md"
+                              style={{ background: formData.gymIds.includes(Number(g.id)) ? '#e7f7fb' : 'transparent' }}>
+                              <input type="checkbox" checked={formData.gymIds.includes(Number(g.id))}
+                                onChange={() => toggleGym(Number(g.id))}
+                                style={{ width: '15px', height: '15px', cursor: 'pointer', accentColor: '#38BDF8' }} />
+                              <span className="text-sm text-slate-700 dark:text-gray-300">{g.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )
+                  }
+                </>
+              );
+            })()}
           </>
         )}
 
@@ -430,12 +799,12 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteSu
       </div>
 
       <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100 dark:border-gray-800 flex-shrink-0">
-        <button className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent" onClick={onClose}>Cancelar</button>
-        <button className="px-4 py-2 bg-[#009ef7] hover:bg-[#0086d1] text-white font-medium rounded-lg shadow-sm transition-colors border-0 cursor-pointer" onClick={() => {
+        <button className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-bg-deep rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent" onClick={onClose}>Cancelar</button>
+        <button className="px-4 py-2 bg-brand-celeste text-black font-medium rounded-lg border-0 cursor-pointer" onClick={() => {
           if (!validateForm()) return;
           if (isGerente) {
             if (!selectedSede) {
-              toast.error('Debes seleccionar la Sede (Marca) a la que pertenece el Gerente');
+              toast.error('Debes seleccionar la Marca a la que pertenece el Gerente');
               return;
             }
             if (formData.gymIds.length === 0) {
@@ -466,18 +835,31 @@ export const UsuariosView = () => {
   const [userToEdit,        setUserToEdit]        = useState<UserDto | null>(null);
   const [deleteConfirmUser, setDeleteConfirmUser] = useState<UserDto | null>(null);
   const [viewingUser,       setViewingUser]       = useState<UserDto | null>(null);
+  const [viewUserSchedules, setViewUserSchedules] = useState<StaffScheduleRow[]>([]);
+  const [schedulingUser,    setSchedulingUser]    = useState<UserDto | null>(null);
+
+  // ── Horarios laborales del usuario en ficha detallada ────────────────────────
+  useEffect(() => {
+    if (!viewingUser) { setViewUserSchedules([]); return; }
+    apiClient.get(`/staff/${viewingUser.id}/schedules`)
+      .then((res: { data: unknown }) => {
+        setViewUserSchedules(Array.isArray(res.data) ? (res.data as StaffScheduleRow[]) : []);
+      })
+      .catch(() => setViewUserSchedules([]));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewingUser?.id]);
 
   // ── Roles dinámicos desde la BD ───────────────────────────────────────────────
   const [roleOptions, setRoleOptions] = useState<RoleOption[]>([]);
   useEffect(() => {
     apiClient.get('/roles')
-      .then((res: any) => {
-        const raw: any[] = Array.isArray(res) ? res : (res?.data ?? []);
+      .then((res: { data: unknown }) => {
+        const raw: RoleRaw[] = Array.isArray(res.data) ? (res.data as RoleRaw[]) : [];
         setRoleOptions(
           raw
-            .filter((r: any) => r.isActive !== false)
-            .sort((a: any, b: any) => (b.hierarchyLevel ?? 0) - (a.hierarchyLevel ?? 0))
-            .map((r: any) => ({ id: r.id, name: r.name, label: formatRoleName(r.name) }))
+            .filter(r => r.isActive !== false)
+            .sort((a, b) => (b.hierarchyLevel ?? 0) - (a.hierarchyLevel ?? 0))
+            .map(r => ({ id: r.id, name: r.name, label: formatRoleName(r.name) }))
         );
       })
       .catch(() => {});
@@ -510,7 +892,7 @@ export const UsuariosView = () => {
       map.set(s.id, {
         sucursalName: s.name,
         sedeId,
-        sedeName: sedeId ? (sedesById.get(sedeId) ?? `Sede #${sedeId}`) : 'Sin Sede Registrada',
+        sedeName: sedeId ? (sedesById.get(sedeId) ?? `Marca #${sedeId}`) : 'Sin Marca Registrada',
       });
     });
     return map;
@@ -528,12 +910,11 @@ export const UsuariosView = () => {
         setLoading(true);
         const res = await apiClient.get('/users');
         if (!mounted) return;
-        const data: UserDto[] = Array.isArray(res.data)
-          ? res.data
-          : (res as any)?.data ?? [];
+        const data: UserDto[] = Array.isArray(res.data) ? (res.data as UserDto[]) : [];
         setUsers(data);
-      } catch (err: any) {
-        if (mounted) setError(err?.response?.data?.message || err?.message || 'No se pudo cargar usuarios.');
+      } catch (err: unknown) {
+        const e = err as { response?: { data?: { message?: string } }; message?: string };
+        if (mounted) setError(e?.response?.data?.message || e?.message || 'No se pudo cargar usuarios.');
       } finally {
         if (mounted) setLoading(false);
       }
@@ -556,7 +937,7 @@ export const UsuariosView = () => {
   const gymOptions = useMemo(() => {
     const map = new Map<number, string>();
     users.forEach(u => {
-      (u?.userRoles ?? []).forEach((ur: any) => {
+      (u?.userRoles ?? []).forEach((ur: UserRoleDto) => {
         if (ur?.gym?.id) map.set(Number(ur.gym.id), ur.gym.name ?? `Gym #${ur.gym.id}`);
       });
     });
@@ -579,7 +960,9 @@ export const UsuariosView = () => {
         }
 
         if (filterGym) {
-          const gymIds = (u?.userRoles ?? []).map((ur: any) => String(ur?.gym?.id)).filter(Boolean);
+          const gymIds = (u?.userRoles ?? [])
+            .filter((ur: UserRoleDto) => ur?.gym?.id != null)
+            .map((ur: UserRoleDto) => String(ur.gym!.id));
           if (!gymIds.includes(filterGym)) return false;
         }
 
@@ -603,17 +986,15 @@ export const UsuariosView = () => {
   // ── Re-fetch directo (no usa el use-case para evitar fallos silenciosos de RBAC) ──
   const recargarUsuarios = async () => {
     const res = await apiClient.get('/users');
-    const fresh: UserDto[] = Array.isArray(res.data)
-      ? res.data
-      : (res as any)?.data ?? [];
+    const fresh: UserDto[] = Array.isArray(res.data) ? (res.data as UserDto[]) : [];
     setUsers(fresh);
   };
 
   // ── Acciones CRUD ────────────────────────────────────────────────────────────
-  const handleSaveUser = async (formData: any) => {
+  const handleSaveUser = async (formData: UserFormData) => {
     try {
       const emailTrimmed = formData.email?.trim();
-      const payload: any = {
+      const payload: UserPayload = {
 
         ...(emailTrimmed ? { email: emailTrimmed } : {}),
         firstName: formData.firstName?.trim() || undefined,
@@ -627,10 +1008,6 @@ export const UsuariosView = () => {
           : (formData.gymIds || []).map(Number),
         isActive: formData.isActive,
       };
-
-      if (user?.role === 'GERENTE' && user?.gymId) {
-        payload.gymIds = [Number(user.gymId)];
-      }
 
       if (formData.password?.trim()) payload.password = formData.password.trim();
 
@@ -646,9 +1023,10 @@ export const UsuariosView = () => {
       setIsModalOpen(false);
       setUserToEdit(null);
       toast.success(userToEdit ? 'Usuario actualizado.' : 'Usuario creado.');
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } }; message?: string };
       console.error('[handleSaveUser]', err);
-      toast.error(err?.response?.data?.message || err?.message || 'Error al guardar usuario');
+      toast.error(e?.response?.data?.message || e?.message || 'Error al guardar usuario');
     }
   };
 
@@ -658,8 +1036,9 @@ export const UsuariosView = () => {
       await apiClient.delete(`/users/${deleteConfirmUser.id}`);
       toast.success('Usuario eliminado.');
       await recargarUsuarios();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || 'Error al eliminar usuario.');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } }; message?: string };
+      toast.error(e?.response?.data?.message || e?.message || 'Error al eliminar usuario.');
     } finally {
       setDeleteConfirmUser(null);
     }
@@ -681,7 +1060,7 @@ export const UsuariosView = () => {
         </div>
         {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE') && (
           <button onClick={() => { setUserToEdit(null); setIsModalOpen(true); }}
-            className="bg-[#5e72e4] text-white font-semibold px-4 py-2 rounded-lg border-0 cursor-pointer hover:bg-[#4f63d2] whitespace-nowrap inline-flex items-center gap-1.5">
+            className="bg-brand-orange text-white font-semibold px-4 py-2 rounded-lg border-0 cursor-pointer whitespace-nowrap inline-flex items-center gap-1.5">
             <Plus size={15} />
             Nuevo Usuario
           </button>
@@ -697,13 +1076,13 @@ export const UsuariosView = () => {
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="🔍  Buscar por nombre o email..."
-            className="flex-1 bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all placeholder:text-slate-400 dark:placeholder:text-gray-500"
+            className="flex-1 bg-white dark:bg-bg-deep border border-gray-300 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md px-4 py-2 text-sm focus:outline-none placeholder:text-slate-400 dark:placeholder:text-gray-500"
             style={{ minWidth: '200px' }}
           />
           {/* Rol */}
           <div style={{ position: 'relative' }}>
             <select value={filterRole} onChange={e => setFilterRole(e.target.value)}
-              className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all">
+              className="bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none">
               <option value="">Todos los roles</option>
               {roleOptions.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
             </select>
@@ -713,8 +1092,8 @@ export const UsuariosView = () => {
           {gymOptions.length > 0 && (
             <div style={{ position: 'relative' }}>
               <select value={filterGym} onChange={e => setFilterGym(e.target.value)}
-                className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all" style={{ maxWidth: '180px' }}>
-                <option value="">Todas las sedes</option>
+                className="bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none" style={{ maxWidth: '180px' }}>
+                <option value="">Todas las marcas</option>
                 {gymOptions.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
               </select>
               <span style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#8E8E93', fontSize: '0.7rem' }}>▼</span>
@@ -722,8 +1101,8 @@ export const UsuariosView = () => {
           )}
           {/* Estado */}
           <div style={{ position: 'relative' }}>
-            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)}
-              className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all">
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as 'all' | 'active' | 'inactive')}
+              className="bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none">
               <option value="all"     >Todos</option>
               <option value="active"  >Solo Activos</option>
               <option value="inactive">Solo Inactivos</option>
@@ -732,8 +1111,8 @@ export const UsuariosView = () => {
           </div>
           {/* Orden */}
           <div style={{ position: 'relative' }}>
-            <select value={sortOrder} onChange={e => setSortOrder(e.target.value as any)}
-              className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all">
+            <select value={sortOrder} onChange={e => setSortOrder(e.target.value as 'az' | 'za' | 'id_asc' | 'id_desc')}
+              className="bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none">
               <option value="az"      >Nombre A → Z</option>
               <option value="za"      >Nombre Z → A</option>
               <option value="id_asc"  >ID ↑</option>
@@ -743,7 +1122,7 @@ export const UsuariosView = () => {
           </div>
           {hasActiveFilters && (
             <button onClick={resetFilters}
-              style={{ background: 'none', color: '#8E8E93', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '0.45rem 0.85rem', cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+              style={{ background: 'none', color: '#8E8E93', border: '1px solid #3A3A3C', borderRadius: '8px', padding: '0.45rem 0.85rem', cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
               Limpiar
             </button>
           )}
@@ -760,18 +1139,18 @@ export const UsuariosView = () => {
       )}
 
       {!loading && !error && users.length === 0 && (
-        <div style={{ marginTop: '2rem', textAlign: 'center', color: '#8E8E93', padding: '2rem', borderRadius: '12px', background: 'rgba(255,255,255,0.03)' }}>
-          <p>No hay usuarios disponibles en esta sede.</p>
+        <div style={{ marginTop: '2rem', textAlign: 'center', color: '#8E8E93', padding: '2rem', borderRadius: '12px', background: '#1C1C1E' }}>
+          <p>No hay usuarios disponibles en esta marca.</p>
         </div>
       )}
 
       {!loading && !error && users.length > 0 && (
-        <div className="bg-white dark:bg-[#1e1e2d] border border-slate-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden mt-4">
+        <div className="bg-white dark:bg-bg-surface border border-gray-200 dark:border-bg-deep rounded-xl overflow-hidden mt-4">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse" style={{ minWidth: '850px' }}>
-            <thead className="bg-slate-50 dark:bg-[#151521] border-b border-slate-200 dark:border-gray-800 text-slate-500 dark:text-gray-400 text-xs uppercase tracking-wider">
+            <thead className="bg-gray-50 dark:bg-bg-deep border-b border-gray-200 dark:border-bg-deep text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">
               <tr>
-                {['ID', 'Nombre', 'Email', 'Rol', 'Sucursal / Sede', 'Estado', 'Acciones'].map(h => (
+                {['ID', 'Nombre', 'Email', 'Rol', 'Sucursal / Marca', 'Estado', 'Acciones'].map(h => (
                   <th key={h} style={{ textAlign: h === 'Acciones' ? 'center' : 'left', padding: '0.6rem' }}>{h}</th>
                 ))}
               </tr>
@@ -783,24 +1162,27 @@ export const UsuariosView = () => {
                 const fullName  = [u?.profile?.firstName, u?.profile?.lastName].filter(Boolean).join(' ').trim() || '-';
                 const roleId    = Number(u?.userRoles?.[0]?.roleId ?? 0);
                 // Prioridad: joined role object del backend > roleOptions dinámico > ROLE_ID_TO_NAME hardcodeado
-                const roleNameRaw = (u?.userRoles?.[0] as any)?.role?.name
+                const roleNameRaw = u?.userRoles?.[0]?.role?.name
                   ?? roleOptions.find(r => r.id === roleId)?.name
                   ?? ROLE_ID_TO_NAME[roleId]
                   ?? 'SIN_ROL';
                 const roleDisplay = formatRoleName(roleNameRaw);
-                const gymsList  = (u?.userRoles ?? []).map((ur: any) => ur?.gym).filter(Boolean);
-                const gymNames  = gymsList.map((g: any) => (u as any)?.gymsMap?.get(Number(g?.id)) ?? g?.name ?? '').filter(Boolean);
+                type GymRef = NonNullable<UserRoleDto['gym']>;
+                const gymsList = (u?.userRoles ?? [])
+                  .map((ur: UserRoleDto) => ur.gym)
+                  .filter((g): g is GymRef => g != null);
+                const gymNames = gymsList.map(g => u.gymsMap?.get(Number(g.id)) ?? g.name ?? '').filter(Boolean);
                 const showSedes = SEDE_ROLE_NAMES.has(roleNameRaw) && gymNames.length > 0;
 
                 return (
-                  <tr key={u.id} className="border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-slate-700 dark:text-gray-300 text-sm">
+                  <tr key={u.id} className="border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-bg-deep transition-colors text-slate-700 dark:text-gray-300 text-sm">
                     <td style={{ padding: '0.6rem' }}>{u.id}</td>
                     <td style={{ padding: '0.6rem' }}>{fullName}</td>
                     <td style={{ padding: '0.6rem' }}>{u.email ?? '-'}</td>
                     <td style={{ padding: '0.6rem', color: '#8E8E93', fontSize: '0.85rem' }}>{roleDisplay}</td>
                     <td style={{ padding: '0.6rem' }}>
                       {showSedes ? (() => {
-                        const first  = gymsList[0] as any;
+                        const first  = gymsList[0];
                         const extras = gymsList.length - 1;
                         const gId    = Number(first?.id);
                         const info   = gymInfoMap.get(gId);
@@ -810,7 +1192,7 @@ export const UsuariosView = () => {
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                             {/* Primera sucursal siempre visible */}
                             <span style={{
-                              background: '#11cdef', color: '#fff',
+                              background: '#38BDF8', color: '#000',
                               padding: '0.18rem 0.5rem', borderRadius: '4px',
                               fontSize: '0.75rem',
                               fontWeight: 600, display: 'inline-block',
@@ -841,24 +1223,31 @@ export const UsuariosView = () => {
                         <span style={{ color: '#8E8E93', fontSize: '0.82rem' }}>Sin asignar</span>
                       )}
                     </td>
-                    <td style={{ padding: '0.6rem', color: u.isActive ? '#30D158' : '#FF5E00' }}>
+                    <td style={{ padding: '0.6rem', color: u.isActive ? '#00E5A3' : '#FF5E00' }}>
                       {u.isActive ? 'ACTIVO' : 'INACTIVO'}
                     </td>
                     <td style={{ padding: '0.6rem', textAlign: 'center' }}>
                       <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
                         <button onClick={() => setViewingUser(u)}
-                          style={{ background: '#11cdef', color: '#fff', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                          className="bg-brand-celeste text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1">
                           <Eye size={13} />
                           Detalle
                         </button>
+                        {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE') && SEDE_ROLE_NAMES.has(roleNameRaw) && roleNameRaw !== 'GERENTE' && (
+                          <button onClick={() => setSchedulingUser(u)}
+                            className="bg-brand-green text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1">
+                            <Clock size={13} />
+                            Horarios
+                          </button>
+                        )}
                         {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE') && (<>
                           <button onClick={() => { setUserToEdit(u); setIsModalOpen(true); }}
-                            style={{ background: '#5e72e4', color: '#fff', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                            className="bg-brand-celeste text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1">
                             <Edit size={13} />
                             Editar
                           </button>
                           <button onClick={() => setDeleteConfirmUser(u)}
-                            style={{ background: '#f5365c', color: '#fff', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                            className="bg-transparent text-gray-500 dark:text-text-muted px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1">
                             <Trash2 size={13} />
                             Eliminar
                           </button>
@@ -884,7 +1273,13 @@ export const UsuariosView = () => {
             ? roleOptions.filter(r => r.name !== 'SUPER_ADMIN' && r.name !== 'GERENTE')
             : roleOptions
         }
-        gerenteSucursalId={user?.role === 'GERENTE' && user?.gymId ? Number(user.gymId) : undefined}
+        gerenteBrandId={user?.role === 'GERENTE' ? user.brandId : undefined}
+      />
+
+      <StaffScheduleModal
+        isOpen={!!schedulingUser}
+        onClose={() => setSchedulingUser(null)}
+        employee={schedulingUser}
       />
 
       <ConfirmModal
@@ -904,7 +1299,7 @@ export const UsuariosView = () => {
         <DetailField label="Teléfono" value={viewingUser?.profile?.phone || 'No registrado'} />
         <DetailField label="Estado de Cuenta"
           value={
-            <span style={{ color: viewingUser?.isActive ? '#30D158' : '#FF5E00', fontWeight: 700 }}>
+            <span style={{ color: viewingUser?.isActive ? '#00E5A3' : '#FF5E00', fontWeight: 700 }}>
               {viewingUser?.isActive ? '● ACTIVO' : '● INACTIVO'}
             </span>
           } />
@@ -920,7 +1315,10 @@ export const UsuariosView = () => {
         {(() => {
           const rId        = Number(viewingUser?.userRoles?.[0]?.roleId ?? 0);
           const hasAssign  = SEDE_ROLE_NAMES.has(roleOptions.find(r => r.id === rId)?.name ?? ROLE_ID_TO_NAME[rId] ?? '');
-          const gymsInRoles = (viewingUser?.userRoles ?? []).map((ur: any) => ur?.gym).filter(Boolean);
+          type GymRef2 = NonNullable<UserRoleDto['gym']>;
+          const gymsInRoles = (viewingUser?.userRoles ?? [])
+            .map((ur: UserRoleDto) => ur.gym)
+            .filter((g): g is GymRef2 => g != null);
 
           if (!hasAssign || gymsInRoles.length === 0) {
             return (
@@ -934,7 +1332,7 @@ export const UsuariosView = () => {
 
           // GERENTE: siempre 1 sucursal → mostrar dos campos lado a lado
           if (rId === DB_ROLES.GERENTE) {
-            const g     = gymsInRoles[0] as any;
+            const g     = gymsInRoles[0];
             const gId   = Number(g?.id);
             const info  = gymInfoMap.get(gId);
             // Fallback: si gymInfoMap aún no cargó, usar el dato que viene en el rol
@@ -948,7 +1346,7 @@ export const UsuariosView = () => {
                 />
                 <DetailField
                   label="Sucursal Asignada"
-                  value={<span style={{ color: '#00D9FF', fontWeight: 600 }}>{sucursalName}</span>}
+                  value={<span style={{ color: '#38BDF8', fontWeight: 600 }}>{sucursalName}</span>}
                 />
               </>
             );
@@ -961,7 +1359,7 @@ export const UsuariosView = () => {
               isFullWidth
               value={
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.25rem' }}>
-                  {gymsInRoles.map((g: any, i: number) => {
+                  {gymsInRoles.map((g, i) => {
                     const gId   = Number(g?.id);
                     const info  = gymInfoMap.get(gId);
                     const sucursalName = info?.sucursalName ?? g?.name ?? `Gym #${gId}`;
@@ -969,15 +1367,65 @@ export const UsuariosView = () => {
                     return (
                       <div key={i} style={{
                         padding: '0.5rem 0.75rem',
-                        background: '#11cdef',
+                        background: '#38BDF8',
                         borderRadius: '6px',
                       }}>
-                        <div style={{ color: '#fff', fontWeight: 600, fontSize: '0.88rem' }}>{sucursalName}</div>
+                        <div style={{ color: '#000', fontWeight: 600, fontSize: '0.88rem' }}>{sucursalName}</div>
                         {sedeName && (
-                          <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.78rem', marginTop: '0.2rem' }}>
+                          <div style={{ color: '#555555', fontSize: '0.78rem', marginTop: '0.2rem' }}>
                             {sedeName}
                           </div>
                         )}
+                      </div>
+                    );
+                  })}
+                </div>
+              }
+            />
+          );
+        })()}
+
+        {/* ── Horarios laborales por sucursal ── */}
+        {(() => {
+          const DAY_LABELS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+          if (viewUserSchedules.length === 0) return null;
+
+          const byGym = new Map<number, { gymName: string; slots: StaffScheduleRow[] }>();
+          for (const s of viewUserSchedules) {
+            if (!byGym.has(s.gymId)) {
+              byGym.set(s.gymId, { gymName: s.gym?.name ?? `Sucursal #${s.gymId}`, slots: [] });
+            }
+            byGym.get(s.gymId)!.slots.push(s);
+          }
+
+          return (
+            <DetailField
+              label={`Horarios Laborales (${byGym.size} ${byGym.size === 1 ? 'sucursal' : 'sucursales'})`}
+              isFullWidth
+              value={
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.25rem' }}>
+                  {[...byGym.entries()].map(([gymId, { gymName, slots }]) => {
+                    const byDay = new Map<number, StaffScheduleRow[]>();
+                    for (const s of slots) {
+                      if (!byDay.has(s.dayOfWeek)) byDay.set(s.dayOfWeek, []);
+                      byDay.get(s.dayOfWeek)!.push(s);
+                    }
+                    const sortedDays = [...byDay.entries()].sort(([a], [b]) => a - b);
+                    return (
+                      <div key={gymId} style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #38BDF8' }}>
+                        <div style={{ background: '#38BDF8', padding: '0.4rem 0.75rem' }}>
+                          <span style={{ color: '#000', fontWeight: 700, fontSize: '0.85rem' }}>{gymName}</span>
+                        </div>
+                        <div style={{ padding: '0.5rem 0.75rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                          {sortedDays.map(([dow, daySlots]) => (
+                            <div key={dow} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.82rem' }}>
+                              <span style={{ fontWeight: 600, color: '#636366', minWidth: '2.5rem' }}>{DAY_LABELS[dow]}:</span>
+                              <span style={{ color: '#1c1c1e' }}>
+                                {daySlots.map(s => `${s.startTime.slice(0,5)} – ${s.endTime.slice(0,5)}`).join('  |  ')}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     );
                   })}

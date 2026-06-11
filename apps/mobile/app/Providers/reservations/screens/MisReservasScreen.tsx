@@ -297,7 +297,7 @@ export const MisReservasScreen = () => {
               )}
             </View>
 
-            <Text style={s.qrHint}>Muestra este código al ingreso de la sede.</Text>
+            <Text style={s.qrHint}>Muestra este código al ingreso de la marca.</Text>
 
             <TouchableOpacity style={s.qrCloseBtn} onPress={() => setQrReservation(null)} activeOpacity={0.8}>
               <Text style={s.qrCloseTxt}>Cerrar</Text>

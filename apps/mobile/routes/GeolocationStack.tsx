@@ -1,7 +1,3 @@
-/**
- * GeolocationStack — Configuración de navegación del módulo.
- */
-
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { MapScreenContainer } from '../resources/views/geolocation/MapScreen/MapScreen.container';

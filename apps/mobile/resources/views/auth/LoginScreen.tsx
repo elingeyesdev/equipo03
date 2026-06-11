@@ -1,8 +1,4 @@
-/**
- * LoginScreen.tsx
- * 
- * Pantalla de login moderna con animaciones y UX mejorada.
- */
+
 
 import React, { useState, useEffect, useRef } from 'react';
 import {

@@ -261,7 +261,7 @@ const ClientDashboard = () => {
     } else {
       Alert.alert(
         'Disciplina no disponible',
-        `Lo sentimos, por el momento no hay sedes cercanas que ofrezcan ${disciplina}. ¡Prueba con otra opción!`,
+        `Lo sentimos, por el momento no hay marcas cercanas que ofrezcan ${disciplina}. ¡Prueba con otra opción!`,
         [{ text: 'Entendido', style: 'default' }]
       );
     }
@@ -306,7 +306,7 @@ const ClientDashboard = () => {
           <View style={styles.sectionIconRow}>
             <MaterialCommunityIcons name="map-marker-radius" size={28} color="#f05b22" />
             <View style={{ marginLeft: 10 }}>
-              <Text style={styles.sectionTitle}>Sedes cercanas</Text>
+              <Text style={styles.sectionTitle}>Marcas cercanas</Text>
               <Text style={styles.sectionSubtitle}>Basado en tu ubicación actual</Text>
             </View>
           </View>
@@ -321,12 +321,12 @@ const ClientDashboard = () => {
         {loading ? (
           <View style={styles.loadingState}>
             <ActivityIndicator size="small" color="#f05b22" />
-            <Text style={styles.loadingText}>Buscando sedes...</Text>
+            <Text style={styles.loadingText}>Buscando marcas...</Text>
           </View>
         ) : sedes.length === 0 ? (
           <View style={styles.emptyState}>
             <MaterialCommunityIcons name="map-marker-off-outline" size={48} color="#444" />
-            <Text style={styles.emptyText}>No hay sedes cercanas en este radio.</Text>
+            <Text style={styles.emptyText}>No hay marcas cercanas en este radio.</Text>
             <TouchableOpacity style={styles.retryBtn} onPress={() => onRefresh()}>
               <Text style={styles.retryBtnText}>Reintentar</Text>
             </TouchableOpacity>
@@ -453,7 +453,7 @@ const ClientDashboard = () => {
             <View style={styles.infoContent}>
               <MaterialCommunityIcons name="information-outline" size={20} color="#f05b22" />
               <Text style={styles.infoText}>
-                Agenda clases en cualquiera de las sedes afiliadas, observa tu progreso y
+                Agenda clases en cualquiera de las marcas afiliadas, observa tu progreso y
                 no pierdas de vista tu bienestar.
               </Text>
             </View>

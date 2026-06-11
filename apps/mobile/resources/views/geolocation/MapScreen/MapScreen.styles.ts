@@ -2,7 +2,7 @@
  * MapScreen Styles — Estilos separados para el componente MapScreen.
  */
 
-import { StyleSheet, Dimensions, Platform } from 'react-native';
+import { StyleSheet, Dimensions } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -22,21 +22,21 @@ export const styles = StyleSheet.create({
     borderBottomRightRadius: 24,
   },
   headerBlur: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 44,
-    paddingBottom: 20,
+    paddingTop: 12,
+    paddingBottom: 10,
     paddingHorizontal: 20,
-    backgroundColor: 'rgba(28, 28, 30, 0.6)', // Fallback / Base tint
+    backgroundColor: 'rgba(28, 28, 30, 0.6)',
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
   headerTextCol: {
     flex: 1,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 15,
     fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: 0.3,
@@ -69,22 +69,19 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
     marginRight: 6,
   },
-  catalogFab: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 60 : 44,
-    right: 20,
+  catalogBtn: {
     backgroundColor: '#00D9FF',
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#00D9FF',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.4,
-    shadowRadius: 8,
+    shadowRadius: 6,
     elevation: 8,
-    zIndex: 20,
+    flexShrink: 0,
   },
   map: {
     flex: 1,
@@ -126,5 +123,30 @@ export const styles = StyleSheet.create({
     bottom: 100,
     right: 20,
     zIndex: 20,
+  },
+  legend: {
+    position: 'absolute',
+    bottom: 28,
+    left: 12,
+    gap: 5,
+    zIndex: 10,
+  },
+  legendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+  },
+  legendTxt: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+    textShadowColor: 'rgba(0,0,0,0.85)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
 });

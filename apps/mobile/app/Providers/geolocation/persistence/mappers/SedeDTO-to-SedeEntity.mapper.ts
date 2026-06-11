@@ -29,8 +29,13 @@ export class SedeDTOMapper {
       horariosMap = {};
       const daysByIndex = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
       const daysByName: Record<string, string> = {
+        // Abreviados español (formato usado en la BD: gym_schedules.day_of_week)
+        DOM: 'domingo', LUN: 'lunes', MAR: 'martes', MIE: 'miercoles',
+        JUE: 'jueves',  VIE: 'viernes', SAB: 'sabado',
+        // Completos español
         DOMINGO: 'domingo', LUNES: 'lunes', MARTES: 'martes', MIERCOLES: 'miercoles',
         JUEVES: 'jueves', VIERNES: 'viernes', SABADO: 'sabado',
+        // Inglés
         SUNDAY: 'domingo', MONDAY: 'lunes', TUESDAY: 'martes', WEDNESDAY: 'miercoles',
         THURSDAY: 'jueves', FRIDAY: 'viernes', SATURDAY: 'sabado',
       };

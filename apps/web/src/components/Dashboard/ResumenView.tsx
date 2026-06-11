@@ -48,7 +48,7 @@ const KpiCard = ({
   color:  string;
   accent?: boolean;
 }) => (
-  <div className="bg-white dark:bg-[#1e1e2d] border border-slate-200 dark:border-gray-800 rounded-xl shadow-sm flex items-center gap-4 p-5">
+  <div className="bg-white dark:bg-bg-surface border border-slate-200 dark:border-gray-800 rounded-xl shadow-sm flex items-center gap-4 p-5">
     <div
       className="w-14 h-14 rounded-lg flex items-center justify-center flex-shrink-0"
       style={{ background: color }}
@@ -120,7 +120,7 @@ const LineChartCard = ({ data, labels }: { data: HistPoint[]; labels: string[] }
     >
       {/* Grid */}
       {gridLines.map((y, i) => (
-        <line key={i} x1={PAD_X} x2={W - PAD_X} y1={y} y2={y} stroke="rgba(255,255,255,0.18)" strokeWidth="1" strokeDasharray="3 4" />
+        <line key={i} x1={PAD_X} x2={W - PAD_X} y1={y} y2={y} stroke="#3A3A3C" strokeWidth="1" strokeDasharray="3 4" />
       ))}
 
       {/* Línea principal */}
@@ -138,7 +138,7 @@ const LineChartCard = ({ data, labels }: { data: HistPoint[]; labels: string[] }
             key={i}
             x={points[i].x}
             y={H - 8}
-            fill="rgba(255,255,255,0.7)"
+            fill="#B0B0B0"
             fontSize="11"
             textAnchor="middle"
             fontFamily="system-ui"
@@ -180,7 +180,7 @@ const BarChartCard = ({ data, labels }: { data: HistPoint[]; labels: string[] })
       style={{ display: 'block' }}
     >
       {gridLines.map((y, i) => (
-        <line key={i} x1={PAD_X} x2={W - PAD_X} y1={y} y2={y} stroke="rgba(255,255,255,0.18)" strokeWidth="1" strokeDasharray="3 4" />
+        <line key={i} x1={PAD_X} x2={W - PAD_X} y1={y} y2={y} stroke="#3A3A3C" strokeWidth="1" strokeDasharray="3 4" />
       ))}
 
       {values.map((v, i) => {
@@ -206,7 +206,7 @@ const BarChartCard = ({ data, labels }: { data: HistPoint[]; labels: string[] })
             key={i}
             x={PAD_X + i * slot + slot / 2}
             y={H - 8}
-            fill="rgba(255,255,255,0.7)"
+            fill="#B0B0B0"
             fontSize="11"
             textAnchor="middle"
             fontFamily="system-ui"
@@ -251,7 +251,7 @@ const PieChartCard = ({ data, labels, colors }: { data: number[]; labels: string
         const largeArcFlag = sliceAngle > 180 ? 1 : 0;
         const d = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
 
-        return <path key={i} d={d} fill={colors[i]} stroke="rgba(255,255,255,0.15)" strokeWidth="2" />;
+        return <path key={i} d={d} fill={colors[i]} stroke="#3A3A3C" strokeWidth="2" />;
       })}
       
       {/* Legend */}
@@ -288,7 +288,7 @@ const RingChartCard = ({ label, current, max, color }: { label: string; current:
   
   return (
     <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" style={{ display: 'block' }}>
-      <circle cx={cx} cy={cy} r={r} fill="transparent" stroke="rgba(255,255,255,0.15)" strokeWidth={strokeWidth} />
+      <circle cx={cx} cy={cy} r={r} fill="transparent" stroke="#3A3A3C" strokeWidth={strokeWidth} />
       <circle 
         cx={cx} cy={cy} r={r} fill="transparent" stroke={color} strokeWidth={strokeWidth} 
         strokeDasharray={`${dash} ${gap}`} 
@@ -298,7 +298,7 @@ const RingChartCard = ({ label, current, max, color }: { label: string; current:
       <text x={cx} y={cy + 4} fill="#ffffff" fontSize="32" fontWeight="bold" textAnchor="middle" fontFamily="system-ui">
         {Math.round(percentage * 100)}%
       </text>
-      <text x={cx} y={cy + 24} fill="rgba(255,255,255,0.8)" fontSize="13" textAnchor="middle" fontFamily="system-ui">
+      <text x={cx} y={cy + 24} fill="#FFFFFF" fontSize="13" textAnchor="middle" fontFamily="system-ui">
         {current} / {max} {label}
       </text>
     </svg>
@@ -306,7 +306,7 @@ const RingChartCard = ({ label, current, max, color }: { label: string; current:
 };
 
 const EmptyChart = () => (
-  <div className="w-full h-full flex items-center justify-center text-white/50 text-sm">
+  <div className="w-full h-full flex items-center justify-center text-text-muted text-sm">
     Sin datos suficientes
   </div>
 );
@@ -323,12 +323,12 @@ const ChartCard = ({
   updatedAt:  Date;
   children:   React.ReactNode;
 }) => (
-  <div className="bg-white dark:bg-[#1e1e2d] border border-slate-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden flex flex-col">
+  <div className="bg-white dark:bg-bg-surface border border-slate-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden flex flex-col">
     {/* Chart area con fondo de color */}
     <div style={{ background: bg, padding: '20px 20px 0 20px' }}>
       <div className="flex items-center justify-between mb-3">
         <div>
-          <div className="text-white/80 text-xs font-semibold uppercase tracking-wider">{totalLabel}</div>
+          <div className="text-white text-xs font-semibold uppercase tracking-wider">{totalLabel}</div>
           <div className="text-white text-2xl font-bold leading-tight">{total.toLocaleString('es-ES')}</div>
         </div>
       </div>
@@ -359,12 +359,12 @@ const ClienteResumen = () => (
       </p>
     </div>
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
-      <div className="bg-white dark:bg-[#1e1e2d] border border-emerald-300 dark:border-emerald-700/60 rounded-xl p-5 shadow-sm">
-        <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-2">Suscripción</p>
-        <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">ACTIVA</p>
+      <div className="bg-white dark:bg-bg-surface border border-brand-green rounded-xl p-5">
+        <p className="text-xs font-semibold text-brand-green uppercase tracking-wider mb-2">Suscripción</p>
+        <p className="text-2xl font-bold text-brand-green">ACTIVA</p>
       </div>
-      <div className="bg-white dark:bg-[#1e1e2d] border border-cyan-300 dark:border-cyan-700/60 rounded-xl p-5 shadow-sm">
-        <p className="text-xs font-semibold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider mb-2">Último Check-in</p>
+      <div className="bg-white dark:bg-bg-surface border border-brand-celeste rounded-xl p-5">
+        <p className="text-xs font-semibold text-brand-celeste uppercase tracking-wider mb-2">Último Check-in</p>
         <p className="text-2xl font-bold text-slate-900 dark:text-white">Hoy, 08:30</p>
       </div>
     </div>
@@ -456,7 +456,7 @@ export const ResumenView = () => {
   const adminGerentes = allUsers.filter(u => u.userRoles?.some(ur => ur.roleId === DB_ROLES.GERENTE || ur.roleId === DB_ROLES.SUPER_ADMIN)).length;
   const adminPieData = [adminClientes, adminPersonal, adminGerentes];
   const adminPieLabels = ['Clientes', 'Personal', 'Administración'];
-  const adminPieColors = ['#ffffff', 'rgba(255,255,255,0.65)', 'rgba(255,255,255,0.3)'];
+  const adminPieColors = ['#38BDF8', '#FF5E00', '#00E5A3'];
 
   // Capacidad de la cadena (Gráfico de Anillo)
   const adminTotalAforo = gyms.reduce((acc, g) => acc + (g.aforoActual || 0), 0);
@@ -476,7 +476,7 @@ export const ResumenView = () => {
         <button
           onClick={fetchAll}
           disabled={loading}
-          className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 dark:text-gray-300 bg-white dark:bg-[#1e1e2d] border border-slate-200 dark:border-gray-800 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 disabled:opacity-50"
+          className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 dark:text-text-muted bg-white dark:bg-bg-surface border border-slate-200 dark:border-bg-deep rounded-lg hover:bg-slate-50 dark:hover:bg-bg-deep disabled:opacity-50"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           Actualizar
@@ -485,7 +485,7 @@ export const ResumenView = () => {
 
       {/* Error */}
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 text-red-600 dark:text-red-400 rounded-xl px-4 py-3 text-sm">
+        <div className="bg-red-50 dark:bg-bg-surface border border-red-200 dark:border-gray-700 text-red-600 dark:text-text-muted rounded-xl px-4 py-3 text-sm">
           {error}
         </div>
       )}
@@ -493,17 +493,17 @@ export const ResumenView = () => {
       {/* KPIs pequeños — condicional por rol */}
       {isGerente ? (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard label="Clientes"        value={clientCount}  icon={<Users size={24} color="#fff" />}        color="#11cdef" />
-          <KpiCard label="Entrenadores"    value={entrenadorCount} icon={<Dumbbell size={24} color="#fff" />}  color="#5e72e4" />
-          <KpiCard label="Nutricionistas"  value={nutricionistaCount} icon={<UserCheck size={24} color="#fff" />} color="#2dce89" />
-          <KpiCard label="Personal Total"  value={totalStaff}   icon={<CalendarCheck size={24} color="#fff" />} color="#fb6340" />
+          <KpiCard label="Clientes"        value={clientCount}  icon={<Users size={24} color="#fff" />}        color="#38BDF8" />
+          <KpiCard label="Entrenadores"    value={entrenadorCount} icon={<Dumbbell size={24} color="#fff" />}  color="#38BDF8" />
+          <KpiCard label="Nutricionistas"  value={nutricionistaCount} icon={<UserCheck size={24} color="#fff" />} color="#00E5A3" />
+          <KpiCard label="Personal Total"  value={totalStaff}   icon={<CalendarCheck size={24} color="#fff" />} color="#FF5E00" />
         </div>
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard label="Sedes Totales"  value={totalGyms}  icon={<Building size={24} color="#fff" />}    color="#11cdef" />
-          <KpiCard label="Sedes Activas"  value={activeGyms} icon={<CheckCircle size={24} color="#fff" />} color="#2dce89" />
-          <KpiCard label="Sedes Abiertas" value={openGyms}   icon={<Unlock size={24} color="#fff" />}      color="#fb6340" />
-          <KpiCard label="Denegados"      value={0}          icon={<Ban size={24} color="#fff" />}         color="#f5365c" accent />
+          <KpiCard label="Marcas Totales"  value={totalGyms}  icon={<Building size={24} color="#fff" />}    color="#38BDF8" />
+          <KpiCard label="Marcas Activas"  value={activeGyms} icon={<CheckCircle size={24} color="#fff" />} color="#00E5A3" />
+          <KpiCard label="Marcas Abiertas" value={openGyms}   icon={<Unlock size={24} color="#fff" />}      color="#FF5E00" />
+          <KpiCard label="Denegados"      value={0}          icon={<Ban size={24} color="#fff" />}         color="#FF5E00" accent />
         </div>
       )}
 
@@ -511,7 +511,7 @@ export const ResumenView = () => {
       {isGerente ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <ChartCard
-            bg="#2dce89"
+            bg="#00E5A3"
             title="Clientes registrados"
             subtitle="Crecimiento de clientes en tu sucursal"
             total={totalUsers}
@@ -522,7 +522,7 @@ export const ResumenView = () => {
           </ChartCard>
 
           <ChartCard
-            bg="#fb6340"
+            bg="#FF5E00"
             title="Reservas activas"
             subtitle="Reservas registradas por día"
             total={totalRes}
@@ -533,7 +533,7 @@ export const ResumenView = () => {
           </ChartCard>
 
           <ChartCard
-            bg="#172b4d"
+            bg="#38BDF8"
             title="Check-ins"
             subtitle="Accesos físicos confirmados en tu sucursal"
             total={totalCk}
@@ -544,7 +544,7 @@ export const ResumenView = () => {
           </ChartCard>
 
           <ChartCard
-            bg="#5e72e4"
+            bg="#FF5E00"
             title="Personal por Rol"
             subtitle="Distribución del equipo de tu sucursal"
             total={totalStaff}
@@ -557,7 +557,7 @@ export const ResumenView = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
           <ChartCard
-            bg="#2dce89"
+            bg="#00E5A3"
             title="Usuarios registrados"
             subtitle="Crecimiento de usuarios en la cadena"
             total={totalUsers}
@@ -568,7 +568,7 @@ export const ResumenView = () => {
           </ChartCard>
 
           <ChartCard
-            bg="#11cdef"
+            bg="#38BDF8"
             title="Distribución de Roles"
             subtitle="Composición total de la plataforma"
             total={allUsers.length}
@@ -579,7 +579,7 @@ export const ResumenView = () => {
           </ChartCard>
 
           <ChartCard
-            bg="#fb6340"
+            bg="#FF5E00"
             title="Reservas activas"
             subtitle="Reservas registradas por día"
             total={totalRes}
@@ -590,7 +590,7 @@ export const ResumenView = () => {
           </ChartCard>
 
           <ChartCard
-            bg="#172b4d"
+            bg="#38BDF8"
             title="Check-ins"
             subtitle="Accesos físicos confirmados"
             total={totalCk}
@@ -601,7 +601,7 @@ export const ResumenView = () => {
           </ChartCard>
 
           <ChartCard
-            bg="#8e44ad"
+            bg="#38BDF8"
             title="Ocupación Global"
             subtitle="Capacidad de la red de sucursales"
             total={adminMaxCapacity}
@@ -615,7 +615,7 @@ export const ResumenView = () => {
 
       {loading && (
         <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-gray-400">
-          <span className="inline-block w-4 h-4 border-2 border-slate-300 border-t-cyan-500 rounded-full animate-spin" />
+          <span className="inline-block w-4 h-4 border-2 border-slate-300 border-t-brand-celeste rounded-full animate-spin" />
           Cargando métricas…
         </div>
       )}

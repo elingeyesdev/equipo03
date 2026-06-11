@@ -62,7 +62,7 @@ export const CarnetVirtualScreen = () => {
   const avatarIcon  = p?.avatarIcon ?? p?.avatarUrl ?? 'account-circle';
   const gender      = p?.gender     ?? '—';
   const email       = userEmail ?? (user as any)?.email ?? '—';
-  const gymId       = gymName ?? (user?.gymId ? `Sede #${user.gymId}` : 'Sin sede asignada');
+  const gymId       = gymName ?? (user?.gymId ? `Marca #${user.gymId}` : 'Sin marca asignada');
   const qrValue     = String((user as any)?.userId ?? (user as any)?.id ?? 'NO_ID');
   const accent      = ROLE_COLOR[role] ?? '#f05b22';
 

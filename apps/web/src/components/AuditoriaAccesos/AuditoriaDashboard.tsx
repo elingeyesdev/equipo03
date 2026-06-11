@@ -67,7 +67,7 @@ export const AuditoriaDashboard: React.FC = () => {
           <button className="nav-item"> Resumen</button>
           <button className="nav-item active"> Auditoría (Check-Ins)</button>
           <button className="nav-item"> Usuarios</button>
-          <button className="nav-item"> Sedes</button>
+          <button className="nav-item"> Marcas</button>
         </nav>
       </aside>
 
@@ -93,7 +93,7 @@ export const AuditoriaDashboard: React.FC = () => {
             <div className="filtros-container">
               {user?.role === 'SUPER_ADMIN' && (
                 <select value={filtroSede} onChange={e => setFiltroSede(e.target.value)} className="filtro-select">
-                  <option value="">Todas las Sedes</option>
+                  <option value="">Todas las Marcas</option>
                   <option value="g1">Smart Fit</option>
                   <option value="g2">Premier</option>
                   <option value="g3">Bio Fitness</option>
@@ -120,7 +120,7 @@ export const AuditoriaDashboard: React.FC = () => {
                     <tr>
                       <th>ID</th>
                       <th>Usuario</th>
-                      <th>Sede</th>
+                      <th>Marca</th>
                       <th>Fecha/Hora</th>
                       <th>Metodo</th>
                       <th>Estado</th>

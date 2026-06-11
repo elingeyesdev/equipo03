@@ -81,8 +81,8 @@ const RoleModal = ({ isOpen, onClose, roleToEdit, onSave, roles }: any) => {
   const fgLabel: CSSProperties = { fontSize: '0.8rem', color: '#8E8E93', fontWeight: 600, marginBottom: '0.35rem', display: 'block' };
   const fgInput  = (hasErr: boolean): CSSProperties => ({
     width: '100%', boxSizing: 'border-box',
-    background: 'rgba(255,255,255,0.06)',
-    border: `1px solid ${hasErr ? '#ef4444' : 'rgba(255,255,255,0.12)'}`,
+    background: '#1C1C1E',
+    border: `1px solid ${hasErr ? '#ef4444' : '#3A3A3C'}`,
     borderRadius: '8px', padding: '0.6rem 0.75rem',
     color: '#FFFFFF', fontSize: '0.9rem',
   });
@@ -162,12 +162,13 @@ const RoleModal = ({ isOpen, onClose, roleToEdit, onSave, roles }: any) => {
           Nivel Jerárquico
         </label>
         <select
-          className="w-full bg-slate-50 dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+          className="w-full bg-white dark:bg-bg-surface border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer"
           value={formData.hierarchyLevel}
           onChange={e => setFormData({ ...formData, hierarchyLevel: Number(e.target.value) })}
         >
           <option value={10} className="bg-white dark:bg-[#151521] text-slate-900 dark:text-white">Máximo (10) — Super Administrador</option>
           <option value={5} className="bg-white dark:bg-[#151521] text-slate-900 dark:text-white">Alto (5) — Gerentes / Coordinadores</option>
+          <option value={4} className="bg-white dark:bg-[#151521] text-slate-900 dark:text-white">Medio-Alto (4) — Recepcionistas / Secretarios</option>
           <option value={3} className="bg-white dark:bg-[#151521] text-slate-900 dark:text-white">Medio (3) — Entrenadores / Nutricionistas</option>
           <option value={1} className="bg-white dark:bg-[#151521] text-slate-900 dark:text-white">Básico (1) — Usuarios / Clientes</option>
         </select>
@@ -189,7 +190,7 @@ const RoleModal = ({ isOpen, onClose, roleToEdit, onSave, roles }: any) => {
 
       {/* Warning */}
       {roleToEdit?.isSystemRole && (
-        <div className="p-3 bg-amber-500 text-white rounded-lg text-xs font-semibold mb-4">
+        <div className="p-3 bg-brand-orange text-white rounded-lg text-xs font-semibold mb-4">
           Atención: este es un rol de sistema. Modifícalo con precaución.
         </div>
       )}
@@ -204,7 +205,7 @@ const RoleModal = ({ isOpen, onClose, roleToEdit, onSave, roles }: any) => {
         </button>
         <button
           onClick={handleSubmit}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg border-0 cursor-pointer transition-colors"
+          className="px-4 py-2 bg-brand-celeste text-black text-sm font-bold rounded-lg border-0 cursor-pointer"
         >
           {roleToEdit ? 'Actualizar Rol' : 'Crear Rol'}
         </button>
@@ -378,9 +379,10 @@ export const RolesView = () => {
   const hierarchyColor = (level?: number) => {
     if (!level) return '#8E8E93';
     if (level >= 10) return '#FF5E00';
-    if (level >= 5) return '#FF9F0A';
-    if (level >= 3) return '#00D9FF';
-    return '#30D158';
+    if (level >= 5) return '#FF5E00';
+    if (level >= 4) return '#38BDF8';
+    if (level >= 3) return '#38BDF8';
+    return '#00E5A3';
   };
 
   return (
@@ -394,7 +396,7 @@ export const RolesView = () => {
         </div>
         <button
           onClick={() => { setRoleToEdit(null); setIsModalOpen(true); }}
-          style={{ background: '#5e72e4', color: '#fff', border: 'none', padding: '0.5rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+          className="bg-brand-orange text-white font-semibold px-4 py-2 rounded-lg border-0 cursor-pointer inline-flex items-center gap-1.5"
         >
           <Plus size={15} />
           Nuevo Rol
@@ -408,50 +410,33 @@ export const RolesView = () => {
           {roles.map(role => (
             <div
               key={role.id}
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '1rem 1.25rem',
-                background: 'rgba(255,255,255,0.04)',
-                borderRadius: '12px',
-                border: `1px solid ${role.isSystemRole ? 'rgba(255, 159, 10, 0.25)' : '#3A3A3C'}`,
-                transition: 'border-color 0.2s',
-              }}
+              className={`flex justify-between items-center rounded-xl bg-white dark:bg-bg-surface ${role.isSystemRole ? 'border border-brand-orange' : 'border border-gray-200 dark:border-bg-deep'}`}
+              style={{ padding: '1rem 1.25rem' }}
             >
               {/* Info del Rol */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                 <div
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '8px',
-                    background: `${hierarchyColor(role.hierarchyLevel)}22`,
-                    border: `1px solid ${hierarchyColor(role.hierarchyLevel)}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
+                  className="w-9 h-9 rounded-lg bg-gray-100 dark:bg-bg-deep flex items-center justify-center flex-shrink-0"
+                  style={{ border: `1px solid ${hierarchyColor(role.hierarchyLevel)}` }}
                 >
                   <Shield size={17} color={hierarchyColor(role.hierarchyLevel)} />
                 </div>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span className="font-bold text-slate-900 dark:text-[#E5E5EA]" style={{ fontSize: '0.95rem', fontFamily: 'monospace' }}>
+                    <span className="font-bold text-gray-900 dark:text-white" style={{ fontSize: '0.95rem', fontFamily: 'monospace' }}>
                       {role.name}
                     </span>
                     {role.isSystemRole && (
-                      <span style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', background: '#fb6340', color: '#fff', fontWeight: 700, border: 'none' }}>
+                      <span style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', background: '#FF5E00', color: '#fff', fontWeight: 700, border: 'none' }}>
                         SISTEMA
                       </span>
                     )}
-                    <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', background: `${hierarchyColor(role.hierarchyLevel)}22`, color: hierarchyColor(role.hierarchyLevel), border: `1px solid ${hierarchyColor(role.hierarchyLevel)}44` }}>
+                    <span className="bg-gray-100 dark:bg-bg-deep" style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', color: hierarchyColor(role.hierarchyLevel), border: `1px solid ${hierarchyColor(role.hierarchyLevel)}` }}>
                       Nivel {role.hierarchyLevel ?? '—'}
                     </span>
                   </div>
                   {role.description && (
-                    <span className="text-sm text-slate-600 dark:text-slate-400 mt-0.5 block">
+                    <span className="text-sm text-gray-600 dark:text-gray-400 mt-0.5 block">
                       {role.description}
                     </span>
                   )}
@@ -462,7 +447,7 @@ export const RolesView = () => {
               <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
                 <button
                   onClick={() => { setRoleToEdit(role); setIsModalOpen(true); }}
-                  style={{ background: '#5e72e4', color: '#fff', border: 'none', padding: '0.3rem 0.75rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                  className="bg-brand-celeste text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1"
                 >
                   <Edit size={13} />
                   Editar
@@ -471,20 +456,7 @@ export const RolesView = () => {
                   onClick={() => setDeleteConfirm(role)}
                   disabled={role.isSystemRole}
                   title={role.isSystemRole ? 'Los roles de sistema no pueden eliminarse' : 'Eliminar rol'}
-                  style={{
-                    background: role.isSystemRole ? '#cbd5e1' : '#f5365c',
-                    color: '#fff',
-                    border: 'none',
-                    padding: '0.3rem 0.75rem',
-                    borderRadius: '6px',
-                    cursor: role.isSystemRole ? 'not-allowed' : 'pointer',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.3rem',
-                    opacity: role.isSystemRole ? 0.7 : 1,
-                  }}
+                  className={`bg-transparent border-0 px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1 ${role.isSystemRole ? 'text-gray-300 opacity-50 cursor-not-allowed' : 'text-gray-500 dark:text-text-muted'}`}
                 >
                   <Trash2 size={13} />
                   Eliminar

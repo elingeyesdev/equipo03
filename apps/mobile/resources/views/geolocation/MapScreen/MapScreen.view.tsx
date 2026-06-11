@@ -69,13 +69,21 @@ export const MapScreenView: React.FC<MapScreenViewProps> = ({
     setTimeout(() => setToastConfig(null), 3500);
   };
 
-  const { filtros, toggleServicio, toggleBeneficio } = useFilterStore();
-  
-  const activeFiltersCount = (filtros.servicios?.length || 0) + (filtros.beneficios?.length || 0);
+  const { filtros, toggleServicio, toggleBeneficio, toggleMarca } = useFilterStore();
+
+  const activeFiltersCount =
+    (filtros.servicios?.length || 0) +
+    (filtros.beneficios?.length || 0) +
+    (filtros.marcas?.length || 0);
+
+  // Marcas únicas disponibles extraídas en tiempo real de las sedes cargadas
+  const marcasDisponibles = [...new Set(
+    sedes.map(s => s.sede.parentName).filter((n): n is string => !!n)
+  )].sort();
 
 
   if (loading && sedes.length === 0) {
-    return <LoadingOverlay message="Buscando sedes cercanas..." />;
+    return <LoadingOverlay message="Buscando marcas cercanas..." />;
   }
 
   if (error && sedes.length === 0) {
@@ -141,11 +149,14 @@ export const MapScreenView: React.FC<MapScreenViewProps> = ({
           <View style={styles.headerBlur}>
             <View style={styles.headerRow}>
               <View style={styles.headerTextCol}>
-                <Text style={styles.headerTitle}>Sedes Cercanas</Text>
+                <Text style={styles.headerTitle}>Marcas Cercanas</Text>
                 <Text style={styles.headerSubtitle}>
                   {sedes.length} {sedes.length === 1 ? 'resultado encontrado' : 'resultados encontrados'}
                 </Text>
               </View>
+              <TouchableOpacity style={styles.catalogBtn} onPress={onToggleListView} activeOpacity={0.8}>
+                <MaterialCommunityIcons name="view-list" size={20} color="#1C1C1E" />
+              </TouchableOpacity>
             </View>
 
             {/* Active Filter Chips */}
@@ -163,15 +174,16 @@ export const MapScreenView: React.FC<MapScreenViewProps> = ({
                     <MaterialCommunityIcons name="close" size={14} color="#FFF" />
                   </TouchableOpacity>
                 ))}
+                {filtros.marcas?.map(marca => (
+                  <TouchableOpacity key={marca} style={styles.activeFilterChip} onPress={() => toggleMarca(marca)}>
+                    <Text style={styles.activeFilterText}>{marca}</Text>
+                    <MaterialCommunityIcons name="close" size={14} color="#FFF" />
+                  </TouchableOpacity>
+                ))}
               </View>
             )}
           </View>
         </View>
-
-        {/* FAB de Catálogo */}
-        <TouchableOpacity style={styles.catalogFab} onPress={onToggleListView} activeOpacity={0.8}>
-          <MaterialCommunityIcons name="view-list" size={24} color="#1C1C1E" />
-        </TouchableOpacity>
 
         {/* Mapa con OpenStreetMap */}
         <MapView
@@ -259,7 +271,11 @@ export const MapScreenView: React.FC<MapScreenViewProps> = ({
       )}
 
       {/* Modal de Filtros */}
-      <FilterBottomSheet visible={filterVisible} onClose={() => setFilterVisible(false)} />
+      <FilterBottomSheet
+        visible={filterVisible}
+        onClose={() => setFilterVisible(false)}
+        marcasDisponibles={marcasDisponibles}
+      />
 
       {/* Toast Notificador */}
       <Toast 

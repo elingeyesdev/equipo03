@@ -149,20 +149,20 @@ const CheckInScannerModal = ({ onClose, onSuccess }: { onClose: () => void; onSu
 
 // ── Avatar de letra por rol ───────────────────────────────────────────────────
 const ROLE_AVATAR: Record<string, { letter: string; bg: string }> = {
-  ENTRENADOR:           { letter: 'E', bg: '#5e72e4' },
-  INSTRUCTOR:           { letter: 'I', bg: '#11cdef' },
-  NUTRICIONISTA:        { letter: 'N', bg: '#fb6340' },
-  PERSONAL_DE_LIMPIEZA: { letter: 'L', bg: '#6c757d' },
-  COORDINADOR:          { letter: 'C', bg: '#f5365c' },
-  GERENTE:              { letter: 'G', bg: '#8965e0' },
-  CLIENTE:              { letter: 'U', bg: '#2dce89' },
-  SUPER_ADMIN:          { letter: 'S', bg: '#172b4d' },
+  ENTRENADOR:           { letter: 'E', bg: '#38BDF8' },
+  INSTRUCTOR:           { letter: 'I', bg: '#38BDF8' },
+  NUTRICIONISTA:        { letter: 'N', bg: '#00E5A3' },
+  PERSONAL_DE_LIMPIEZA: { letter: 'L', bg: '#B0B0B0' },
+  COORDINADOR:          { letter: 'C', bg: '#38BDF8' },
+  GERENTE:              { letter: 'G', bg: '#FF5E00' },
+  CLIENTE:              { letter: 'U', bg: '#00E5A3' },
+  SUPER_ADMIN:          { letter: 'S', bg: '#FF5E00' },
 };
 
 const RoleAvatar = ({ rol, nombre }: { rol?: string; nombre: string }) => {
   const mapped = rol ? ROLE_AVATAR[rol.toUpperCase()] : undefined;
   const letter = mapped?.letter ?? (nombre?.[0]?.toUpperCase() || 'U');
-  const bg     = mapped?.bg ?? '#adb5bd';
+  const bg     = mapped?.bg ?? '#B0B0B0';
   return (
     <div
       className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold text-white select-none"
@@ -275,20 +275,14 @@ const AccesosPanel = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Control de Asistencia</h1>
           <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">
-            Historial diario de ingresos y cumplimiento de horarios del personal en todas las sedes.  
+            Historial diario de ingresos y cumplimiento de horarios del personal en todas las marcas.
           </p>
         </div>
         <div className="view-filters">
           {user?.role !== 'SUPER_ADMIN' && (
             <button
               onClick={() => setShowScanner(true)}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-                background: '#fb6340', color: '#fff', border: 'none',
-                padding: '0.5rem 1rem', borderRadius: '8px',
-                fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
+              className="bg-brand-orange text-white font-bold px-4 py-2 rounded-lg border-0 cursor-pointer inline-flex items-center gap-2 text-sm whitespace-nowrap"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
@@ -303,9 +297,9 @@ const AccesosPanel = () => {
             <select
               value={filtroSede}
               onChange={e => setFiltroSede(e.target.value)}
-              className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-800 text-slate-900 dark:text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors"
+              className="bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md px-4 py-2 focus:outline-none"
             >
-              <option value="">Todas las Sedes</option>
+              <option value="">Todas las Marcas</option>
               {gyms.map(g => (
                 <option key={g.id} value={String(g.id)}>{g.name}</option>
               ))}
@@ -314,7 +308,7 @@ const AccesosPanel = () => {
           <select
             value={filtroEstado}
             onChange={e => setFiltroEstado(e.target.value)}
-            className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-800 text-slate-900 dark:text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors font-semibold cursor-pointer text-sm"
+            className="bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md px-4 py-2 focus:outline-none font-semibold cursor-pointer text-sm"
           >
             <option value="">Todos los Estados</option>
             <option value="AUTORIZADO">Autorizados</option>
@@ -323,7 +317,7 @@ const AccesosPanel = () => {
           <select
             value={filtroTiempo}
             onChange={e => setFiltroTiempo(e.target.value)}
-            className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-800 text-slate-900 dark:text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors font-semibold cursor-pointer text-sm"
+            className="bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md px-4 py-2 focus:outline-none font-semibold cursor-pointer text-sm"
           >
             <option value="">Todos los Registros</option>
             <option value="hoy">Hoy</option>
@@ -339,13 +333,13 @@ const AccesosPanel = () => {
           <p>{errorAcceso}</p>
         </div>
       ) : (
-        <div className="bg-white dark:bg-[#1e1e2d] border border-slate-200 dark:border-gray-800 rounded-xl shadow-sm overflow-x-auto mt-4 transition-colors">
+        <div className="bg-white dark:bg-bg-surface border border-gray-200 dark:border-bg-deep rounded-xl overflow-x-auto mt-4">
           <table className="w-full text-left border-collapse">
-            <thead className="bg-slate-50 dark:bg-[#151521] border-b border-slate-200 dark:border-gray-800 text-slate-500 dark:text-gray-400 text-xs uppercase tracking-wider">
+            <thead className="bg-gray-50 dark:bg-bg-deep border-b border-gray-200 dark:border-bg-deep text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">
               <tr>
                 <th className="px-6 py-4">ID</th>
                 <th className="px-6 py-4">Usuario</th>
-                <th className="px-6 py-4">Sede</th>
+                <th className="px-6 py-4">Marca</th>
                 <th className="px-6 py-4">Fecha/Hora</th>
                 <th className="px-6 py-4">Método</th>
                 <th className="px-6 py-4">Estado</th>
@@ -358,7 +352,7 @@ const AccesosPanel = () => {
                 return (
                   <tr
                     key={acceso.id.value}
-                    className={`border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-slate-700 dark:text-gray-300 text-sm${isDenied ? ' row-denied' : ''}`}
+                    className={`border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-bg-deep transition-colors text-slate-700 dark:text-gray-300 text-sm${isDenied ? ' row-denied' : ''}`}
                   >
                     <td data-label="ID" className="px-6 py-4 cell-id">...{acceso.id.value.slice(-6)}</td>
                     <td data-label="Usuario" className="px-6 py-4">
@@ -370,7 +364,7 @@ const AccesosPanel = () => {
                         </div>
                       </div>
                     </td>
-                    <td data-label="Sede" className="px-6 py-4">
+                    <td data-label="Marca" className="px-6 py-4">
                       <div className="cell-gym">
                         <span className="name">{acceso.gymInfo.nombre}</span>
                         <a
@@ -385,7 +379,7 @@ const AccesosPanel = () => {
                     </td>
                     <td data-label="Fecha/Hora" className="px-6 py-4 cell-time">{acceso.checkInTime.toLocaleString()}</td>
                     <td data-label="Método" className="px-6 py-4">
-                      <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-slate-800 dark:text-slate-200 text-xs font-semibold">
+                      <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-bg-surface text-slate-800 dark:text-text-main text-xs font-semibold">
                         {acceso.method.tipo}
                       </span>
                     </td>

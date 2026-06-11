@@ -6,8 +6,7 @@ const backdropStyle: CSSProperties = {
   position: 'fixed',
   inset: 0,
   zIndex: 9999,
-  background: 'rgba(0, 0, 0, 0.70)',
-  backdropFilter: 'blur(6px)',
+  background: '#0A0A0A',
   display: 'grid',
   placeItems: 'center',
   padding: '1rem',
@@ -26,8 +25,8 @@ export const ModalOverlay = ({ children, onClose }: { children: React.ReactNode;
   return createPortal(
     <div style={backdropStyle} onClick={handleBackdropClick}>
       <div
-        className="bg-white dark:bg-[#1e1e2d] w-full max-w-md md:max-w-lg rounded-2xl shadow-2xl border border-slate-200 dark:border-gray-800 p-6 relative transition-colors flex flex-col overflow-hidden"
-        style={{ maxHeight: '90vh', animation: 'modalFadeIn 0.25s ease' }}
+        className="bg-white dark:bg-bg-surface w-full max-w-md md:max-w-lg rounded-2xl border border-slate-200 dark:border-bg-deep p-6 relative flex flex-col overflow-hidden"
+        style={{ maxHeight: '90vh' }}
         onClick={e => e.stopPropagation()}
       >
         {children}
@@ -58,7 +57,7 @@ export const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message }: {
           Cancelar
         </button>
         <button
-          className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 transition-colors cursor-pointer border-0"
+          className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-brand-orange cursor-pointer border-0"
           onClick={onConfirm}
         >
           Confirmar Eliminación
@@ -76,7 +75,7 @@ export const DetailField = ({
   value: React.ReactNode;
   isFullWidth?: boolean;
 }) => (
-  <div className={`flex flex-col gap-1 bg-slate-50 dark:bg-black/10 p-3 rounded-lg border border-slate-200 dark:border-white/5 ${isFullWidth ? 'col-span-2' : 'col-span-1'}`}>
+  <div className={`flex flex-col gap-1 bg-slate-50 dark:bg-bg-surface p-3 rounded-lg border border-slate-200 dark:border-bg-deep ${isFullWidth ? 'col-span-2' : 'col-span-1'}`}>
     <span className="text-xs font-semibold text-slate-500 dark:text-gray-500 uppercase tracking-wide">
       {label}
     </span>
@@ -133,5 +132,4 @@ export const RecordDetailModal = ({
 
 export const panelStyle: CSSProperties = {
   padding: '1.25rem',
-  color: '#FFFFFF',
 };

@@ -63,21 +63,14 @@
 
 .btn-ghost-cyan {
   background: transparent;
-  color: #00D9FF;
-  border: 1px solid rgba(0, 217, 255, 0.5);
-  padding: 0.6rem 1.2rem;
-  border-radius: 8px;
+  color: #38BDF8;
+  border: 1px solid #38BDF8;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
   font-weight: 600;
   font-size: 0.9rem;
   cursor: pointer;
-  transition: all 0.3s ease;
-  backdrop-filter: blur(8px);
-}
-
-.btn-ghost-cyan:hover {
-  background: rgba(0, 217, 255, 0.1);
-  border-color: #00D9FF;
-  box-shadow: 0 0 15px rgba(0, 217, 255, 0.3);
+  text-decoration: none;
 }
 
 /* Hero Section */
