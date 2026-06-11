@@ -468,7 +468,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
     } else {
       setFormData({ firstName: '', lastName: '', email: '', password: '', phone: '', phonePrefix: '+591', phoneNumber: '', ci: '', roleId: DB_ROLES.USER, gymIds: [], isActive: true });
     }
-    setSelectedSede('');
+    setSelectedSede(sedeIdDelGerente || '');
     setSelectedMarcaId(sedeIdDelGerente ?? '');
   }, [userToEdit, isOpen, sedeIdDelGerente]);
 
@@ -498,11 +498,12 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
     if (marcaId) setSelectedMarcaId(marcaId);
   }, [isOpen, sedeIdDelGerente, gyms, formData.gymIds, formData.roleId, userToEdit, roleOptions]);
 
-  // ── Restaurar marca del Gerente si se limpió al cambiar de rol ────────────────
+  // ── Restaurar marca del Gerente/Recepcionista si se limpió al cambiar de rol ──
   useEffect(() => {
     if (!isOpen || !sedeIdDelGerente) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedMarcaId(sedeIdDelGerente);
+    setSelectedSede(sedeIdDelGerente);
   }, [isOpen, formData.roleId, sedeIdDelGerente]);
 
   const validateForm = (): boolean => {
@@ -545,10 +546,12 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
   }));
 
   // Determina el nombre del rol seleccionado (usando datos reales de la BD)
-  const selectedRoleName = roleOptions.find(r => r.id === formData.roleId)?.name ?? '';
-  const isGerente  = selectedRoleName === 'GERENTE';
-  const needsSede  = SEDE_ROLE_NAMES.has(selectedRoleName);
-  const needsMulti = needsSede && !isGerente;
+  const selectedRoleName   = roleOptions.find(r => r.id === formData.roleId)?.name ?? '';
+  const isGerente          = selectedRoleName === 'GERENTE';
+  const isRecepcionista    = selectedRoleName === 'RECEPCIONISTA';
+  const needsSede          = SEDE_ROLE_NAMES.has(selectedRoleName);
+  // RECEPCIONISTA usa selector único igual que GERENTE — no checkboxes múltiples
+  const needsMulti         = needsSede && !isGerente && !isRecepcionista;
 
   if (!isOpen) return null;
 
@@ -678,21 +681,29 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
           {roleOptions.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
         </select>
 
-        {/* ── GERENTE: selección en dos pasos ──────────────────────────────────── */}
-        {isGerente && (
+        {/* ── GERENTE / RECEPCIONISTA: selección en dos pasos (1 sucursal) ───────── */}
+        {(isGerente || isRecepcionista) && (
           <div className="bg-gray-50 dark:bg-bg-surface border border-brand-orange rounded-xl p-4 mt-3 mb-1 flex flex-col gap-3">
             <p className="m-0 text-xs font-semibold tracking-widest uppercase text-brand-orange">
               Asignación de Marca y Sucursal
             </p>
             <p className="m-0 text-sm text-slate-600 dark:text-gray-400 leading-relaxed">
               Una <strong className="text-slate-900 dark:text-gray-200">Marca</strong> es la organización (ej. "Smart Fit").
-              Una <strong className="text-slate-900 dark:text-gray-200">Sucursal</strong> es el gimnasio físico que administrará el gerente (ej. "Smart Fit - Centro").
+              Una <strong className="text-slate-900 dark:text-gray-200">Sucursal</strong> es el gimnasio físico donde trabajará
+              el {isGerente ? 'gerente' : 'recepcionista'} (ej. "Smart Fit - Centro").
             </p>
 
-            {/* Paso 1: Sede (Marca) */}
+            {/* Paso 1: Sede (Marca) — solo lectura si el contexto ya la impone */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">1 · Marca *</label>
-              {loadingGyms ? <p className="text-sm text-slate-400 dark:text-gray-500">Cargando...</p> : (
+              <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">
+                {sedeIdDelGerente ? 'Marca' : '1 · Marca *'}
+              </label>
+              {sedeIdDelGerente ? (
+                <div className="w-full bg-slate-100 dark:bg-bg-deep border border-slate-200 dark:border-gray-700 text-slate-700 dark:text-gray-300 rounded-lg px-4 py-2.5 text-sm flex items-center justify-between">
+                  <span className="font-medium">{sedes.find(s => s.id === sedeIdDelGerente)?.name ?? `Marca #${sedeIdDelGerente}`}</span>
+                  <span className="text-xs text-slate-400 dark:text-gray-500 ml-2">(tu marca)</span>
+                </div>
+              ) : loadingGyms ? <p className="text-sm text-slate-400 dark:text-gray-500">Cargando...</p> : (
                 <select
                   value={selectedSede}
                   onChange={e => {
@@ -707,9 +718,11 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
               )}
             </div>
 
-            {/* Paso 2: Sucursal (habilitado tras elegir sede) */}
+            {/* Paso 2: Sucursal única (habilitado tras elegir sede) */}
             <div style={{ opacity: selectedSede !== '' ? 1 : 0.4, transition: 'opacity 0.2s' }}>
-              <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">2 · Sucursal a Administrar *</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">
+                {sedeIdDelGerente ? '' : '2 · '}{isGerente ? 'Sucursal a Administrar' : 'Sucursal Asignada'} *
+              </label>
               {selectedSede !== '' && sucursalesParaSede.length === 0 ? (
                 <p className="m-0 text-sm text-red-500 p-2 bg-red-50 dark:bg-bg-surface rounded-lg">
                   Atención: esta marca no tiene sucursales registradas aún.
@@ -802,13 +815,14 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
         <button className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-bg-deep rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent" onClick={onClose}>Cancelar</button>
         <button className="px-4 py-2 bg-brand-celeste text-black font-medium rounded-lg border-0 cursor-pointer" onClick={() => {
           if (!validateForm()) return;
-          if (isGerente) {
+          if (isGerente || isRecepcionista) {
+            const rolLabel = isGerente ? 'Gerente' : 'Recepcionista';
             if (!selectedSede) {
-              toast.error('Debes seleccionar la Marca a la que pertenece el Gerente');
+              toast.error(`Debes seleccionar la Marca a la que pertenece el ${rolLabel}`);
               return;
             }
             if (formData.gymIds.length === 0) {
-              toast.error('Debes seleccionar la Sucursal que administrará el Gerente');
+              toast.error(`Debes seleccionar la Sucursal que administrará el ${rolLabel}`);
               return;
             }
           }
@@ -1058,7 +1072,7 @@ export const UsuariosView = () => {
         <div style={{ color: '#8E8E93', fontSize: '0.9rem' }}>
           {loading ? 'Cargando usuarios...' : `Total: ${users.length} | Activos: ${usuariosActivos}`}
         </div>
-        {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE') && (
+        {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE' || user?.role === 'RECEPCIONISTA') && (
           <button onClick={() => { setUserToEdit(null); setIsModalOpen(true); }}
             className="bg-brand-orange text-white font-semibold px-4 py-2 rounded-lg border-0 cursor-pointer whitespace-nowrap inline-flex items-center gap-1.5">
             <Plus size={15} />
@@ -1233,14 +1247,14 @@ export const UsuariosView = () => {
                           <Eye size={13} />
                           Detalle
                         </button>
-                        {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE') && SEDE_ROLE_NAMES.has(roleNameRaw) && roleNameRaw !== 'GERENTE' && (
+                        {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE' || user?.role === 'RECEPCIONISTA') && SEDE_ROLE_NAMES.has(roleNameRaw) && roleNameRaw !== 'GERENTE' && roleNameRaw !== 'RECEPCIONISTA' && (
                           <button onClick={() => setSchedulingUser(u)}
                             className="bg-brand-green text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1">
                             <Clock size={13} />
                             Horarios
                           </button>
                         )}
-                        {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE') && (<>
+                        {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE' || user?.role === 'RECEPCIONISTA') && (<>
                           <button onClick={() => { setUserToEdit(u); setIsModalOpen(true); }}
                             className="bg-brand-celeste text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1">
                             <Edit size={13} />
@@ -1269,11 +1283,25 @@ export const UsuariosView = () => {
         userToEdit={userToEdit}
         onSave={handleSaveUser}
         roleOptions={
-          user?.role === 'GERENTE'
+          user?.role === 'RECEPCIONISTA'
+            // RECEPCIONISTA solo puede crear personal operativo (no admins ni él mismo)
+            ? roleOptions.filter(r => r.name !== 'SUPER_ADMIN' && r.name !== 'GERENTE' && r.name !== 'RECEPCIONISTA')
+            : user?.role === 'GERENTE'
+            // GERENTE puede crear RECEPCIONISTA y staff, pero no SUPER_ADMIN ni otro GERENTE
             ? roleOptions.filter(r => r.name !== 'SUPER_ADMIN' && r.name !== 'GERENTE')
             : roleOptions
         }
-        gerenteBrandId={user?.role === 'GERENTE' ? user.brandId : undefined}
+        gerenteBrandId={(() => {
+          if (user?.role !== 'GERENTE' && user?.role !== 'RECEPCIONISTA') return undefined;
+          // GERENTE con brandId directo en JWT
+          if (user.brandId) return Number(user.brandId);
+          // GERENTE con gymId (gerente de sucursal) o RECEPCIONISTA → derivar marca del parent
+          if (user.gymId && gymsCatalog.length) {
+            const s = gymsCatalog.find(g => Number(g.id) === Number(user.gymId));
+            return s?.parentId ?? s?.parent?.id ?? undefined;
+          }
+          return undefined;
+        })()}
       />
 
       <StaffScheduleModal

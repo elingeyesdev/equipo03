@@ -10,7 +10,7 @@ export const ReservasPlaceholder = () => (
 
 export const MedidasPlaceholder = () => {
   const { user } = useAuth();
-  const canDelete = user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE';
+  const canDelete = user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE' || user?.role === 'RECEPCIONISTA';
 
   return (
     <section className="glass-panel" style={{ padding: '2rem', borderRadius: '16px' }}>

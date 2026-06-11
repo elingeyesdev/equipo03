@@ -95,6 +95,16 @@ export function useMapaSucursales(user: WebUser | null): MapaSucursalesState {
           return;
         }
 
+        // RECEPCIONISTA: ve únicamente su sucursal asignada
+        if (user.role === 'RECEPCIONISTA' && user.gymId) {
+          const receptGymId = Number(user.gymId);
+          const sola = all.filter(s => s.id === receptGymId);
+          setSucursales(sola);
+          setSinGeo(sinGeoCount);
+          setMarcaNombre(sola[0]?.sedePrincipalNombre ?? null);
+          return;
+        }
+
         // GERENTE: filtrar por su marca
         let brandId: number | null = null;
         let brandName: string | null = null;

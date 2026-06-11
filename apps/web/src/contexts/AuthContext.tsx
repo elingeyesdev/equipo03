@@ -4,7 +4,7 @@ import type { UserRole } from '@gymsync/core';
 import { apiClient } from '../infrastructure/api.config';
 import { VALID_ROLES, ROLE_ID_TO_NAME, DB_ROLES } from '../config/rbac.constants';
 
-const ALLOWED_WEB_ROLES = new Set([DB_ROLES.SUPER_ADMIN, DB_ROLES.GERENTE]);
+const ALLOWED_WEB_ROLES = new Set<string>(['SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA']);
 
 // ─── Tipo extendido de usuario (solo para la app web) ────────────────────────
 // Extiende el contrato mínimo de @gymsync/core con `id` numérico y `roleId`,
@@ -194,7 +194,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const webUser: WebUser = { id, role, roleId, gymId, brandId, firstName, lastName, gymName };
 
-      if (!ALLOWED_WEB_ROLES.has(roleId)) {
+      if (!ALLOWED_WEB_ROLES.has(role)) {
         return {
           success: false,
           error: 'Acceso denegado. Esta plataforma es de uso administrativo. Utiliza la aplicación móvil GymSync.',

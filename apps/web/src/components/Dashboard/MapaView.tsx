@@ -218,7 +218,7 @@ const PopupCard = ({ s, computedStatus, role }: { s: SucursalMapaDTO; computedSt
         <span style={{ fontSize: '0.68rem', color: '#555', fontFamily: 'monospace' }}>
           {s.latitude.toFixed(4)}, {s.longitude.toFixed(4)}
         </span>
-        {role === 'GERENTE' ? (
+        {(role === 'GERENTE' || role === 'RECEPCIONISTA') ? (
           <button
             onClick={e => { e.stopPropagation(); navigate('/dashboard/reservas'); }}
             style={{
@@ -456,8 +456,8 @@ export const MapaView: React.FC = () => {
   const [searchQuery,   setSearchQuery]   = useState('');
   const [filtroEstados, setFiltroEstados] = useState<Set<EstadoFiltro>>(new Set());
 
-  // Guard — solo SUPER_ADMIN y GERENTE
-  if (!user || (user.role !== 'SUPER_ADMIN' && user.role !== 'GERENTE')) {
+  // Guard — SUPER_ADMIN, GERENTE y RECEPCIONISTA
+  if (!user || (user.role !== 'SUPER_ADMIN' && user.role !== 'GERENTE' && user.role !== 'RECEPCIONISTA')) {
     return <Navigate to="/dashboard/resumen" replace />;
   }
 

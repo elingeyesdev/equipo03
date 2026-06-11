@@ -34,7 +34,7 @@ export const useNotifications = () => {
     if (!token) return;
 
     // Solo roles con acceso al módulo de auditoría reciben el socket
-    if (user.role !== 'SUPER_ADMIN' && user.role !== 'GERENTE') return;
+    if (user.role !== 'SUPER_ADMIN' && user.role !== 'GERENTE' && user.role !== 'RECEPCIONISTA') return;
 
     console.log(`[NotificationGateway]: Iniciando conexión WS para rol ${user.role}...`);
 
@@ -66,10 +66,10 @@ export const useNotifications = () => {
       console.log(`[NotificationGateway]: Conexión establecida. Socket ID: ${socket.id}`);
 
       // Unirse a la sala correspondiente según rol
-      if (user.role === 'GERENTE' && user.gymId) {
+      if ((user.role === 'GERENTE' || user.role === 'RECEPCIONISTA') && user.gymId) {
         const room = `gym_${user.gymId}`;
         socket.emit('join_room', { room, token });
-        console.log(`[NotificationGateway]: GERENTE unido a sala: ${room}`);
+        console.log(`[NotificationGateway]: ${user.role} unido a sala: ${room}`);
       } else if (user.role === 'SUPER_ADMIN') {
         socket.emit('join_room', { room: 'admin_room', token });
         console.log(`[NotificationGateway]: SUPER_ADMIN unido a sala: admin_room`);
@@ -83,7 +83,7 @@ export const useNotifications = () => {
       );
 
       // Validación de privacidad de Gerente: Descarta alertas de otras sedes
-      if (user.role === 'GERENTE' && user.gymId && String(payload.gymId) !== String(user.gymId)) {
+      if ((user.role === 'GERENTE' || user.role === 'RECEPCIONISTA') && user.gymId && String(payload.gymId) !== String(user.gymId)) {
         console.warn(
           `[Security Guard]: Alerta de Sede ajena descartada para Gerente ID ${user.id}. Sede recibida: ${payload.gymId}`
         );
