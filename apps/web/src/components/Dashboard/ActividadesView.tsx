@@ -44,7 +44,7 @@ const TimeSelect = ({ value, onChange }: { value: string; onChange: (v: string) 
   const selCls = "bg-slate-50 dark:bg-[#1C1C1E] text-slate-900 dark:text-[#E5E5EA] border-0 px-[0.4rem] py-[0.45rem] text-[0.88rem] font-mono font-semibold cursor-pointer outline-none appearance-none text-center";
 
   return (
-    <div className="inline-flex items-center gap-px bg-slate-100 dark:bg-[rgba(255,255,255,0.06)] border border-slate-200 dark:border-[rgba(255,255,255,0.12)] rounded-lg overflow-hidden">
+    <div className="inline-flex items-center gap-px bg-slate-100 dark:bg-bg-surface border border-slate-200 dark:border-bg-deep rounded-lg overflow-hidden">
       <select value={h} onChange={e => onChange(`${e.target.value}:${m}`)} className={selCls}>
         {HOURS_24.map(hh => <option key={hh} value={hh}>{hh}</option>)}
       </select>
@@ -57,7 +57,7 @@ const TimeSelect = ({ value, onChange }: { value: string; onChange: (v: string) 
 };
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const panelStyle: CSSProperties = { padding: '2rem', color: '#E5E5EA', minHeight: '100vh' };
+const panelStyle: CSSProperties = { padding: '2rem', minHeight: '100vh' };
 
 const tableStyle: CSSProperties = {
   width: '100%', borderCollapse: 'collapse',
@@ -75,27 +75,23 @@ const tdStyle: CSSProperties = {
 const badgeActive: CSSProperties = {
   display: 'inline-block', padding: '2px 10px', borderRadius: '99px',
   fontSize: '0.75rem', fontWeight: 700,
-  background: '#2dce89', color: '#fff', border: 'none',
+  background: '#00E5A3', color: '#000', border: 'none',
 };
 
 const badgeInactive: CSSProperties = {
   ...badgeActive,
-  background: '#f5365c', color: '#fff', border: 'none',
+  background: '#FF5E00', color: '#fff', border: 'none',
 };
 
 const btnPrimary: CSSProperties = {
-  background: '#fb6340', color: '#fff', border: 'none',
+  background: 'var(--color-brand-orange)', color: '#fff', border: 'none',
   borderRadius: '8px', padding: '0.5rem 1.2rem',
   cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem',
 };
 
-const btnSecondaryCls = "px-4 py-2 text-white bg-[#5e72e4] hover:bg-[#4f63d2] border-0 rounded-lg cursor-pointer text-[0.85rem] font-semibold";
+const btnSecondaryCls = "px-3 py-1 bg-brand-celeste text-black rounded cursor-pointer text-[0.85rem] font-semibold inline-flex items-center gap-1";
 
-const btnDanger: CSSProperties = {
-  background: '#f5365c', color: '#fff', border: 'none',
-  borderRadius: '8px', padding: '0.4rem 0.8rem', cursor: 'pointer',
-  fontSize: '0.82rem', fontWeight: 600,
-};
+const btnDangerCls = "bg-transparent text-gray-500 dark:text-text-muted px-2 py-1 rounded cursor-pointer text-[0.82rem] font-semibold inline-flex items-center gap-1";
 
 const inputCls = "w-full bg-slate-50 dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-white rounded-lg px-[0.9rem] py-[0.6rem] text-[0.9rem] focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors box-border";
 const labelCls = "block mb-[0.35rem] text-[0.8rem] font-medium text-slate-500 dark:text-gray-500 uppercase tracking-[0.04em]";
@@ -137,7 +133,7 @@ const ActivityDetailModal = ({
   }, [activity.id]);
 
   const field = (label: string, value: React.ReactNode, full = false): React.ReactNode => (
-    <div className={`bg-slate-50 dark:bg-black/10 border border-slate-200 dark:border-white/5 rounded-xl p-3 ${full ? 'col-span-2' : 'col-span-1'}`}>
+    <div className={`bg-slate-50 dark:bg-bg-surface border border-slate-200 dark:border-bg-deep rounded-xl p-3 ${full ? 'col-span-2' : 'col-span-1'}`}>
       <div className="text-xs font-semibold text-slate-500 dark:text-gray-500 uppercase tracking-wide mb-1">{label}</div>
       <div className="text-[0.92rem] font-medium text-slate-900 dark:text-white">{value || <span className="text-slate-400 dark:text-gray-600">—</span>}</div>
     </div>
@@ -165,8 +161,8 @@ const ActivityDetailModal = ({
             {field('Gimnasio / Sucursal', activity.gym?.name ?? `Gym #${activity.gymId}`)}
             {field('Duración', activity.defaultDurationMin ? `${activity.defaultDurationMin} min` : 'No definida')}
             {field('Tipo', activity.isFreeAccess
-              ? <span style={{ color: '#fb6340', fontWeight: 700 }}>Acceso Libre</span>
-              : <span style={{ color: '#5e72e4', fontWeight: 700 }}>Con Horarios</span>
+              ? <span style={{ color: '#FF5E00', fontWeight: 700 }}>Acceso Libre</span>
+              : <span style={{ color: '#38BDF8', fontWeight: 700 }}>Con Horarios</span>
             )}
             {field('Estado', activity.isActive
               ? <span style={{ color: '#34C759', fontWeight: 700 }}>● Activa</span>
@@ -177,7 +173,7 @@ const ActivityDetailModal = ({
 
           {/* Horarios */}
           {!activity.isFreeAccess && (
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '1rem' }}>
+            <div style={{ borderTop: '1px solid #1C1C1E', paddingTop: '1rem' }}>
               <div style={{ fontSize: '0.75rem', color: '#FF5E00', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.6rem' }}>
                 Horarios de Clase
               </div>
@@ -188,7 +184,7 @@ const ActivityDetailModal = ({
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                   {schedules.map(s => (
-                    <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'rgba(255,94,0,0.06)', border: '1px solid rgba(255,94,0,0.18)', borderRadius: '8px', padding: '0.55rem 0.85rem' }}>
+                    <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#1C1C1E', border: '1px solid #FF5E00', borderRadius: '8px', padding: '0.55rem 0.85rem' }}>
                       <span style={{ color: '#FF5E00', fontWeight: 700, fontSize: '0.78rem', minWidth: '42px' }}>{DAY_LABELS[s.dayOfWeek] ?? s.dayOfWeek}</span>
                       <span style={{ color: '#E5E5EA', fontSize: '0.87rem', flex: 1 }}>
                         {s.startTime.substring(0, 5)} – {s.endTime.substring(0, 5)}
@@ -210,7 +206,7 @@ const ActivityDetailModal = ({
         </div>
 
         {/* Footer fijo */}
-        <div className="flex gap-[0.6rem] mt-4 pt-3 border-t border-slate-200 dark:border-white/5 flex-shrink-0">
+        <div className="flex gap-[0.6rem] mt-4 pt-3 border-t border-slate-200 dark:border-bg-deep flex-shrink-0">
           <button onClick={onClose} className={`${btnSecondaryCls} flex-1`}>Cerrar</button>
           <button onClick={onEdit} style={{ ...btnPrimary, flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}><Edit size={14} />Editar Servicio</button>
         </div>
@@ -485,15 +481,15 @@ const ActivityFormModal = ({
 
           {/* ── Toggle Acceso Libre ── */}
           <div
-            className={`flex items-center gap-3 rounded-xl px-4 py-3 cursor-pointer select-none transition-all mb-4 border ${isFreeAccess ? 'bg-orange-50 dark:bg-[rgba(255,94,0,0.08)] border-orange-300 dark:border-[rgba(255,94,0,0.35)]' : 'bg-slate-50 dark:bg-black/5 border-slate-200 dark:border-white/5'}`}
+            className={`flex items-center gap-3 rounded-xl px-4 py-3 cursor-pointer select-none mb-4 border ${isFreeAccess ? 'bg-gray-100 dark:bg-bg-surface border-brand-orange' : 'bg-slate-50 dark:bg-bg-surface border-slate-200 dark:border-bg-deep'}`}
             onClick={() => setIsFreeAccess(v => !v)}
           >
             <div style={{ width: '40px', height: '22px', borderRadius: '11px', background: isFreeAccess ? '#FF5E00' : undefined, position: 'relative', flexShrink: 0, transition: 'background 0.2s ease' }}
-              className={!isFreeAccess ? 'bg-slate-300 dark:bg-white/15' : ''}>
+              className={!isFreeAccess ? 'bg-slate-300 dark:bg-bg-deep' : ''}>
               <div style={{ position: 'absolute', top: '3px', left: isFreeAccess ? '21px' : '3px', width: '16px', height: '16px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s ease', boxShadow: '0 1px 3px rgba(0,0,0,0.4)' }} />
             </div>
             <div>
-              <span className={`font-semibold text-[0.88rem] ${isFreeAccess ? 'text-orange-500' : 'text-slate-700 dark:text-gray-200'}`}>
+              <span className={`font-semibold text-[0.88rem] ${isFreeAccess ? 'text-brand-orange' : 'text-slate-700 dark:text-gray-200'}`}>
                 Acceso Libre / Open Gym
               </span>
               <span className="block text-slate-400 dark:text-gray-500 text-[0.75rem] mt-[1px]">
@@ -514,7 +510,7 @@ const ActivityFormModal = ({
 
           {/* ── Horarios de clase — disponible en creación y edición, solo si NO es acceso libre ── */}
           {!isFreeAccess && (
-            <div className="mt-5 pt-5 border-t border-slate-200 dark:border-white/5">
+            <div className="mt-5 pt-5 border-t border-slate-200 dark:border-bg-deep">
               <div className="flex justify-between items-center mb-[0.4rem]">
                 <label className={`${labelCls} !mb-0`}>Horarios de Clase</label>
                 <span className="text-slate-400 dark:text-gray-500 text-[0.75rem]">opcional</span>
@@ -534,7 +530,7 @@ const ActivityFormModal = ({
                     const instrLabel = instructors.find(i => i.id === Number((s as any).instructorId))?.label
                       ?? (s as any).instructor?.email;
                     return (
-                      <div key={s.id} className="flex items-center gap-[0.6rem] bg-orange-50 dark:bg-[rgba(255,94,0,0.07)] border border-orange-200 dark:border-[rgba(255,94,0,0.2)] rounded-lg px-[0.75rem] py-[0.45rem]">
+                      <div key={s.id} className="flex items-center gap-[0.6rem] bg-gray-50 dark:bg-bg-surface border border-brand-orange rounded-lg px-[0.75rem] py-[0.45rem]">
                         <span className="font-bold text-[0.78rem] min-w-[36px]" style={{ color: '#FF5E00' }}>
                           {DAY_LABELS[s.dayOfWeek] ?? s.dayOfWeek}
                         </span>
@@ -547,7 +543,7 @@ const ActivityFormModal = ({
                           )}
                         </span>
                         <button type="button" onClick={() => handleDeleteSchedule(s.id)}
-                          className="bg-red-50 dark:bg-[rgba(255,59,48,0.15)] text-red-500 dark:text-[#FF3B30] border border-red-200 dark:border-[rgba(255,59,48,0.3)] rounded-md px-2 py-[0.15rem] cursor-pointer text-[0.75rem]">
+                          className="bg-red-50 dark:bg-bg-surface text-red-500 border border-red-200 dark:border-gray-600 rounded-md px-2 py-[0.15rem] cursor-pointer text-[0.75rem]">
                           ✕
                         </button>
                       </div>
@@ -557,14 +553,14 @@ const ActivityFormModal = ({
               )}
 
               {/* Fila para agregar nuevo horario */}
-              <div className="flex flex-col gap-[0.6rem] bg-slate-50 dark:bg-black/5 border border-dashed border-slate-300 dark:border-white/10 rounded-lg p-3">
+              <div className="flex flex-col gap-[0.6rem] bg-slate-50 dark:bg-bg-surface border border-dashed border-slate-300 dark:border-bg-deep rounded-lg p-3">
                 {/* Chips de días */}
                 <div>
                   <span className="text-[0.72rem] text-slate-500 dark:text-gray-500 block mb-[0.4rem] uppercase tracking-[0.04em]">Día</span>
                   <div className="flex gap-[0.3rem] flex-wrap">
                     {Object.entries(DAY_LABELS).map(([key]) => (
                       <button key={key} type="button" onClick={() => setNewDay(key)}
-                        className={`px-[0.6rem] py-[0.35rem] rounded-full text-[0.72rem] cursor-pointer transition-all ${newDay === key ? 'font-bold border border-orange-400 bg-orange-50 dark:bg-[rgba(255,94,0,0.18)] text-orange-500' : 'font-normal border border-slate-300 dark:border-white/10 bg-white dark:bg-black/30 text-slate-500 dark:text-gray-400'}`}>
+                        className={`px-[0.6rem] py-[0.35rem] rounded-full text-[0.72rem] cursor-pointer ${newDay === key ? 'font-bold border border-brand-orange bg-gray-100 dark:bg-bg-surface text-brand-orange' : 'font-normal border border-slate-300 dark:border-bg-deep bg-white dark:bg-bg-deep text-slate-500 dark:text-text-muted'}`}>
                         {key}
                       </button>
                     ))}
@@ -630,7 +626,7 @@ const ActivityFormModal = ({
       </div>
 
       {/* Botones fijos al fondo */}
-      <div className="flex gap-3 justify-end mt-5 pt-4 pb-1 border-t border-slate-200 dark:border-white/5 flex-shrink-0">
+      <div className="flex gap-3 justify-end mt-5 pt-4 pb-1 border-t border-slate-200 dark:border-bg-deep flex-shrink-0">
         <button type="button" className={btnSecondaryCls} onClick={onClose}>Cancelar</button>
         <button type="submit" form="activity-form" style={btnPrimary} disabled={saving}>
           {saving ? 'Guardando...' : isEdit ? 'Guardar Cambios' : 'Crear Servicio'}
@@ -650,7 +646,7 @@ const searchInputStyle: CSSProperties = {};
 
 const resetBtnStyle: CSSProperties = {
   background: 'none', color: '#8E8E93',
-  border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px',
+  border: '1px solid #1C1C1E', borderRadius: '8px',
   padding: '0.5rem 0.9rem', cursor: 'pointer', fontSize: '0.8rem',
   whiteSpace: 'nowrap',
 };
@@ -664,7 +660,7 @@ const DarkSelect = ({ value, onChange, children, style }: {
 }) => (
   <div className="relative inline-flex items-center">
     <select
-      className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all"
+      className="bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none"
       style={style}
       value={value}
       onChange={e => onChange(e.target.value)}
@@ -803,7 +799,7 @@ export const ActividadesView = () => {
       <div className="flex flex-col md:flex-row flex-wrap gap-3 items-center mb-6">
         {/* Búsqueda libre */}
         <input
-          className="flex-1 bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all placeholder:text-slate-400 dark:placeholder:text-gray-500"
+          className="flex-1 bg-white dark:bg-bg-deep border border-gray-300 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md px-4 py-2 text-sm focus:outline-none placeholder:text-slate-400 dark:placeholder:text-gray-500"
           style={{ minWidth: '220px' }}
           placeholder="🔍  Buscar por nombre o descripción..."
           value={search}
@@ -859,10 +855,10 @@ export const ActividadesView = () => {
           {activities.length === 0 ? 'No hay servicios registrados aún.' : 'Sin resultados para los filtros aplicados.'}
         </p>
       ) : (
-        <div className="bg-white dark:bg-[#1e1e2d] border border-slate-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden mt-4">
+        <div className="bg-white dark:bg-bg-surface border border-gray-200 dark:border-bg-deep rounded-xl overflow-hidden mt-4">
         <div className="overflow-x-auto">
           <table style={tableStyle}>
-            <thead className="bg-slate-50 dark:bg-[#151521] border-b border-slate-200 dark:border-gray-800 text-slate-500 dark:text-gray-400 text-xs uppercase tracking-wider">
+            <thead className="bg-gray-50 dark:bg-bg-deep border-b border-gray-200 dark:border-bg-deep text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">
               <tr>
                 <th style={thStyle}>ID</th>
                 <th style={thStyle}>Nombre</th>
@@ -877,7 +873,7 @@ export const ActividadesView = () => {
             <tbody>
               {filtered.map(act => (
                 <tr key={act.id}
-                  className="border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-slate-700 dark:text-gray-300 text-sm"
+                  className="border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-bg-deep transition-colors text-slate-700 dark:text-gray-300 text-sm"
                 >
                   <td style={{ ...tdStyle, color: '#8E8E93', fontFamily: 'monospace' }}>#{act.id}</td>
                   <td style={{ ...tdStyle, fontWeight: 600 }}>{act.name}</td>
@@ -893,8 +889,8 @@ export const ActividadesView = () => {
                   )}
                   <td style={tdStyle}>
                     {act.isFreeAccess
-                      ? <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: '99px', fontSize: '0.75rem', fontWeight: 700, background: '#fb6340', color: '#fff' }}>Libre</span>
-                      : <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: '99px', fontSize: '0.75rem', fontWeight: 700, background: '#5e72e4', color: '#fff' }}>Horarios</span>
+                      ? <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: '99px', fontSize: '0.75rem', fontWeight: 700, background: '#FF5E00', color: '#fff' }}>Libre</span>
+                      : <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: '99px', fontSize: '0.75rem', fontWeight: 700, background: '#38BDF8', color: '#000' }}>Horarios</span>
                     }
                   </td>
                   <td style={{ ...tdStyle, color: '#AEAEB2' }}>
@@ -910,10 +906,10 @@ export const ActividadesView = () => {
                       <button
                         title="Ver detalle"
                         onClick={() => setDetailTarget(act)}
-                        style={{ background: '#11cdef', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.4rem 0.65rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                        className="bg-brand-celeste text-black px-2.5 py-1.5 rounded cursor-pointer inline-flex items-center justify-center"
                       ><Eye size={15} /></button>
                       <button className={`${btnSecondaryCls} inline-flex items-center gap-1`} onClick={() => setFormTarget(act)}><Edit size={13} />Editar</button>
-                      <button style={{ ...btnDanger, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }} onClick={() => setDeleteTarget(act)}><Trash2 size={13} />Eliminar</button>
+                      <button className={btnDangerCls} onClick={() => setDeleteTarget(act)}><Trash2 size={13} />Eliminar</button>
                     </div>
                   </td>
                 </tr>

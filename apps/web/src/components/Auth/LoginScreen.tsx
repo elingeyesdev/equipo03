@@ -47,7 +47,8 @@ const BACKGROUND_IMAGES = [
   'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?q=80&w=2070&auto=format&fit=crop',
   'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=2070&auto=format&fit=crop',
   'https://images.unsplash.com/photo-1593079831268-3381b0db4a77?q=80&w=2070&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?q=80&w=2070&auto=format&fit=crop'
+  'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?q=80&w=2070&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?q=80&w=1920'
 ];
 
 export const LoginScreen = () => {
@@ -150,7 +151,7 @@ export const LoginScreen = () => {
             transition={{ duration: 0.4 }}
           >
             <motion.div
-              className="w-full max-w-md bg-white dark:bg-[#1e1e2d] border border-slate-200 dark:border-gray-800 rounded-2xl shadow-xl p-8 transition-colors relative"
+              className="w-full max-w-md bg-white dark:bg-bg-surface border border-slate-200 dark:border-bg-deep rounded-2xl p-8 relative"
               initial={{ scale: 0.9, y: 20, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.9, y: 20, opacity: 0 }}
@@ -165,7 +166,7 @@ export const LoginScreen = () => {
               </button>
 
               <div className="text-xl font-extrabold text-slate-900 dark:text-white text-center mb-1 tracking-tight">
-                GymSync <span style={{ color: '#00D9FF' }}>Pro</span>
+                GymSync <span style={{ color: '#38BDF8' }}>Pro</span>
               </div>
               <h1 className="text-2xl font-bold text-slate-900 dark:text-white text-center">Acceso Corporativo</h1>
               <p className="text-sm text-slate-500 dark:text-gray-400 text-center mt-2 mb-6">Introduce tus credenciales para acceder al sistema.</p>
@@ -224,7 +225,7 @@ export const LoginScreen = () => {
                 ¿No tienes una cuenta?{' '}
                 <span
                   onClick={() => navigate('/register')}
-                  style={{ color: '#00D9FF', cursor: 'pointer', fontWeight: 600, textDecoration: 'underline' }}
+                  style={{ color: '#38BDF8', cursor: 'pointer', fontWeight: 600, textDecoration: 'underline' }}
                 >
                   Regístrate aquí
                 </span>

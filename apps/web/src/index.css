@@ -2,8 +2,33 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+@theme {
+  /* GymSync Pro — paleta oficial */
+  --color-brand-celeste: #38BDF8;
+  --color-brand-orange: #FF5E00;
+  --color-brand-green: #00E5A3;
+  --color-bg-deep: #0A0A0A;
+  --color-bg-surface: #1C1C1E;
+  --color-text-main: #FFFFFF;
+  --color-text-muted: #B0B0B0;
+
+  /* Eliminar paleta por defecto que colisione */
+  --color-sky-400: initial;
+  --color-indigo-500: initial;
+  --color-indigo-600: initial;
+  --color-blue-500: initial;
+  --color-blue-600: initial;
+  --color-slate-50: initial;
+  --color-slate-900: initial;
+}
+
 @layer base {
   body {
-    @apply bg-[#f4f5f8] text-slate-900 antialiased;
+    @apply bg-gray-100 text-gray-900 dark:bg-bg-deep dark:text-text-main;
+  }
+
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
   }
 }

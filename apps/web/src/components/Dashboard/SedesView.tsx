@@ -98,7 +98,7 @@ const MarcaModal = ({ isOpen, onClose, marcaToEdit, onSave, existingGyms = [] }:
         <div className="flex flex-col gap-1">
           <div className="flex justify-between items-baseline">
             <label className={labelCls}>Descripción</label>
-            <span className={`text-xs ${descOver ? 'text-red-500' : descNear ? 'text-orange-400' : 'text-slate-400 dark:text-gray-500'}`}>
+            <span className={`text-xs ${descOver ? 'text-red-500' : descNear ? 'text-brand-orange' : 'text-slate-400 dark:text-gray-500'}`}>
               {descLen}/{DESC_MAX}
             </span>
           </div>
@@ -125,11 +125,11 @@ const MarcaModal = ({ isOpen, onClose, marcaToEdit, onSave, existingGyms = [] }:
         {/* Botones */}
         <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-gray-800">
           <button type="button" onClick={onClose}
-            className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent">
+            className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-bg-deep rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent">
             Cancelar
           </button>
           <button type="submit"
-            className="px-4 py-2 bg-[#00D9FF] hover:bg-[#00c0e0] text-[#0A0A0A] font-bold rounded-lg border-0 cursor-pointer transition-colors">
+            className="px-4 py-2 bg-brand-celeste text-black font-bold rounded-lg border-0 cursor-pointer">
             {marcaToEdit ? 'Actualizar' : 'Crear'} Marca
           </button>
         </div>
@@ -292,7 +292,7 @@ export const SedesView = () => {
         {user.role === 'SUPER_ADMIN' && (
           <button
             onClick={handleCreateSede}
-            className="bg-[#5e72e4] text-white font-semibold px-4 py-2 rounded-lg border-0 cursor-pointer hover:bg-[#4f63d2] whitespace-nowrap"
+            className="bg-brand-orange text-white font-semibold px-4 py-2 rounded-lg border-0 cursor-pointer whitespace-nowrap"
           >
             Nueva Marca
           </button>
@@ -306,12 +306,12 @@ export const SedesView = () => {
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="🔍  Buscar marca por nombre..."
-            className="flex-1 bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all placeholder:text-slate-400 dark:placeholder:text-gray-500"
+            className="flex-1 bg-white dark:bg-bg-deep border border-gray-300 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md px-4 py-2 text-sm focus:outline-none placeholder:text-slate-400 dark:placeholder:text-gray-500"
             style={{ minWidth: '180px' }}
           />
           <div style={{ position: 'relative' }}>
             <select value={sortOrder} onChange={e => setSortOrder(e.target.value as any)}
-              className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all">
+              className="bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none">
               <option value="az"     >Nombre A → Z</option>
               <option value="za"     >Nombre Z → A</option>
               <option value="id_asc" >ID ↑</option>
@@ -334,10 +334,10 @@ export const SedesView = () => {
       )}
 
       {!loading && !error && (
-        <div className="bg-white dark:bg-[#1e1e2d] border border-slate-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden mt-4">
+        <div className="bg-white dark:bg-bg-surface border border-gray-200 dark:border-bg-deep rounded-xl overflow-hidden mt-4">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse" style={{ minWidth: '400px' }}>
-            <thead className="bg-slate-50 dark:bg-[#151521] border-b border-slate-200 dark:border-gray-800 text-slate-500 dark:text-gray-400 text-xs uppercase tracking-wider">
+            <thead className="bg-gray-50 dark:bg-bg-deep border-b border-gray-200 dark:border-bg-deep text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">
               <tr>
                 <th style={{ textAlign: 'left', padding: '0.6rem' }}>ID</th>
                 <th style={{ textAlign: 'left', padding: '0.6rem' }}>Nombre de la Marca</th>
@@ -348,12 +348,12 @@ export const SedesView = () => {
               {filteredGyms.length === 0 ? (
                 <tr><td colSpan={3} className="px-4 py-8 text-center text-slate-400 dark:text-gray-500">Sin resultados para los filtros aplicados.</td></tr>
               ) : filteredGyms.map((g) => (
-                <tr key={g.id} className="border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-slate-700 dark:text-gray-300 text-sm">
+                <tr key={g.id} className="border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-bg-deep transition-colors text-slate-700 dark:text-gray-300 text-sm">
                   <td style={{ padding: '0.6rem' }}>{g.id}</td>
                   <td style={{ padding: '0.6rem' }}>
                     <span style={{
-                      background: '#11cdef',
-                      color: '#fff',
+                      background: '#38BDF8',
+                      color: '#000',
                       padding: '0.2rem 0.5rem',
                       borderRadius: '4px',
                       fontSize: '0.9rem',
@@ -368,7 +368,7 @@ export const SedesView = () => {
                       <button
                         title="Ver información"
                         onClick={() => setInfoSede(g)}
-                        style={{ background: '#8e8e93', border: 'none', color: '#fff', padding: '0.25rem 0.45rem', borderRadius: '4px', cursor: 'pointer', lineHeight: 1, display: 'flex', alignItems: 'center' }}
+                        className="bg-brand-celeste text-black px-2 py-1 rounded cursor-pointer inline-flex items-center"
                       >
                         {/* SVG info circle */}
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -381,14 +381,14 @@ export const SedesView = () => {
                       {user.role === 'SUPER_ADMIN' && (<>
                         <button
                           onClick={() => handleEditSede(g)}
-                          style={{ background: '#5e72e4', border: 'none', color: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                          className="bg-brand-celeste text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1"
                         >
                           <Edit size={12} />
                           Editar
                         </button>
                         <button
                           onClick={() => handleDeleteSede(g)}
-                          style={{ background: '#f5365c', border: 'none', color: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                          className="bg-transparent text-gray-500 dark:text-text-muted px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1"
                         >
                           <Trash2 size={12} />
                           Eliminar
@@ -429,10 +429,10 @@ export const SedesView = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                 <span style={{ fontSize: '1.5rem' }}>🏷️</span>
                 <div>
-                  <div style={{ fontSize: '0.68rem', color: '#00D9FF', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '2px' }}>
+                  <div style={{ fontSize: '0.68rem', color: '#38BDF8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '2px' }}>
                     Marca · #{infoSede.id}
                   </div>
-                  <h2 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 800, color: '#fff' }}>{infoSede.name}</h2>
+                  <h2 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 800, color: 'inherit' }}>{infoSede.name}</h2>
                 </div>
               </div>
               <button
@@ -447,18 +447,18 @@ export const SedesView = () => {
                 Descripción
               </div>
               {infoSede.description ? (
-                <p style={{ margin: 0, color: '#E5E5EA', fontSize: '0.92rem', lineHeight: '1.6' }}>{infoSede.description}</p>
+                <p style={{ margin: 0, color: 'inherit', fontSize: '0.92rem', lineHeight: '1.6' }}>{infoSede.description}</p>
               ) : (
                 <p style={{ margin: 0, color: '#555', fontSize: '0.88rem', fontStyle: 'italic' }}>Sin descripción registrada.</p>
               )}
             </div>
 
             {/* Footer */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.25rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.25rem', paddingTop: '0.75rem', borderTop: '1px solid #1C1C1E' }}>
               {user.role === 'SUPER_ADMIN' && (
                 <button
                   onClick={() => { handleEditSede(infoSede); setInfoSede(null); }}
-                  style={{ background: '#5e72e4', border: 'none', color: '#fff', borderRadius: '8px', padding: '0.5rem 1rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                  style={{ background: '#38BDF8', border: 'none', color: '#000', borderRadius: '8px', padding: '0.5rem 1rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                 >
                   <Edit size={14} />
                   Editar

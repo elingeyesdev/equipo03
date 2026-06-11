@@ -281,7 +281,7 @@ const StaffScheduleModal = ({
                 className={[
                   'px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors',
                   activeGymId === g.id
-                    ? 'border-cyan-500 text-cyan-600 dark:text-cyan-400 bg-cyan-50/50 dark:bg-cyan-900/10'
+                    ? 'border-brand-celeste text-brand-celeste bg-gray-100 dark:bg-bg-surface'
                     : 'border-transparent text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-200',
                 ].join(' ')}
               >
@@ -308,7 +308,7 @@ const StaffScheduleModal = ({
                             type="checkbox"
                             checked={day.isOff}
                             onChange={e => activeGymId !== null && setDayOff(activeGymId, dow, e.target.checked)}
-                            style={{ width: '14px', height: '14px', cursor: 'pointer', accentColor: '#00D9FF' }}
+                            style={{ width: '14px', height: '14px', cursor: 'pointer', accentColor: '#38BDF8' }}
                           />
                           Día libre
                         </label>
@@ -344,7 +344,7 @@ const StaffScheduleModal = ({
                           <button
                             type="button"
                             onClick={() => activeGymId !== null && addSlot(activeGymId, dow)}
-                            className="self-start text-xs text-cyan-600 dark:text-cyan-400 hover:underline bg-transparent border-0 cursor-pointer p-0 mt-0.5"
+                            className="self-start text-xs text-brand-celeste bg-transparent border-0 cursor-pointer p-0 mt-0.5"
                           >
                             + Añadir turno
                           </button>
@@ -361,14 +361,14 @@ const StaffScheduleModal = ({
 
       <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100 dark:border-gray-800 flex-shrink-0">
         <button
-          className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent"
+          className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-bg-deep rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent"
           onClick={onClose}
         >
           Cancelar
         </button>
         <button
           disabled={saving || gyms.length === 0}
-          className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 disabled:opacity-50 text-white font-medium rounded-lg shadow-sm transition-colors border-0 cursor-pointer"
+          className="px-4 py-2 bg-brand-celeste disabled:opacity-50 text-black font-medium rounded-lg border-0 cursor-pointer"
           onClick={handleSave}
         >
           {saving ? 'Guardando...' : 'Guardar Horarios'}
@@ -680,8 +680,8 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
 
         {/* ── GERENTE: selección en dos pasos ──────────────────────────────────── */}
         {isGerente && (
-          <div className="bg-orange-50 dark:bg-orange-900/5 border border-orange-200 dark:border-orange-500/20 rounded-xl p-4 mt-3 mb-1 flex flex-col gap-3">
-            <p className="m-0 text-xs font-semibold tracking-widest uppercase text-orange-600 dark:text-orange-400">
+          <div className="bg-gray-50 dark:bg-bg-surface border border-brand-orange rounded-xl p-4 mt-3 mb-1 flex flex-col gap-3">
+            <p className="m-0 text-xs font-semibold tracking-widest uppercase text-brand-orange">
               Asignación de Marca y Sucursal
             </p>
             <p className="m-0 text-sm text-slate-600 dark:text-gray-400 leading-relaxed">
@@ -711,7 +711,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
             <div style={{ opacity: selectedSede !== '' ? 1 : 0.4, transition: 'opacity 0.2s' }}>
               <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">2 · Sucursal a Administrar *</label>
               {selectedSede !== '' && sucursalesParaSede.length === 0 ? (
-                <p className="m-0 text-sm text-red-500 p-2 bg-red-50 dark:bg-red-900/10 rounded-lg">
+                <p className="m-0 text-sm text-red-500 p-2 bg-red-50 dark:bg-bg-surface rounded-lg">
                   Atención: esta marca no tiene sucursales registradas aún.
                 </p>
               ) : (
@@ -770,15 +770,15 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
                   </label>
                   {loadingGyms ? <p className="text-sm text-slate-400 dark:text-gray-500">Cargando...</p>
                     : checkboxSucursales.length === 0
-                      ? <p className="text-sm text-red-500 p-2 bg-red-50 dark:bg-red-900/10 rounded-lg mt-1">Esta marca no tiene sucursales registradas.</p>
+                      ? <p className="text-sm text-red-500 p-2 bg-red-50 dark:bg-bg-surface rounded-lg mt-1">Esta marca no tiene sucursales registradas.</p>
                       : (
-                        <div className="flex flex-col gap-1 max-h-48 overflow-y-auto p-3 bg-slate-50 dark:bg-black/10 rounded-lg border border-slate-200 dark:border-white/10">
+                        <div className="flex flex-col gap-1 max-h-48 overflow-y-auto p-3 bg-slate-50 dark:bg-bg-deep rounded-lg border border-slate-200 dark:border-bg-deep">
                           {checkboxSucursales.map(g => (
                             <label key={g.id} className="flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded-md"
                               style={{ background: formData.gymIds.includes(Number(g.id)) ? '#e7f7fb' : 'transparent' }}>
                               <input type="checkbox" checked={formData.gymIds.includes(Number(g.id))}
                                 onChange={() => toggleGym(Number(g.id))}
-                                style={{ width: '15px', height: '15px', cursor: 'pointer', accentColor: '#00D9FF' }} />
+                                style={{ width: '15px', height: '15px', cursor: 'pointer', accentColor: '#38BDF8' }} />
                               <span className="text-sm text-slate-700 dark:text-gray-300">{g.name}</span>
                             </label>
                           ))}
@@ -799,8 +799,8 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
       </div>
 
       <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100 dark:border-gray-800 flex-shrink-0">
-        <button className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent" onClick={onClose}>Cancelar</button>
-        <button className="px-4 py-2 bg-[#009ef7] hover:bg-[#0086d1] text-white font-medium rounded-lg shadow-sm transition-colors border-0 cursor-pointer" onClick={() => {
+        <button className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-bg-deep rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent" onClick={onClose}>Cancelar</button>
+        <button className="px-4 py-2 bg-brand-celeste text-black font-medium rounded-lg border-0 cursor-pointer" onClick={() => {
           if (!validateForm()) return;
           if (isGerente) {
             if (!selectedSede) {
@@ -1060,7 +1060,7 @@ export const UsuariosView = () => {
         </div>
         {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE') && (
           <button onClick={() => { setUserToEdit(null); setIsModalOpen(true); }}
-            className="bg-[#5e72e4] text-white font-semibold px-4 py-2 rounded-lg border-0 cursor-pointer hover:bg-[#4f63d2] whitespace-nowrap inline-flex items-center gap-1.5">
+            className="bg-brand-orange text-white font-semibold px-4 py-2 rounded-lg border-0 cursor-pointer whitespace-nowrap inline-flex items-center gap-1.5">
             <Plus size={15} />
             Nuevo Usuario
           </button>
@@ -1076,13 +1076,13 @@ export const UsuariosView = () => {
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="🔍  Buscar por nombre o email..."
-            className="flex-1 bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all placeholder:text-slate-400 dark:placeholder:text-gray-500"
+            className="flex-1 bg-white dark:bg-bg-deep border border-gray-300 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md px-4 py-2 text-sm focus:outline-none placeholder:text-slate-400 dark:placeholder:text-gray-500"
             style={{ minWidth: '200px' }}
           />
           {/* Rol */}
           <div style={{ position: 'relative' }}>
             <select value={filterRole} onChange={e => setFilterRole(e.target.value)}
-              className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all">
+              className="bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none">
               <option value="">Todos los roles</option>
               {roleOptions.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
             </select>
@@ -1092,7 +1092,7 @@ export const UsuariosView = () => {
           {gymOptions.length > 0 && (
             <div style={{ position: 'relative' }}>
               <select value={filterGym} onChange={e => setFilterGym(e.target.value)}
-                className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all" style={{ maxWidth: '180px' }}>
+                className="bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none" style={{ maxWidth: '180px' }}>
                 <option value="">Todas las marcas</option>
                 {gymOptions.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
               </select>
@@ -1102,7 +1102,7 @@ export const UsuariosView = () => {
           {/* Estado */}
           <div style={{ position: 'relative' }}>
             <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as 'all' | 'active' | 'inactive')}
-              className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all">
+              className="bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none">
               <option value="all"     >Todos</option>
               <option value="active"  >Solo Activos</option>
               <option value="inactive">Solo Inactivos</option>
@@ -1112,7 +1112,7 @@ export const UsuariosView = () => {
           {/* Orden */}
           <div style={{ position: 'relative' }}>
             <select value={sortOrder} onChange={e => setSortOrder(e.target.value as 'az' | 'za' | 'id_asc' | 'id_desc')}
-              className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all">
+              className="bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none">
               <option value="az"      >Nombre A → Z</option>
               <option value="za"      >Nombre Z → A</option>
               <option value="id_asc"  >ID ↑</option>
@@ -1122,7 +1122,7 @@ export const UsuariosView = () => {
           </div>
           {hasActiveFilters && (
             <button onClick={resetFilters}
-              style={{ background: 'none', color: '#8E8E93', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '0.45rem 0.85rem', cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+              style={{ background: 'none', color: '#8E8E93', border: '1px solid #3A3A3C', borderRadius: '8px', padding: '0.45rem 0.85rem', cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
               Limpiar
             </button>
           )}
@@ -1139,16 +1139,16 @@ export const UsuariosView = () => {
       )}
 
       {!loading && !error && users.length === 0 && (
-        <div style={{ marginTop: '2rem', textAlign: 'center', color: '#8E8E93', padding: '2rem', borderRadius: '12px', background: 'rgba(255,255,255,0.03)' }}>
+        <div style={{ marginTop: '2rem', textAlign: 'center', color: '#8E8E93', padding: '2rem', borderRadius: '12px', background: '#1C1C1E' }}>
           <p>No hay usuarios disponibles en esta marca.</p>
         </div>
       )}
 
       {!loading && !error && users.length > 0 && (
-        <div className="bg-white dark:bg-[#1e1e2d] border border-slate-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden mt-4">
+        <div className="bg-white dark:bg-bg-surface border border-gray-200 dark:border-bg-deep rounded-xl overflow-hidden mt-4">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse" style={{ minWidth: '850px' }}>
-            <thead className="bg-slate-50 dark:bg-[#151521] border-b border-slate-200 dark:border-gray-800 text-slate-500 dark:text-gray-400 text-xs uppercase tracking-wider">
+            <thead className="bg-gray-50 dark:bg-bg-deep border-b border-gray-200 dark:border-bg-deep text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">
               <tr>
                 {['ID', 'Nombre', 'Email', 'Rol', 'Sucursal / Marca', 'Estado', 'Acciones'].map(h => (
                   <th key={h} style={{ textAlign: h === 'Acciones' ? 'center' : 'left', padding: '0.6rem' }}>{h}</th>
@@ -1175,7 +1175,7 @@ export const UsuariosView = () => {
                 const showSedes = SEDE_ROLE_NAMES.has(roleNameRaw) && gymNames.length > 0;
 
                 return (
-                  <tr key={u.id} className="border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-slate-700 dark:text-gray-300 text-sm">
+                  <tr key={u.id} className="border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-bg-deep transition-colors text-slate-700 dark:text-gray-300 text-sm">
                     <td style={{ padding: '0.6rem' }}>{u.id}</td>
                     <td style={{ padding: '0.6rem' }}>{fullName}</td>
                     <td style={{ padding: '0.6rem' }}>{u.email ?? '-'}</td>
@@ -1192,7 +1192,7 @@ export const UsuariosView = () => {
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                             {/* Primera sucursal siempre visible */}
                             <span style={{
-                              background: '#11cdef', color: '#fff',
+                              background: '#38BDF8', color: '#000',
                               padding: '0.18rem 0.5rem', borderRadius: '4px',
                               fontSize: '0.75rem',
                               fontWeight: 600, display: 'inline-block',
@@ -1223,31 +1223,31 @@ export const UsuariosView = () => {
                         <span style={{ color: '#8E8E93', fontSize: '0.82rem' }}>Sin asignar</span>
                       )}
                     </td>
-                    <td style={{ padding: '0.6rem', color: u.isActive ? '#30D158' : '#FF5E00' }}>
+                    <td style={{ padding: '0.6rem', color: u.isActive ? '#00E5A3' : '#FF5E00' }}>
                       {u.isActive ? 'ACTIVO' : 'INACTIVO'}
                     </td>
                     <td style={{ padding: '0.6rem', textAlign: 'center' }}>
                       <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
                         <button onClick={() => setViewingUser(u)}
-                          style={{ background: '#11cdef', color: '#fff', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                          className="bg-brand-celeste text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1">
                           <Eye size={13} />
                           Detalle
                         </button>
                         {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE') && SEDE_ROLE_NAMES.has(roleNameRaw) && roleNameRaw !== 'GERENTE' && (
                           <button onClick={() => setSchedulingUser(u)}
-                            style={{ background: '#2dce89', color: '#fff', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                            className="bg-brand-green text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1">
                             <Clock size={13} />
                             Horarios
                           </button>
                         )}
                         {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE') && (<>
                           <button onClick={() => { setUserToEdit(u); setIsModalOpen(true); }}
-                            style={{ background: '#5e72e4', color: '#fff', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                            className="bg-brand-celeste text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1">
                             <Edit size={13} />
                             Editar
                           </button>
                           <button onClick={() => setDeleteConfirmUser(u)}
-                            style={{ background: '#f5365c', color: '#fff', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                            className="bg-transparent text-gray-500 dark:text-text-muted px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1">
                             <Trash2 size={13} />
                             Eliminar
                           </button>
@@ -1299,7 +1299,7 @@ export const UsuariosView = () => {
         <DetailField label="Teléfono" value={viewingUser?.profile?.phone || 'No registrado'} />
         <DetailField label="Estado de Cuenta"
           value={
-            <span style={{ color: viewingUser?.isActive ? '#30D158' : '#FF5E00', fontWeight: 700 }}>
+            <span style={{ color: viewingUser?.isActive ? '#00E5A3' : '#FF5E00', fontWeight: 700 }}>
               {viewingUser?.isActive ? '● ACTIVO' : '● INACTIVO'}
             </span>
           } />
@@ -1346,7 +1346,7 @@ export const UsuariosView = () => {
                 />
                 <DetailField
                   label="Sucursal Asignada"
-                  value={<span style={{ color: '#00D9FF', fontWeight: 600 }}>{sucursalName}</span>}
+                  value={<span style={{ color: '#38BDF8', fontWeight: 600 }}>{sucursalName}</span>}
                 />
               </>
             );
@@ -1367,12 +1367,12 @@ export const UsuariosView = () => {
                     return (
                       <div key={i} style={{
                         padding: '0.5rem 0.75rem',
-                        background: '#11cdef',
+                        background: '#38BDF8',
                         borderRadius: '6px',
                       }}>
-                        <div style={{ color: '#fff', fontWeight: 600, fontSize: '0.88rem' }}>{sucursalName}</div>
+                        <div style={{ color: '#000', fontWeight: 600, fontSize: '0.88rem' }}>{sucursalName}</div>
                         {sedeName && (
-                          <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.78rem', marginTop: '0.2rem' }}>
+                          <div style={{ color: '#555555', fontSize: '0.78rem', marginTop: '0.2rem' }}>
                             {sedeName}
                           </div>
                         )}
@@ -1412,9 +1412,9 @@ export const UsuariosView = () => {
                     }
                     const sortedDays = [...byDay.entries()].sort(([a], [b]) => a - b);
                     return (
-                      <div key={gymId} style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(17,205,239,0.3)' }}>
-                        <div style={{ background: '#11cdef', padding: '0.4rem 0.75rem' }}>
-                          <span style={{ color: '#fff', fontWeight: 700, fontSize: '0.85rem' }}>{gymName}</span>
+                      <div key={gymId} style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #38BDF8' }}>
+                        <div style={{ background: '#38BDF8', padding: '0.4rem 0.75rem' }}>
+                          <span style={{ color: '#000', fontWeight: 700, fontSize: '0.85rem' }}>{gymName}</span>
                         </div>
                         <div style={{ padding: '0.5rem 0.75rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                           {sortedDays.map(([dow, daySlots]) => (

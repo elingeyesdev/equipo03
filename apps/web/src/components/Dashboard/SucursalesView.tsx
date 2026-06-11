@@ -38,8 +38,8 @@ const TimeSelect = ({ value, onChange, disabled = false }: {
   return (
     <div style={{
       display: 'inline-flex', alignItems: 'center', gap: '1px',
-      background: disabled ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.6)',
-      border: `1px solid ${disabled ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.15)'}`,
+      background: disabled ? '#1C1C1E' : '#0A0A0A',
+      border: `1px solid ${disabled ? '#1C1C1E' : '#3A3A3C'}`,
       borderRadius: '8px', overflow: 'hidden', opacity: disabled ? 0.5 : 1,
       width: '100%',
     }}>
@@ -278,7 +278,7 @@ const SucursalModal = ({ isOpen, onClose, sucursalToEdit, onSave, parentGyms, ex
             <button
               type="button"
               onClick={() => setShowMap(!showMap)}
-              className="text-xs px-2 py-1 border border-[#00D9FF] text-[#00D9FF] rounded cursor-pointer bg-transparent hover:bg-[#00D9FF]/10 transition-colors"
+              className="text-xs px-2 py-1 border border-brand-celeste text-brand-celeste rounded cursor-pointer bg-transparent"
             >
               {showMap ? 'Ocultar Mapa' : 'Ver Mapa'}
             </button>
@@ -288,7 +288,7 @@ const SucursalModal = ({ isOpen, onClose, sucursalToEdit, onSave, parentGyms, ex
             const lng = typeof formData.longitude === 'number' && !isNaN(formData.longitude) ? formData.longitude : parseFloat(formData.longitude as any) || -63.1667;
             return (
               <>
-                <p className="text-xs text-[#00D9FF] mb-2">
+                <p className="text-xs text-[#38BDF8] mb-2">
                   Desplázate y haz clic en el mapa para ubicar automáticamente la dirección y ciudad.
                 </p>
                 <div style={{ width: '100%', height: '220px', minHeight: '220px', borderRadius: '8px', overflow: 'hidden', marginBottom: '0.75rem', cursor: 'crosshair', flexShrink: 0, display: 'block' }}>
@@ -340,23 +340,23 @@ const SucursalModal = ({ isOpen, onClose, sucursalToEdit, onSave, parentGyms, ex
               type="checkbox"
               checked={formData.isOpen}
               onChange={e => setFormData({...formData, isOpen: e.target.checked})}
-              style={{ width: '18px', height: '18px', accentColor: '#00D9FF', cursor: 'pointer' }}
+              style={{ width: '18px', height: '18px', accentColor: '#38BDF8', cursor: 'pointer' }}
             />
             <label className="text-sm font-medium text-slate-700 dark:text-gray-300 cursor-pointer">Sucursal Abierta</label>
           </div>
 
           {/* SECCIÓN DE HORARIOS */}
-          <div className="mt-4 p-4 bg-slate-50 dark:bg-black/20 rounded-lg border border-slate-200 dark:border-white/10">
+          <div className="mt-4 p-4 bg-slate-50 dark:bg-bg-deep rounded-lg border border-slate-200 dark:border-bg-deep">
             <h3 className="text-sm font-semibold text-slate-700 dark:text-gray-300 mt-0 mb-4">Configuración de Horarios</h3>
 
             {formData.schedules && formData.schedules.length > 0 && (
               <div className="flex flex-col gap-2 mb-4">
                 {formData.schedules.map((sch, i) => (
-                  <div key={i} className={`flex justify-between items-center p-2 px-3 rounded-md bg-white/50 dark:bg-white/5 ${sch.isHoliday ? 'border border-red-300 dark:border-red-500/30' : ''}`}>
+                  <div key={i} className={`flex justify-between items-center p-2 px-3 rounded-md bg-gray-50 dark:bg-bg-surface ${sch.isHoliday ? 'border border-red-300 dark:border-gray-700' : ''}`}>
                     <span className="text-sm text-slate-700 dark:text-gray-300 flex items-center gap-2">
-                      <strong className="text-[#00D9FF]">{sch.dayOfWeek}</strong>:
+                      <strong className="text-brand-celeste">{sch.dayOfWeek}</strong>:
                       {sch.isHoliday ? (
-                        <span className="text-xs px-2 py-0.5 rounded bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-semibold">FERIADO / CERRADO</span>
+                        <span className="text-xs px-2 py-0.5 rounded bg-red-100 dark:bg-bg-surface text-red-600 dark:text-text-muted font-semibold">FERIADO / CERRADO</span>
                       ) : (
                         `${sch.opensAt} - ${sch.closesAt}`
                       )}
@@ -379,9 +379,9 @@ const SucursalModal = ({ isOpen, onClose, sucursalToEdit, onSave, parentGyms, ex
                       onClick={() => setNewSchedule({...newSchedule, dayOfWeek: d})}
                       style={{
                         padding: '0.4rem 0.6rem', borderRadius: '20px', fontSize: '0.7rem', cursor: 'pointer',
-                        border: newSchedule.dayOfWeek === d ? '1px solid #00D9FF' : '1px solid rgba(0,0,0,0.15)',
-                        background: newSchedule.dayOfWeek === d ? 'rgba(0,217,255,0.15)' : 'transparent',
-                        color: newSchedule.dayOfWeek === d ? '#00D9FF' : undefined,
+                        border: newSchedule.dayOfWeek === d ? '1px solid #38BDF8' : '1px solid #E5E7EB',
+                        background: newSchedule.dayOfWeek === d ? '#1C1C1E' : 'transparent',
+                        color: newSchedule.dayOfWeek === d ? '#38BDF8' : undefined,
                         fontWeight: newSchedule.dayOfWeek === d ? 600 : 400,
                       }}
                     >
@@ -407,7 +407,7 @@ const SucursalModal = ({ isOpen, onClose, sucursalToEdit, onSave, parentGyms, ex
                     checked={newSchedule.isHoliday}
                     onChange={e => setNewSchedule({...newSchedule, isHoliday: e.target.checked})}
                     onClick={e => e.stopPropagation()}
-                    style={{ width: '18px', height: '18px', accentColor: '#00D9FF', cursor: 'pointer' }}
+                    style={{ width: '18px', height: '18px', accentColor: '#38BDF8', cursor: 'pointer' }}
                   />
                   <label className="text-sm text-slate-700 dark:text-gray-300 cursor-pointer">Día Feriado / Cerrado</label>
                 </div>
@@ -422,7 +422,7 @@ const SucursalModal = ({ isOpen, onClose, sucursalToEdit, onSave, parentGyms, ex
                     setFormData(prev => ({...prev, schedules: [...(prev.schedules||[]), schToAdd]}));
                     setNewSchedule(prev => ({ ...prev, isHoliday: false }));
                   }}
-                  className="px-4 py-2 bg-[#009ef7] hover:bg-[#0086d1] text-white font-medium rounded-lg shadow-sm transition-colors border-0 cursor-pointer text-sm flex items-center gap-1"
+                  className="px-4 py-2 bg-brand-celeste text-black font-medium rounded-lg border-0 cursor-pointer text-sm flex items-center gap-1"
                 >
                   + Añadir
                 </button>
@@ -434,13 +434,13 @@ const SucursalModal = ({ isOpen, onClose, sucursalToEdit, onSave, parentGyms, ex
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent"
+              className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-bg-deep rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-[#009ef7] hover:bg-[#0086d1] text-white font-medium rounded-lg shadow-sm transition-colors border-0 cursor-pointer"
+              className="px-4 py-2 bg-brand-celeste text-black font-medium rounded-lg border-0 cursor-pointer"
             >
               {sucursalToEdit ? 'Actualizar' : 'Crear'} Sucursal
             </button>
@@ -686,7 +686,7 @@ export const SucursalesView = () => {
         {user.role === 'SUPER_ADMIN' && (
           <button
             onClick={handleCreateSucursal}
-            className="bg-[#5e72e4] text-white font-semibold px-4 py-2 rounded-lg border-0 cursor-pointer hover:bg-[#4f63d2] whitespace-nowrap"
+            className="bg-brand-orange text-white font-semibold px-4 py-2 rounded-lg border-0 cursor-pointer whitespace-nowrap"
           >
             Nueva Sucursal
           </button>
@@ -700,14 +700,14 @@ export const SucursalesView = () => {
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="🔍  Buscar por nombre o dirección..."
-            className="flex-1 bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all placeholder:text-slate-400 dark:placeholder:text-gray-500"
+            className="flex-1 bg-white dark:bg-bg-deep border border-gray-300 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md px-4 py-2 text-sm focus:outline-none placeholder:text-slate-400 dark:placeholder:text-gray-500"
             style={{ minWidth: '200px' }}
           />
           {/* Sede principal */}
           {parentOptions.length > 0 && (
             <div style={{ position: 'relative' }}>
               <select value={filterParent} onChange={e => setFilterParent(e.target.value)}
-                className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all" style={{ maxWidth: '175px' }}>
+                className="bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none" style={{ maxWidth: '175px' }}>
                 <option value="">Todas las marcas</option>
                 {parentOptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
@@ -717,7 +717,7 @@ export const SucursalesView = () => {
           {/* Estado */}
           <div style={{ position: 'relative' }}>
             <select value={filterEstado} onChange={e => setFilterEstado(e.target.value as 'all' | 'activa' | 'inactiva' | 'abierta' | 'cerrada')}
-              className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all">
+              className="bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none">
               <option value="all"     >Todos los estados</option>
               <option value="activa"  >Solo Activas</option>
               <option value="inactiva">Solo Inactivas</option>
@@ -729,7 +729,7 @@ export const SucursalesView = () => {
           {/* Orden */}
           <div style={{ position: 'relative' }}>
             <select value={sortOrder} onChange={e => setSortOrder(e.target.value as 'az' | 'za' | 'cap_asc' | 'cap_desc')}
-              className="bg-white dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all">
+              className="bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none">
               <option value="az"      >Nombre A → Z</option>
               <option value="za"      >Nombre Z → A</option>
               <option value="cap_asc" >Capacidad ↑</option>
@@ -752,10 +752,10 @@ export const SucursalesView = () => {
       )}
 
       {!loading && !error && (
-        <div className="bg-white dark:bg-[#1e1e2d] border border-slate-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden mt-4">
+        <div className="bg-white dark:bg-bg-surface border border-gray-200 dark:border-bg-deep rounded-xl overflow-hidden mt-4">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse" style={{ minWidth: '960px' }}>
-            <thead className="bg-slate-50 dark:bg-[#151521] border-b border-slate-200 dark:border-gray-800 text-slate-500 dark:text-gray-400 text-xs uppercase tracking-wider">
+            <thead className="bg-gray-50 dark:bg-bg-deep border-b border-gray-200 dark:border-bg-deep text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">
               <tr>
                 <th style={{ textAlign: 'left', padding: '0.6rem' }}>ID</th>
                 <th style={{ textAlign: 'left', padding: '0.6rem' }}>Sucursal</th>
@@ -772,13 +772,13 @@ export const SucursalesView = () => {
                   {gyms.length === 0 ? 'No hay sucursales registradas.' : 'Sin resultados para los filtros aplicados.'}
                 </td></tr>
               ) : filteredSucursales.map((g) => (
-                <tr key={g.id} className="border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-slate-700 dark:text-gray-300 text-sm">
+                <tr key={g.id} className="border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-bg-deep transition-colors text-slate-700 dark:text-gray-300 text-sm">
                   <td style={{ padding: '0.6rem' }}>{g.id}</td>
                   <td style={{ padding: '0.6rem' }}>{g.name}</td>
                   <td style={{ padding: '0.6rem' }}>
                     <span style={{
-                      background: '#11cdef',
-                      color: '#fff',
+                      background: '#38BDF8',
+                      color: '#000',
                       padding: '0.2rem 0.5rem',
                       borderRadius: '4px',
                       fontSize: '0.75rem',
@@ -792,7 +792,7 @@ export const SucursalesView = () => {
                   </td>
                   <td style={{ padding: '0.6rem' }}>{g.maxCapacity ?? '-'}</td>
                   <td style={{ padding: '0.6rem' }}>
-                    <span style={{ color: g.isActive ? '#30D158' : '#FF5E00' }}>
+                    <span style={{ color: g.isActive ? '#00E5A3' : '#FF5E00' }}>
                       {g.isActive ? 'ACTIVA' : 'INACTIVA'}
                     </span>
                     <span style={{ color: '#8E8E93' }}>{g.isOpen ? ' | ABIERTA' : ' | CERRADA'}</span>
@@ -808,7 +808,7 @@ export const SucursalesView = () => {
                             setViewingSucursal(g);
                           }
                         }}
-                        style={{ background: '#11cdef', border: 'none', color: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                        className="bg-brand-celeste text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1"
                         title="Ver detalles de la sucursal"
                       >
                         <Eye size={12} />
@@ -818,14 +818,14 @@ export const SucursalesView = () => {
                         <>
                           <button
                             onClick={() => handleEditSucursal(g)}
-                            style={{ background: '#5e72e4', border: 'none', color: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                            className="bg-brand-celeste text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1"
                           >
                             <Edit size={12} />
                             Editar
                           </button>
                           <button
                             onClick={() => handleDeleteSucursal(g)}
-                            style={{ background: '#f5365c', border: 'none', color: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                            className="bg-transparent text-gray-500 dark:text-text-muted px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1"
                           >
                             <Trash2 size={12} />
                             Eliminar
@@ -892,7 +892,7 @@ export const SucursalesView = () => {
         <DetailField 
           label="Estado Administrativo" 
           value={
-            <span style={{ color: viewingSucursal?.isActive ? '#30D158' : '#FF5E00', fontWeight: 700 }}>
+            <span style={{ color: viewingSucursal?.isActive ? '#00E5A3' : '#FF5E00', fontWeight: 700 }}>
               {viewingSucursal?.isActive ? '● ACTIVA' : '● INACTIVA'}
             </span>
           } 
@@ -900,19 +900,19 @@ export const SucursalesView = () => {
         <DetailField 
           label="Estado de Puertas" 
           value={
-            <span style={{ color: viewingSucursal?.isOpen ? '#00D9FF' : '#8E8E93', fontWeight: 700 }}>
+            <span style={{ color: viewingSucursal?.isOpen ? '#38BDF8' : '#8E8E93', fontWeight: 700 }}>
               {viewingSucursal?.isOpen ? 'ABIERTA AL PÚBLICO' : 'CERRADA'}
             </span>
           } 
         />
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', gridColumn: 'span 2', marginTop: '0.5rem', background: 'rgba(255, 255, 255, 0.03)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', gridColumn: 'span 2', marginTop: '0.5rem', background: '#1C1C1E', padding: '0.75rem', borderRadius: '8px', border: '1px solid #1C1C1E' }}>
           <span style={{ fontSize: '0.7rem', color: '#8E8E93', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Horarios de Atención</span>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.5rem', marginTop: '0.25rem' }}>
             {viewingSucursal?.schedules && viewingSucursal.schedules.length > 0 ? (
               viewingSucursal.schedules.map((sch, i) => (
-                <div key={i} style={{ background: 'rgba(0, 0, 0, 0.2)', padding: '0.5rem', borderRadius: '6px', border: sch.isHoliday ? '1px solid rgba(255, 94, 0, 0.2)' : '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ color: '#00D9FF', fontWeight: 600, fontSize: '0.75rem' }}>{sch.dayOfWeek}</div>
+                <div key={i} style={{ background: '#0A0A0A', padding: '0.5rem', borderRadius: '6px', border: sch.isHoliday ? '1px solid #FF5E00' : '1px solid #1C1C1E' }}>
+                  <div style={{ color: '#38BDF8', fontWeight: 600, fontSize: '0.75rem' }}>{sch.dayOfWeek}</div>
                   <div style={{ color: sch.isHoliday ? '#FF5E00' : '#FFFFFF', fontSize: '0.8rem', fontFamily: 'monospace', marginTop: '2px' }}>
                     {sch.isHoliday ? 'FERIADO' : `${sch.opensAt?.slice(0,5)} - ${sch.closesAt?.slice(0,5)}`}
                   </div>

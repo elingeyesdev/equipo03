@@ -29,8 +29,8 @@ L.Icon.Default.mergeOptions({
 type EstadoFiltro = 'abierta' | 'cerrada' | 'inactiva';
 
 const ESTADO_CONFIG: Record<EstadoFiltro, { label: string; color: string; emoji: string }> = {
-  abierta:  { label: 'Abierta',  color: '#00D9FF', emoji: '🔵' },
-  cerrada:  { label: 'Cerrada',  color: '#FF9F0A', emoji: '🟠' },
+  abierta:  { label: 'Abierta',  color: '#38BDF8', emoji: '🔵' },
+  cerrada:  { label: 'Cerrada',  color: '#00E5A3', emoji: '🟢' },
   inactiva: { label: 'Inactiva', color: '#FF5E00', emoji: '🔴' },
 };
 
@@ -117,14 +117,14 @@ const createCustomIcon = (color: string) =>
     popupAnchor: [0, -32],
   });
 
-const iconActiva   = createCustomIcon('#00D9FF');
-const iconCerrada  = createCustomIcon('#FF9F0A');
+const iconActiva   = createCustomIcon('#38BDF8');
+const iconCerrada  = createCustomIcon('#00E5A3');
 const iconInactiva = createCustomIcon('#FF5E00');
 
 // ── Paleta por Sede Principal ─────────────────────────────────────────────────
 const SEDE_PALETTE = [
-  '#00D9FF','#30D158','#FF9F0A','#BF5AF2','#FF375F',
-  '#64D2FF','#FFD60A','#FF6961','#4CD964','#5AC8FA',
+  '#38BDF8','#FF5E00','#00E5A3','#38BDF8','#FF5E00',
+  '#00E5A3','#38BDF8','#FF5E00','#00E5A3','#38BDF8',
 ];
 const getSedeColor = (id: number | null): string =>
   id === null ? '#8E8E93' : SEDE_PALETTE[id % SEDE_PALETTE.length];
@@ -153,13 +153,13 @@ const PopupCard = ({ s, computedStatus, role }: { s: SucursalMapaDTO; computedSt
   const cfg        = ESTADO_CONFIG[computedStatus];
   const aforo      = s.aforoActual > 0 ? s.aforoActual : mockAforo(s.id, s.maxCapacity);
   const pct        = s.maxCapacity > 0 ? Math.round((aforo / s.maxCapacity) * 100) : 0;
-  const barColor   = pct >= 80 ? '#FF5E00' : pct >= 50 ? '#FF9F0A' : '#30D158';
+  const barColor   = pct >= 80 ? '#FF5E00' : pct >= 50 ? '#38BDF8' : '#00E5A3';
 
   return (
     <div style={{
       fontFamily: "'Inter', system-ui, sans-serif",
-      background: 'rgba(15,15,17,0.97)',
-      border: '1px solid rgba(255,255,255,0.12)',
+      background: '#0A0A0A',
+      border: '1px solid #1C1C1E',
       borderRadius: '12px',
       padding: '14px 16px',
       minWidth: '220px',
@@ -175,8 +175,8 @@ const PopupCard = ({ s, computedStatus, role }: { s: SucursalMapaDTO; computedSt
           </div>
           <span style={{
             display: 'inline-block', marginTop: '4px',
-            background: 'rgba(0,0,0,0.4)',
-            border: `1px solid ${sedeColor}50`,
+            background: '#0A0A0A',
+            border: `1px solid ${sedeColor}`,
             color: sedeColor,
             fontSize: '0.68rem', fontWeight: 700,
             padding: '2px 8px', borderRadius: '12px',
@@ -188,9 +188,9 @@ const PopupCard = ({ s, computedStatus, role }: { s: SucursalMapaDTO; computedSt
         <span style={{
           fontSize: '0.68rem', fontWeight: 700,
           color: cfg.color,
-          background: `${cfg.color}20`,
+          background: '#1C1C1E',
           padding: '3px 7px', borderRadius: '8px',
-          border: `1px solid ${cfg.color}40`,
+          border: `1px solid ${cfg.color}`,
           whiteSpace: 'nowrap', flexShrink: 0,
         }}>
           {cfg.emoji} {cfg.label.toUpperCase()}
@@ -208,7 +208,7 @@ const PopupCard = ({ s, computedStatus, role }: { s: SucursalMapaDTO; computedSt
           <span style={{ color: '#8E8E93' }}>Ocupación</span>
           <span style={{ color: '#E5E5EA', fontWeight: 600 }}>{aforo} / {s.maxCapacity} ({pct}%)</span>
         </div>
-        <div style={{ height: '5px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+        <div style={{ height: '5px', background: '#3A3A3C', borderRadius: '3px', overflow: 'hidden' }}>
           <div style={{ height: '100%', width: `${pct}%`, background: barColor, borderRadius: '3px', transition: 'width 0.4s' }} />
         </div>
       </div>
@@ -223,9 +223,9 @@ const PopupCard = ({ s, computedStatus, role }: { s: SucursalMapaDTO; computedSt
             onClick={e => { e.stopPropagation(); navigate('/dashboard/reservas'); }}
             style={{
               fontSize: '0.72rem', fontWeight: 700,
-              color: '#30D158',
-              background: 'rgba(48,209,88,0.1)',
-              border: '1px solid rgba(48,209,88,0.3)',
+              color: '#00E5A3',
+              background: '#1C1C1E',
+              border: '1px solid #00E5A3',
               borderRadius: '6px',
               padding: '3px 10px',
               cursor: 'pointer',
@@ -242,9 +242,9 @@ const PopupCard = ({ s, computedStatus, role }: { s: SucursalMapaDTO; computedSt
             onClick={e => { e.stopPropagation(); navigate('/dashboard/sucursales'); }}
             style={{
               fontSize: '0.72rem', fontWeight: 700,
-              color: '#00D9FF',
-              background: 'rgba(0,217,255,0.1)',
-              border: '1px solid rgba(0,217,255,0.3)',
+              color: '#38BDF8',
+              background: '#1C1C1E',
+              border: '1px solid #38BDF8',
               borderRadius: '6px',
               padding: '3px 10px',
               cursor: 'pointer',
@@ -303,8 +303,8 @@ const getStyles = (isDark: boolean) => ({
   } as React.CSSProperties,
 
   statCard: {
-    background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.05)',
-    border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(15,23,42,0.08)',
+    background: isDark ? '#1C1C1E' : '#F9FAFB',
+    border: isDark ? '1px solid #1C1C1E' : '1px solid #E5E7EB',
     borderRadius: '10px',
     padding: '0.55rem 0.9rem',
     display: 'flex',
@@ -330,8 +330,8 @@ const getStyles = (isDark: boolean) => ({
     gap: '0.75rem',
     flexWrap: 'wrap',
     alignItems: 'center',
-    background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(15,23,42,0.03)',
-    border: isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(15,23,42,0.08)',
+    background: isDark ? '#1C1C1E' : '#F9FAFB',
+    border: isDark ? '1px solid #1C1C1E' : '1px solid #E5E7EB',
     borderRadius: '12px',
     padding: '0.75rem 1rem',
   } as React.CSSProperties,
@@ -340,8 +340,8 @@ const getStyles = (isDark: boolean) => ({
     flex: '1 1 160px',
     minWidth: '140px',
     maxWidth: '240px',
-    background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.05)',
-    border: isDark ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(15,23,42,0.1)',
+    background: isDark ? '#1C1C1E' : '#F9FAFB',
+    border: isDark ? '1px solid #3A3A3C' : '1px solid #E5E7EB',
     borderRadius: '8px',
     padding: '0.45rem 0.75rem 0.45rem 2rem',
     color: isDark ? '#FFFFFF' : '#0F172A',
@@ -353,7 +353,7 @@ const getStyles = (isDark: boolean) => ({
     padding: '0.3rem 0.75rem',
     borderRadius: '20px',
     border: `1px solid ${color}`,
-    background: `${color}22`,
+    background: isDark ? '#1C1C1E' : '#F9FAFB',
     color,
     fontSize: '0.78rem',
     cursor: 'pointer',
@@ -364,8 +364,8 @@ const getStyles = (isDark: boolean) => ({
   pillInactive: {
     padding: '0.3rem 0.75rem',
     borderRadius: '20px',
-    border: isDark ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(15,23,42,0.12)',
-    background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,23,42,0.04)',
+    border: isDark ? '1px solid #3A3A3C' : '1px solid #E5E7EB',
+    background: isDark ? '#1C1C1E' : '#F9FAFB',
     color: isDark ? '#8E8E93' : '#64748b',
     fontSize: '0.78rem',
     cursor: 'pointer',
@@ -384,15 +384,15 @@ const getStyles = (isDark: boolean) => ({
   divider: {
     width: '1px',
     height: '24px',
-    background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(15,23,42,0.1)',
+    background: isDark ? '#3A3A3C' : '#D1D5DB',
     flexShrink: 0,
   } as React.CSSProperties,
 
   filterBtn: {
     padding: '0.3rem 0.8rem',
     borderRadius: '20px',
-    border: isDark ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(15,23,42,0.15)',
-    background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.05)',
+    border: isDark ? '1px solid #3A3A3C' : '1px solid #D1D5DB',
+    background: isDark ? '#1C1C1E' : '#F9FAFB',
     color: isDark ? '#E5E5EA' : '#475569',
     fontSize: '0.78rem',
     cursor: 'pointer',
@@ -402,9 +402,9 @@ const getStyles = (isDark: boolean) => ({
   } as React.CSSProperties,
 
   filterBtnActive: {
-    border: '1px solid #00D9FF',
-    background: 'rgba(0,217,255,0.15)',
-    color: '#00D9FF',
+    border: '1px solid #38BDF8',
+    background: '#1C1C1E',
+    color: '#38BDF8',
     fontWeight: 700,
   } as React.CSSProperties,
 
@@ -412,8 +412,7 @@ const getStyles = (isDark: boolean) => ({
     flex: 1,
     borderRadius: '16px',
     overflow: 'hidden',
-    border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(15,23,42,0.1)',
-    boxShadow: isDark ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(15,23,42,0.15)',
+    border: isDark ? '1px solid #1C1C1E' : '1px solid #E5E7EB',
     minHeight: '560px',
   } as React.CSSProperties,
 
@@ -422,8 +421,8 @@ const getStyles = (isDark: boolean) => ({
     gap: '1rem',
     flexWrap: 'wrap',
     padding: '0.65rem 1rem',
-    background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(15,23,42,0.03)',
-    border: isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(15,23,42,0.08)',
+    background: isDark ? '#1C1C1E' : '#F9FAFB',
+    border: isDark ? '1px solid #1C1C1E' : '1px solid #E5E7EB',
     borderRadius: '10px',
     alignItems: 'center',
   } as React.CSSProperties,
@@ -544,17 +543,17 @@ export const MapaView: React.FC = () => {
         <div style={s.statsRow}>
           <div style={s.statCard}>
             <span style={s.statLabel}>Total</span>
-            <span style={{ ...s.statValue, color: '#00D9FF' }}>{loading ? '—' : sucursales.length}</span>
+            <span style={{ ...s.statValue, color: '#38BDF8' }}>{loading ? '—' : sucursales.length}</span>
           </div>
           <div style={s.statCard}>
             <span style={s.statLabel}>En mapa</span>
-            <span style={{ ...s.statValue, color: '#30D158' }}>{loading ? '—' : sucursalesFiltradas.length}</span>
+            <span style={{ ...s.statValue, color: '#00E5A3' }}>{loading ? '—' : sucursalesFiltradas.length}</span>
           </div>
           {isSuperAdmin && (
             <>
               <div style={s.statCard}>
                 <span style={s.statLabel}>Marcas</span>
-                <span style={{ ...s.statValue, color: '#BF5AF2' }}>{loading ? '—' : sedesUnicas.length}</span>
+                <span style={{ ...s.statValue, color: '#38BDF8' }}>{loading ? '—' : sedesUnicas.length}</span>
               </div>
               <div style={s.statCard}>
                 <span style={s.statLabel}>Sin marca</span>
@@ -564,7 +563,7 @@ export const MapaView: React.FC = () => {
           )}
           <div style={s.statCard}>
             <span style={s.statLabel}>Cap. total</span>
-            <span style={{ ...s.statValue, color: '#FF9F0A' }}>
+            <span style={{ ...s.statValue, color: '#FF5E00' }}>
               {loading ? '—' : sucursalesFiltradas.reduce((a, sc) => a + sc.maxCapacity, 0).toLocaleString()}
             </span>
           </div>
@@ -573,7 +572,7 @@ export const MapaView: React.FC = () => {
 
       {/* Aviso sin geo */}
       {sinGeo > 0 && !loading && (
-        <div style={{ background: '#fb6340', border: 'none', borderRadius: '8px', padding: '0.5rem 0.85rem', fontSize: '0.8rem', color: '#fff', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ background: '#FF5E00', border: 'none', borderRadius: '8px', padding: '0.5rem 0.85rem', fontSize: '0.8rem', color: '#fff', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <span><strong>{sinGeo} sucursal{sinGeo > 1 ? 'es' : ''}</strong> sin coordenadas GPS — no se {sinGeo > 1 ? 'muestran' : 'muestra'} en el mapa.</span>
         </div>
       )}
@@ -585,7 +584,7 @@ export const MapaView: React.FC = () => {
         </div>
       )}
       {error && !loading && (
-        <div style={{ background: '#f5365c', border: 'none', borderRadius: '8px', padding: '1rem', color: '#fff', fontWeight: 600 }}>
+        <div style={{ background: '#FF5E00', border: 'none', borderRadius: '8px', padding: '1rem', color: '#fff', fontWeight: 600 }}>
           {error}
         </div>
       )}
@@ -641,7 +640,7 @@ export const MapaView: React.FC = () => {
                     style={{
                       ...s.filterBtn,
                       ...(filtroSede === '__sinSede__'
-                        ? { border: '1px solid #8E8E93', background: 'rgba(142,142,147,0.15)', color: '#8E8E93', fontWeight: 700 }
+                        ? { border: '1px solid #8E8E93', background: '#1C1C1E', color: '#8E8E93', fontWeight: 700 }
                         : {}),
                     }}
                     onClick={() => setFiltroSede(filtroSede === '__sinSede__' ? null : '__sinSede__')}
@@ -701,8 +700,8 @@ export const MapaView: React.FC = () => {
 
           {/* ── Leyenda ─────────────────────────────────────────────────────── */}
           <div style={s.legend}>
-            <div style={s.legendItem}><div style={s.legendDot('#00D9FF')} /><span>Activa y Abierta</span></div>
-            <div style={s.legendItem}><div style={s.legendDot('#FF9F0A')} /><span>Activa y Cerrada</span></div>
+            <div style={s.legendItem}><div style={s.legendDot('#38BDF8')} /><span>Activa y Abierta</span></div>
+            <div style={s.legendItem}><div style={s.legendDot('#00E5A3')} /><span>Activa y Cerrada</span></div>
             <div style={s.legendItem}><div style={s.legendDot('#FF5E00')} /><span>Inactiva</span></div>
             {isSuperAdmin && (
               <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>

@@ -28,7 +28,7 @@ export const DashboardLayout = () => {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-[#f4f5f8] text-slate-500 text-sm tracking-wide">
+      <div className="flex h-screen w-full items-center justify-center bg-gray-100 text-gray-500 dark:bg-bg-deep dark:text-text-muted text-sm tracking-wide">
         Verificando sesión...
       </div>
     );
@@ -53,28 +53,28 @@ export const DashboardLayout = () => {
   const visibleRoutes = getRoutesForRole(user?.role);
 
   return (
-    <div className="flex h-screen w-full bg-[#f4f5f8] dark:bg-[#151521] overflow-hidden font-sans">
+    <div className="flex h-screen w-full bg-gray-100 text-gray-900 dark:bg-bg-deep dark:text-text-main overflow-hidden font-sans">
 
       {/* ── Overlay móvil ───────────────────────────────────────────────────── */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 z-10 bg-black/40 md:hidden"
+          className="fixed inset-0 z-10 bg-bg-deep md:hidden"
           onClick={closeSidebar}
         />
       )}
 
-      {/* ── Sidebar oscuro ──────────────────────────────────────────────────── */}
+      {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
       <aside
         className={[
-          'fixed md:relative z-20 h-full w-[260px] bg-[#1e1e2d] text-gray-300',
-          'flex flex-col shadow-xl transition-transform duration-300',
+          'fixed md:relative z-20 h-full w-[260px] bg-white text-gray-700 dark:bg-bg-surface dark:text-text-muted',
+          'flex flex-col transition-transform duration-300',
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
         ].join(' ')}
       >
         {/* Logo */}
-        <div className="h-16 flex items-center px-6 border-b border-white/10 flex-shrink-0">
-          <span className="text-white font-extrabold text-xl tracking-tight">
-            GymSync <span className="text-cyan-400">Pro</span>
+        <div className="h-16 flex items-center px-6 border-b border-gray-200 dark:border-bg-deep flex-shrink-0">
+          <span className="text-gray-900 dark:text-text-main font-extrabold text-xl tracking-tight">
+            GymSync <span className="text-brand-celeste">Pro</span>
           </span>
         </div>
 
@@ -87,10 +87,10 @@ export const DashboardLayout = () => {
               onClick={closeSidebar}
               className={({ isActive }) =>
                 [
-                  'block px-4 py-2.5 rounded-lg text-sm font-medium transition-all',
+                  'block px-4 py-2.5 rounded-lg text-sm font-medium',
                   isActive
-                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-                    : 'text-gray-400 hover:bg-white/5 hover:text-white',
+                    ? 'bg-gray-100 text-brand-celeste dark:bg-bg-deep dark:text-brand-celeste'
+                    : 'text-gray-500 hover:text-gray-900 dark:text-text-muted dark:hover:text-text-main',
                 ].join(' ')
               }
             >
@@ -100,17 +100,17 @@ export const DashboardLayout = () => {
         </nav>
 
         {/* Footer sidebar */}
-        <div className="flex-shrink-0 px-6 py-4 border-t border-white/10">
-          <span className="text-xs text-gray-600 tracking-wide">v2.0 · PostgreSQL Mode</span>
+        <div className="flex-shrink-0 px-6 py-4 border-t border-gray-200 dark:border-bg-deep">
+          <span className="text-xs text-gray-400 dark:text-text-muted tracking-wide">v2.0 · PostgreSQL Mode</span>
         </div>
       </aside>
 
       {/* ── Zona derecha ────────────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col h-full overflow-hidden relative">
 
-        {/* ── Header blanco ───────────────────────────────────────────────── */}
+        {/* ── Header ──────────────────────────────────────────────────────── */}
         <header
-          className="h-16 bg-white dark:bg-[#1e1e2d] shadow-sm flex items-center justify-between px-6 z-10 border-b border-slate-200 dark:border-gray-800 flex-shrink-0 transition-transform duration-300"
+          className="h-16 bg-white dark:bg-bg-surface flex items-center justify-between px-6 z-10 border-b border-gray-200 dark:border-bg-deep flex-shrink-0 transition-transform duration-300"
           style={{
             transform: hasActiveFormModal ? 'translateY(-100%)' : 'translateY(0)',
             pointerEvents: hasActiveFormModal ? 'none' : 'auto',
@@ -120,7 +120,7 @@ export const DashboardLayout = () => {
           <div className="flex items-center gap-4">
             {/* Botón hamburguesa móvil */}
             <button
-              className="md:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+              className="md:hidden p-2 rounded-lg text-gray-500 hover:text-gray-900 dark:text-text-muted dark:hover:text-text-main"
               onClick={() => setIsSidebarOpen(true)}
               aria-label="Abrir menú"
             >
@@ -138,7 +138,7 @@ export const DashboardLayout = () => {
             {/* Toggle dark / light */}
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-gray-800 text-slate-600 dark:text-gray-300 transition-colors"
+              className="p-2 rounded-full text-gray-500 hover:text-brand-orange dark:text-text-muted dark:hover:text-brand-orange"
               title={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
             >
               {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
@@ -146,21 +146,21 @@ export const DashboardLayout = () => {
 
             {/* Avatar + info */}
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center text-white font-bold text-sm select-none shadow-md flex-shrink-0">
+              <div className="w-9 h-9 rounded-full bg-brand-celeste flex items-center justify-center text-black font-bold text-sm select-none flex-shrink-0">
                 {initials}
               </div>
               <div className="hidden md:flex flex-col leading-tight">
-                <span className="text-sm font-semibold text-slate-900 dark:text-gray-100">{displayName}</span>
-                <span className="text-xs text-gray-400 uppercase tracking-wide">
+                <span className="text-sm font-semibold text-gray-900 dark:text-text-main">{displayName}</span>
+                <span className="text-xs text-gray-500 dark:text-text-muted uppercase tracking-wide">
                   {user?.role}{user?.gymName ? ` · ${user.gymName}` : ''}
                 </span>
               </div>
             </div>
 
-            {/* Logout */}
+            {/* Logout desktop */}
             <button
               onClick={handleLogout}
-              className="hidden md:flex items-center gap-2 text-sm text-gray-500 hover:text-red-500 border border-gray-200 hover:border-red-300 px-3 py-1.5 rounded-lg transition-colors"
+              className="hidden md:flex items-center gap-2 text-sm text-gray-500 hover:text-brand-orange dark:text-text-muted dark:hover:text-brand-orange border border-gray-200 hover:border-brand-orange dark:border-bg-deep px-3 py-1.5 rounded-lg"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -173,7 +173,7 @@ export const DashboardLayout = () => {
             {/* Logout móvil */}
             <button
               onClick={handleLogout}
-              className="md:hidden p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+              className="md:hidden p-2 rounded-lg text-gray-500 hover:text-brand-orange dark:text-text-muted dark:hover:text-brand-orange"
               title="Cerrar Sesión"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -186,7 +186,7 @@ export const DashboardLayout = () => {
         </header>
 
         {/* ── Contenido principal ─────────────────────────────────────────── */}
-        <main className="flex-1 overflow-y-auto p-6 bg-[#f4f5f8] dark:bg-[#151521]">
+        <main className="flex-1 overflow-y-auto p-6 bg-gray-100 dark:bg-bg-deep">
           <Outlet />
         </main>
       </div>

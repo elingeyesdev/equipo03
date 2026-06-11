@@ -49,6 +49,8 @@ const BACKGROUND_IMAGES = [
   'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=2070&auto=format&fit=crop',
   'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?q=80&w=2070&auto=format&fit=crop',
   'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=2070&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?q=80&w=1920',
+  'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?q=80&w=1920',
 ];
 
 const inputCls = (hasError: boolean) =>
@@ -145,20 +147,20 @@ export const RegisterScreen = () => {
 
       <div className="register-view-container">
         <motion.div
-          className="w-full max-w-md bg-white dark:bg-[#1e1e2d] border border-slate-200 dark:border-gray-800 rounded-2xl shadow-xl p-8 transition-colors"
+          className="w-full max-w-md bg-white dark:bg-bg-surface border border-slate-200 dark:border-bg-deep rounded-2xl p-8"
           initial={{ scale: 0.9, y: 30, opacity: 0 }}
           animate={{ scale: 1, y: 0, opacity: 1 }}
           transition={{ type: 'spring', damping: 25, stiffness: 280 }}
         >
           <div className="text-xl font-extrabold text-slate-900 dark:text-white text-center mb-1 tracking-tight">
-            GymSync <span style={{ color: '#00D9FF' }}>Pro</span>
+            GymSync <span style={{ color: '#38BDF8' }}>Pro</span>
           </div>
 
           {/* ── Vista de éxito ── */}
           {registered ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', padding: '16px 0' }}>
-              <div style={{ color: '#2dce89' }}><CheckCircleIcon size={56} /></div>
-              <h2 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 800, textAlign: 'center', margin: 0 }}>
+              <div style={{ color: '#00E5A3' }}><CheckCircleIcon size={56} /></div>
+              <h2 style={{ color: 'inherit', fontSize: '1.25rem', fontWeight: 800, textAlign: 'center', margin: 0 }}>
                 ¡Cuenta creada!
               </h2>
               <p style={{ color: '#64748b', fontSize: '0.88rem', textAlign: 'center', lineHeight: 1.6, margin: 0 }}>
@@ -166,20 +168,20 @@ export const RegisterScreen = () => {
               </p>
 
               {/* Instrucción para el admin */}
-              <div style={{ background: 'rgba(0,217,255,0.06)', border: '1px solid rgba(0,217,255,0.25)', borderRadius: '12px', padding: '14px 16px', width: '100%' }}>
-                <p style={{ margin: '0 0 8px', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#00D9FF' }}>
+              <div style={{ background: '#1C1C1E', border: '1px solid #38BDF8', borderRadius: '12px', padding: '14px 16px', width: '100%' }}>
+                <p style={{ margin: '0 0 8px', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#38BDF8' }}>
                   Paso siguiente
                 </p>
                 <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b', lineHeight: 1.6 }}>
                   Para acceder a la plataforma, un <strong style={{ color: '#e2e8f0' }}>Super Administrador</strong> debe
-                  asignarte el rol de <strong style={{ color: '#fb6340' }}>Gerente</strong> y tu sucursal desde el
+                  asignarte el rol de <strong style={{ color: '#FF5E00' }}>Gerente</strong> y tu sucursal desde el
                   panel <strong style={{ color: '#e2e8f0' }}>Usuarios → Editar usuario</strong>.
                 </p>
               </div>
 
               <button
                 onClick={() => navigate('/login')}
-                className="w-full bg-[#009ef7] hover:bg-[#0086d1] text-white font-medium py-3 rounded-lg shadow-md transition-colors"
+                className="w-full bg-brand-celeste text-black font-medium py-3 rounded-lg"
               >
                 Ir al Inicio de Sesión
               </button>
@@ -193,10 +195,10 @@ export const RegisterScreen = () => {
               </p>
 
               {/* Aviso informativo */}
-              <div style={{ background: 'rgba(251,99,64,0.06)', border: '1px solid rgba(251,99,64,0.2)', borderRadius: '10px', padding: '10px 14px', marginBottom: '16px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+              <div style={{ background: '#1C1C1E', border: '1px solid #FF5E00', borderRadius: '10px', padding: '10px 14px', marginBottom: '16px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
                 <span style={{ fontSize: '1rem', flexShrink: 0 }}>ℹ️</span>
                 <p style={{ margin: 0, fontSize: '0.78rem', color: '#64748b', lineHeight: 1.5 }}>
-                  Esta plataforma es de uso <strong style={{ color: '#fb6340' }}>administrativo</strong>.
+                  Esta plataforma es de uso <strong style={{ color: '#FF5E00' }}>administrativo</strong>.
                   Tras registrarte, un Super Admin te asignará el rol de <strong>Gerente</strong> y tu sucursal.
                 </p>
               </div>
@@ -260,7 +262,7 @@ export const RegisterScreen = () => {
                 </div>
 
                 <button type="submit" disabled={isSubmitting}
-                  className="w-full bg-[#009ef7] hover:bg-[#0086d1] text-white font-medium py-3 rounded-lg shadow-md transition-colors mt-6 disabled:opacity-60 disabled:cursor-not-allowed">
+                  className="w-full bg-brand-celeste text-black font-medium py-3 rounded-lg mt-6 disabled:opacity-60 disabled:cursor-not-allowed">
                   {isSubmitting ? 'Creando cuenta...' : 'Crear Cuenta'}
                 </button>
               </form>
