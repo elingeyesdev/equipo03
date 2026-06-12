@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ScrollView, Alert, Platform, Keyboard, KeyboardAvoidingView, ActivityIndicator,
+  ScrollView, Alert, Platform, Keyboard, KeyboardAvoidingView, ActivityIndicator, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { NumericInput } from '../../../app/Shared/components/ui/NumericInput';
 import authAxios from '../../../app/Providers/auth/authAxios';
+import { calculateIMC, getIMCCategory, calculateAge } from '../../../app/Shared/utils/healthMetrics';
 
 type ExperienceLevel = 'PRINCIPIANTE' | 'INTERMEDIO' | 'AVANZADO';
 type SavingSection   = 'basic' | 'metrics' | 'medical' | null;
@@ -48,6 +49,15 @@ export const MisDatosPersonalesScreen = () => {
   const [experienceLevel,    setExperienceLevel]    = useState<ExperienceLevel>(
     (pm?.experienceLevel ?? 'PRINCIPIANTE') as ExperienceLevel
   );
+  const [birthDate,          setBirthDate]          = useState<string>(p?.birthDate ?? pm?.birthDate ?? '');
+  const [showDateModal,      setShowDateModal]      = useState(false);
+  const [dateInput,          setDateInput]          = useState<string>('');
+
+  // IMC reactivo (solo lectura)
+  const imcResult   = calculateIMC(Number(weightKg), Number(heightCm));
+  const imcCategory = getIMCCategory(imcResult);
+  const imcFloat    = parseFloat(imcResult);
+  const imcColor    = imcFloat >= 18.5 && imcFloat <= 24.9 ? '#00E5A3' : '#FF5E00';
 
   const [isKeyboardVisible,  setKeyboardVisible]    = useState(false);
   const [isFetching,         setIsFetching]         = useState(!p);
@@ -78,6 +88,7 @@ export const MisDatosPersonalesScreen = () => {
     setBodyFatPercentage(String(metrics.bodyFatPercentage ?? ''));
     setWaistCm(String(metrics.waistCm           ?? ''));
     setExperienceLevel((metrics.experienceLevel  ?? 'PRINCIPIANTE') as ExperienceLevel);
+    setBirthDate(prof.birthDate ?? metrics.birthDate ?? '');
   }, [user]);
 
   // ── Hidratación desde GET /api/auth/me ───────────────────────────────────────
@@ -102,6 +113,7 @@ export const MisDatosPersonalesScreen = () => {
         setBodyFatPercentage(String(metrics.bodyFatPercentage ?? ''));
         setWaistCm(String(metrics.waistCm           ?? ''));
         setExperienceLevel((metrics.experienceLevel  ?? 'PRINCIPIANTE') as ExperienceLevel);
+        setBirthDate(prof.birthDate ?? metrics.birthDate ?? '');
       } catch (err: any) {
         const status = err?.response?.status;
         if (status === 401) return; // manejado por axios401Guard
@@ -115,6 +127,40 @@ export const MisDatosPersonalesScreen = () => {
       }
     };
     fetchProfile();
+    return () => { cancelled = true; };
+  }, []);
+
+  // ── Fetch específico de métricas (endpoints dedicados) ───────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    const fetchMetrics = async () => {
+      try {
+        const [profileRes, metricsRes] = await Promise.allSettled([
+          authAxios.get('/api/users/me'),
+          authAxios.get('/api/users/me/metrics/latest'),
+        ]);
+
+        if (cancelled) return;
+
+        // 1. Peso viene de /metrics/latest
+        if (metricsRes.status === 'fulfilled') {
+          const m = metricsRes.value.data?.data ?? metricsRes.value.data;
+          if (m?.weightKg != null) setWeightKg(m.weightKg.toString());
+        }
+
+        // 2. Altura y fecha de nacimiento vienen de /users/me
+        if (profileRes.status === 'fulfilled') {
+          const raw     = profileRes.value.data?.data ?? profileRes.value.data;
+          const profile = raw?.profile ?? raw;
+          if (profile?.heightCm != null) setHeightCm(profile.heightCm.toString());
+          const dob = profile?.dateOfBirth ?? profile?.birthDate ?? raw?.dateOfBirth ?? raw?.birthDate;
+          if (dob) setBirthDate(dob);
+        }
+      } catch {
+        // silencioso — los datos del auth/me ya hidrataron el estado
+      }
+    };
+    fetchMetrics();
     return () => { cancelled = true; };
   }, []);
 
@@ -149,30 +195,52 @@ export const MisDatosPersonalesScreen = () => {
 
   // ── Guardar métricas ─────────────────────────────────────────────────────────
   const handleSaveMetrics = async () => {
+    const parsedWeight = parseFloat(weightKg);
+    const parsedHeight = parseInt(heightCm, 10);
+
+    if (isNaN(parsedWeight) || isNaN(parsedHeight)) {
+      Alert.alert('Datos inválidos', 'Debes ingresar valores numéricos válidos para peso y altura.');
+      return;
+    }
+
     setSavingSection('metrics');
     try {
-      await patchProfile({
-        weightKg:          Number(weightKg)          || undefined,
-        heightCm:          Number(heightCm)          || undefined,
-        bodyFatPercentage: Number(bodyFatPercentage) || undefined,
-        waistCm:           Number(waistCm)           || undefined,
-        experienceLevel,
+      // POST al endpoint dedicado de métricas con números estrictos
+      await authAxios.post('/api/users/me/metrics', {
+        weightKg: parsedWeight,
+        heightCm: parsedHeight,
       });
-      updateProfile({
-        physicalMetrics: {
-          weightKg:          Number(weightKg)          || undefined,
-          heightCm:          Number(heightCm)          || undefined,
-          bodyFatPercentage: Number(bodyFatPercentage) || undefined,
-          waistCm:           Number(waistCm)           || undefined,
-          experienceLevel,
-        },
-      });
-      Alert.alert('Guardado', 'Métricas físicas actualizadas.');
+
+      // Actualizar birthDate en el perfil si cambió
+      if (birthDate) {
+        await patchProfile({ birthDate }).catch(() => null);
+      }
+
+      // Solo apaga edición si el servidor respondió OK — sin limpiar valores
+      setIsEditing(false);
+      Alert.alert('Éxito', 'Métricas actualizadas correctamente.');
     } catch (err: any) {
       handleApiError(err);
+      // isEditing permanece true — el usuario puede corregir y reintentar
     } finally {
       setSavingSection(null);
     }
+  };
+
+  // ── Guardar fecha desde modal ─────────────────────────────────────────────────
+  const confirmBirthDate = () => {
+    // Acepta DD/MM/YYYY → convierte a YYYY-MM-DD para el backend
+    const parts = dateInput.trim().split('/');
+    if (parts.length === 3) {
+      const [dd, mm, yyyy] = parts;
+      const iso = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+      if (!isNaN(Date.parse(iso))) {
+        setBirthDate(iso);
+        setShowDateModal(false);
+        return;
+      }
+    }
+    Alert.alert('Fecha inválida', 'Usa el formato DD/MM/AAAA');
   };
 
   // ── Guardar condiciones médicas ───────────────────────────────────────────────
@@ -320,82 +388,109 @@ export const MisDatosPersonalesScreen = () => {
           {/* ── Métricas Físicas — solo clientes ── */}
           {!isGerente && (
             <View style={s.section}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 }}>
                 <MaterialCommunityIcons name="chart-bar" size={15} color="#B0B0B0" />
                 <Text style={s.sectionTitle}>Métricas Físicas</Text>
               </View>
 
-              {isEditing ? (
-                <>
-                  <View style={s.metricsRow}>
-                    <View style={[s.field, s.metricHalf]}>
-                      <Text style={s.label}>Peso (kg)</Text>
-                      <NumericInput style={s.input} value={weightKg} onChangeText={setWeightKg} placeholder="0.0" placeholderTextColor="#B0B0B0" />
-                    </View>
-                    <View style={[s.field, s.metricHalf]}>
-                      <Text style={s.label}>Altura (cm)</Text>
-                      <NumericInput style={s.input} value={heightCm} onChangeText={setHeightCm} placeholder="0" placeholderTextColor="#B0B0B0" />
-                    </View>
-                  </View>
-                  <View style={s.metricsRow}>
-                    <View style={[s.field, s.metricHalf]}>
-                      <Text style={s.label}>Grasa corp. (%)</Text>
-                      <NumericInput style={s.input} value={bodyFatPercentage} onChangeText={setBodyFatPercentage} placeholder="0.0" placeholderTextColor="#B0B0B0" />
-                    </View>
-                    <View style={[s.field, s.metricHalf]}>
-                      <Text style={s.label}>Cintura (cm)</Text>
-                      <NumericInput style={s.input} value={waistCm} onChangeText={setWaistCm} placeholder="0" placeholderTextColor="#B0B0B0" />
-                    </View>
-                  </View>
-                  <View style={s.field}>
-                    <Text style={s.label}>Nivel de Experiencia</Text>
-                    <View style={s.radioRow}>
-                      {(['PRINCIPIANTE', 'INTERMEDIO', 'AVANZADO'] as ExperienceLevel[]).map(lvl => (
-                        <TouchableOpacity
-                          key={lvl}
-                          style={[s.radioItem, experienceLevel === lvl && s.radioItemActive]}
-                          onPress={() => setExperienceLevel(lvl)}
-                        >
-                          <Text style={[s.radioText, experienceLevel === lvl && s.radioTextActive]}>{lvl}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
+              {/* Fila 1: Peso + Altura */}
+              <View style={s.metricsRow}>
+                <View style={[s.field, s.metricHalf]}>
+                  <Text style={s.label}>PESO (kg)</Text>
+                  {isEditing
+                    ? <NumericInput style={s.input} value={weightKg} onChangeText={setWeightKg} placeholder="0.0" placeholderTextColor="#B0B0B0" />
+                    : <View style={s.metricCard}><Text style={s.metricCardValue}>{weightKg || '—'}</Text></View>
+                  }
+                </View>
+                <View style={[s.field, s.metricHalf]}>
+                  <Text style={s.label}>ALTURA (cm)</Text>
+                  {isEditing
+                    ? <NumericInput style={s.input} value={heightCm} onChangeText={setHeightCm} placeholder="0" placeholderTextColor="#B0B0B0" />
+                    : <View style={s.metricCard}><Text style={s.metricCardValue}>{heightCm || '—'}</Text></View>
+                  }
+                </View>
+              </View>
+
+              {/* Fila 2: Edad + IMC */}
+              <View style={s.metricsRow}>
+                {/* Edad — abre modal de fecha */}
+                <View style={[s.field, s.metricHalf]}>
+                  <Text style={s.label}>EDAD</Text>
                   <TouchableOpacity
-                    style={[s.saveBtn, savingSection === 'metrics' && s.saveBtnOff]}
-                    onPress={handleSaveMetrics}
-                    disabled={savingSection !== null}
-                    activeOpacity={0.85}
+                    style={[s.metricCard, isEditing && s.metricCardEditable]}
+                    onPress={() => {
+                      if (!isEditing) return;
+                      // Pre-carga fecha existente en formato DD/MM/YYYY
+                      if (birthDate) {
+                        const [yyyy, mm, dd] = birthDate.split('-');
+                        setDateInput(`${dd}/${mm}/${yyyy}`);
+                      } else {
+                        setDateInput('');
+                      }
+                      setShowDateModal(true);
+                    }}
+                    activeOpacity={isEditing ? 0.7 : 1}
                   >
-                    {savingSection === 'metrics'
-                      ? <ActivityIndicator color="#fff" size="small" />
-                      : <Text style={s.saveBtnText}>Guardar Métricas</Text>
-                    }
+                    <Text style={s.metricCardValue}>{calculateAge(birthDate)}</Text>
+                    {isEditing && (
+                      <MaterialCommunityIcons name="calendar-edit" size={14} color="#555" style={{ marginTop: 4 }} />
+                    )}
                   </TouchableOpacity>
-                </>
-              ) : (
-                <>
-                  <View style={s.metricsReadGrid}>
-                    {[
-                      { label: 'Peso',    value: weightKg          ? `${weightKg} kg`         : '—' },
-                      { label: 'Altura',  value: heightCm          ? `${heightCm} cm`         : '—' },
-                      { label: 'Grasa',   value: bodyFatPercentage ? `${bodyFatPercentage} %` : '—' },
-                      { label: 'Cintura', value: waistCm            ? `${waistCm} cm`          : '—' },
-                    ].map(({ label, value }) => (
-                      <View key={label} style={s.metricCard}>
-                        <Text style={s.metricCardLabel}>{label}</Text>
-                        <Text style={s.metricCardValue}>{value}</Text>
-                      </View>
-                    ))}
+                </View>
+
+                {/* IMC — solo lectura */}
+                <View style={[s.field, s.metricHalf]}>
+                  <Text style={s.label}>IMC</Text>
+                  <View style={[s.metricCard, { opacity: 0.9 }]}>
+                    <Text style={[s.metricCardValue, { color: imcColor }]}>{imcResult}</Text>
+                    <Text style={[s.imcCategory, { color: imcColor }]}>{imcCategory}</Text>
                   </View>
-                  <View style={[s.field, { marginTop: 4 }]}>
-                    <Text style={s.label}>Nivel de Experiencia</Text>
-                    <Text style={s.readValue}>{experienceLevel}</Text>
-                  </View>
-                </>
+                </View>
+              </View>
+
+              {isEditing && (
+                <TouchableOpacity
+                  style={[s.saveBtn, savingSection === 'metrics' && s.saveBtnOff]}
+                  onPress={handleSaveMetrics}
+                  disabled={savingSection !== null}
+                  activeOpacity={0.85}
+                >
+                  {savingSection === 'metrics'
+                    ? <ActivityIndicator color="#fff" size="small" />
+                    : <Text style={s.saveBtnText}>Guardar Métricas</Text>
+                  }
+                </TouchableOpacity>
               )}
             </View>
           )}
+
+          {/* ── Modal de fecha de nacimiento ── */}
+          <Modal visible={showDateModal} transparent animationType="fade">
+            <View style={s.modalOverlay}>
+              <View style={s.modalBox}>
+                <Text style={s.modalTitle}>Fecha de Nacimiento</Text>
+                <Text style={s.modalHint}>Formato: DD/MM/AAAA</Text>
+                <TextInput
+                  style={s.modalInput}
+                  value={dateInput}
+                  onChangeText={setDateInput}
+                  placeholder="15/06/1995"
+                  placeholderTextColor="#555"
+                  keyboardType="numbers-and-punctuation"
+                  maxLength={10}
+                  autoFocus
+                />
+                <View style={s.modalActions}>
+                  <TouchableOpacity style={s.modalCancel} onPress={() => setShowDateModal(false)}>
+                    <Text style={s.modalCancelTxt}>Cancelar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={s.modalConfirm} onPress={confirmBirthDate}>
+                    <Text style={s.modalConfirmTxt}>Guardar</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
 
           {/* ── Condiciones Médicas ── */}
           <View style={s.section}>
@@ -456,9 +551,23 @@ const s = StyleSheet.create({
   avatarReadWrap:     { alignItems: 'center', marginBottom: 20 },
   avatarReadBadge:    { width: 88, height: 88, borderRadius: 44, backgroundColor: '#0A0A0A', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#3A3A3C' },
   metricsReadGrid:    { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8 },
-  metricCard:         { flex: 1, minWidth: '45%', backgroundColor: '#0A0A0A', borderRadius: 12, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: '#3A3A3C' },
+  metricCard:         { flex: 1, backgroundColor: '#0A0A0A', borderRadius: 12, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: '#3A3A3C' },
+  metricCardEditable: { borderColor: '#FF5E00' },
   metricCardLabel:    { color: '#B0B0B0', fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 },
-  metricCardValue:    { color: '#FF5E00', fontSize: 20, fontWeight: '900' },
+  metricCardValue:    { color: '#FF5E00', fontSize: 22, fontWeight: '900' },
+  imcCategory:        { fontSize: 11, fontWeight: '700', marginTop: 4 },
+
+  // ── Modal fecha ──
+  modalOverlay:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 32 },
+  modalBox:           { backgroundColor: '#1C1C1E', borderRadius: 16, padding: 24, width: '100%', borderWidth: 1, borderColor: '#3A3A3C', gap: 12 },
+  modalTitle:         { color: '#fff', fontSize: 16, fontWeight: '800' },
+  modalHint:          { color: '#555', fontSize: 12 },
+  modalInput:         { backgroundColor: '#0A0A0A', borderRadius: 10, padding: 14, color: '#fff', fontSize: 16, borderWidth: 1, borderColor: '#3A3A3C' },
+  modalActions:       { flexDirection: 'row', gap: 10, marginTop: 4 },
+  modalCancel:        { flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#3A3A3C', alignItems: 'center' },
+  modalCancelTxt:     { color: '#888', fontWeight: '600' },
+  modalConfirm:       { flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: '#FF5E00', alignItems: 'center' },
+  modalConfirmTxt:    { color: '#fff', fontWeight: '700' },
 
   // ── Edit mode — campos
   field:              { marginBottom: 16 },
