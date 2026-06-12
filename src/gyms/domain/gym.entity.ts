@@ -4,6 +4,7 @@ import {
 import { GymLocation } from './gym-location.entity';
 import { GymSchedule } from './gym-schedule.entity';
 import { GymActivity } from '../../activities/domain/gym-activity.entity';
+import { GymInfrastructure } from './gym-infrastructure.entity';
 
 @Entity('gyms')
 export class Gym {
@@ -47,4 +48,7 @@ export class Gym {
 
   @OneToMany(() => GymActivity, (a) => a.gym)
   activities!: GymActivity[];
+
+  @OneToOne(() => GymInfrastructure, (inf) => inf.gym)
+  infrastructure?: GymInfrastructure;
 }

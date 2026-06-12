@@ -108,13 +108,15 @@ export class GymsController {
 
   @Put(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN')
+  @Roles('SUPER_ADMIN', 'GERENTE')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Actualizar datos del gimnasio' })
+  @ApiOperation({ summary: 'Actualizar datos del gimnasio. GERENTE: solo su sucursal. machineCapacity requiere GERENTE o SUPER_ADMIN.' })
   @ApiParam({ name: 'id', example: 1 })
   @ApiBody({ type: UpdateGymDto })
-  @ApiResponse({ status: 403, description: 'Solo SUPER_ADMIN' })
-  update(@Param('id', ParseIntPipe) id: number, @Body() body: UpdateGymDto) { return this.svc.update(id, body); }
+  @ApiResponse({ status: 403, description: 'Solo SUPER_ADMIN o GERENTE' })
+  update(@Req() req: RequestWithUser, @Param('id', ParseIntPipe) id: number, @Body() body: UpdateGymDto) {
+    return this.svc.update(id, body, req.user!.role?.toUpperCase() ?? '');
+  }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)

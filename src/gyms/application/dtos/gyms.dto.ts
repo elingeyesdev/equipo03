@@ -116,6 +116,12 @@ export class UpdateGymDto {
   @IsOptional()
   @IsBoolean()
   isOpen?: boolean;
+
+  @ApiPropertyOptional({ example: 40, description: 'Cantidad de máquinas disponibles en la sucursal (solo sucursales, no marcas)' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  machineCapacity?: number;
 }
 
 export class CreateGymScheduleInputDto {

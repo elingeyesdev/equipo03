@@ -1,4 +1,4 @@
-import { Inject, Injectable, ForbiddenException, NotFoundException, BadRequestException, Scope } from '@nestjs/common';
+import { Inject, Injectable, ForbiddenException, NotFoundException, BadRequestException, Scope, Logger } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DeepPartial } from 'typeorm';
@@ -14,6 +14,8 @@ import { getManagerGymId, type RequestWithUser } from '../../common/security/gym
 
 @Injectable({ scope: Scope.REQUEST })
 export class TrainingService {
+  private readonly logger = new Logger(TrainingService.name);
+
   constructor(
     @InjectRepository(UserTraining) private utRepo: Repository<UserTraining>,
     @InjectRepository(UserTrainingGoals) private goalsRepo: Repository<UserTrainingGoals>,
@@ -32,90 +34,113 @@ export class TrainingService {
 
   /** Mapea una WorkoutSession a un objeto plano seguro para serialización HTTP. */
   private mapSession(s: WorkoutSession) {
+    // ── Campos de sede ────────────────────────────────────────────────────────
+    const rawGymName   = s.gym?.name ?? null;
+    const rawBrandName = s.gym?.parent?.name ?? null;
+    const locationText = rawGymName
+      ? (rawBrandName && rawBrandName !== rawGymName
+          ? `${rawBrandName} - ${rawGymName}`
+          : rawGymName)
+      : 'Sede no registrada';
+
+    // ── Sets mapeados ─────────────────────────────────────────────────────────
+    const mappedSets = (s.sets ?? []).map((ws) => {
+      const catalogExercise = ws.exercise ?? ws.routineExercise?.exercise ?? null;
+      return {
+        id:                      ws.id,
+        setNumber:               ws.setNumber,
+        repsCompleted:           ws.repsCompleted,
+        weightUsedKg:            ws.weightUsedKg !== null ? Number(ws.weightUsedKg) : null,
+        durationSeconds:         ws.durationSeconds,
+        distanceMeters:          ws.distanceMeters,
+        restTakenSeconds:        ws.restTakenSeconds,
+        ratingPerceivedExertion: ws.ratingPerceivedExertion,
+        completedAt:             ws.completedAt,
+        exerciseName:            catalogExercise?.name ?? null,
+        exercise: catalogExercise
+          ? {
+              id:                catalogExercise.id,
+              name:              catalogExercise.name,
+              muscleGroup:       catalogExercise.muscleGroup,
+              equipmentRequired: catalogExercise.equipmentRequired ?? null,
+            }
+          : null,
+        routineExercise: ws.routineExercise
+          ? {
+              id:                  ws.routineExercise.id,
+              orderPosition:       ws.routineExercise.orderPosition,
+              setsRecommended:     ws.routineExercise.setsRecommended,
+              repsRecommended:     ws.routineExercise.repsRecommended,
+              weightRecommendedKg: ws.routineExercise.weightRecommendedKg ?? null,
+            }
+          : null,
+      };
+    });
+
+    // ── activityText: primer ejercicio real → rutina → deporte ───────────────
+    const firstSet             = mappedSets[0] ?? null;
+    const freeExerciseName     = firstSet?.exercise?.name ?? null;
+    const routineExerciseName  = firstSet?.routineExercise
+      ? (s.sets?.[0]?.routineExercise?.exercise?.name ?? null)
+      : null;
+    const activityText =
+      freeExerciseName ??
+      routineExerciseName ??
+      s.routine?.name ??
+      s.sportType ??
+      'Actividad Desconocida';
+
     return {
-      id: s.id,
-      userId: s.userId,
-      gymId: s.gymId,
-      gymName: s.gym?.name ?? null,
-      brandName: s.gym?.parent?.name ?? null,
+      id:              s.id,
+      userId:          s.userId,
+      gymId:           s.gymId,
+      gymName:         rawGymName,
+      brandName:       rawBrandName,
+      locationText,
+      activityText,
+      routineName:     s.routine?.name ?? null,
       gym: s.gym
         ? {
-            id: s.gym.id,
-            name: s.gym.name,
+            id:       s.gym.id,
+            name:     s.gym.name,
             parentId: s.gym.parentId ?? null,
-            brand: s.gym.parent
+            brand:    s.gym.parent
               ? { id: s.gym.parent.id, name: s.gym.parent.name }
               : null,
           }
         : null,
-      routineId: s.routineId,
+      routineId:       s.routineId,
       routine: s.routine
         ? {
-            id: s.routine.id,
-            name: s.routine.name,                 // Routine.name existe como string
-            description: s.routine.description ?? null,
+            id:              s.routine.id,
+            name:            s.routine.name,
+            description:     s.routine.description ?? null,
             difficultyLevel: s.routine.difficultyLevel ?? null,
-            // Ejercicios del catálogo definidos en la rutina
             exercises: (s.routine.exercises ?? []).map((re) => ({
-              id: re.id,
-              orderPosition: re.orderPosition,
-              setsRecommended: re.setsRecommended,
-              repsRecommended: re.repsRecommended,
+              id:                  re.id,
+              orderPosition:       re.orderPosition,
+              setsRecommended:     re.setsRecommended,
+              repsRecommended:     re.repsRecommended,
               weightRecommendedKg: re.weightRecommendedKg ?? null,
               exercise: re.exercise
                 ? {
-                    id: re.exercise.id,
-                    name: re.exercise.name,
-                    muscleGroup: re.exercise.muscleGroup,
+                    id:                re.exercise.id,
+                    name:              re.exercise.name,
+                    muscleGroup:       re.exercise.muscleGroup,
                     equipmentRequired: re.exercise.equipmentRequired ?? null,
                   }
                 : null,
             })),
           }
         : null,
-      sportType: s.sportType,
-      status: s.status,
-      startedAt: s.startedAt,
-      finishedAt: s.finishedAt,
+      sportType:       s.sportType,
+      status:          s.status,
+      startedAt:       s.startedAt,
+      finishedAt:      s.finishedAt,
       durationSeconds: s.durationSeconds,
-      caloriesBurned: s.caloriesBurned,
-      notes: s.notes,
-      // Series ejecutadas en la sesión (con nombre del ejercicio real)
-      sets: (s.sets ?? []).map((ws) => {
-        // Uniformizar el ejercicio: puede venir de entrenamiento libre o de una rutina
-        const catalogExercise = ws.exercise ?? ws.routineExercise?.exercise ?? null;
-
-        return {
-          id: ws.id,
-          setNumber: ws.setNumber,
-          repsCompleted: ws.repsCompleted,
-          weightUsedKg: ws.weightUsedKg !== null ? Number(ws.weightUsedKg) : null,
-          durationSeconds: ws.durationSeconds,
-          distanceMeters: ws.distanceMeters,
-          restTakenSeconds: ws.restTakenSeconds,
-          ratingPerceivedExertion: ws.ratingPerceivedExertion,
-          completedAt: ws.completedAt,
-          // Exponer el ejercicio uniformemente para el frontend
-          exercise: catalogExercise
-            ? {
-                id: catalogExercise.id,
-                name: catalogExercise.name,
-                muscleGroup: catalogExercise.muscleGroup,
-                equipmentRequired: catalogExercise.equipmentRequired ?? null,
-              }
-            : null,
-          // Mantener routineExercise para info de repeticiones recomendadas si es de rutina
-          routineExercise: ws.routineExercise
-            ? {
-                id: ws.routineExercise.id,
-                orderPosition: ws.routineExercise.orderPosition,
-                setsRecommended: ws.routineExercise.setsRecommended,
-                repsRecommended: ws.routineExercise.repsRecommended,
-                weightRecommendedKg: ws.routineExercise.weightRecommendedKg ?? null,
-              }
-            : null,
-        };
-      }),
+      caloriesBurned:  s.caloriesBurned,
+      notes:           s.notes,
+      sets:            mappedSets,
     };
   }
 
@@ -284,6 +309,7 @@ export class TrainingService {
     }
 
     const sessions = await qb.getMany();
+
     return sessions.map((s) => this.mapSession(s));
   }
 

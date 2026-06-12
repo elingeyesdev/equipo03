@@ -13,6 +13,7 @@ import { Repository } from 'typeorm';
 import { Gym } from '../domain/gym.entity';
 import { GymLocation } from '../domain/gym-location.entity';
 import { GymSchedule } from '../domain/gym-schedule.entity';
+import { GymInfrastructure } from '../domain/gym-infrastructure.entity';
 import { Reservation } from '../../reservations/domain/reservation.entity';
 import { CheckIn } from '../../checkins/domain/check-in.entity';
 import { getManagerGymId, getStaffGymId, type RequestWithUser } from '../../common/security/gym-scope';
@@ -46,6 +47,7 @@ export class GymsService {
     @InjectRepository(Gym) private gymsRepo: Repository<Gym>,
     @InjectRepository(GymLocation) private locRepo: Repository<GymLocation>,
     @InjectRepository(GymSchedule) private schedRepo: Repository<GymSchedule>,
+    @InjectRepository(GymInfrastructure) private infraRepo: Repository<GymInfrastructure>,
     @InjectRepository(Reservation) private reservationRepo: Repository<Reservation>,
     @InjectRepository(CheckIn) private checkInRepo: Repository<CheckIn>,
     @Inject(REQUEST) private readonly request: RequestWithUser,
@@ -96,9 +98,9 @@ export class GymsService {
 
   async findAll(lat?: number, lng?: number, radiusKm = 50) {
     const sg = this.staffGymId();
+    let gymsToMap: Gym[] = [];
 
     if (sg !== null) {
-      // Obtener la marca (parentId) de la sucursal del staff
       const staffGym = await this.gymsRepo.findOne({
         where: { id: sg },
         select: ['id', 'parentId'],
@@ -110,56 +112,59 @@ export class GymsService {
 
       // Si el gym no tiene padre, sg ES la marca → devolver todas sus sucursales activas
       if (!brandId) {
-        const branches = await this.gymsRepo.find({
+        gymsToMap = await this.gymsRepo.find({
           where: { parentId: sg, isActive: true },
-          relations: ['location', 'schedules', 'parent'],
+          relations: ['location', 'schedules', 'parent', 'infrastructure'],
           order: { id: 'ASC' },
         });
-        return branches.map((gym) => this.mapGymToDto(gym));
+      } else {
+        // Devolver TODAS las sucursales activas de la misma marca, sin filtro de distancia
+        gymsToMap = await this.gymsRepo.find({
+          where: { parentId: brandId, isActive: true },
+          relations: ['location', 'schedules', 'parent', 'infrastructure'],
+          order: { id: 'ASC' },
+        });
+      }
+    } else {
+      const qb = this.gymsRepo
+        .createQueryBuilder('gym')
+        .leftJoinAndSelect('gym.location', 'location')
+        .leftJoinAndSelect('gym.schedules', 'schedules')
+        .leftJoinAndSelect('gym.parent', 'parent')
+        .leftJoinAndSelect('gym.infrastructure', 'infrastructure')
+        .where('gym.isActive = :active', { active: true })
+        .andWhere('gym.parentId IS NOT NULL')
+        .orderBy('gym.id', 'ASC')
+        .distinct(true);
+
+      if (lat !== undefined && lng !== undefined) {
+        qb.andWhere(
+          `(
+            6371 * acos(
+              cos(radians(:lat)) * cos(radians(location.latitude)) *
+              cos(radians(location.longitude) - radians(:lng)) +
+              sin(radians(:lat)) * sin(radians(location.latitude))
+            )
+          ) <= :radius`,
+          { lat, lng, radius: radiusKm },
+        );
       }
 
-      // Devolver TODAS las sucursales activas de la misma marca, sin filtro de distancia
-      const brandGyms = await this.gymsRepo.find({
-        where: { parentId: brandId, isActive: true },
-        relations: ['location', 'schedules', 'parent'],
-        order: { id: 'ASC' },
+      const gyms = await qb.getMany();
+      const seen = new Set<number>();
+      gymsToMap = gyms.filter((g) => {
+        if (seen.has(g.id)) return false;
+        seen.add(g.id);
+        return true;
       });
-      return brandGyms.map((gym) => this.mapGymToDto(gym));
     }
 
-    const qb = this.gymsRepo
-      .createQueryBuilder('gym')
-      .leftJoinAndSelect('gym.location', 'location')
-      .leftJoinAndSelect('gym.schedules', 'schedules')
-      .leftJoinAndSelect('gym.parent', 'parent')
-      .where('gym.isActive = :active', { active: true })
-      .andWhere('gym.parentId IS NOT NULL')
-      .orderBy('gym.id', 'ASC')
-      .distinct(true);
+    if (gymsToMap.length === 0) return [];
 
-    if (lat !== undefined && lng !== undefined) {
-      qb.andWhere(
-        `(
-          6371 * acos(
-            cos(radians(:lat)) * cos(radians(location.latitude)) *
-            cos(radians(location.longitude) - radians(:lng)) +
-            sin(radians(:lat)) * sin(radians(location.latitude))
-          )
-        ) <= :radius`,
-        { lat, lng, radius: radiusKm },
-      );
-    }
+    const gymIds = gymsToMap.map((g) => g.id);
+    const occupancyMap = await this.getOccupancyMap(gymIds);
 
-    const gyms = await qb.getMany();
-
-    const seen = new Set<number>();
-    const unique = gyms.filter((g) => {
-      if (seen.has(g.id)) return false;
-      seen.add(g.id);
-      return true;
-    });
-
-    return unique.map((gym) => this.mapGymToDto(gym));
+    return gymsToMap.map((gym) => this.mapGymToDto(gym, occupancyMap.get(gym.id) ?? 0));
   }
 
   async findBrands() {
@@ -173,12 +178,34 @@ export class GymsService {
   }
 
   async findOne(id: number) {
-    const gym = await this.gymsRepo.findOne({ where: { id }, relations: ['location', 'schedules', 'activities', 'parent'] });
+    const gym = await this.gymsRepo.findOne({ where: { id }, relations: ['location', 'schedules', 'activities', 'parent', 'infrastructure'] });
     if (!gym) throw new NotFoundException(`Gimnasio ${id} no encontrado`);
     return this.mapGymToDto(gym);
   }
 
-  private mapGymToDto(gym: Gym) {
+  private async getOccupancyMap(gymIds: number[]): Promise<Map<number, number>> {
+    if (gymIds.length === 0) return new Map();
+    const rows = await this.reservationRepo
+      .createQueryBuilder('r')
+      .select('r.gym_id', 'gymId')
+      .addSelect('COUNT(*)', 'currentOccupancy')
+      .where('r.gym_id IN (:...gymIds)', { gymIds })
+      .andWhere('r.reservation_date = CURRENT_DATE')
+      .andWhere("r.status IN ('PENDIENTE', 'CONFIRMADA', 'COMPLETADA')")
+      .andWhere(
+        `EXISTS (
+          SELECT 1 FROM user_roles ur
+          INNER JOIN roles ro ON ro.id = ur.role_id
+          WHERE ur.user_id = r.user_id
+            AND UPPER(ro.name) = 'CLIENTE'
+        )`,
+      )
+      .groupBy('r.gym_id')
+      .getRawMany<{ gymId: string; currentOccupancy: string }>();
+    return new Map(rows.map((r) => [Number(r.gymId), Number(r.currentOccupancy)]));
+  }
+
+  private mapGymToDto(gym: Gym, currentOccupancy = 0) {
     if (gym.location) {
       gym.location.latitude = Number(gym.location.latitude);
       gym.location.longitude = Number(gym.location.longitude);
@@ -189,7 +216,8 @@ export class GymsService {
       // Sobreescribe el campo estático isOpen con el cálculo dinámico basado en schedules
       isOpen: isGymOpenNow(gym.schedules ?? []),
       parentName: gym.parent?.name ?? null,
-      aforoActual: Math.floor(Math.random() * ((gym.maxCapacity || 100) / 2)),
+      currentOccupancy,
+      aforoActual: currentOccupancy,
       imagenUrl: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?q=80&w=1000&auto=format&fit=crop',
       rating: Number((Math.random() * (5.0 - 4.0) + 4.0).toFixed(1)),
       resenasCount: Math.floor(Math.random() * 500) + 50,
@@ -199,10 +227,29 @@ export class GymsService {
     };
   }
 
-  async update(id: number, data: any) {
-    const gym = await this.findOne(id);
-    Object.assign(gym, data);
-    return this.gymsRepo.save(gym);
+  async update(id: number, data: any, callerRole = '') {
+    const { machineCapacity, ...gymData } = data;
+
+    const rawGym = await this.gymsRepo.findOne({ where: { id } });
+    if (!rawGym) throw new NotFoundException(`Gimnasio ${id} no encontrado`);
+
+    Object.assign(rawGym, gymData);
+    await this.gymsRepo.save(rawGym);
+
+    if (machineCapacity !== undefined) {
+      if (callerRole === 'RECEPCIONISTA') {
+        throw new ForbiddenException('No tienes permisos para alterar la infraestructura física de la sucursal.');
+      }
+      if (!rawGym.parentId) {
+        throw new BadRequestException('Las marcas no pueden tener aforo de máquinas');
+      }
+      let infra = await this.infraRepo.findOne({ where: { gymId: id } });
+      if (!infra) infra = this.infraRepo.create({ gymId: id });
+      infra.machineCapacity = machineCapacity;
+      await this.infraRepo.save(infra);
+    }
+
+    return this.findOne(id);
   }
 
   async remove(id: number) {
