@@ -1,4 +1,12 @@
-import { Inject, Injectable, ForbiddenException, NotFoundException, BadRequestException, Scope, Logger } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+  BadRequestException,
+  Scope,
+  Logger,
+} from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DeepPartial } from 'typeorm';
@@ -10,7 +18,10 @@ import { EmergencyContact } from '../domain/emergency-contact.entity';
 import { WorkoutSession } from '../domain/workout-session.entity';
 import { WorkoutSet } from '../domain/workout-set.entity';
 import { UserSubscription } from '../../subscriptions/domain/user-subscription.entity';
-import { getManagerGymId, type RequestWithUser } from '../../common/security/gym-scope';
+import {
+  getManagerGymId,
+  type RequestWithUser,
+} from '../../common/security/gym-scope';
 
 @Injectable({ scope: Scope.REQUEST })
 export class TrainingService {
@@ -18,13 +29,19 @@ export class TrainingService {
 
   constructor(
     @InjectRepository(UserTraining) private utRepo: Repository<UserTraining>,
-    @InjectRepository(UserTrainingGoals) private goalsRepo: Repository<UserTrainingGoals>,
-    @InjectRepository(UserTrainingPreferences) private prefsRepo: Repository<UserTrainingPreferences>,
-    @InjectRepository(UserTrainingRestriction) private restRepo: Repository<UserTrainingRestriction>,
-    @InjectRepository(EmergencyContact) private ecRepo: Repository<EmergencyContact>,
-    @InjectRepository(WorkoutSession) private sessionsRepo: Repository<WorkoutSession>,
+    @InjectRepository(UserTrainingGoals)
+    private goalsRepo: Repository<UserTrainingGoals>,
+    @InjectRepository(UserTrainingPreferences)
+    private prefsRepo: Repository<UserTrainingPreferences>,
+    @InjectRepository(UserTrainingRestriction)
+    private restRepo: Repository<UserTrainingRestriction>,
+    @InjectRepository(EmergencyContact)
+    private ecRepo: Repository<EmergencyContact>,
+    @InjectRepository(WorkoutSession)
+    private sessionsRepo: Repository<WorkoutSession>,
     @InjectRepository(WorkoutSet) private setsRepo: Repository<WorkoutSet>,
-    @InjectRepository(UserSubscription) private subsRepo: Repository<UserSubscription>,
+    @InjectRepository(UserSubscription)
+    private subsRepo: Repository<UserSubscription>,
     @Inject(REQUEST) private readonly request: RequestWithUser,
   ) {}
 
@@ -35,52 +52,54 @@ export class TrainingService {
   /** Mapea una WorkoutSession a un objeto plano seguro para serialización HTTP. */
   private mapSession(s: WorkoutSession) {
     // ── Campos de sede ────────────────────────────────────────────────────────
-    const rawGymName   = s.gym?.name ?? null;
+    const rawGymName = s.gym?.name ?? null;
     const rawBrandName = s.gym?.parent?.name ?? null;
     const locationText = rawGymName
-      ? (rawBrandName && rawBrandName !== rawGymName
-          ? `${rawBrandName} - ${rawGymName}`
-          : rawGymName)
+      ? rawBrandName && rawBrandName !== rawGymName
+        ? `${rawBrandName} - ${rawGymName}`
+        : rawGymName
       : 'Sede no registrada';
 
     // ── Sets mapeados ─────────────────────────────────────────────────────────
     const mappedSets = (s.sets ?? []).map((ws) => {
-      const catalogExercise = ws.exercise ?? ws.routineExercise?.exercise ?? null;
+      const catalogExercise =
+        ws.exercise ?? ws.routineExercise?.exercise ?? null;
       return {
-        id:                      ws.id,
-        setNumber:               ws.setNumber,
-        repsCompleted:           ws.repsCompleted,
-        weightUsedKg:            ws.weightUsedKg !== null ? Number(ws.weightUsedKg) : null,
-        durationSeconds:         ws.durationSeconds,
-        distanceMeters:          ws.distanceMeters,
-        restTakenSeconds:        ws.restTakenSeconds,
+        id: ws.id,
+        setNumber: ws.setNumber,
+        repsCompleted: ws.repsCompleted,
+        weightUsedKg: ws.weightUsedKg !== null ? Number(ws.weightUsedKg) : null,
+        durationSeconds: ws.durationSeconds,
+        distanceMeters: ws.distanceMeters,
+        restTakenSeconds: ws.restTakenSeconds,
         ratingPerceivedExertion: ws.ratingPerceivedExertion,
-        completedAt:             ws.completedAt,
-        exerciseName:            catalogExercise?.name ?? null,
+        completedAt: ws.completedAt,
+        exerciseName: catalogExercise?.name ?? null,
         exercise: catalogExercise
           ? {
-              id:                catalogExercise.id,
-              name:              catalogExercise.name,
-              muscleGroup:       catalogExercise.muscleGroup,
+              id: catalogExercise.id,
+              name: catalogExercise.name,
+              muscleGroup: catalogExercise.muscleGroup,
               equipmentRequired: catalogExercise.equipmentRequired ?? null,
             }
           : null,
         routineExercise: ws.routineExercise
           ? {
-              id:                  ws.routineExercise.id,
-              orderPosition:       ws.routineExercise.orderPosition,
-              setsRecommended:     ws.routineExercise.setsRecommended,
-              repsRecommended:     ws.routineExercise.repsRecommended,
-              weightRecommendedKg: ws.routineExercise.weightRecommendedKg ?? null,
+              id: ws.routineExercise.id,
+              orderPosition: ws.routineExercise.orderPosition,
+              setsRecommended: ws.routineExercise.setsRecommended,
+              repsRecommended: ws.routineExercise.repsRecommended,
+              weightRecommendedKg:
+                ws.routineExercise.weightRecommendedKg ?? null,
             }
           : null,
       };
     });
 
     // ── activityText: primer ejercicio real → rutina → deporte ───────────────
-    const firstSet             = mappedSets[0] ?? null;
-    const freeExerciseName     = firstSet?.exercise?.name ?? null;
-    const routineExerciseName  = firstSet?.routineExercise
+    const firstSet = mappedSets[0] ?? null;
+    const freeExerciseName = firstSet?.exercise?.name ?? null;
+    const routineExerciseName = firstSet?.routineExercise
       ? (s.sets?.[0]?.routineExercise?.exercise?.name ?? null)
       : null;
     const activityText =
@@ -91,85 +110,109 @@ export class TrainingService {
       'Actividad Desconocida';
 
     return {
-      id:              s.id,
-      userId:          s.userId,
-      gymId:           s.gymId,
-      gymName:         rawGymName,
-      brandName:       rawBrandName,
+      id: s.id,
+      userId: s.userId,
+      gymId: s.gymId,
+      gymName: rawGymName,
+      brandName: rawBrandName,
       locationText,
       activityText,
-      routineName:     s.routine?.name ?? null,
+      routineName: s.routine?.name ?? null,
       gym: s.gym
         ? {
-            id:       s.gym.id,
-            name:     s.gym.name,
+            id: s.gym.id,
+            name: s.gym.name,
             parentId: s.gym.parentId ?? null,
-            brand:    s.gym.parent
+            brand: s.gym.parent
               ? { id: s.gym.parent.id, name: s.gym.parent.name }
               : null,
           }
         : null,
-      routineId:       s.routineId,
+      routineId: s.routineId,
       routine: s.routine
         ? {
-            id:              s.routine.id,
-            name:            s.routine.name,
-            description:     s.routine.description ?? null,
+            id: s.routine.id,
+            name: s.routine.name,
+            description: s.routine.description ?? null,
             difficultyLevel: s.routine.difficultyLevel ?? null,
             exercises: (s.routine.exercises ?? []).map((re) => ({
-              id:                  re.id,
-              orderPosition:       re.orderPosition,
-              setsRecommended:     re.setsRecommended,
-              repsRecommended:     re.repsRecommended,
+              id: re.id,
+              orderPosition: re.orderPosition,
+              setsRecommended: re.setsRecommended,
+              repsRecommended: re.repsRecommended,
               weightRecommendedKg: re.weightRecommendedKg ?? null,
               exercise: re.exercise
                 ? {
-                    id:                re.exercise.id,
-                    name:              re.exercise.name,
-                    muscleGroup:       re.exercise.muscleGroup,
+                    id: re.exercise.id,
+                    name: re.exercise.name,
+                    muscleGroup: re.exercise.muscleGroup,
                     equipmentRequired: re.exercise.equipmentRequired ?? null,
                   }
                 : null,
             })),
           }
         : null,
-      sportType:       s.sportType,
-      status:          s.status,
-      startedAt:       s.startedAt,
-      finishedAt:      s.finishedAt,
+      sportType: s.sportType,
+      status: s.status,
+      startedAt: s.startedAt,
+      finishedAt: s.finishedAt,
       durationSeconds: s.durationSeconds,
-      caloriesBurned:  s.caloriesBurned,
-      notes:           s.notes,
-      sets:            mappedSets,
+      caloriesBurned: s.caloriesBurned,
+      notes: s.notes,
+      sets: mappedSets,
     };
   }
 
   // ── User Training Profile ────────────────────────
   async createTrainingProfile(userId: number, goals?: any, prefs?: any) {
     const ut = await this.utRepo.save(this.utRepo.create({ userId }));
-    if (goals) await this.goalsRepo.save(this.goalsRepo.create({ ...goals, userTrainingId: ut.id }));
-    if (prefs) await this.prefsRepo.save(this.prefsRepo.create({ ...prefs, userTrainingId: ut.id }));
+    if (goals)
+      await this.goalsRepo.save(
+        this.goalsRepo.create({ ...goals, userTrainingId: ut.id }),
+      );
+    if (prefs)
+      await this.prefsRepo.save(
+        this.prefsRepo.create({ ...prefs, userTrainingId: ut.id }),
+      );
     return this.getTrainingProfile(userId);
   }
   async getTrainingProfile(userId: number) {
-    const ut = await this.utRepo.findOne({ where: { userId }, relations: ['goals', 'preferences'] });
-    if (!ut) throw new NotFoundException(`Perfil de entrenamiento no encontrado para usuario ${userId}`);
+    const ut = await this.utRepo.findOne({
+      where: { userId },
+      relations: ['goals', 'preferences'],
+    });
+    if (!ut)
+      throw new NotFoundException(
+        `Perfil de entrenamiento no encontrado para usuario ${userId}`,
+      );
     return ut;
   }
 
   // ── Restrictions ─────────────────────────────────
-  createRestriction(data: Partial<UserTrainingRestriction>) { return this.restRepo.save(this.restRepo.create(data)); }
-  findRestriction(userId: number) { return this.restRepo.findOne({ where: { userId } }); }
+  createRestriction(data: Partial<UserTrainingRestriction>) {
+    return this.restRepo.save(this.restRepo.create(data));
+  }
+  findRestriction(userId: number) {
+    return this.restRepo.findOne({ where: { userId } });
+  }
 
   // ── Emergency Contacts ───────────────────────────
-  createEmergencyContact(data: Partial<EmergencyContact>) { return this.ecRepo.save(this.ecRepo.create(data)); }
-  findEmergencyContacts(userId: number) { return this.ecRepo.find({ where: { userId } }); }
-  removeEmergencyContact(id: number) { return this.ecRepo.delete(id); }
+  createEmergencyContact(data: Partial<EmergencyContact>) {
+    return this.ecRepo.save(this.ecRepo.create(data));
+  }
+  findEmergencyContacts(userId: number) {
+    return this.ecRepo.find({ where: { userId } });
+  }
+  removeEmergencyContact(id: number) {
+    return this.ecRepo.delete(id);
+  }
 
   // ── Workout Sessions ─────────────────────────────
   async saveCompletedSession(userId: number, data: any) {
     if ((!data.sets || data.sets.length === 0) && data.durationSeconds < 60) {
-      throw new BadRequestException('No se puede guardar una sesión de menos de 1 minuto sin series registradas.');
+      throw new BadRequestException(
+        'No se puede guardar una sesión de menos de 1 minuto sin series registradas.',
+      );
     }
 
     const mg = this.managerGymId();
@@ -206,11 +249,13 @@ export class TrainingService {
     if (data.sets?.length) {
       // Validate exerciseIds against exercise_catalog to prevent FK violations
       // when the catalog has been modified since the app loaded its exercise list.
-      const requestedExerciseIds = [...new Set(
-        (data.sets as any[])
-          .map((s) => s.exerciseId)
-          .filter((id): id is number => typeof id === 'number' && id > 0),
-      )];
+      const requestedExerciseIds = [
+        ...new Set(
+          (data.sets as any[])
+            .map((s) => s.exerciseId)
+            .filter((id): id is number => typeof id === 'number' && id > 0),
+        ),
+      ];
 
       const validExerciseIds = new Set<number>();
       if (requestedExerciseIds.length > 0) {
@@ -220,9 +265,13 @@ export class TrainingService {
         );
         rows.forEach((r) => validExerciseIds.add(r.id));
 
-        const invalid = requestedExerciseIds.filter((id) => !validExerciseIds.has(id));
+        const invalid = requestedExerciseIds.filter(
+          (id) => !validExerciseIds.has(id),
+        );
         if (invalid.length > 0) {
-          console.warn(`[TrainingService] exerciseId(s) not found in catalog, saved as null: ${invalid.join(', ')}`);
+          console.warn(
+            `[TrainingService] exerciseId(s) not found in catalog, saved as null: ${invalid.join(', ')}`,
+          );
         }
       }
 
@@ -231,7 +280,10 @@ export class TrainingService {
           sessionId: session.id,
           setNumber: s.setNumber,
           routineExerciseId: s.routineExerciseId ?? null,
-          exerciseId: (s.exerciseId && validExerciseIds.has(s.exerciseId)) ? s.exerciseId : null,
+          exerciseId:
+            s.exerciseId && validExerciseIds.has(s.exerciseId)
+              ? s.exerciseId
+              : null,
           weightUsedKg: s.weightUsedKg ?? null,
           repsCompleted: s.repsCompleted ?? null,
           durationSeconds: s.durationSeconds ?? null,
@@ -252,19 +304,29 @@ export class TrainingService {
     const { sets, ...sData } = data;
 
     if ((!sets || sets.length === 0) && sData.durationSeconds < 60) {
-      throw new BadRequestException('No se puede guardar una sesión de menos de 1 minuto sin series registradas.');
+      throw new BadRequestException(
+        'No se puede guardar una sesión de menos de 1 minuto sin series registradas.',
+      );
     }
 
     const sessionData: DeepPartial<WorkoutSession> = { ...sData };
 
     if (mg !== null) {
-      if (sessionData.gymId !== undefined && sessionData.gymId !== null && Number(sessionData.gymId) !== mg) {
-        throw new ForbiddenException('No puede registrar sesiones para otra sucursal');
+      if (
+        sessionData.gymId !== undefined &&
+        sessionData.gymId !== null &&
+        Number(sessionData.gymId) !== mg
+      ) {
+        throw new ForbiddenException(
+          'No puede registrar sesiones para otra sucursal',
+        );
       }
       sessionData.gymId = mg;
     }
 
-    const session = await this.sessionsRepo.save(this.sessionsRepo.create(sessionData));
+    const session = await this.sessionsRepo.save(
+      this.sessionsRepo.create(sessionData),
+    );
     if (sets?.length) {
       const items = sets.map((s: any) =>
         this.setsRepo.create({
@@ -288,7 +350,8 @@ export class TrainingService {
 
   async findAllSessions(userId: number, take = 50, skip = 0) {
     const mg = this.managerGymId();
-    const qb = this.sessionsRepo.createQueryBuilder('session')
+    const qb = this.sessionsRepo
+      .createQueryBuilder('session')
       .leftJoinAndSelect('session.routine', 'routine')
       .leftJoinAndSelect('routine.exercises', 'routineExercises')
       .leftJoinAndSelect('routineExercises.exercise', 'catalogExercise')
@@ -315,7 +378,8 @@ export class TrainingService {
 
   async findSessionsByUser(userId: number) {
     const mg = this.managerGymId();
-    const qb = this.sessionsRepo.createQueryBuilder('session')
+    const qb = this.sessionsRepo
+      .createQueryBuilder('session')
       .leftJoinAndSelect('session.routine', 'routine')
       .leftJoinAndSelect('routine.exercises', 'routineExercises')
       .leftJoinAndSelect('routineExercises.exercise', 'catalogExercise')
@@ -339,7 +403,8 @@ export class TrainingService {
   /** Carga la entidad pura WorkoutSession para operaciones de escritura (save/delete). */
   private async findRawSession(id: number): Promise<WorkoutSession> {
     const mg = this.managerGymId();
-    const qb = this.sessionsRepo.createQueryBuilder('session')
+    const qb = this.sessionsRepo
+      .createQueryBuilder('session')
       .where('session.id = :id', { id });
 
     if (mg !== null) {
@@ -351,7 +416,10 @@ export class TrainingService {
 
     if (mg !== null) {
       const exists = await this.sessionsRepo.exist({ where: { id } });
-      if (exists) throw new ForbiddenException('No tiene permisos para acceder a esta sesión');
+      if (exists)
+        throw new ForbiddenException(
+          'No tiene permisos para acceder a esta sesión',
+        );
     }
 
     throw new NotFoundException(`Sesión ${id} no encontrada`);
@@ -359,7 +427,8 @@ export class TrainingService {
 
   async findOneSession(id: number) {
     const mg = this.managerGymId();
-    const qb = this.sessionsRepo.createQueryBuilder('session')
+    const qb = this.sessionsRepo
+      .createQueryBuilder('session')
       .leftJoinAndSelect('session.routine', 'routine')
       .leftJoinAndSelect('routine.exercises', 'routineExercises')
       .leftJoinAndSelect('routineExercises.exercise', 'catalogExercise')
@@ -381,7 +450,10 @@ export class TrainingService {
 
     if (mg !== null) {
       const exists = await this.sessionsRepo.exist({ where: { id } });
-      if (exists) throw new ForbiddenException('No tiene permisos para acceder a esta sesión');
+      if (exists)
+        throw new ForbiddenException(
+          'No tiene permisos para acceder a esta sesión',
+        );
     }
 
     throw new NotFoundException(`Sesión ${id} no encontrada`);
@@ -392,7 +464,12 @@ export class TrainingService {
     const s = await this.findRawSession(id);
     const mg = this.managerGymId();
 
-    if (mg !== null && data.gymId !== undefined && data.gymId !== null && Number(data.gymId) !== mg) {
+    if (
+      mg !== null &&
+      data.gymId !== undefined &&
+      data.gymId !== null &&
+      Number(data.gymId) !== mg
+    ) {
       throw new ForbiddenException('No puede mover la sesión a otra sucursal');
     }
 
@@ -439,18 +516,24 @@ export class TrainingService {
       .getMany();
 
     // Agrupar por ejercicio
-    const byExercise = new Map<number, {
-      exerciseId: number;
-      exerciseName: string;
-      muscleGroup: string;
-      history: { date: string; maxWeightKg: number; totalSets: number }[];
-    }>();
+    const byExercise = new Map<
+      number,
+      {
+        exerciseId: number;
+        exerciseName: string;
+        muscleGroup: string;
+        history: { date: string; maxWeightKg: number; totalSets: number }[];
+      }
+    >();
 
     for (const session of sessions) {
       if (!session.sets?.length) continue;
 
       // Agrupar series de esta sesión por ejercicio
-      const perExerciseInSession = new Map<number, { maxWeight: number; count: number }>();
+      const perExerciseInSession = new Map<
+        number,
+        { maxWeight: number; count: number }
+      >();
 
       for (const set of session.sets) {
         const exercise = set.exercise ?? set.routineExercise?.exercise;
@@ -459,7 +542,10 @@ export class TrainingService {
         const weight = Number(set.weightUsedKg);
         const existing = perExerciseInSession.get(exercise.id);
         if (!existing) {
-          perExerciseInSession.set(exercise.id, { maxWeight: weight, count: 1 });
+          perExerciseInSession.set(exercise.id, {
+            maxWeight: weight,
+            count: 1,
+          });
         } else {
           existing.maxWeight = Math.max(existing.maxWeight, weight);
           existing.count++;
@@ -477,7 +563,11 @@ export class TrainingService {
       }
 
       // Añadir punto de datos por sesión a cada ejercicio
-      const sessionDate = (session.startedAt ?? session.finishedAt ?? new Date())
+      const sessionDate = (
+        session.startedAt ??
+        session.finishedAt ??
+        new Date()
+      )
         .toISOString()
         .slice(0, 10); // 'YYYY-MM-DD'
 
@@ -493,4 +583,3 @@ export class TrainingService {
     return Array.from(byExercise.values());
   }
 }
-

@@ -75,7 +75,10 @@ describe('ReservationsService — createReservationWithLock', () => {
       providers: [
         ReservationsService,
         { provide: getRepositoryToken(Reservation), useValue: repo },
-        { provide: getRepositoryToken(GymActivitySchedule), useValue: scheduleRepo },
+        {
+          provide: getRepositoryToken(GymActivitySchedule),
+          useValue: scheduleRepo,
+        },
         { provide: getRepositoryToken(User), useValue: usersRepo },
         { provide: DataSource, useValue: dataSource },
         { provide: REQUEST, useValue: { user: undefined } },
@@ -141,7 +144,13 @@ describe('ReservationsService — createReservationWithLock', () => {
     mockQr.manager.exists.mockResolvedValue(false);
     mockQr.manager.count.mockResolvedValue(0);
 
-    await service.createReservationWithLock(1, 99, '2026-06-04', 'CONFIRMADA', 50);
+    await service.createReservationWithLock(
+      1,
+      99,
+      '2026-06-04',
+      'CONFIRMADA',
+      50,
+    );
 
     expect(mockQr.manager.create).toHaveBeenCalledWith(
       Reservation,
@@ -174,7 +183,10 @@ describe('ReservationsService — RBAC createReservation / findAll', () => {
 
   beforeEach(async () => {
     const qb = createQueryBuilderMock();
-    repo = { createQueryBuilder: jest.fn().mockReturnValue(qb), exist: jest.fn() };
+    repo = {
+      createQueryBuilder: jest.fn().mockReturnValue(qb),
+      exist: jest.fn(),
+    };
     scheduleRepo = { findOne: jest.fn() };
     usersRepo = { exist: jest.fn().mockResolvedValue(true) };
     requestUser = { user: { userId: 10, role: 'CLIENTE' } };
@@ -206,7 +218,10 @@ describe('ReservationsService — RBAC createReservation / findAll', () => {
       providers: [
         ReservationsService,
         { provide: getRepositoryToken(Reservation), useValue: repo },
-        { provide: getRepositoryToken(GymActivitySchedule), useValue: scheduleRepo },
+        {
+          provide: getRepositoryToken(GymActivitySchedule),
+          useValue: scheduleRepo,
+        },
         { provide: getRepositoryToken(User), useValue: usersRepo },
         { provide: DataSource, useValue: dataSource },
         { provide: REQUEST, useValue: requestUser },
@@ -284,16 +299,20 @@ describe('ReservationsService — RBAC createReservation / findAll', () => {
     const qb = createQueryBuilderMock();
     repo.createQueryBuilder.mockReturnValue(qb);
 
-    await service.findAll();
+    await service.findAll({ page: 1, limit: 10 });
 
-    expect(qb.andWhere).toHaveBeenCalledWith('reservation.user_id = :uid', { uid: 10 });
+    expect(qb.andWhere).toHaveBeenCalledWith('reservation.user_id = :uid', {
+      uid: 10,
+    });
   });
 
   it('ENTRENADOR findAll lanza ForbiddenException de asistencia', () => {
     requestUser.user = { userId: 3, role: 'ENTRENADOR' };
 
-    expect(() => service.findAll()).toThrow(ForbiddenException);
-    expect(() => service.findAll()).toThrow(
+    expect(() => service.findAll({ page: 1, limit: 10 })).toThrow(
+      ForbiddenException,
+    );
+    expect(() => service.findAll({ page: 1, limit: 10 })).toThrow(
       'Los entrenadores deben usar el endpoint de asistencia por clase.',
     );
   });
@@ -303,7 +322,7 @@ describe('ReservationsService — RBAC createReservation / findAll', () => {
     const qb = createQueryBuilderMock();
     repo.createQueryBuilder.mockReturnValue(qb);
 
-    await service.findAll();
+    await service.findAll({ page: 1, limit: 10 });
 
     expect(qb.andWhere).not.toHaveBeenCalled();
   });
@@ -313,9 +332,11 @@ describe('ReservationsService — RBAC createReservation / findAll', () => {
     const qb = createQueryBuilderMock();
     repo.createQueryBuilder.mockReturnValue(qb);
 
-    await service.findAll();
+    await service.findAll({ page: 1, limit: 10 });
 
-    expect(qb.andWhere).toHaveBeenCalledWith('activity.gym_id = :gymId', { gymId: 3 });
+    expect(qb.andWhere).toHaveBeenCalledWith('activity.gym_id = :gymId', {
+      gymId: 3,
+    });
   });
 
   it('CLIENTE findByUser de otro usuario lanza ForbiddenException', () => {

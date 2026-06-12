@@ -18,8 +18,10 @@ import type { UpdateProfileDto } from './dtos/users.dto';
 export class UsersService {
   constructor(
     @InjectRepository(User) private readonly usersRepo: Repository<User>,
-    @InjectRepository(UserProfile) private readonly profilesRepo: Repository<UserProfile>,
-    @InjectRepository(UserRole) private readonly userRolesRepo: Repository<UserRole>,
+    @InjectRepository(UserProfile)
+    private readonly profilesRepo: Repository<UserProfile>,
+    @InjectRepository(UserRole)
+    private readonly userRolesRepo: Repository<UserRole>,
     @InjectRepository(PhysicalMetricsHistory)
     private readonly metricsRepo: Repository<PhysicalMetricsHistory>,
   ) {}
@@ -37,8 +39,11 @@ export class UsersService {
     gymIds?: number[];
     isActive?: boolean;
   }) {
-    const existing = await this.usersRepo.findOne({ where: { email: data.email } });
-    if (existing) throw new ConflictException('Ya existe un usuario con este email');
+    const existing = await this.usersRepo.findOne({
+      where: { email: data.email },
+    });
+    if (existing)
+      throw new ConflictException('Ya existe un usuario con este email');
 
     const user = this.usersRepo.create({
       email: data.email,
@@ -126,7 +131,8 @@ export class UsersService {
       where: { id },
       relations: ['profile', 'userRoles', 'userRoles.role', 'userRoles.gym'],
     });
-    if (!user) throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
+    if (!user)
+      throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
     if (user.profile) {
       user.profile.physicalMetrics = await this.metricsRepo.findOne({
         where: { userId: id },
@@ -143,16 +149,35 @@ export class UsersService {
     });
   }
 
-  async update(id: number, data: Partial<{ email: string; password: string; firstName: string; lastName: string; phone: string; ci: string; isActive: boolean; roleId?: number; gymIds?: number[] }>) {
+  async update(
+    id: number,
+    data: Partial<{
+      email: string;
+      password: string;
+      firstName: string;
+      lastName: string;
+      phone: string;
+      ci: string;
+      isActive: boolean;
+      roleId?: number;
+      gymIds?: number[];
+    }>,
+  ) {
     const user = await this.findOne(id);
     if (data.password) user.passwordHash = await bcrypt.hash(data.password, 10);
     if (data.email) user.email = data.email;
     if (data.isActive !== undefined) user.isActive = data.isActive;
     await this.usersRepo.save(user);
 
-    if (data.firstName !== undefined || data.lastName !== undefined || data.phone !== undefined || data.ci !== undefined) {
+    if (
+      data.firstName !== undefined ||
+      data.lastName !== undefined ||
+      data.phone !== undefined ||
+      data.ci !== undefined
+    ) {
       if (user.profile) {
-        if (data.firstName !== undefined) user.profile.firstName = data.firstName;
+        if (data.firstName !== undefined)
+          user.profile.firstName = data.firstName;
         if (data.lastName !== undefined) user.profile.lastName = data.lastName;
         if (data.phone !== undefined) user.profile.phone = data.phone;
         if (data.ci !== undefined) user.profile.ci = data.ci;
@@ -224,7 +249,8 @@ export class UsersService {
 
   async remove(id: number): Promise<void> {
     const result = await this.usersRepo.delete(id);
-    if (result.affected === 0) throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
+    if (result.affected === 0)
+      throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
   }
 
   async updateMyProfile(
@@ -251,13 +277,21 @@ export class UsersService {
       notes != null;
 
     if (roleUp === 'GERENTE' && hasMetrics) {
-      throw new BadRequestException('Los gerentes no pueden registrar métricas físicas.');
+      throw new BadRequestException(
+        'Los gerentes no pueden registrar métricas físicas.',
+      );
     }
 
     let profile = await this.profilesRepo.findOne({ where: { userId } });
     if (!profile) {
-      const owner = await this.usersRepo.findOne({ where: { id: userId }, select: ['id', 'email'] });
-      if (!owner) throw new NotFoundException(`Usuario ${userId} no encontrado. Por favor vuelve a iniciar sesión.`);
+      const owner = await this.usersRepo.findOne({
+        where: { id: userId },
+        select: ['id', 'email'],
+      });
+      if (!owner)
+        throw new NotFoundException(
+          `Usuario ${userId} no encontrado. Por favor vuelve a iniciar sesión.`,
+        );
       profile = await this.profilesRepo.save(
         this.profilesRepo.create({
           userId: owner.id,
@@ -279,7 +313,9 @@ export class UsersService {
           throw new BadRequestException('El nombre de usuario ya está en uso.');
         }
         if (error?.detail?.includes('ci')) {
-          throw new BadRequestException('Ese carnet de identidad ya está registrado.');
+          throw new BadRequestException(
+            'Ese carnet de identidad ya está registrado.',
+          );
         }
         throw new BadRequestException('Uno de los campos únicos ya existe.');
       }
@@ -302,12 +338,22 @@ export class UsersService {
     return { profile: savedProfile };
   }
 
-  async saveAvatar(userId: number, filename: string, baseUrl: string): Promise<string> {
+  async saveAvatar(
+    userId: number,
+    filename: string,
+    baseUrl: string,
+  ): Promise<string> {
     const avatarUrl = `${baseUrl}/uploads/avatars/${filename}`;
     let profile = await this.profilesRepo.findOne({ where: { userId } });
     if (!profile) {
-      const owner = await this.usersRepo.findOne({ where: { id: userId }, select: ['id', 'email'] });
-      if (!owner) throw new NotFoundException(`Usuario ${userId} no encontrado. Por favor vuelve a iniciar sesión.`);
+      const owner = await this.usersRepo.findOne({
+        where: { id: userId },
+        select: ['id', 'email'],
+      });
+      if (!owner)
+        throw new NotFoundException(
+          `Usuario ${userId} no encontrado. Por favor vuelve a iniciar sesión.`,
+        );
       profile = await this.profilesRepo.save(
         this.profilesRepo.create({
           userId: owner.id,
@@ -350,11 +396,14 @@ export class UsersService {
     // 2. UPDATE perfil: altura y, si viene edad, fecha de nacimiento
     let profile = await this.profilesRepo.findOne({ where: { userId } });
     if (!profile) {
-      const owner = await this.usersRepo.findOne({ where: { id: userId }, select: ['id', 'email'] });
+      const owner = await this.usersRepo.findOne({
+        where: { id: userId },
+        select: ['id', 'email'],
+      });
       profile = this.profilesRepo.create({
         userId,
         firstName: owner?.email?.split('@')[0] ?? '',
-        lastName:  '',
+        lastName: '',
       });
     }
     profile.heightCm = heightCm;
@@ -373,7 +422,12 @@ export class UsersService {
     gymIdOverride?: number | null,
   ) {
     const PRIORITY: Record<string, number> = {
-      USER: 10, CLIENTE: 10, ENTRENADOR: 20, INSTRUCTOR: 30, GERENTE: 50, SUPER_ADMIN: 99,
+      USER: 10,
+      CLIENTE: 10,
+      ENTRENADOR: 20,
+      INSTRUCTOR: 30,
+      GERENTE: 50,
+      SUPER_ADMIN: 99,
     };
     const sorted = [...(user.userRoles ?? [])].sort(
       (a, b) =>
@@ -383,17 +437,20 @@ export class UsersService {
     const top = sorted[0];
 
     return {
-      id:        user.id,
-      email:     user.email,
-      isActive:  user.isActive,
+      id: user.id,
+      email: user.email,
+      isActive: user.isActive,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
-      role:      roleOverride  !== undefined ? roleOverride  : (top?.role?.name?.toUpperCase() ?? null),
-      gymId:     gymIdOverride !== undefined ? gymIdOverride : (top?.gymId ?? null),
+      role:
+        roleOverride !== undefined
+          ? roleOverride
+          : (top?.role?.name?.toUpperCase() ?? null),
+      gymId: gymIdOverride !== undefined ? gymIdOverride : (top?.gymId ?? null),
       roles: (user.userRoles ?? []).map((ur) => ({
-        id:    ur.role?.id   ?? null,
-        name:  ur.role?.name?.toUpperCase() ?? null,
-        gymId: ur.gymId     ?? null,
+        id: ur.role?.id ?? null,
+        name: ur.role?.name?.toUpperCase() ?? null,
+        gymId: ur.gymId ?? null,
       })),
       profile: user.profile ?? null,
     };

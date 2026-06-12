@@ -11,12 +11,16 @@ export class CreateWaitlistEntryDto {
   gymActivityScheduleId: number;
 
   @ApiPropertyOptional({ example: 1, description: 'Posición en la cola' })
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsInt()
   positionInQueue?: number;
 }
 
 export class UpdateWaitlistStatusDto {
-  @ApiProperty({ example: 'ASSIGNED', description: 'WAITING | ASSIGNED | EXPIRED | CANCELLED' })
+  @ApiProperty({
+    example: 'ASSIGNED',
+    description: 'WAITING | ASSIGNED | EXPIRED | CANCELLED',
+  })
   @IsString()
   status: string;
 }

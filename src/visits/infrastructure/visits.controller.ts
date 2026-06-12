@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -34,8 +28,14 @@ export class VisitsController {
   })
   @ApiBody({ type: CreateVisitDto })
   @ApiResponse({ status: 201, description: 'Visita registrada exitosamente.' })
-  @ApiResponse({ status: 400, description: 'Datos inválidos (ej. exitedAt < enteredAt).' })
-  @ApiResponse({ status: 403, description: 'Solo clientes pueden registrar visitas GPS.' })
+  @ApiResponse({
+    status: 400,
+    description: 'Datos inválidos (ej. exitedAt < enteredAt).',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Solo clientes pueden registrar visitas GPS.',
+  })
   create(@Body() dto: CreateVisitDto) {
     return this.svc.create(dto);
   }
@@ -47,7 +47,10 @@ export class VisitsController {
       'Solo CLIENTE. Devuelve todas las visitas físicas registradas del usuario autenticado, con nombre del gimnasio, ordenadas de más reciente a más antigua.',
   })
   @ApiResponse({ status: 200, description: 'Lista de visitas del cliente.' })
-  @ApiResponse({ status: 403, description: 'Solo clientes pueden consultar este endpoint.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Solo clientes pueden consultar este endpoint.',
+  })
   findMe() {
     return this.svc.findMyVisits();
   }

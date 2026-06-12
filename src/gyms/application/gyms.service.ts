@@ -16,26 +16,30 @@ import { GymSchedule } from '../domain/gym-schedule.entity';
 import { GymInfrastructure } from '../domain/gym-infrastructure.entity';
 import { Reservation } from '../../reservations/domain/reservation.entity';
 import { CheckIn } from '../../checkins/domain/check-in.entity';
-import { getManagerGymId, getStaffGymId, type RequestWithUser } from '../../common/security/gym-scope';
-
+import {
+  getManagerGymId,
+  getStaffGymId,
+  type RequestWithUser,
+} from '../../common/security/gym-scope';
 
 const DAY_CODES = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'] as const;
-
 
 function isGymOpenNow(schedules: GymSchedule[]): boolean {
   if (!schedules || schedules.length === 0) return false;
 
-  const tz  = process.env.APP_TIMEZONE ?? 'America/La_Paz';
-  const now  = new Date(new Date().toLocaleString('en-US', { timeZone: tz }));
+  const tz = process.env.APP_TIMEZONE ?? 'America/La_Paz';
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: tz }));
   const today = DAY_CODES[now.getDay()];
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-  const todaySchedule = schedules.find(s => s.dayOfWeek === today && !s.isHoliday);
+  const todaySchedule = schedules.find(
+    (s) => s.dayOfWeek === today && !s.isHoliday,
+  );
   if (!todaySchedule) return false;
 
-  const [openH,  openM]  = todaySchedule.opensAt.split(':').map(Number);
+  const [openH, openM] = todaySchedule.opensAt.split(':').map(Number);
   const [closeH, closeM] = todaySchedule.closesAt.split(':').map(Number);
-  const openMinutes  = openH  * 60 + openM;
+  const openMinutes = openH * 60 + openM;
   const closeMinutes = closeH * 60 + closeM;
 
   return currentMinutes >= openMinutes && currentMinutes < closeMinutes;
@@ -47,8 +51,10 @@ export class GymsService {
     @InjectRepository(Gym) private gymsRepo: Repository<Gym>,
     @InjectRepository(GymLocation) private locRepo: Repository<GymLocation>,
     @InjectRepository(GymSchedule) private schedRepo: Repository<GymSchedule>,
-    @InjectRepository(GymInfrastructure) private infraRepo: Repository<GymInfrastructure>,
-    @InjectRepository(Reservation) private reservationRepo: Repository<Reservation>,
+    @InjectRepository(GymInfrastructure)
+    private infraRepo: Repository<GymInfrastructure>,
+    @InjectRepository(Reservation)
+    private reservationRepo: Repository<Reservation>,
     @InjectRepository(CheckIn) private checkInRepo: Repository<CheckIn>,
     @Inject(REQUEST) private readonly request: RequestWithUser,
   ) {}
@@ -71,7 +77,9 @@ export class GymsService {
 
     const existing = await this.gymsRepo.findOneBy({ name: gymData.name });
     if (existing) {
-      throw new ConflictException('Ya existe una Marca registrada con ese nombre.');
+      throw new ConflictException(
+        'Ya existe una Marca registrada con ese nombre.',
+      );
     }
 
     if (location?.latitude && location?.longitude) {
@@ -88,9 +96,14 @@ export class GymsService {
 
     const gymEntity = this.gymsRepo.create(gymData as Partial<Gym>);
     const gym = await this.gymsRepo.save(gymEntity);
-    if (location) await this.locRepo.save(this.locRepo.create({ ...location, gymId: gym.id }));
+    if (location)
+      await this.locRepo.save(
+        this.locRepo.create({ ...location, gymId: gym.id }),
+      );
     if (schedules?.length) {
-      const items = schedules.map((s: any) => this.schedRepo.create({ ...s, gymId: gym.id } as any));
+      const items = schedules.map((s: any) =>
+        this.schedRepo.create({ ...s, gymId: gym.id }),
+      );
       await this.schedRepo.save(items as any);
     }
     return this.findOne(gym.id);
@@ -164,7 +177,9 @@ export class GymsService {
     const gymIds = gymsToMap.map((g) => g.id);
     const occupancyMap = await this.getOccupancyMap(gymIds);
 
-    return gymsToMap.map((gym) => this.mapGymToDto(gym, occupancyMap.get(gym.id) ?? 0));
+    return gymsToMap.map((gym) =>
+      this.mapGymToDto(gym, occupancyMap.get(gym.id) ?? 0),
+    );
   }
 
   async findBrands() {
@@ -174,16 +189,32 @@ export class GymsService {
       .andWhere('gym.parentId IS NULL')
       .orderBy('gym.id', 'ASC')
       .getMany();
-    return brands.map((g) => ({ id: g.id, name: g.name, description: g.description, parentId: null }));
+    return brands.map((g) => ({
+      id: g.id,
+      name: g.name,
+      description: g.description,
+      parentId: null,
+    }));
   }
 
   async findOne(id: number) {
-    const gym = await this.gymsRepo.findOne({ where: { id }, relations: ['location', 'schedules', 'activities', 'parent', 'infrastructure'] });
+    const gym = await this.gymsRepo.findOne({
+      where: { id },
+      relations: [
+        'location',
+        'schedules',
+        'activities',
+        'parent',
+        'infrastructure',
+      ],
+    });
     if (!gym) throw new NotFoundException(`Gimnasio ${id} no encontrado`);
     return this.mapGymToDto(gym);
   }
 
-  private async getOccupancyMap(gymIds: number[]): Promise<Map<number, number>> {
+  private async getOccupancyMap(
+    gymIds: number[],
+  ): Promise<Map<number, number>> {
     if (gymIds.length === 0) return new Map();
     const rows = await this.reservationRepo
       .createQueryBuilder('r')
@@ -202,7 +233,9 @@ export class GymsService {
       )
       .groupBy('r.gym_id')
       .getRawMany<{ gymId: string; currentOccupancy: string }>();
-    return new Map(rows.map((r) => [Number(r.gymId), Number(r.currentOccupancy)]));
+    return new Map(
+      rows.map((r) => [Number(r.gymId), Number(r.currentOccupancy)]),
+    );
   }
 
   private mapGymToDto(gym: Gym, currentOccupancy = 0) {
@@ -218,7 +251,8 @@ export class GymsService {
       parentName: gym.parent?.name ?? null,
       currentOccupancy,
       aforoActual: currentOccupancy,
-      imagenUrl: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?q=80&w=1000&auto=format&fit=crop',
+      imagenUrl:
+        'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?q=80&w=1000&auto=format&fit=crop',
       rating: Number((Math.random() * (5.0 - 4.0) + 4.0).toFixed(1)),
       resenasCount: Math.floor(Math.random() * 500) + 50,
       servicios: ['Musculación', 'Cardio', 'Zumba'],
@@ -238,10 +272,14 @@ export class GymsService {
 
     if (machineCapacity !== undefined) {
       if (callerRole === 'RECEPCIONISTA') {
-        throw new ForbiddenException('No tienes permisos para alterar la infraestructura física de la sucursal.');
+        throw new ForbiddenException(
+          'No tienes permisos para alterar la infraestructura física de la sucursal.',
+        );
       }
       if (!rawGym.parentId) {
-        throw new BadRequestException('Las marcas no pueden tener aforo de máquinas');
+        throw new BadRequestException(
+          'Las marcas no pueden tener aforo de máquinas',
+        );
       }
       let infra = await this.infraRepo.findOne({ where: { gymId: id } });
       if (!infra) infra = this.infraRepo.create({ gymId: id });
@@ -254,7 +292,8 @@ export class GymsService {
 
   async remove(id: number) {
     const r = await this.gymsRepo.delete(id);
-    if (r.affected === 0) throw new NotFoundException(`Gimnasio ${id} no encontrado`);
+    if (r.affected === 0)
+      throw new NotFoundException(`Gimnasio ${id} no encontrado`);
   }
 
   // ── Schedules ─────────────────────────────────────
@@ -276,7 +315,9 @@ export class GymsService {
       const sched = await this.schedRepo.findOne({ where: { id } });
       if (!sched) throw new NotFoundException(`Horario ${id} no encontrado`);
       if (sched.gymId !== mg) {
-        throw new ForbiddenException('No puede eliminar horarios de otra sucursal');
+        throw new ForbiddenException(
+          'No puede eliminar horarios de otra sucursal',
+        );
       }
     }
     return this.schedRepo.delete(id);
@@ -284,8 +325,11 @@ export class GymsService {
 
   // ── Location ──────────────────────────────────────
   async updateLocation(gymId: number, data: any) {
-    let loc = await this.locRepo.findOne({ where: { gymId } });
-    if (loc) { Object.assign(loc, data); return this.locRepo.save(loc); }
+    const loc = await this.locRepo.findOne({ where: { gymId } });
+    if (loc) {
+      Object.assign(loc, data);
+      return this.locRepo.save(loc);
+    }
     return this.locRepo.save(this.locRepo.create({ ...data, gymId }));
   }
 
@@ -304,7 +348,7 @@ export class GymsService {
     if (rows.length === 0) return [];
 
     const gymIds = rows.map((r) => Number(r.gymId));
-    const gyms   = await this.gymsRepo.find({
+    const gyms = await this.gymsRepo.find({
       where: gymIds.map((id) => ({ id })),
       relations: ['location'],
     });
@@ -327,18 +371,22 @@ export class GymsService {
 
     return rows.map((r) => {
       const gymId = Number(r.gymId);
-      const gym   = gymMap.get(gymId);
-      const max   = gym?.maxCapacity ?? 100;
-      const curr  = aforoMap.get(gymId) ?? 0;
-      const pct   = Math.round((curr / max) * 100);
-      const label = pct < 40 ? 'Tranquilo' : pct <= 70 ? 'Moderado' : 'Concurrido';
+      const gym = gymMap.get(gymId);
+      const max = gym?.maxCapacity ?? 100;
+      const curr = aforoMap.get(gymId) ?? 0;
+      const pct = Math.round((curr / max) * 100);
+      const label =
+        pct < 40 ? 'Tranquilo' : pct <= 70 ? 'Moderado' : 'Concurrido';
       return {
         gymId,
-        name:       gym?.name ?? `Sede ${gymId}`,
-        address:    gym?.location ? `${gym.location.latitude}, ${gym.location.longitude}` : null,
-        imagenUrl:  'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?q=80&w=1000&auto=format&fit=crop',
+        name: gym?.name ?? `Sede ${gymId}`,
+        address: gym?.location
+          ? `${gym.location.latitude}, ${gym.location.longitude}`
+          : null,
+        imagenUrl:
+          'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?q=80&w=1000&auto=format&fit=crop',
         visitCount: Number(r.visitCount),
-        aforo:      { current: curr, max, percent: pct, label },
+        aforo: { current: curr, max, percent: pct, label },
       };
     });
   }
@@ -372,12 +420,12 @@ export class GymsService {
       .getRawOne<{ totalToday: string; pending: string; completed: string }>();
 
     const totalToday = Number(raw?.totalToday ?? 0);
-    const pending    = Number(raw?.pending    ?? 0);
-    const completed  = Number(raw?.completed  ?? 0);
+    const pending = Number(raw?.pending ?? 0);
+    const completed = Number(raw?.completed ?? 0);
 
     return {
-      capacity:   gym.maxCapacity,
-      occupancy:  completed,
+      capacity: gym.maxCapacity,
+      occupancy: completed,
       totalToday,
       pending,
       completed,

@@ -27,7 +27,13 @@ import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UsersService } from '../application/users.service';
-import { CreateUserDto, UpdateUserDto, UpdateProfileDto, UpdatePushTokenDto, SaveMetricsDto } from '../application/dtos/users.dto';
+import {
+  CreateUserDto,
+  UpdateUserDto,
+  UpdateProfileDto,
+  UpdatePushTokenDto,
+  SaveMetricsDto,
+} from '../application/dtos/users.dto';
 import type { RequestWithUser } from '../../common/security/gym-scope';
 
 @ApiTags('Users')
@@ -52,11 +58,22 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Listar usuarios. GERENTE/RECEPCIONISTA: solo su sede. SUPER_ADMIN: filtro opcional.' })
+  @ApiOperation({
+    summary:
+      'Listar usuarios. GERENTE/RECEPCIONISTA: solo su sede. SUPER_ADMIN: filtro opcional.',
+  })
   @ApiQuery({ name: 'role', required: false, example: 'INSTRUCTOR' })
-  @ApiQuery({ name: 'gymId', required: false, example: 1, description: 'Solo SUPER_ADMIN' })
+  @ApiQuery({
+    name: 'gymId',
+    required: false,
+    example: 1,
+    description: 'Solo SUPER_ADMIN',
+  })
   @ApiResponse({ status: 200 })
-  @ApiResponse({ status: 403, description: 'Solo SUPER_ADMIN, GERENTE o RECEPCIONISTA' })
+  @ApiResponse({
+    status: 403,
+    description: 'Solo SUPER_ADMIN, GERENTE o RECEPCIONISTA',
+  })
   findAll(
     @Req() req: RequestWithUser,
     @Query('role') role?: string,
@@ -65,7 +82,7 @@ export class UsersController {
     const authUser = req.user!;
     const roleUp = authUser.role?.toUpperCase();
     const gymId =
-      (roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA')
+      roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA'
         ? (authUser.gymId ?? undefined)
         : rawGymId != null
           ? Number(rawGymId)
@@ -76,12 +93,15 @@ export class UsersController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Perfil del usuario autenticado (incluye birthDate y última métrica)' })
+  @ApiOperation({
+    summary:
+      'Perfil del usuario autenticado (incluye birthDate y última métrica)',
+  })
   @ApiResponse({ status: 200 })
   async getMe(@Req() req: RequestWithUser) {
-    const userId  = Number(req.user!.userId);
-    const user    = await this.usersService.findOne(userId);
-    const dto     = this.usersService.toPublicDto(user);
+    const userId = Number(req.user!.userId);
+    const user = await this.usersService.findOne(userId);
+    const dto = this.usersService.toPublicDto(user);
     const birthDate = user.profile?.dateOfBirth ?? null;
     return {
       ...dto,
@@ -116,10 +136,15 @@ export class UsersController {
   @Patch('me/profile')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Actualizar perfil propio (+ métricas si rol USER/MEMBER)' })
+  @ApiOperation({
+    summary: 'Actualizar perfil propio (+ métricas si rol USER/MEMBER)',
+  })
   @ApiBody({ type: UpdateProfileDto })
   @ApiResponse({ status: 200 })
-  @ApiResponse({ status: 400, description: 'GERENTE no puede enviar métricas físicas' })
+  @ApiResponse({
+    status: 400,
+    description: 'GERENTE no puede enviar métricas físicas',
+  })
   updateMyProfile(@Req() req: RequestWithUser, @Body() body: UpdateProfileDto) {
     const { userId, role, gymId } = req.user!;
     return this.usersService.updateMyProfile(
@@ -134,7 +159,10 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Guardar métricas: actualiza height_cm en perfil e inserta peso en historial' })
+  @ApiOperation({
+    summary:
+      'Guardar métricas: actualiza height_cm en perfil e inserta peso en historial',
+  })
   @ApiBody({ type: SaveMetricsDto })
   @ApiResponse({ status: 201, schema: { example: { success: true } } })
   saveMyMetrics(@Req() req: RequestWithUser, @Body() body: SaveMetricsDto) {
@@ -160,8 +188,13 @@ export class UsersController {
   @Get('me/metrics')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Historial completo de métricas físicas del usuario autenticado' })
-  @ApiResponse({ status: 200, description: 'Array de registros ordenados por fecha DESC' })
+  @ApiOperation({
+    summary: 'Historial completo de métricas físicas del usuario autenticado',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Array de registros ordenados por fecha DESC',
+  })
   getMetricsHistory(@Req() req: RequestWithUser) {
     return this.usersService.getMetricsHistory(Number(req.user!.userId));
   }
@@ -171,13 +204,19 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('GERENTE', 'INSTRUCTOR', 'ENTRENADOR', 'NUTRICIONISTA')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Registrar token push del dispositivo (Expo) para el usuario autenticado' })
+  @ApiOperation({
+    summary:
+      'Registrar token push del dispositivo (Expo) para el usuario autenticado',
+  })
   @ApiBody({ type: UpdatePushTokenDto })
   @ApiResponse({ status: 200, description: 'Token registrado' })
   @ApiResponse({ status: 401, description: 'Token JWT inválido' })
   @ApiResponse({ status: 403, description: 'Solo roles operativos' })
   savePushToken(@Req() req: RequestWithUser, @Body() body: UpdatePushTokenDto) {
-    return this.usersService.savePushToken(Number(req.user!.userId), body.token);
+    return this.usersService.savePushToken(
+      Number(req.user!.userId),
+      body.token,
+    );
   }
 
   // TODO: [ESCALABILIDAD] Si en el futuro se requiere notificar a otros roles, agrégalos a este array.
@@ -185,7 +224,9 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('GERENTE', 'INSTRUCTOR', 'ENTRENADOR', 'NUTRICIONISTA')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Eliminar token push del dispositivo del usuario autenticado' })
+  @ApiOperation({
+    summary: 'Eliminar token push del dispositivo del usuario autenticado',
+  })
   @ApiResponse({ status: 200, description: 'Token eliminado' })
   @ApiResponse({ status: 403, description: 'Solo roles operativos' })
   clearPushToken(@Req() req: RequestWithUser) {

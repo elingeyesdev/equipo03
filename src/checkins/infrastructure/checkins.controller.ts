@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Put, Body, Param, Req, UseGuards, ParseIntPipe, ForbiddenException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Body,
+  Param,
+  Req,
+  UseGuards,
+  ParseIntPipe,
+  ForbiddenException,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -17,16 +28,23 @@ export class CheckinsController {
   @Post()
   @UseGuards(RolesGuard)
   @Roles('GERENTE', 'SUPER_ADMIN', 'RECEPCIONISTA')
-  @ApiOperation({ summary: 'Registrar ingreso de personal. gymId extraído del JWT del GERENTE.' })
+  @ApiOperation({
+    summary:
+      'Registrar ingreso de personal. gymId extraído del JWT del GERENTE.',
+  })
   @ApiBody({ type: CreateCheckInDto })
   create(@Req() req: RequestWithUser, @Body() body: CreateCheckInDto) {
     const gymId = req.user!.gymId;
-    if (!gymId) throw new ForbiddenException('GERENTE sin sede asignada en el token.');
+    if (!gymId)
+      throw new ForbiddenException('GERENTE sin sede asignada en el token.');
     return this.svc.createCheckIn(body.userId, gymId, body.method);
   }
 
   @Get('history')
-  @ApiOperation({ summary: 'Historial de auditoría. GERENTE: solo su sede. USER: solo el propio.' })
+  @ApiOperation({
+    summary:
+      'Historial de auditoría. GERENTE: solo su sede. USER: solo el propio.',
+  })
   getHistory() {
     return this.svc.findAllHistory();
   }
@@ -34,9 +52,11 @@ export class CheckinsController {
   @Get()
   @UseGuards(RolesGuard)
   @Roles('SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA')
-  @ApiOperation({ summary: 'Listar check-ins. GERENTE/RECEPCIONISTA: filtrado a su sede.' })
+  @ApiOperation({
+    summary: 'Listar check-ins. GERENTE/RECEPCIONISTA: filtrado a su sede.',
+  })
   findAll(@Req() req: RequestWithUser) {
-    const role  = req.user?.role?.toUpperCase();
+    const role = req.user?.role?.toUpperCase();
     const gymId = req.user?.gymId;
     if (role === 'RECEPCIONISTA' && gymId) {
       return this.svc.findByGym(Number(gymId));

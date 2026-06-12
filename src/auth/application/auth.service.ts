@@ -1,5 +1,12 @@
 import * as nodemailer from 'nodemailer';
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException, InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+  BadRequestException,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -39,13 +46,13 @@ export class AuthService {
 
   // Jerarquía de roles: mayor índice = mayor prioridad
   private static readonly ROLE_PRIORITY: Record<string, number> = {
-    USER:          10,
-    CLIENTE:       10,
-    ENTRENADOR:    20,
-    INSTRUCTOR:    30,
+    USER: 10,
+    CLIENTE: 10,
+    ENTRENADOR: 20,
+    INSTRUCTOR: 30,
     RECEPCIONISTA: 40,
-    GERENTE:       50,
-    SUPER_ADMIN:   99,
+    GERENTE: 50,
+    SUPER_ADMIN: 99,
   };
 
   private extractGymName(
@@ -54,7 +61,7 @@ export class AuthService {
   ): string | null {
     if (!gymId || !userRoles?.length) return null;
     const match = userRoles.find((ur) => ur.gymId === gymId && ur.gym);
-    if (match) return match.gym!.name;
+    if (match) return match.gym.name;
     const anyGym = userRoles.find((ur) => ur.gym)?.gym;
     return anyGym?.name ?? null;
   }
@@ -72,8 +79,10 @@ export class AuthService {
     }
 
     const sorted = [...userRoles].sort((a, b) => {
-      const pa = AuthService.ROLE_PRIORITY[a.role?.name?.toUpperCase() ?? ''] ?? 0;
-      const pb = AuthService.ROLE_PRIORITY[b.role?.name?.toUpperCase() ?? ''] ?? 0;
+      const pa =
+        AuthService.ROLE_PRIORITY[a.role?.name?.toUpperCase() ?? ''] ?? 0;
+      const pb =
+        AuthService.ROLE_PRIORITY[b.role?.name?.toUpperCase() ?? ''] ?? 0;
       return pb - pa; // mayor primero
     });
 
@@ -83,7 +92,12 @@ export class AuthService {
     // ── SUPER_ADMIN — sin sede ────────────────────────────────────────────────
     if (topRoleName === 'SUPER_ADMIN') {
       this.logger.debug('JWT emitido para SUPER_ADMIN');
-      return { sub: user.id, email: user.email, role: 'SUPER_ADMIN', gymId: null };
+      return {
+        sub: user.id,
+        email: user.email,
+        role: 'SUPER_ADMIN',
+        gymId: null,
+      };
     }
 
     // ── GERENTE — emite brandId si se asignó a una Marca, gymId si es Sucursal ──
@@ -92,43 +106,66 @@ export class AuthService {
         (a) => a.role?.name?.toUpperCase() === 'GERENTE',
       );
       const gerenteRole =
-        gerenteRoles.find((a) => a.gymId !== null && a.gymId !== undefined)
-        ?? gerenteRoles[0];
+        gerenteRoles.find((a) => a.gymId !== null && a.gymId !== undefined) ??
+        gerenteRoles[0];
 
       const resolvedGymId: number | null = gerenteRole.gymId ?? null;
 
       if (resolvedGymId !== null) {
         const assignedGym =
-          gerenteRole.gym ?? (await this.gymRepo.findOne({ where: { id: resolvedGymId } }));
+          gerenteRole.gym ??
+          (await this.gymRepo.findOne({ where: { id: resolvedGymId } }));
 
         if (assignedGym && assignedGym.parentId === null) {
           // Es una Marca → emitir brandId directamente (no buscar sucursal hija)
           this.logger.debug('JWT emitido para GERENTE de Marca');
-          return { sub: user.id, email: user.email, role: 'GERENTE', gymId: null, brandId: resolvedGymId };
+          return {
+            sub: user.id,
+            email: user.email,
+            role: 'GERENTE',
+            gymId: null,
+            brandId: resolvedGymId,
+          };
         }
 
         this.logger.debug('JWT emitido para GERENTE de Sucursal');
       }
 
-      return { sub: user.id, email: user.email, role: 'GERENTE', gymId: resolvedGymId, brandId: null };
+      return {
+        sub: user.id,
+        email: user.email,
+        role: 'GERENTE',
+        gymId: resolvedGymId,
+        brandId: null,
+      };
     }
 
     // ── Fallback (INSTRUCTOR, ENTRENADOR, USER/CLIENTE, etc.) ─────────────────
     this.logger.debug('JWT emitido');
     return {
-      sub:   user.id,
+      sub: user.id,
       email: user.email,
-      role:  topRoleName,
+      role: topRoleName,
       gymId: topAssignment.gymId ?? null,
     };
   }
 
-  async register(data: { email: string; password: string; firstName: string; lastName: string }) {
+  async register(data: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+  }) {
     const existing = await this.usersService.findByEmail(data.email);
-    if (existing) throw new ConflictException(`El usuario ${data.email} ya se encuentra registrado. Por favor inicie sesión.`);
+    if (existing)
+      throw new ConflictException(
+        `El usuario ${data.email} ya se encuentra registrado. Por favor inicie sesión.`,
+      );
 
     // Buscar ID del rol CLIENTE usando query directa
-    const rolesResult = await this.userRolesRepo.manager.query("SELECT id, name FROM roles WHERE name = 'CLIENTE' OR name = 'USER' LIMIT 1");
+    const rolesResult = await this.userRolesRepo.manager.query(
+      "SELECT id, name FROM roles WHERE name = 'CLIENTE' OR name = 'USER' LIMIT 1",
+    );
     const roleId = rolesResult?.length ? rolesResult[0].id : 2;
 
     const user = await this.usersService.create({
@@ -136,19 +173,22 @@ export class AuthService {
       roleId: roleId,
     });
 
-    const payload = await this.buildJwtPayload({ id: user.id, email: user.email });
+    const payload = await this.buildJwtPayload({
+      id: user.id,
+      email: user.email,
+    });
     const gymName = this.extractGymName(user.userRoles, payload.gymId);
     return {
       accessToken: this.jwtService.sign(payload),
       user: {
-        id:        user.id,
-        email:     user.email,
-        role:      payload.role,
-        gymId:     payload.gymId,
+        id: user.id,
+        email: user.email,
+        role: payload.role,
+        gymId: payload.gymId,
         gymName,
         firstName: user.profile?.firstName ?? null,
-        lastName:  user.profile?.lastName ?? null,
-        profile:   user.profile,
+        lastName: user.profile?.lastName ?? null,
+        profile: user.profile,
       },
     };
   }
@@ -161,26 +201,35 @@ export class AuthService {
     if (!valid) throw new UnauthorizedException('Credenciales inválidas');
     if (!user.isActive) throw new UnauthorizedException('Cuenta desactivada');
 
-    const payload = await this.buildJwtPayload({ id: user.id, email: user.email });
+    const payload = await this.buildJwtPayload({
+      id: user.id,
+      email: user.email,
+    });
     const gymName = this.extractGymName(user.userRoles, payload.gymId);
     return {
       accessToken: this.jwtService.sign(payload),
       user: {
-        id:        user.id,
-        email:     user.email,
-        role:      payload.role,
-        gymId:     payload.gymId,
+        id: user.id,
+        email: user.email,
+        role: payload.role,
+        gymId: payload.gymId,
         gymName,
         firstName: user.profile?.firstName ?? null,
-        lastName:  user.profile?.lastName ?? null,
-        profile:   user.profile,
+        lastName: user.profile?.lastName ?? null,
+        profile: user.profile,
       },
     };
   }
 
-  verifyToken(token: string): { sub: number; role: string | null; gymId: number | null } | null {
+  verifyToken(
+    token: string,
+  ): { sub: number; role: string | null; gymId: number | null } | null {
     try {
-      return this.jwtService.verify<{ sub: number; role: string | null; gymId: number | null }>(token);
+      return this.jwtService.verify<{
+        sub: number;
+        role: string | null;
+        gymId: number | null;
+      }>(token);
     } catch {
       return null;
     }
@@ -199,7 +248,7 @@ export class AuthService {
     const user = await this.usersService.findByEmail(email);
 
     if (user) {
-      const otpCode     = String(Math.floor(100000 + Math.random() * 900000));
+      const otpCode = String(Math.floor(100000 + Math.random() * 900000));
       const otpExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // +15 min
 
       await this.userRepo.update(user.id, { otpCode, otpExpiresAt });
@@ -228,7 +277,9 @@ export class AuthService {
           `[SMTP] Error al enviar OTP a ${email}: ${error?.message ?? error} | code=${error?.code ?? 'n/a'} | responseCode=${error?.responseCode ?? 'n/a'}`,
           error?.stack,
         );
-        throw new InternalServerErrorException('Fallo interno del servidor SMTP.');
+        throw new InternalServerErrorException(
+          'Fallo interno del servidor SMTP.',
+        );
       }
     }
 
@@ -252,14 +303,16 @@ export class AuthService {
     }
 
     if (!user.otpExpiresAt || user.otpExpiresAt < new Date()) {
-      throw new BadRequestException('El código OTP ha expirado. Solicita uno nuevo.');
+      throw new BadRequestException(
+        'El código OTP ha expirado. Solicita uno nuevo.',
+      );
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
 
     await this.userRepo.update(user.id, {
       passwordHash,
-      otpCode:      null,
+      otpCode: null,
       otpExpiresAt: null,
     });
 

@@ -10,7 +10,16 @@ import { GymsService } from './application/gyms.service';
 import { GymsController } from './infrastructure/gyms.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Gym, GymLocation, GymSchedule, GymInfrastructure, Reservation, CheckIn])],
+  imports: [
+    TypeOrmModule.forFeature([
+      Gym,
+      GymLocation,
+      GymSchedule,
+      GymInfrastructure,
+      Reservation,
+      CheckIn,
+    ]),
+  ],
   controllers: [GymsController],
   providers: [GymsService],
   exports: [GymsService],

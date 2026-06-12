@@ -54,7 +54,13 @@ export class StaffService {
   ) {}
 
   private static readonly DAY_NAMES = [
-    'DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO',
+    'DOMINGO',
+    'LUNES',
+    'MARTES',
+    'MIERCOLES',
+    'JUEVES',
+    'VIERNES',
+    'SABADO',
   ];
 
   private toHHmm(t: string): string {
@@ -69,40 +75,43 @@ export class StaffService {
 
     for (const slot of slots) {
       const canonical = DAY_UTC[slot.dayOfWeek];
-      const aliases   = aliasesForCanonicalDay(canonical); // e.g. ['DOMINGO', 'DOM']
-      const dayName   = StaffService.DAY_NAMES[slot.dayOfWeek]; // para mensajes de error
-      const gymDay    = gymSchedules.find(
-        (gs) => aliases.includes(gs.dayOfWeek.toUpperCase()),
+      const aliases = aliasesForCanonicalDay(canonical); // e.g. ['DOMINGO', 'DOM']
+      const dayName = StaffService.DAY_NAMES[slot.dayOfWeek]; // para mensajes de error
+      const gymDay = gymSchedules.find((gs) =>
+        aliases.includes(gs.dayOfWeek.toUpperCase()),
       );
 
       if (!gymDay) {
         throw new BadRequestException(
           `La sucursal (ID ${gymId}) no tiene horario operativo registrado para ${dayName}. ` +
-          `Configura primero el horario de atención de la sucursal en el módulo de Sedes.`,
+            `Configura primero el horario de atención de la sucursal en el módulo de Sedes.`,
         );
       }
 
       if (gymDay.isHoliday) {
         throw new BadRequestException(
           `${dayName} está marcado como día festivo o no operativo en esta sucursal. ` +
-          `No se pueden asignar turnos de personal en días no operativos.`,
+            `No se pueden asignar turnos de personal en días no operativos.`,
         );
       }
 
-      const gymOpens  = this.toHHmm(gymDay.opensAt);
+      const gymOpens = this.toHHmm(gymDay.opensAt);
       const gymCloses = this.toHHmm(gymDay.closesAt);
 
       if (slot.startTime < gymOpens || slot.endTime > gymCloses) {
         throw new BadRequestException(
           `Turno inválido el ${dayName}: ${slot.startTime}–${slot.endTime} está fuera del horario ` +
-          `de atención de la sucursal (${gymOpens}–${gymCloses}). ` +
-          `Ajusta el turno para que quede dentro del horario operativo.`,
+            `de atención de la sucursal (${gymOpens}–${gymCloses}). ` +
+            `Ajusta el turno para que quede dentro del horario operativo.`,
         );
       }
     }
   }
 
-  private async validateManagerScope(managerGymId: number, targetGymId: number): Promise<void> {
+  private async validateManagerScope(
+    managerGymId: number,
+    targetGymId: number,
+  ): Promise<void> {
     if (managerGymId === targetGymId) return;
     const [managerGym, targetGym] = await Promise.all([
       this.gymRepo.findOne({ where: { id: managerGymId } }),
@@ -113,7 +122,7 @@ export class StaffService {
     if (targetGym?.parentId !== brandId && targetGym?.id !== brandId) {
       throw new ForbiddenException(
         `La sucursal "${targetGym?.name ?? '#' + targetGymId}" no pertenece a tu marca (ID ${brandId}). ` +
-        `Solo puedes asignar horarios a empleados que trabajan en tus propias sucursales.`,
+          `Solo puedes asignar horarios a empleados que trabajan en tus propias sucursales.`,
       );
     }
   }
@@ -144,20 +153,22 @@ export class StaffService {
     });
   }
 
-  async getMySchedules(): Promise<{
-    id: number;
-    className: string;
-    gymName: string;
-    dayOfWeek: string;
-    startTime: string;
-    endTime: string;
-    maxCapacity: number;
-    enrolledCount: number;
-    attendees: { id: number | null; fullName: string }[];
-  }[]> {
-    const userId   = this.getAuthUserId();
+  async getMySchedules(): Promise<
+    {
+      id: number;
+      className: string;
+      gymName: string;
+      dayOfWeek: string;
+      startTime: string;
+      endTime: string;
+      maxCapacity: number;
+      enrolledCount: number;
+      attendees: { id: number | null; fullName: string }[];
+    }[]
+  > {
+    const userId = this.getAuthUserId();
     const todayDay = DAY_UTC[new Date().getUTCDay()];
-    const aliases  = aliasesForCanonicalDay(todayDay);
+    const aliases = aliasesForCanonicalDay(todayDay);
 
     this.logger.debug(
       `[getMySchedules] userId=${userId} día=${todayDay} aliases=${aliases.join(',')}`,
@@ -165,12 +176,12 @@ export class StaffService {
 
     const rows = await this.scheduleRepo
       .createQueryBuilder('sched')
-      .select('sched.id',              'id')
-      .addSelect('act.name',           'className')
-      .addSelect('gym.name',           'gymName')
-      .addSelect('sched.dayOfWeek',    'dayOfWeek')
-      .addSelect('sched.startTime',    'startTime')
-      .addSelect('sched.endTime',      'endTime')
+      .select('sched.id', 'id')
+      .addSelect('act.name', 'className')
+      .addSelect('gym.name', 'gymName')
+      .addSelect('sched.dayOfWeek', 'dayOfWeek')
+      .addSelect('sched.startTime', 'startTime')
+      .addSelect('sched.endTime', 'endTime')
       .addSelect('sched.maxAttendees', 'maxCapacity')
       .addSelect(
         `(SELECT COUNT(*) FROM reservations r
@@ -195,7 +206,9 @@ export class StaffService {
 
     this.logger.debug(
       `[getMySchedules] schedules encontrados: ${rows.length}` +
-      (rows.length ? ` | ids=[${rows.map((r) => r.id).join(',')}]` : ' → ¿instructor_id coincide con el userId del token?'),
+        (rows.length
+          ? ` | ids=[${rows.map((r) => r.id).join(',')}]`
+          : ' → ¿instructor_id coincide con el userId del token?'),
     );
 
     if (rows.length === 0) return [];
@@ -213,7 +226,9 @@ export class StaffService {
 
     this.logger.debug(
       `[getMySchedules] reservas hoy para scheduleIds=[${scheduleIds.join(',')}]: ${reservations.length}` +
-      (reservations.length === 0 ? ' → BD vacía para hoy o status no coincide' : ''),
+        (reservations.length === 0
+          ? ' → BD vacía para hoy o status no coincide'
+          : ''),
     );
 
     const bySchedule = new Map<number, typeof reservations>();
@@ -229,45 +244,48 @@ export class StaffService {
       .slice(11, 16); // 'HH:mm'
 
     return rows.map((r) => {
-      const endHHmm       = String(r.endTime).slice(0, 5);
-      const classEnded    = endHHmm <= nowBoliviaHHmm;
+      const endHHmm = String(r.endTime).slice(0, 5);
+      const classEnded = endHHmm <= nowBoliviaHHmm;
       const slotReservations = bySchedule.get(Number(r.id)) ?? [];
       return {
-        id:            Number(r.id),
-        className:     r.className as string,
-        gymName:       r.gymName as string,
-        dayOfWeek:     r.dayOfWeek as string,
-        startTime:     String(r.startTime).slice(0, 5),
-        endTime:       endHHmm,
-        maxCapacity:   Number(r.maxCapacity),
+        id: Number(r.id),
+        className: r.className as string,
+        gymName: r.gymName as string,
+        dayOfWeek: r.dayOfWeek as string,
+        startTime: String(r.startTime).slice(0, 5),
+        endTime: endHHmm,
+        maxCapacity: Number(r.maxCapacity),
         enrolledCount: classEnded ? 0 : Number(r.enrolledCount),
         attendees: slotReservations.map((res) => ({
           id: res.user?.id ?? null,
           fullName:
             [res.user?.profile?.firstName, res.user?.profile?.lastName]
               .filter(Boolean)
-              .join(' ') || (res.user?.email ?? ''),
+              .join(' ') ||
+            (res.user?.email ?? ''),
         })),
       };
     });
   }
 
-  async getAttendanceStats(): Promise<{
-    scheduleId: number;
-    time: string;
-    className: string;
-    totalCompleted: number;
-  }[]> {
+  async getAttendanceStats(): Promise<
+    {
+      scheduleId: number;
+      time: string;
+      className: string;
+      totalCompleted: number;
+    }[]
+  > {
     const userId = this.getAuthUserId();
 
     const rows = await this.reservationRepo
       .createQueryBuilder('res')
-      .select('sched.id',           'scheduleId')
+      .select('sched.id', 'scheduleId')
       .addSelect('sched.startTime', 'time')
-      .addSelect('act.name',        'className')
-      .addSelect('COUNT(res.id)',   'totalCompleted')
+      .addSelect('act.name', 'className')
+      .addSelect('COUNT(res.id)', 'totalCompleted')
       .innerJoin('res.gymActivitySchedule', 'sched')
-      .innerJoin('sched.gymActivity',       'act')
+      .innerJoin('sched.gymActivity', 'act')
       .where('sched.instructorId = :userId', { userId })
       .andWhere("res.status = 'COMPLETADA'")
       .andWhere("res.reservationDate >= CURRENT_DATE - INTERVAL '30 days'")
@@ -278,57 +296,54 @@ export class StaffService {
       .getRawMany();
 
     return rows.map((r) => ({
-      scheduleId:     Number(r.scheduleId),
-      time:           String(r.time).slice(0, 5),
-      className:      r.className as string,
+      scheduleId: Number(r.scheduleId),
+      time: String(r.time).slice(0, 5),
+      className: r.className as string,
       totalCompleted: Number(r.totalCompleted),
     }));
   }
 
-  async getMyStudents(): Promise<{
-    reservationId: number;
-    clientName: string;
-    className: string;
-    startTime: string;
-    endTime: string;
-    reservationDate: string;
-  }[]> {
+  async getMyStudents(): Promise<
+    {
+      reservationId: number;
+      clientName: string;
+      className: string;
+      startTime: string;
+      endTime: string;
+      reservationDate: string;
+    }[]
+  > {
     const userId = this.getAuthUserId();
 
     const rows = await this.reservationRepo
       .createQueryBuilder('res')
-      .select('res.id',                 'reservationId')
+      .select('res.id', 'reservationId')
       .addSelect('res.reservationDate', 'reservationDate')
-      .addSelect(
-        `COALESCE(res.start_time, sched.start_time)`,
-        'startTime',
-      )
-      .addSelect(
-        `COALESCE(res.end_time, sched.end_time)`,
-        'endTime',
-      )
-      .addSelect('act.name',             'className')
+      .addSelect(`COALESCE(res.start_time, sched.start_time)`, 'startTime')
+      .addSelect(`COALESCE(res.end_time, sched.end_time)`, 'endTime')
+      .addSelect('act.name', 'className')
       .addSelect(
         `TRIM(CONCAT(COALESCE(prof.first_name, ''), ' ', COALESCE(prof.last_name, '')))`,
         'clientName',
       )
-      .addSelect('client.email',         'clientEmail')
+      .addSelect('client.email', 'clientEmail')
       .innerJoin('res.gymActivitySchedule', 'sched')
-      .innerJoin('sched.gymActivity',       'act')
-      .innerJoin('res.user',                'client')
-      .leftJoin('client.profile',           'prof')
+      .innerJoin('sched.gymActivity', 'act')
+      .innerJoin('res.user', 'client')
+      .leftJoin('client.profile', 'prof')
       .where('sched.instructorId = :userId', { userId })
       .andWhere("res.status IN ('PENDIENTE', 'CONFIRMADA', 'COMPLETADA')")
       .orderBy('res.reservationDate', 'DESC')
-      .addOrderBy('sched.startTime',   'ASC')
+      .addOrderBy('sched.startTime', 'ASC')
       .getRawMany();
 
     return rows.map((r) => ({
-      reservationId:   Number(r.reservationId),
-      clientName:      (r.clientName as string).trim() || (r.clientEmail as string ?? ''),
-      className:       r.className as string,
-      startTime:       r.startTime ? String(r.startTime).slice(0, 5) : '',
-      endTime:         r.endTime   ? String(r.endTime).slice(0, 5)   : '',
+      reservationId: Number(r.reservationId),
+      clientName:
+        (r.clientName as string).trim() || ((r.clientEmail as string) ?? ''),
+      className: r.className as string,
+      startTime: r.startTime ? String(r.startTime).slice(0, 5) : '',
+      endTime: r.endTime ? String(r.endTime).slice(0, 5) : '',
       reservationDate: new Date(r.reservationDate as string).toISOString(),
     }));
   }
@@ -344,16 +359,16 @@ export class StaffService {
    * Incluye enrolledCount (subquery) + array de reservas con perfil de alumno.
    */
   async getTodayClasses() {
-    const userId  = this.getAuthUserId();
+    const userId = this.getAuthUserId();
     const todayDay = DAY_UTC[new Date().getUTCDay()];
-    const aliases  = aliasesForCanonicalDay(todayDay);
+    const aliases = aliasesForCanonicalDay(todayDay);
 
     const rows = await this.scheduleRepo
       .createQueryBuilder('sched')
-      .select('sched.id',              'id')
-      .addSelect('sched.startTime',    'startTime')
-      .addSelect('sched.endTime',      'endTime')
-      .addSelect('act.name',           'className')
+      .select('sched.id', 'id')
+      .addSelect('sched.startTime', 'startTime')
+      .addSelect('sched.endTime', 'endTime')
+      .addSelect('act.name', 'className')
       .addSelect('sched.maxAttendees', 'maxAttendees')
       .addSelect(
         `(SELECT COUNT(*) FROM reservations r
@@ -374,7 +389,7 @@ export class StaffService {
 
     const reservations = await this.reservationRepo
       .createQueryBuilder('res')
-      .leftJoinAndSelect('res.user',    'user')
+      .leftJoinAndSelect('res.user', 'user')
       .leftJoinAndSelect('user.profile', 'profile')
       .where('res.gymActivityScheduleId IN (:...scheduleIds)', { scheduleIds })
       .andWhere('res.reservationDate = CURRENT_DATE')
@@ -389,22 +404,22 @@ export class StaffService {
     }
 
     return rows.map((r) => ({
-      id:            Number(r.id),
-      startTime:     String(r.startTime).slice(0, 5),
-      endTime:       String(r.endTime).slice(0, 5),
-      className:     r.className as string,
-      maxAttendees:  Number(r.maxAttendees),
+      id: Number(r.id),
+      startTime: String(r.startTime).slice(0, 5),
+      endTime: String(r.endTime).slice(0, 5),
+      className: r.className as string,
+      maxAttendees: Number(r.maxAttendees),
       enrolledCount: Number(r.enrolledCount),
-      reservations:  (bySchedule.get(Number(r.id)) ?? []).map((res) => ({
-        id:     res.id,
+      reservations: (bySchedule.get(Number(r.id)) ?? []).map((res) => ({
+        id: res.id,
         status: res.status,
         userId: res.userId,
         user: {
-          id:        res.user?.id        ?? null,
-          email:     res.user?.email     ?? null,
+          id: res.user?.id ?? null,
+          email: res.user?.email ?? null,
           firstName: res.user?.profile?.firstName ?? null,
-          lastName:  res.user?.profile?.lastName  ?? null,
-          avatarUrl: res.user?.profile?.avatarUrl  ?? null,
+          lastName: res.user?.profile?.lastName ?? null,
+          avatarUrl: res.user?.profile?.avatarUrl ?? null,
         },
       })),
     }));
@@ -428,18 +443,18 @@ export class StaffService {
     const rows = await qb.getMany();
 
     return rows.map((apt) => ({
-      id:              apt.id,
-      date:            apt.date,
-      startTime:       apt.startTime,
+      id: apt.id,
+      date: apt.date,
+      startTime: apt.startTime,
       appointmentType: apt.appointmentType,
-      status:          apt.status,
-      notes:           apt.notes,
+      status: apt.status,
+      notes: apt.notes,
       patient: {
-        id:        apt.patient.id,
-        email:     apt.patient.email,
+        id: apt.patient.id,
+        email: apt.patient.email,
         firstName: apt.patient.profile?.firstName ?? null,
-        lastName:  apt.patient.profile?.lastName  ?? null,
-        avatarUrl: apt.patient.profile?.avatarUrl  ?? null,
+        lastName: apt.patient.profile?.lastName ?? null,
+        avatarUrl: apt.patient.profile?.avatarUrl ?? null,
       },
     }));
   }
@@ -449,7 +464,9 @@ export class StaffService {
     const apt = await this.appointmentRepo.findOne({ where: { id } });
     if (!apt) throw new NotFoundException(`Cita ${id} no encontrada.`);
     if (apt.nutritionistId !== userId) {
-      throw new ForbiddenException('No tiene permisos para modificar esta cita.');
+      throw new ForbiddenException(
+        'No tiene permisos para modificar esta cita.',
+      );
     }
     apt.status = status;
     return this.appointmentRepo.save(apt);
@@ -458,23 +475,25 @@ export class StaffService {
   /**
    * Citas nutricionales de HOY para el nutricionista autenticado.
    */
-  async getTodayAppointments(): Promise<{
-    id: number;
-    startTime: string;
-    appointmentType: string;
-    status: string;
-    patientName: string;
-  }[]> {
+  async getTodayAppointments(): Promise<
+    {
+      id: number;
+      startTime: string;
+      appointmentType: string;
+      status: string;
+      patientName: string;
+    }[]
+  > {
     const userId = this.getAuthUserId();
 
     const rows = await this.appointmentRepo
       .createQueryBuilder('apt')
-      .select('apt.id',              'id')
-      .addSelect('apt.startTime',    'startTime')
+      .select('apt.id', 'id')
+      .addSelect('apt.startTime', 'startTime')
       .addSelect('apt.appointmentType', 'appointmentType')
-      .addSelect('apt.status',       'status')
+      .addSelect('apt.status', 'status')
       .addSelect("CONCAT(prof.first_name, ' ', prof.last_name)", 'patientName')
-      .innerJoin('apt.patient',  'patient')
+      .innerJoin('apt.patient', 'patient')
       .innerJoin('patient.profile', 'prof')
       .where('apt.nutritionistId = :userId', { userId })
       .andWhere('apt.date = CURRENT_DATE')
@@ -482,11 +501,11 @@ export class StaffService {
       .getRawMany();
 
     return rows.map((r) => ({
-      id:              Number(r.id),
-      startTime:       String(r.startTime).slice(0, 5),
+      id: Number(r.id),
+      startTime: String(r.startTime).slice(0, 5),
       appointmentType: r.appointmentType as string,
-      status:          r.status as string,
-      patientName:     r.patientName as string,
+      status: r.status as string,
+      patientName: r.patientName as string,
     }));
   }
 }

@@ -8,8 +8,13 @@ export {
 } from './create-activity-schedule.dto';
 
 export class CreateActivityDto {
-  @ApiPropertyOptional({ example: 1, description: 'ID del gimnasio (SUPER_ADMIN lo especifica; GERENTE lo toma del token)' })
-  @IsOptional() @IsInt()
+  @ApiPropertyOptional({
+    example: 1,
+    description:
+      'ID del gimnasio (SUPER_ADMIN lo especifica; GERENTE lo toma del token)',
+  })
+  @IsOptional()
+  @IsInt()
   gymId?: number;
 
   @ApiProperty({ example: 'Spinning' })
@@ -21,7 +26,8 @@ export class CreateActivityDto {
   description: string;
 
   @ApiPropertyOptional({ example: 45 })
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsInt()
   defaultDurationMin?: number;
 
   @ApiPropertyOptional({
@@ -37,24 +43,32 @@ export class CreateActivityDto {
 export class UpdateActivityDto {
   @ApiPropertyOptional({
     example: 2,
-    description: 'Reasignar la actividad a otra sede. GERENTE solo puede usar su propio gymId.',
+    description:
+      'Reasignar la actividad a otra sede. GERENTE solo puede usar su propio gymId.',
   })
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsInt()
   gymId?: number;
 
   @ApiPropertyOptional({ example: 'Spinning Pro' })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   name?: string;
 
   @ApiPropertyOptional({ example: 'Descripción actualizada' })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   description?: string;
 
   @ApiPropertyOptional({ example: 60 })
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsInt()
   defaultDurationMin?: number;
 
-  @ApiPropertyOptional({ example: false, description: 'Acceso libre (sin horario obligatorio)' })
+  @ApiPropertyOptional({
+    example: false,
+    description: 'Acceso libre (sin horario obligatorio)',
+  })
   @IsOptional()
   @IsBoolean()
   isFreeAccess?: boolean;
@@ -66,6 +80,7 @@ export class RegisterAttendanceDto {
   userId: number;
 
   @ApiPropertyOptional({ example: 'CONFIRMED' })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   status?: string;
 }

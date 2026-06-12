@@ -1,42 +1,51 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, OneToOne, JoinColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  OneToOne,
+  JoinColumn,
 } from 'typeorm';
 import { User } from '../../users/domain/user.entity';
 
 @Entity('user_training_restrictions')
 export class UserTrainingRestriction {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column({ type: 'integer', name: 'user_id', unique: true })
-  userId: number;
+  userId!: number;
 
   @Column({ type: 'varchar', length: 50, name: 'restriction_type' })
-  restrictionType: string;
+  restrictionType!: string;
 
   @Column({ type: 'text', nullable: true })
-  description: string;
+  description!: string;
 
   @Column({ type: 'jsonb', name: 'affected_body_areas', nullable: true })
-  affectedBodyAreas: string[];
+  affectedBodyAreas!: string[];
 
   @Column({ type: 'jsonb', name: 'movements_to_avoid', nullable: true })
-  movementsToAvoid: string[];
+  movementsToAvoid!: string[];
 
-  @Column({ type: 'boolean', name: 'requires_trainer_approval', default: false })
-  requiresTrainerApproval: boolean;
+  @Column({
+    type: 'boolean',
+    name: 'requires_trainer_approval',
+    default: false,
+  })
+  requiresTrainerApproval!: boolean;
 
   @Column({ type: 'boolean', name: 'is_active', default: true })
-  isActive: boolean;
+  isActive!: boolean;
 
   @CreateDateColumn({ name: 'created_at' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @Column({ type: 'timestamp', name: 'updated_at', nullable: true })
-  updatedAt: Date;
+  updatedAt!: Date;
 
   // ── Relations ─────────────────────────────────────
   @OneToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
-  user: User;
+  user!: User;
 }

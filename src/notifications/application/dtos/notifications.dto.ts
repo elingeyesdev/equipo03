@@ -10,12 +10,15 @@ export class CreateTemplateDto {
   @IsString()
   subject: string;
 
-  @ApiProperty({ example: 'Hola {{nombre}}, tu membresía en {{gym_name}} ha sido activada.' })
+  @ApiProperty({
+    example: 'Hola {{nombre}}, tu membresía en {{gym_name}} ha sido activada.',
+  })
   @IsString()
   bodyTemplate: string;
 
   @ApiPropertyOptional({ example: 'push,email' })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   channel?: string;
 }
 
@@ -25,7 +28,8 @@ export class SendNotificationDto {
   userId: number;
 
   @ApiPropertyOptional({ example: 1, description: 'ID de la plantilla' })
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsInt()
   templateId?: number;
 
   @ApiProperty({ example: 'Tu clase de Spinning comienza en 30 minutos' })
@@ -37,24 +41,29 @@ export class SendNotificationDto {
   message: string;
 
   @ApiPropertyOptional({ example: 'PUSH', description: 'PUSH | EMAIL | SMS' })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   channel?: string;
 }
 
 export class UpdatePreferencesDto {
   @ApiPropertyOptional({ example: true })
-  @IsOptional() @IsBoolean()
+  @IsOptional()
+  @IsBoolean()
   emailEnabled?: boolean;
 
   @ApiPropertyOptional({ example: true })
-  @IsOptional() @IsBoolean()
+  @IsOptional()
+  @IsBoolean()
   pushEnabled?: boolean;
 
   @ApiPropertyOptional({ example: false })
-  @IsOptional() @IsBoolean()
+  @IsOptional()
+  @IsBoolean()
   smsEnabled?: boolean;
 
   @ApiPropertyOptional({ example: false })
-  @IsOptional() @IsBoolean()
+  @IsOptional()
+  @IsBoolean()
   marketingEnabled?: boolean;
 }

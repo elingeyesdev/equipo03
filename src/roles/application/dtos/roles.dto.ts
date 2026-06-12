@@ -20,7 +20,9 @@ export class CreatePermissionDto {
   @IsNotEmpty()
   declare name: string;
 
-  @ApiPropertyOptional({ example: 'Permite crear, editar y eliminar gimnasios' })
+  @ApiPropertyOptional({
+    example: 'Permite crear, editar y eliminar gimnasios',
+  })
   @IsOptional()
   @IsString()
   description?: string;
@@ -41,7 +43,9 @@ export class CreateRoleDto {
   @IsString()
   @IsNotEmpty()
   @MinLength(3)
-  @Matches(/^[A-Z_]+$/, { message: 'El nombre solo puede contener mayúsculas y guiones bajos' })
+  @Matches(/^[A-Z_]+$/, {
+    message: 'El nombre solo puede contener mayúsculas y guiones bajos',
+  })
   declare name: string;
 
   @ApiPropertyOptional({ example: 'Entrenador personal del gimnasio' })
@@ -50,7 +54,9 @@ export class CreateRoleDto {
   @MinLength(5)
   description?: string;
 
-  @ApiPropertyOptional({ example: { canCreateRoutines: true, canViewMembers: true } })
+  @ApiPropertyOptional({
+    example: { canCreateRoutines: true, canViewMembers: true },
+  })
   @IsOptional()
   permissions?: any;
 
@@ -71,7 +77,9 @@ export class UpdateRoleDto {
   @IsString()
   @IsNotEmpty()
   @MinLength(3)
-  @Matches(/^[A-Z_]+$/, { message: 'El nombre solo puede contener mayúsculas y guiones bajos' })
+  @Matches(/^[A-Z_]+$/, {
+    message: 'El nombre solo puede contener mayúsculas y guiones bajos',
+  })
   name?: string;
 
   @ApiPropertyOptional({ example: 'Entrenador personal del gimnasio' })
@@ -104,7 +112,10 @@ export class AssignRoleDto {
   @IsInt()
   declare roleId: number;
 
-  @ApiPropertyOptional({ example: 1, description: 'ID del gimnasio (rol scopeado)' })
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'ID del gimnasio (rol scopeado)',
+  })
   @IsOptional()
   @IsInt()
   gymId?: number;

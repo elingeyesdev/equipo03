@@ -6,7 +6,10 @@ export class CreateCheckInDto {
   @IsInt()
   userId: number;
 
-  @ApiPropertyOptional({ example: 'QR', description: 'QR | BIOMETRICO | MANUAL | TARJETA' })
+  @ApiPropertyOptional({
+    example: 'QR',
+    description: 'QR | BIOMETRICO | MANUAL | TARJETA',
+  })
   @IsOptional()
   @IsString()
   @IsIn(['QR', 'BIOMETRICO', 'MANUAL', 'TARJETA'])

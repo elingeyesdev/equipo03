@@ -52,7 +52,9 @@ export class PushNotificationsService {
           body: JSON.stringify(messages),
         });
         if (!res.ok) {
-          this.logger.error(`Expo push batch HTTP ${res.status} (${chunk.length} tokens)`);
+          this.logger.error(
+            `Expo push batch HTTP ${res.status} (${chunk.length} tokens)`,
+          );
         }
       } catch (err) {
         this.logger.error(`Expo push batch error: ${(err as Error).message}`);

@@ -1,4 +1,10 @@
-import { Inject, Injectable, ForbiddenException, NotFoundException, Scope } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+  Scope,
+} from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -19,13 +25,17 @@ export class CheckinsService {
 
   private getManagerGymId(): number | null {
     const user = this.request.user;
-    return user?.role?.toUpperCase() === 'GERENTE' ? (user.gymId ?? null) : null;
+    return user?.role?.toUpperCase() === 'GERENTE'
+      ? (user.gymId ?? null)
+      : null;
   }
 
   private ensureManagerCanAccessGym(gymId: number): void {
     const managerGymId = this.getManagerGymId();
     if (managerGymId !== null && managerGymId !== gymId) {
-      throw new ForbiddenException('No tiene permisos para acceder a otra sucursal');
+      throw new ForbiddenException(
+        'No tiene permisos para acceder a otra sucursal',
+      );
     }
   }
 
@@ -61,7 +71,8 @@ export class CheckinsService {
 
     let role = 'CLIENTE';
     if (c.user?.userRoles && c.user.userRoles.length > 0) {
-      const primaryRole = c.user.userRoles.find((ur) => ur.role?.name)?.role?.name;
+      const primaryRole = c.user.userRoles.find((ur) => ur.role?.name)?.role
+        ?.name;
       if (primaryRole) {
         role = primaryRole.toUpperCase();
       }
@@ -100,7 +111,10 @@ export class CheckinsService {
 
     if (managerGymId !== null) {
       qb.andWhere('checkIn.gym_id = :gymId', { gymId: managerGymId });
-    } else if (user?.role?.toUpperCase() === 'USER' || user?.role?.toUpperCase() === 'CLIENTE') {
+    } else if (
+      user?.role?.toUpperCase() === 'USER' ||
+      user?.role?.toUpperCase() === 'CLIENTE'
+    ) {
       qb.andWhere('checkIn.user_id = :userId', { userId: user.userId });
     }
 
@@ -126,7 +140,8 @@ export class CheckinsService {
       .leftJoinAndSelect('userRoles.role', 'role')
       .leftJoinAndSelect('checkIn.gym', 'gym')
       .orderBy('checkIn.checkInTime', 'DESC');
-    if (managerGymId !== null) qb.andWhere('checkIn.gym_id = :gymId', { gymId: managerGymId });
+    if (managerGymId !== null)
+      qb.andWhere('checkIn.gym_id = :gymId', { gymId: managerGymId });
     const records = await qb.getMany();
     return records.map((c) => this.mapCheckIn(c));
   }
@@ -142,7 +157,8 @@ export class CheckinsService {
       .leftJoinAndSelect('checkIn.gym', 'gym')
       .where('checkIn.user_id = :userId', { userId })
       .orderBy('checkIn.checkInTime', 'DESC');
-    if (managerGymId !== null) qb.andWhere('checkIn.gym_id = :gymId', { gymId: managerGymId });
+    if (managerGymId !== null)
+      qb.andWhere('checkIn.gym_id = :gymId', { gymId: managerGymId });
     const records = await qb.getMany();
     return records.map((c) => this.mapCheckIn(c));
   }
@@ -169,7 +185,8 @@ export class CheckinsService {
       .leftJoinAndSelect('checkIn.user', 'user')
       .leftJoinAndSelect('checkIn.gym', 'gym')
       .where('checkIn.id = :id', { id });
-    if (managerGymId !== null) qb.andWhere('checkIn.gym_id = :gymId', { gymId: managerGymId });
+    if (managerGymId !== null)
+      qb.andWhere('checkIn.gym_id = :gymId', { gymId: managerGymId });
     const c = await qb.getOne();
     if (!c) throw new NotFoundException(`Check-in ${id} no encontrado`);
     return c;

@@ -3,20 +3,20 @@ import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 @Entity('subscription_plans')
 export class SubscriptionPlan {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column({ type: 'varchar', length: 100, unique: true })
-  name: string;
+  name!: string;
 
   @Column({ type: 'text', nullable: true })
-  description: string;
+  description!: string;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, name: 'price_monthly' })
-  priceMonthly: number;
+  priceMonthly!: number;
 
   @Column({ type: 'integer', name: 'max_gyms_access', nullable: true })
-  maxGymsAccess: number;
+  maxGymsAccess!: number;
 
   @Column({ type: 'jsonb', nullable: true })
-  features: any;
+  features!: any;
 }

@@ -10,7 +10,11 @@ import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([NotificationTemplate, Notification, UserNotificationPreference]),
+    TypeOrmModule.forFeature([
+      NotificationTemplate,
+      Notification,
+      UserNotificationPreference,
+    ]),
     AuthModule,
   ],
   controllers: [NotificationsController],

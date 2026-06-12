@@ -24,7 +24,10 @@ export class GymGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleConnection(client: Socket) {
     const token =
       (client.handshake.auth?.token as string) ??
-      (client.handshake.headers?.authorization as string)?.replace('Bearer ', '');
+      (client.handshake.headers?.authorization as string)?.replace(
+        'Bearer ',
+        '',
+      );
 
     const payload = token ? this.authService.verifyToken(token) : null;
 
@@ -41,7 +44,9 @@ export class GymGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     if (role === 'GERENTE' && payload.gymId) {
       client.join(`gym_${payload.gymId}`);
-      this.logger.log(`GERENTE userId=${payload.sub} → sala gym_${payload.gymId}`);
+      this.logger.log(
+        `GERENTE userId=${payload.sub} → sala gym_${payload.gymId}`,
+      );
     } else if (role === 'SUPER_ADMIN') {
       client.join('admin_room');
       this.logger.log(`SUPER_ADMIN userId=${payload.sub} → admin_room`);

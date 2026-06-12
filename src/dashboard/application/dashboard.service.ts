@@ -16,7 +16,9 @@ export class DashboardService {
     return u?.role?.toUpperCase() === 'GERENTE' ? (u?.gymId ?? null) : null;
   }
 
-  private buildHistory(rows: { date: string; count: string }[]): { v: number }[] {
+  private buildHistory(
+    rows: { date: string; count: string }[],
+  ): { v: number }[] {
     const map = new Map(rows.map((r) => [r.date, Number(r.count)]));
     const result: { v: number }[] = [];
     for (let i = 6; i >= 0; i--) {
@@ -117,15 +119,15 @@ export class DashboardService {
 
     return {
       users: {
-        total:   Number(usersTotal[0]?.total   ?? 0),
+        total: Number(usersTotal[0]?.total ?? 0),
         history: this.buildHistory(usersHistory),
       },
       checkins: {
-        total:   Number(checkinsTotal[0]?.total   ?? 0),
+        total: Number(checkinsTotal[0]?.total ?? 0),
         history: this.buildHistory(checkinsHistory),
       },
       reservations: {
-        total:   Number(reservationsTotal[0]?.total   ?? 0),
+        total: Number(reservationsTotal[0]?.total ?? 0),
         history: this.buildHistory(reservationsHistory),
       },
     };

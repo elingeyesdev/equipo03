@@ -58,9 +58,12 @@ export class ReservationsService {
 
   constructor(
     @InjectRepository(Reservation) private repo: Repository<Reservation>,
-    @InjectRepository(GymActivity) private activityRepo: Repository<GymActivity>,
-    @InjectRepository(GymActivitySchedule) private scheduleRepo: Repository<GymActivitySchedule>,
-    @InjectRepository(GymSchedule) private gymScheduleRepo: Repository<GymSchedule>,
+    @InjectRepository(GymActivity)
+    private activityRepo: Repository<GymActivity>,
+    @InjectRepository(GymActivitySchedule)
+    private scheduleRepo: Repository<GymActivitySchedule>,
+    @InjectRepository(GymSchedule)
+    private gymScheduleRepo: Repository<GymSchedule>,
     @InjectRepository(User) private usersRepo: Repository<User>,
     @InjectRepository(CheckIn) private checkInRepo: Repository<CheckIn>,
     @Inject(DataSource) private readonly dataSource: DataSource,
@@ -84,7 +87,9 @@ export class ReservationsService {
   }
 
   private async assertTargetUserExists(userId: number): Promise<void> {
-    const exists = await this.usersRepo.exist({ where: { id: userId, isActive: true } });
+    const exists = await this.usersRepo.exist({
+      where: { id: userId, isActive: true },
+    });
     if (!exists) {
       throw new NotFoundException(`Usuario ${userId} no encontrado.`);
     }
@@ -105,25 +110,32 @@ export class ReservationsService {
       qb.andWhere('reservation.user_id = :uid', { uid: Number(userId) });
     } else if (roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA') {
       const gymId = this.managerGymId();
-      this.logger.debug(`[applyListScope] ${roleUp} gymId=${gymId} userId=${userId}`);
-      const auditStatuses = ['CONFIRMADA', 'COMPLETADA'];
-      qb.andWhere(
-        '(activity.gym_id = :gymId OR reservation.gym_id = :gymId)',
-        { gymId },
+      this.logger.debug(
+        `[applyListScope] ${roleUp} gymId=${gymId} userId=${userId}`,
       );
-      qb.andWhere('reservation.status IN (:...auditStatuses)', { auditStatuses });
+      const auditStatuses = ['CONFIRMADA', 'COMPLETADA'];
+      qb.andWhere('(activity.gym_id = :gymId OR reservation.gym_id = :gymId)', {
+        gymId,
+      });
+      qb.andWhere('reservation.status IN (:...auditStatuses)', {
+        auditStatuses,
+      });
     } else if (roleUp !== 'SUPER_ADMIN') {
       throw new ForbiddenException('No tiene permisos para listar reservas.');
     }
   }
 
-  private async resolveScheduleGymId(gymActivityScheduleId: number): Promise<number> {
+  private async resolveScheduleGymId(
+    gymActivityScheduleId: number,
+  ): Promise<number> {
     const schedule = await this.scheduleRepo.findOne({
       where: { id: gymActivityScheduleId },
       relations: ['gymActivity'],
     });
     if (!schedule?.gymActivity) {
-      throw new NotFoundException(`Horario ${gymActivityScheduleId} no encontrado`);
+      throw new NotFoundException(
+        `Horario ${gymActivityScheduleId} no encontrado`,
+      );
     }
     return schedule.gymActivity.gymId;
   }
@@ -144,15 +156,19 @@ export class ReservationsService {
     endTime: string,
   ): Promise<void> {
     const dayVariants = aliasesForCanonicalDay(day);
-    const slots = await this.gymScheduleRepo.find({ where: { gymId, isHoliday: false } });
-    const sameDay = slots.filter((s) => dayVariants.includes(String(s.dayOfWeek).toUpperCase()));
+    const slots = await this.gymScheduleRepo.find({
+      where: { gymId, isHoliday: false },
+    });
+    const sameDay = slots.filter((s) =>
+      dayVariants.includes(String(s.dayOfWeek).toUpperCase()),
+    );
     if (sameDay.length === 0) return;
 
     const start = this.toHHmm(startTime);
     const end = this.toHHmm(endTime);
     const ok = sameDay.some((row) => {
-      const open = this.toHHmm(row.opensAt as unknown as string);
-      const close = this.toHHmm(row.closesAt as unknown as string);
+      const open = this.toHHmm(row.opensAt);
+      const close = this.toHHmm(row.closesAt);
       return open <= start && close >= end;
     });
 
@@ -228,7 +244,9 @@ export class ReservationsService {
     });
 
     if (!activity) {
-      throw new NotFoundException(`Actividad ${data.activityId} no encontrada.`);
+      throw new NotFoundException(
+        `Actividad ${data.activityId} no encontrada.`,
+      );
     }
 
     if (!activity.isFreeAccess) {
@@ -276,7 +294,7 @@ export class ReservationsService {
       gymId: activity.gymId,
       activityId: activity.id,
       reservationDate,
-      startTime: data.startTime,   // tiempo elegido por el cliente
+      startTime: data.startTime, // tiempo elegido por el cliente
       endTime: data.endTime,
       status: 'PENDIENTE',
       createdBy: actorId,
@@ -296,8 +314,8 @@ export class ReservationsService {
    */
   async createReservation(data: CreateReservationDto): Promise<Reservation> {
     const { role, userId } = this.getAuthUser();
-    const actorId     = Number(userId);
-    const roleUp      = (role ?? '').toUpperCase();
+    const actorId = Number(userId);
+    const roleUp = (role ?? '').toUpperCase();
 
     // ── RBAC ────────────────────────────────────────────────────────────────
     if (roleUp === 'SUPER_ADMIN' || roleUp === 'ENTRENADOR') {
@@ -310,7 +328,9 @@ export class ReservationsService {
       reservationUserId = actorId;
     } else if (roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA') {
       if (data.targetUserId == null) {
-        throw new BadRequestException('targetUserId es obligatorio para crear reservas como staff.');
+        throw new BadRequestException(
+          'targetUserId es obligatorio para crear reservas como staff.',
+        );
       }
       reservationUserId = Number(data.targetUserId);
       await this.assertTargetUserExists(reservationUserId);
@@ -342,7 +362,9 @@ export class ReservationsService {
       if (roleUp === 'GERENTE') {
         const mg = this.managerGymId();
         if (Number(activity.gymId) !== Number(mg)) {
-          throw new ForbiddenException('La actividad pertenece a otra sucursal.');
+          throw new ForbiddenException(
+            'La actividad pertenece a otra sucursal.',
+          );
         }
       }
 
@@ -352,7 +374,9 @@ export class ReservationsService {
         );
       }
 
-      const reservationDate = this.parseReservationDateOnly(data.reservationDate);
+      const reservationDate = this.parseReservationDateOnly(
+        data.reservationDate,
+      );
 
       const dup = await this.repo.exist({
         where: {
@@ -370,16 +394,16 @@ export class ReservationsService {
 
       const saved = await this.repo.save(
         this.repo.create({
-          userId:                  reservationUserId,
-          gymActivityScheduleId:   null,
-          gymId:                   activity.gymId,
-          activityId:              activity.id,
+          userId: reservationUserId,
+          gymActivityScheduleId: null,
+          gymId: activity.gymId,
+          activityId: activity.id,
           reservationDate,
-          startTime:               data.startTime,
-          endTime:                 data.endTime,
-          status:                  'CONFIRMADA',
-          createdBy:               actorId,
-          qrToken:                 randomUUID(),
+          startTime: data.startTime,
+          endTime: data.endTime,
+          status: 'CONFIRMADA',
+          createdBy: actorId,
+          qrToken: randomUUID(),
         }),
       );
 
@@ -398,10 +422,12 @@ export class ReservationsService {
     const scheduleId = await this.resolveScheduleId(data);
 
     if (roleUp === 'GERENTE') {
-      const mg  = this.managerGymId();
+      const mg = this.managerGymId();
       const gid = await this.resolveScheduleGymId(scheduleId);
       if (gid !== mg) {
-        throw new ForbiddenException('No puede crear reservas en otra sucursal');
+        throw new ForbiddenException(
+          'No puede crear reservas en otra sucursal',
+        );
       }
     }
 
@@ -466,7 +492,9 @@ export class ReservationsService {
         },
       });
       if (dup) {
-        throw new ConflictException('Ya tienes una reserva activa para este horario y fecha');
+        throw new ConflictException(
+          'Ya tienes una reserva activa para este horario y fecha',
+        );
       }
 
       const activeCount = await queryRunner.manager.count(Reservation, {
@@ -488,11 +516,11 @@ export class ReservationsService {
         gymId: scheduleWithActivity.gymActivity.gymId,
         activityId: scheduleWithActivity.gymActivity.id,
         reservationDate,
-        startTime: String(schedule.startTime).slice(0, 5),   // HH:mm desde BD
-        endTime:   String(schedule.endTime).slice(0, 5),
+        startTime: String(schedule.startTime).slice(0, 5), // HH:mm desde BD
+        endTime: String(schedule.endTime).slice(0, 5),
         status,
         createdBy: createdById,
-        qrToken:   randomUUID(),
+        qrToken: randomUUID(),
       });
       const saved = await queryRunner.manager.save(entity);
 
@@ -527,7 +555,9 @@ export class ReservationsService {
   private parseReservationDateOnly(isoDate: string): Date {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(isoDate).trim());
     if (!m) {
-      throw new BadRequestException('reservationDate debe tener formato YYYY-MM-DD');
+      throw new BadRequestException(
+        'reservationDate debe tener formato YYYY-MM-DD',
+      );
     }
     const y = Number(m[1]);
     const mo = Number(m[2]);
@@ -535,27 +565,33 @@ export class ReservationsService {
     return new Date(Date.UTC(y, mo - 1, d));
   }
 
-  async findAll(opts: { date?: string; status?: string; page: number; limit: number; gymId?: number }) {
+  async findAll(opts: {
+    date?: string;
+    status?: string;
+    page: number;
+    limit: number;
+    gymId?: number;
+  }) {
     const { date, status, page, limit } = opts;
-    const { role, gymId: tokenGymId } = this.getAuthUser();
+    const { role } = this.getAuthUser();
     const roleUp = role?.toUpperCase();
 
     const qb = this.repo
       .createQueryBuilder('reservation')
       // Usuario
-      .leftJoinAndSelect('reservation.user',                'user')
-      .leftJoinAndSelect('user.profile',                    'userProfile')
+      .leftJoinAndSelect('reservation.user', 'user')
+      .leftJoinAndSelect('user.profile', 'userProfile')
       // Sede
-      .leftJoinAndSelect('reservation.gym',                 'gym')
+      .leftJoinAndSelect('reservation.gym', 'gym')
       // Flujo libre
-      .leftJoinAndSelect('reservation.activity',            'freeActivity')
+      .leftJoinAndSelect('reservation.activity', 'freeActivity')
       .addSelect('freeActivity.name')
       // Flujo programado
       .leftJoinAndSelect('reservation.gymActivitySchedule', 'schedule')
-      .leftJoinAndSelect('schedule.gymActivity',            'activity')  // alias requerido por applyListScope
+      .leftJoinAndSelect('schedule.gymActivity', 'activity') // alias requerido por applyListScope
       .addSelect('activity.name')
-      .leftJoinAndSelect('schedule.instructor',             'schedInstructor')
-      .leftJoinAndSelect('schedInstructor.profile',         'schedInstructorProfile')
+      .leftJoinAndSelect('schedule.instructor', 'schedInstructor')
+      .leftJoinAndSelect('schedInstructor.profile', 'schedInstructorProfile')
       .orderBy('reservation.reservationDate', 'DESC')
       .addOrderBy('reservation.createdAt', 'DESC');
 
@@ -563,21 +599,33 @@ export class ReservationsService {
     if (date) {
       const m = /^\d{4}-\d{2}-\d{2}$/.exec(date.trim());
       if (m) {
-        qb.andWhere('reservation.reservationDate = :date', { date: date.trim() });
+        qb.andWhere('reservation.reservationDate = :date', {
+          date: date.trim(),
+        });
       }
     }
 
     // ── Filtro de estado ──────────────────────────────────────────────────────
     if (status) {
-      qb.andWhere('reservation.status = :status', { status: status.toUpperCase() });
-    } else if (roleUp === 'SUPER_ADMIN' || roleUp === 'CLIENTE' || roleUp === 'USER') {
+      qb.andWhere('reservation.status = :status', {
+        status: status.toUpperCase(),
+      });
+    } else if (
+      roleUp === 'SUPER_ADMIN' ||
+      roleUp === 'CLIENTE' ||
+      roleUp === 'USER'
+    ) {
       // Sin filtro explícito → ocultar canceladas por defecto
-      qb.andWhere("reservation.status != :cancelled", { cancelled: 'CANCELLED' });
+      qb.andWhere('reservation.status != :cancelled', {
+        cancelled: 'CANCELLED',
+      });
     }
 
     // Filtro por gymId si se provee
     if (opts.gymId) {
-      qb.andWhere('(activity.gym_id = :gymId OR reservation.gym_id = :gymId)', { gymId: opts.gymId });
+      qb.andWhere('(activity.gym_id = :gymId OR reservation.gym_id = :gymId)', {
+        gymId: opts.gymId,
+      });
     }
 
     // ── Scope por rol ─────────────────────────────────────────────────────────
@@ -611,42 +659,60 @@ export class ReservationsService {
       qrToken: r.qrToken,
       createdAt: r.createdAt,
       cancelledAt: r.cancelledAt,
-      user: r.user ? {
-        id: r.user.id,
-        email: r.user.email,
-        profile: r.user.profile ? {
-          fullName,
-          ci: r.user.profile.ci ?? null,
-        } : null,
-      } : null,
-      gym: r.gym ? {
-        id: r.gym.id,
-        name: r.gym.name,
-      } : null,
-      freeActivity: r.activity ? {
-        id: r.activity.id,
-        name: r.activity.name,
-        gymId: r.activity.gymId,
-      } : null,
-      gymActivitySchedule: r.gymActivitySchedule ? {
-        id: r.gymActivitySchedule.id,
-        dayOfWeek: r.gymActivitySchedule.dayOfWeek,
-        startTime: r.gymActivitySchedule.startTime,
-        endTime: r.gymActivitySchedule.endTime,
-        instructor: r.gymActivitySchedule.instructor ? {
-          id: r.gymActivitySchedule.instructor.id,
-          email: r.gymActivitySchedule.instructor.email,
-          profile: r.gymActivitySchedule.instructor.profile ? {
-            firstName: r.gymActivitySchedule.instructor.profile.firstName,
-            lastName: r.gymActivitySchedule.instructor.profile.lastName,
-          } : null,
-        } : null,
-        gymActivity: r.gymActivitySchedule.gymActivity ? {
-          id: r.gymActivitySchedule.gymActivity.id,
-          name: r.gymActivitySchedule.gymActivity.name,
-          gymId: r.gymActivitySchedule.gymActivity.gymId,
-        } : null,
-      } : null,
+      user: r.user
+        ? {
+            id: r.user.id,
+            email: r.user.email,
+            profile: r.user.profile
+              ? {
+                  fullName,
+                  ci: r.user.profile.ci ?? null,
+                }
+              : null,
+          }
+        : null,
+      gym: r.gym
+        ? {
+            id: r.gym.id,
+            name: r.gym.name,
+          }
+        : null,
+      freeActivity: r.activity
+        ? {
+            id: r.activity.id,
+            name: r.activity.name,
+            gymId: r.activity.gymId,
+          }
+        : null,
+      gymActivitySchedule: r.gymActivitySchedule
+        ? {
+            id: r.gymActivitySchedule.id,
+            dayOfWeek: r.gymActivitySchedule.dayOfWeek,
+            startTime: r.gymActivitySchedule.startTime,
+            endTime: r.gymActivitySchedule.endTime,
+            instructor: r.gymActivitySchedule.instructor
+              ? {
+                  id: r.gymActivitySchedule.instructor.id,
+                  email: r.gymActivitySchedule.instructor.email,
+                  profile: r.gymActivitySchedule.instructor.profile
+                    ? {
+                        firstName:
+                          r.gymActivitySchedule.instructor.profile.firstName,
+                        lastName:
+                          r.gymActivitySchedule.instructor.profile.lastName,
+                      }
+                    : null,
+                }
+              : null,
+            gymActivity: r.gymActivitySchedule.gymActivity
+              ? {
+                  id: r.gymActivitySchedule.gymActivity.id,
+                  name: r.gymActivitySchedule.gymActivity.name,
+                  gymId: r.gymActivitySchedule.gymActivity.gymId,
+                }
+              : null,
+          }
+        : null,
     };
   }
 
@@ -675,33 +741,34 @@ export class ReservationsService {
 
     const qb = this.repo
       .createQueryBuilder('reservation')
-      .leftJoinAndSelect('reservation.user',                'user')
-      .leftJoinAndSelect('user.profile',                    'userProfile')
-      .leftJoinAndSelect('reservation.gym',                 'gym')
-      .leftJoinAndSelect('gym.location',                    'gymLocation')
-      .leftJoinAndSelect('reservation.activity',            'freeActivity')
+      .leftJoinAndSelect('reservation.user', 'user')
+      .leftJoinAndSelect('user.profile', 'userProfile')
+      .leftJoinAndSelect('reservation.gym', 'gym')
+      .leftJoinAndSelect('gym.location', 'gymLocation')
+      .leftJoinAndSelect('reservation.activity', 'freeActivity')
       .addSelect('freeActivity.name')
       .leftJoinAndSelect('reservation.gymActivitySchedule', 'schedule')
-      .leftJoinAndSelect('schedule.gymActivity',            'activity')
+      .leftJoinAndSelect('schedule.gymActivity', 'activity')
       .addSelect('activity.name')
-      .leftJoinAndSelect('schedule.instructor',             'schedInstructor')
-      .leftJoinAndSelect('schedInstructor.profile',         'schedInstructorProfile')
+      .leftJoinAndSelect('schedule.instructor', 'schedInstructor')
+      .leftJoinAndSelect('schedInstructor.profile', 'schedInstructorProfile')
       .andWhere('reservation.userId = :userId', { userId })
       .orderBy('reservation.reservationDate', 'DESC');
 
     if (date) {
       const m = /^\d{4}-\d{2}-\d{2}$/.exec(date.trim());
       if (m) {
-        qb.andWhere('reservation.reservationDate = :date', { date: date.trim() });
+        qb.andWhere('reservation.reservationDate = :date', {
+          date: date.trim(),
+        });
       }
     }
 
     if (roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA') {
       const gymId = this.managerGymId();
-      qb.andWhere(
-        '(activity.gym_id = :gymId OR reservation.gym_id = :gymId)',
-        { gymId },
-      );
+      qb.andWhere('(activity.gym_id = :gymId OR reservation.gym_id = :gymId)', {
+        gymId,
+      });
     }
 
     const records = await qb.getMany();
@@ -712,19 +779,19 @@ export class ReservationsService {
     const qb = this.repo
       .createQueryBuilder('reservation')
       // Usuario
-      .leftJoinAndSelect('reservation.user',               'user')
-      .leftJoinAndSelect('user.profile',                   'userProfile')
+      .leftJoinAndSelect('reservation.user', 'user')
+      .leftJoinAndSelect('user.profile', 'userProfile')
       // Sede
-      .leftJoinAndSelect('reservation.gym',                'gym')
+      .leftJoinAndSelect('reservation.gym', 'gym')
       // Flujo libre
-      .leftJoinAndSelect('reservation.activity',           'freeActivity')
+      .leftJoinAndSelect('reservation.activity', 'freeActivity')
       .addSelect('freeActivity.name')
       // Flujo programado
-      .leftJoinAndSelect('reservation.gymActivitySchedule','schedule')
-      .leftJoinAndSelect('schedule.gymActivity',           'activity')       // alias requerido por applyListScope
+      .leftJoinAndSelect('reservation.gymActivitySchedule', 'schedule')
+      .leftJoinAndSelect('schedule.gymActivity', 'activity') // alias requerido por applyListScope
       .addSelect('activity.name')
-      .leftJoinAndSelect('schedule.instructor',            'schedInstructor')
-      .leftJoinAndSelect('schedInstructor.profile',        'schedInstructorProfile')
+      .leftJoinAndSelect('schedule.instructor', 'schedInstructor')
+      .leftJoinAndSelect('schedInstructor.profile', 'schedInstructorProfile')
       .where('reservation.id = :id', { id });
 
     this.applyListScope(qb);
@@ -739,7 +806,9 @@ export class ReservationsService {
       exists &&
       (roleUp === 'GERENTE' || roleUp === 'CLIENTE' || roleUp === 'USER')
     ) {
-      throw new ForbiddenException('No tiene permisos para acceder a esta reserva');
+      throw new ForbiddenException(
+        'No tiene permisos para acceder a esta reserva',
+      );
     }
 
     throw new NotFoundException(`Reserva ${id} no encontrada`);
@@ -761,24 +830,27 @@ export class ReservationsService {
       .where('reservation.qrToken = :token', { token });
 
     const r = await qb.getOne();
-    if (!r) throw new NotFoundException('Token QR inválido o reserva no encontrada');
-    
+    if (!r)
+      throw new NotFoundException('Token QR inválido o reserva no encontrada');
+
     // Auth scope check
     const { role } = this.getAuthUser();
     const roleUp = role?.toUpperCase();
     if (roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA') {
       const managerGymId = this.managerGymId();
-      const reservationGymId = r.gymId ?? r.gymActivitySchedule?.gymActivity?.gymId;
+      const reservationGymId =
+        r.gymId ?? r.gymActivitySchedule?.gymActivity?.gymId;
       if (Number(reservationGymId) !== Number(managerGymId)) {
         throw new ForbiddenException('Esta reserva pertenece a otra sucursal.');
       }
     } else if (roleUp === 'CLIENTE' || roleUp === 'USER') {
-       throw new ForbiddenException('No tiene permisos para validar reservas por token.');
+      throw new ForbiddenException(
+        'No tiene permisos para validar reservas por token.',
+      );
     }
 
     return this.mapReservation(r);
   }
-
 
   /**
    * Valida QR y marca ingreso físico.
@@ -786,18 +858,30 @@ export class ReservationsService {
    * Reserva debe estar en estado CONFIRMADA → pasa a COMPLETADA.
    * Registra fila en check_ins.
    */
-  async checkInReservation(reservationId: number): Promise<{ reservation: Reservation; checkIn: CheckIn }> {
+  async checkInReservation(
+    reservationId: number,
+  ): Promise<{ reservation: Reservation; checkIn: CheckIn }> {
     const { role, userId, gymId: tokenGymId } = this.getAuthUser();
     const roleUp = role?.toUpperCase();
 
-    if (roleUp !== 'GERENTE' && roleUp !== 'RECEPCIONISTA' && roleUp !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Solo GERENTE, RECEPCIONISTA o SUPER_ADMIN pueden registrar ingresos.');
+    if (
+      roleUp !== 'GERENTE' &&
+      roleUp !== 'RECEPCIONISTA' &&
+      roleUp !== 'SUPER_ADMIN'
+    ) {
+      throw new ForbiddenException(
+        'Solo GERENTE, RECEPCIONISTA o SUPER_ADMIN pueden registrar ingresos.',
+      );
     }
 
     // Cargar reserva con todas las relaciones necesarias (libre y programada)
     const reservation = await this.repo.findOne({
       where: { id: reservationId },
-      relations: ['gymActivitySchedule', 'gymActivitySchedule.gymActivity', 'activity'],
+      relations: [
+        'gymActivitySchedule',
+        'gymActivitySchedule.gymActivity',
+        'activity',
+      ],
     });
 
     if (!reservation) {
@@ -829,15 +913,17 @@ export class ReservationsService {
 
     // Gymid para el check_in: usa el de la reserva o el del token (GERENTE)
     const gymIdForCheckIn =
-      reservation.gymActivitySchedule?.gymActivity?.gymId ??
-      Number(tokenGymId);
+      reservation.gymActivitySchedule?.gymActivity?.gymId ?? Number(tokenGymId);
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      const savedReservation = await queryRunner.manager.save(Reservation, reservation);
+      const savedReservation = await queryRunner.manager.save(
+        Reservation,
+        reservation,
+      );
 
       const checkIn = queryRunner.manager.create(CheckIn, {
         userId: reservation.userId,
@@ -889,16 +975,28 @@ export class ReservationsService {
     const { role, userId, gymId: tokenGymId } = this.getAuthUser();
     const roleUp = role?.toUpperCase();
 
-    if (roleUp !== 'GERENTE' && roleUp !== 'RECEPCIONISTA' && roleUp !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Solo GERENTE, RECEPCIONISTA o SUPER_ADMIN pueden registrar ingresos.');
+    if (
+      roleUp !== 'GERENTE' &&
+      roleUp !== 'RECEPCIONISTA' &&
+      roleUp !== 'SUPER_ADMIN'
+    ) {
+      throw new ForbiddenException(
+        'Solo GERENTE, RECEPCIONISTA o SUPER_ADMIN pueden registrar ingresos.',
+      );
     }
 
     // ── 1. Verificar JWT — lanza JsonWebTokenError / TokenExpiredError si inválido ──
     let payload: { sub: number; gymId: number; type?: string };
     try {
-      payload = this.jwtService.verify<{ sub: number; gymId: number; type?: string }>(token);
+      payload = this.jwtService.verify<{
+        sub: number;
+        gymId: number;
+        type?: string;
+      }>(token);
     } catch {
-      throw new BadRequestException('QR inválido o expirado. Solicita uno nuevo desde la app.');
+      throw new BadRequestException(
+        'QR inválido o expirado. Solicita uno nuevo desde la app.',
+      );
     }
 
     if (payload.type !== 'QR_CHECK_IN') {
@@ -942,7 +1040,9 @@ export class ReservationsService {
           : String(reservation.reservationDate).slice(0, 10);
 
       if (reservationDateStr !== todayUtc) {
-        throw new BadRequestException('La reserva no es válida para el día de hoy.');
+        throw new BadRequestException(
+          'La reserva no es válida para el día de hoy.',
+        );
       }
 
       // ── 6. Validación de sucursal estricta (anti-fraude cruzado) ──────────
@@ -950,7 +1050,8 @@ export class ReservationsService {
         const managerGymId = this.managerGymId();
         const reservationGymId =
           reservation.gymId ??
-          reservation.gymActivitySchedule?.gymActivity?.gymId ?? null;
+          reservation.gymActivitySchedule?.gymActivity?.gymId ??
+          null;
 
         if (Number(reservationGymId) !== Number(managerGymId)) {
           throw new ForbiddenException('El QR pertenece a otra sucursal.');
@@ -966,7 +1067,10 @@ export class ReservationsService {
 
       // ── 8. Mutación atómica ────────────────────────────────────────────────
       reservation.status = 'COMPLETADA';
-      const savedReservation = await queryRunner.manager.save(Reservation, reservation);
+      const savedReservation = await queryRunner.manager.save(
+        Reservation,
+        reservation,
+      );
 
       const gymIdForCheckIn =
         reservation.gymId ??
@@ -974,10 +1078,10 @@ export class ReservationsService {
         Number(tokenGymId);
 
       const checkIn = queryRunner.manager.create(CheckIn, {
-        userId:      reservation.userId,
-        gymId:       gymIdForCheckIn,
-        method:      'QR',
-        status:      'COMPLETED',
+        userId: reservation.userId,
+        gymId: gymIdForCheckIn,
+        method: 'QR',
+        status: 'COMPLETED',
         checkInTime: new Date(),
       });
       const savedCheckIn = await queryRunner.manager.save(CheckIn, checkIn);
@@ -1013,12 +1117,16 @@ export class ReservationsService {
   async getQrToken(reservationId: number): Promise<{ qrToken: string }> {
     const { userId } = this.getAuthUser();
 
-    const reservation = await this.repo.findOne({ where: { id: reservationId } });
+    const reservation = await this.repo.findOne({
+      where: { id: reservationId },
+    });
     if (!reservation) {
       throw new NotFoundException(`Reserva ${reservationId} no encontrada.`);
     }
     if (Number(reservation.userId) !== Number(userId)) {
-      throw new ForbiddenException('Solo puedes obtener el QR de tus propias reservas.');
+      throw new ForbiddenException(
+        'Solo puedes obtener el QR de tus propias reservas.',
+      );
     }
     if (reservation.status !== 'CONFIRMADA') {
       throw new BadRequestException(
@@ -1028,7 +1136,7 @@ export class ReservationsService {
 
     const qrToken = this.jwtService.sign(
       { sub: reservation.id, gymId: reservation.gymId, type: 'QR_CHECK_IN' },
-      { expiresIn: '3m' },   // ← expira en 3 minutos exactos
+      { expiresIn: '3m' }, // ← expira en 3 minutos exactos
     );
 
     return { qrToken };
@@ -1038,14 +1146,23 @@ export class ReservationsService {
    * Busca gerentes con pushToken asignados al gymId y les envía
    * una notificación Expo. Fire-and-forget: nunca bloquea la respuesta.
    */
-  private async notifyGymManagers(gymId: number, reservationId?: number): Promise<void> {
+  private async notifyGymManagers(
+    gymId: number,
+    reservationId?: number,
+  ): Promise<void> {
     try {
       const tokens = await this.usersService.getManagerPushTokens(gymId);
       if (tokens.length > 0) {
         this.pushService
-          .sendPushBatch(tokens, 'Nueva Reserva', 'Tienes una nueva reserva confirmada en tu sucursal.')
+          .sendPushBatch(
+            tokens,
+            'Nueva Reserva',
+            'Tienes una nueva reserva confirmada en tu sucursal.',
+          )
           .catch(() => {});
-        this.logger.log(`[PUSH] batch de ${tokens.length} gerente(s) en gym=${gymId}`);
+        this.logger.log(
+          `[PUSH] batch de ${tokens.length} gerente(s) en gym=${gymId}`,
+        );
       }
 
       // Emisión en tiempo real para la Web
@@ -1055,11 +1172,16 @@ export class ReservationsService {
         gymId,
       });
     } catch (err) {
-      this.logger.warn(`[PUSH] Error notificando gerentes de gym=${gymId}: ${String(err)}`);
+      this.logger.warn(
+        `[PUSH] Error notificando gerentes de gym=${gymId}: ${String(err)}`,
+      );
     }
   }
 
-  async bulkUpdateStatus(ids: number[], status: 'COMPLETADA' | 'FALTO'): Promise<void> {
+  async bulkUpdateStatus(
+    ids: number[],
+    status: 'COMPLETADA' | 'FALTO',
+  ): Promise<void> {
     const mg = this.managerGymId();
     const qb = this.repo
       .createQueryBuilder()
@@ -1078,7 +1200,8 @@ export class ReservationsService {
       where: { id: scheduleId },
       relations: ['gymActivity'],
     });
-    if (!schedule) throw new NotFoundException(`Horario ${scheduleId} no encontrado.`);
+    if (!schedule)
+      throw new NotFoundException(`Horario ${scheduleId} no encontrado.`);
 
     const mg = this.managerGymId();
     if (mg !== null && schedule.gymActivity.gymId !== mg) {
@@ -1090,14 +1213,14 @@ export class ReservationsService {
     const entity = this.repo.create({
       userId,
       gymActivityScheduleId: scheduleId,
-      gymId:                 schedule.gymActivity.gymId,
-      activityId:            schedule.gymActivity.id,
-      reservationDate:       this.parseReservationDateOnly(today),
-      startTime:             String(schedule.startTime).slice(0, 5),
-      endTime:               String(schedule.endTime).slice(0, 5),
-      status:                'COMPLETADA',
-      createdBy:             Number(actorId),
-      qrToken:               randomUUID(),
+      gymId: schedule.gymActivity.gymId,
+      activityId: schedule.gymActivity.id,
+      reservationDate: this.parseReservationDateOnly(today),
+      startTime: String(schedule.startTime).slice(0, 5),
+      endTime: String(schedule.endTime).slice(0, 5),
+      status: 'COMPLETADA',
+      createdBy: Number(actorId),
+      qrToken: randomUUID(),
     });
 
     return this.repo.save(entity);
@@ -1106,9 +1229,9 @@ export class ReservationsService {
   async cancel(id: number) {
     const { role, userId, gymId } = this.getAuthUser();
     const roleUp = role?.toUpperCase();
-    const r = await this.repo.findOne({ 
+    const r = await this.repo.findOne({
       where: { id },
-      relations: ['gymActivitySchedule', 'gymActivitySchedule.gymActivity']
+      relations: ['gymActivitySchedule', 'gymActivitySchedule.gymActivity'],
     });
 
     if (!r) {
@@ -1138,13 +1261,17 @@ export class ReservationsService {
     const { role, gymId } = this.getAuthUser();
     const roleUp = role?.toUpperCase();
 
-    if (roleUp !== 'GERENTE' && roleUp !== 'RECEPCIONISTA' && roleUp !== 'SUPER_ADMIN') {
+    if (
+      roleUp !== 'GERENTE' &&
+      roleUp !== 'RECEPCIONISTA' &&
+      roleUp !== 'SUPER_ADMIN'
+    ) {
       throw new ForbiddenException('Solo el staff puede confirmar el ingreso.');
     }
 
     const r = await this.repo.findOne({
       where: { id },
-      relations: ['gymActivitySchedule', 'gymActivitySchedule.gymActivity']
+      relations: ['gymActivitySchedule', 'gymActivitySchedule.gymActivity'],
     });
 
     if (!r) {
@@ -1152,9 +1279,12 @@ export class ReservationsService {
     }
 
     if (roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA') {
-      const reservationGymId = r.gymId ?? r.gymActivitySchedule?.gymActivity?.gymId;
+      const reservationGymId =
+        r.gymId ?? r.gymActivitySchedule?.gymActivity?.gymId;
       if (Number(reservationGymId) !== Number(gymId)) {
-        throw new ForbiddenException('Esta reserva pertenece a otra sede corporativa.');
+        throw new ForbiddenException(
+          'Esta reserva pertenece a otra sede corporativa.',
+        );
       }
     }
 

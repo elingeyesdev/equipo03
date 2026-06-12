@@ -1,18 +1,30 @@
-import { Inject, Injectable, ForbiddenException, NotFoundException, Scope } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+  Scope,
+} from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SubscriptionPlan } from '../domain/subscription-plan.entity';
 import { UserSubscription } from '../domain/user-subscription.entity';
 import { SubscriptionPayment } from '../domain/subscription-payment.entity';
-import { getManagerGymId, type RequestWithUser } from '../../common/security/gym-scope';
+import {
+  getManagerGymId,
+  type RequestWithUser,
+} from '../../common/security/gym-scope';
 
 @Injectable({ scope: Scope.REQUEST })
 export class SubscriptionsService {
   constructor(
-    @InjectRepository(SubscriptionPlan) private plansRepo: Repository<SubscriptionPlan>,
-    @InjectRepository(UserSubscription) private subsRepo: Repository<UserSubscription>,
-    @InjectRepository(SubscriptionPayment) private paymentsRepo: Repository<SubscriptionPayment>,
+    @InjectRepository(SubscriptionPlan)
+    private plansRepo: Repository<SubscriptionPlan>,
+    @InjectRepository(UserSubscription)
+    private subsRepo: Repository<UserSubscription>,
+    @InjectRepository(SubscriptionPayment)
+    private paymentsRepo: Repository<SubscriptionPayment>,
     @Inject(REQUEST) private readonly request: RequestWithUser,
   ) {}
 
@@ -20,16 +32,30 @@ export class SubscriptionsService {
     return getManagerGymId(this.request);
   }
 
-  createPlan(data: Partial<SubscriptionPlan>) { return this.plansRepo.save(this.plansRepo.create(data)); }
-  findAllPlans() { return this.plansRepo.find(); }
-  async findOnePlan(id: number) { const p = await this.plansRepo.findOne({ where: { id } }); if (!p) throw new NotFoundException(`Plan ${id} no encontrado`); return p; }
+  createPlan(data: Partial<SubscriptionPlan>) {
+    return this.plansRepo.save(this.plansRepo.create(data));
+  }
+  findAllPlans() {
+    return this.plansRepo.find();
+  }
+  async findOnePlan(id: number) {
+    const p = await this.plansRepo.findOne({ where: { id } });
+    if (!p) throw new NotFoundException(`Plan ${id} no encontrado`);
+    return p;
+  }
 
   createSubscription(data: any) {
     const mg = this.managerGymId();
     const merged = { ...data };
     if (mg !== null) {
-      if (merged.homeGymId !== undefined && merged.homeGymId !== null && Number(merged.homeGymId) !== mg) {
-        throw new ForbiddenException('No puede asignar suscripciones a otra sucursal');
+      if (
+        merged.homeGymId !== undefined &&
+        merged.homeGymId !== null &&
+        Number(merged.homeGymId) !== mg
+      ) {
+        throw new ForbiddenException(
+          'No puede asignar suscripciones a otra sucursal',
+        );
       }
       merged.homeGymId = mg;
     }
@@ -85,7 +111,10 @@ export class SubscriptionsService {
 
     if (mg !== null) {
       const exists = await this.subsRepo.exist({ where: { id } });
-      if (exists) throw new ForbiddenException('No tiene permisos para acceder a esta suscripción');
+      if (exists)
+        throw new ForbiddenException(
+          'No tiene permisos para acceder a esta suscripción',
+        );
     }
 
     throw new NotFoundException(`Suscripción ${id} no encontrada`);
@@ -94,8 +123,15 @@ export class SubscriptionsService {
   async updateSubscription(id: number, data: any) {
     const mg = this.managerGymId();
     const s = await this.findOneSubscription(id);
-    if (mg !== null && data?.homeGymId !== undefined && data?.homeGymId !== null && Number(data.homeGymId) !== mg) {
-      throw new ForbiddenException('No puede mover la suscripción a otra sucursal');
+    if (
+      mg !== null &&
+      data?.homeGymId !== undefined &&
+      data?.homeGymId !== null &&
+      Number(data.homeGymId) !== mg
+    ) {
+      throw new ForbiddenException(
+        'No puede mover la suscripción a otra sucursal',
+      );
     }
     Object.assign(s, data);
     return this.subsRepo.save(s);
@@ -107,6 +143,9 @@ export class SubscriptionsService {
 
   async findPaymentsBySubscription(subscriptionId: number) {
     await this.findOneSubscription(subscriptionId);
-    return this.paymentsRepo.find({ where: { subscriptionId }, order: { paymentDate: 'DESC' } });
+    return this.paymentsRepo.find({
+      where: { subscriptionId },
+      order: { paymentDate: 'DESC' },
+    });
   }
 }

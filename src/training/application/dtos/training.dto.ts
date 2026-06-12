@@ -1,4 +1,13 @@
-import { IsString, IsOptional, IsInt, IsBoolean, IsNumber, IsArray, IsObject, ValidateNested } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsInt,
+  IsBoolean,
+  IsNumber,
+  IsArray,
+  IsObject,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -15,15 +24,18 @@ export class CreateTrainingGoalsDto {
 
 export class CreateTrainingPreferencesDto {
   @ApiPropertyOptional({ example: ['Musculación', 'HIIT'] })
-  @IsOptional() @IsArray()
+  @IsOptional()
+  @IsArray()
   preferredTrainingTypes?: string[];
 
   @ApiPropertyOptional({ example: ['Pecho', 'Espalda'] })
-  @IsOptional() @IsArray()
+  @IsOptional()
+  @IsArray()
   priorityBodyAreas?: string[];
 
   @ApiPropertyOptional({ example: 5 })
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsInt()
   availableDaysPerWeek?: number;
 }
 
@@ -34,14 +46,21 @@ export class CreateTrainingProfileDto {
 
   @ApiPropertyOptional({
     type: CreateTrainingGoalsDto,
-    example: { primaryGoal: 'GANANCIA_MUSCULAR', experienceLevel: 'INTERMEDIO' },
+    example: {
+      primaryGoal: 'GANANCIA_MUSCULAR',
+      experienceLevel: 'INTERMEDIO',
+    },
   })
   @IsOptional()
   goals?: CreateTrainingGoalsDto;
 
   @ApiPropertyOptional({
     type: CreateTrainingPreferencesDto,
-    example: { preferredTrainingTypes: ['Musculación', 'HIIT'], priorityBodyAreas: ['Pecho', 'Espalda'], availableDaysPerWeek: 5 },
+    example: {
+      preferredTrainingTypes: ['Musculación', 'HIIT'],
+      priorityBodyAreas: ['Pecho', 'Espalda'],
+      availableDaysPerWeek: 5,
+    },
   })
   @IsOptional()
   preferences?: CreateTrainingPreferencesDto;
@@ -58,19 +77,23 @@ export class CreateRestrictionDto {
   restrictionType: string;
 
   @ApiPropertyOptional({ example: 'Hernia discal L4-L5' })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   description?: string;
 
   @ApiPropertyOptional({ example: ['Lumbar', 'Espalda baja'] })
-  @IsOptional() @IsArray()
+  @IsOptional()
+  @IsArray()
   affectedBodyAreas?: string[];
 
   @ApiPropertyOptional({ example: ['Peso muerto', 'Buenos días'] })
-  @IsOptional() @IsArray()
+  @IsOptional()
+  @IsArray()
   movementsToAvoid?: string[];
 
   @ApiPropertyOptional({ example: true })
-  @IsOptional() @IsBoolean()
+  @IsOptional()
+  @IsBoolean()
   requiresTrainerApproval?: boolean;
 }
 
@@ -93,14 +116,19 @@ export class CreateEmergencyContactDto {
   relation: string;
 
   @ApiPropertyOptional({ example: true })
-  @IsOptional() @IsBoolean()
+  @IsOptional()
+  @IsBoolean()
   isPrimary?: boolean;
 }
 
 // ── Workout Sessions ────────────────────────────────────
 export class CreateSessionDto {
-  @ApiPropertyOptional({ example: 1, description: 'ID de la rutina. Omitir para entrenamiento libre.' })
-  @IsOptional() @IsInt()
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'ID de la rutina. Omitir para entrenamiento libre.',
+  })
+  @IsOptional()
+  @IsInt()
   routineId?: number;
 
   @ApiProperty({ example: 1, description: 'ID del usuario' })
@@ -111,59 +139,102 @@ export class CreateSessionDto {
   @IsInt()
   gymId: number;
 
-  @ApiPropertyOptional({ example: 'MUSCULACION', description: 'MUSCULACION | CINTA | BICICLETA | NATACION | YOGA | OTRO' })
-  @IsOptional() @IsString()
+  @ApiPropertyOptional({
+    example: 'MUSCULACION',
+    description: 'MUSCULACION | CINTA | BICICLETA | NATACION | YOGA | OTRO',
+  })
+  @IsOptional()
+  @IsString()
   sportType?: string;
 
   @ApiPropertyOptional({ example: 'Sesión de prueba' })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   notes?: string;
 }
 
 export class UpdateSessionDto {
-  @ApiPropertyOptional({ example: 'COMPLETED', description: 'IN_PROGRESS | COMPLETED | CANCELLED' })
-  @IsOptional() @IsString()
+  @ApiPropertyOptional({
+    example: 'COMPLETED',
+    description: 'IN_PROGRESS | COMPLETED | CANCELLED',
+  })
+  @IsOptional()
+  @IsString()
   status?: string;
 
-  @ApiPropertyOptional({ example: 3720, description: 'Duración total en segundos' })
-  @IsOptional() @IsInt()
+  @ApiPropertyOptional({
+    example: 3720,
+    description: 'Duración total en segundos',
+  })
+  @IsOptional()
+  @IsInt()
   durationSeconds?: number;
 
-  @ApiPropertyOptional({ example: 420, description: 'Calorías quemadas estimadas' })
-  @IsOptional() @IsInt()
+  @ApiPropertyOptional({
+    example: 420,
+    description: 'Calorías quemadas estimadas',
+  })
+  @IsOptional()
+  @IsInt()
   caloriesBurned?: number;
 
   @ApiPropertyOptional({ example: 'Gran sesión, superé marcas' })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   notes?: string;
 }
 
 export class SaveCompletedSessionDto {
-  @ApiPropertyOptional({ example: 1, description: 'ID de la rutina. Omitir para entrenamiento libre.' })
-  @IsOptional() @IsInt()
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'ID de la rutina. Omitir para entrenamiento libre.',
+  })
+  @IsOptional()
+  @IsInt()
   routineId?: number;
 
-  @ApiPropertyOptional({ example: 1, description: 'ID del gimnasio. Si se omite, se resuelve desde la membresía activa del usuario.' })
-  @IsOptional() @IsInt()
+  @ApiPropertyOptional({
+    example: 1,
+    description:
+      'ID del gimnasio. Si se omite, se resuelve desde la membresía activa del usuario.',
+  })
+  @IsOptional()
+  @IsInt()
   gymId?: number;
 
-  @ApiPropertyOptional({ example: 'MUSCULACION', description: 'MUSCULACION | CINTA | BICICLETA | NATACION | YOGA | OTRO' })
-  @IsOptional() @IsString()
+  @ApiPropertyOptional({
+    example: 'MUSCULACION',
+    description: 'MUSCULACION | CINTA | BICICLETA | NATACION | YOGA | OTRO',
+  })
+  @IsOptional()
+  @IsString()
   sportType?: string;
 
-  @ApiPropertyOptional({ example: 3720, description: 'Duración total en segundos' })
-  @IsOptional() @IsInt()
+  @ApiPropertyOptional({
+    example: 3720,
+    description: 'Duración total en segundos',
+  })
+  @IsOptional()
+  @IsInt()
   durationSeconds?: number;
 
-  @ApiPropertyOptional({ example: 420, description: 'Calorías quemadas estimadas' })
-  @IsOptional() @IsInt()
+  @ApiPropertyOptional({
+    example: 420,
+    description: 'Calorías quemadas estimadas',
+  })
+  @IsOptional()
+  @IsInt()
   caloriesBurned?: number;
 
   @ApiPropertyOptional({ example: 'Gran sesión, superé marcas' })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   notes?: string;
 
-  @ApiPropertyOptional({ description: 'Series completadas durante el entrenamiento', type: () => [AddSetDto] })
+  @ApiPropertyOptional({
+    description: 'Series completadas durante el entrenamiento',
+    type: () => [AddSetDto],
+  })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
@@ -172,47 +243,83 @@ export class SaveCompletedSessionDto {
 }
 
 export class AddSetDto {
-  @ApiPropertyOptional({ example: 1, description: 'ID del routine_exercise. Omitir en entrenamientos libres.' })
-  @IsOptional() @IsInt()
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'ID del routine_exercise. Omitir en entrenamientos libres.',
+  })
+  @IsOptional()
+  @IsInt()
   routineExerciseId?: number;
 
-  @ApiPropertyOptional({ example: 5, description: 'ID del ejercicio del catálogo. Usar en entrenamientos libres.' })
-  @IsOptional() @IsInt()
+  @ApiPropertyOptional({
+    example: 5,
+    description:
+      'ID del ejercicio del catálogo. Usar en entrenamientos libres.',
+  })
+  @IsOptional()
+  @IsInt()
   exerciseId?: number;
 
-  @ApiPropertyOptional({ example: 'Press de Banca', description: 'Nombre del ejercicio (solo para compatibilidad con el frontend móvil, no se persiste explícitamente en la BD).' })
-  @IsOptional() @IsString()
+  @ApiPropertyOptional({
+    example: 'Press de Banca',
+    description:
+      'Nombre del ejercicio (solo para compatibilidad con el frontend móvil, no se persiste explícitamente en la BD).',
+  })
+  @IsOptional()
+  @IsString()
   exerciseName?: string;
 
   @ApiProperty({ example: 1 })
   @IsInt()
   setNumber: number;
 
-  @ApiPropertyOptional({ example: 10, description: 'Repeticiones completadas. Omitir en isométricos o cardio.' })
-  @IsOptional() @IsInt()
+  @ApiPropertyOptional({
+    example: 10,
+    description: 'Repeticiones completadas. Omitir en isométricos o cardio.',
+  })
+  @IsOptional()
+  @IsInt()
   repsCompleted?: number;
 
-  @ApiPropertyOptional({ example: 80.5, description: 'Peso en kg. Omitir en ejercicios sin carga.' })
-  @IsOptional() @IsNumber()
+  @ApiPropertyOptional({
+    example: 80.5,
+    description: 'Peso en kg. Omitir en ejercicios sin carga.',
+  })
+  @IsOptional()
+  @IsNumber()
   weightUsedKg?: number;
 
-  @ApiPropertyOptional({ example: 60, description: 'Duración en segundos. Para isométricos o cardio.' })
-  @IsOptional() @IsInt()
+  @ApiPropertyOptional({
+    example: 60,
+    description: 'Duración en segundos. Para isométricos o cardio.',
+  })
+  @IsOptional()
+  @IsInt()
   durationSeconds?: number;
 
-  @ApiPropertyOptional({ example: 500, description: 'Distancia en metros. Para cardio métrico.' })
-  @IsOptional() @IsInt()
+  @ApiPropertyOptional({
+    example: 500,
+    description: 'Distancia en metros. Para cardio métrico.',
+  })
+  @IsOptional()
+  @IsInt()
   distanceMeters?: number;
 
   @ApiPropertyOptional({ example: 90 })
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsInt()
   restTakenSeconds?: number;
 
   @ApiPropertyOptional({ example: 7, description: 'RPE 1-10' })
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsInt()
   ratingPerceivedExertion?: number;
 
-  @ApiPropertyOptional({ example: { asistidaMaquina: true, lastre: '5kg' }, description: 'Datos arbitrarios del set.' })
-  @IsOptional() @IsObject()
+  @ApiPropertyOptional({
+    example: { asistidaMaquina: true, lastre: '5kg' },
+    description: 'Datos arbitrarios del set.',
+  })
+  @IsOptional()
+  @IsObject()
   metadata?: Record<string, unknown>;
 }

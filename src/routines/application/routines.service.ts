@@ -1,16 +1,26 @@
-import { Inject, Injectable, ForbiddenException, NotFoundException, Scope } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+  Scope,
+} from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DeepPartial } from 'typeorm';
 import { Routine } from '../domain/routine.entity';
 import { RoutineExercise } from '../domain/routine-exercise.entity';
-import { getManagerGymId, type RequestWithUser } from '../../common/security/gym-scope';
+import {
+  getManagerGymId,
+  type RequestWithUser,
+} from '../../common/security/gym-scope';
 
 @Injectable({ scope: Scope.REQUEST })
 export class RoutinesService {
   constructor(
     @InjectRepository(Routine) private routinesRepo: Repository<Routine>,
-    @InjectRepository(RoutineExercise) private reRepo: Repository<RoutineExercise>,
+    @InjectRepository(RoutineExercise)
+    private reRepo: Repository<RoutineExercise>,
     @Inject(REQUEST) private readonly request: RequestWithUser,
   ) {}
 
@@ -24,15 +34,29 @@ export class RoutinesService {
     const routineEntity: DeepPartial<Routine> = { ...routineData };
 
     if (mg !== null) {
-      if (routineEntity.gymId !== undefined && routineEntity.gymId !== null && Number(routineEntity.gymId) !== mg) {
-        throw new ForbiddenException('No puede crear rutinas para otra sucursal');
+      if (
+        routineEntity.gymId !== undefined &&
+        routineEntity.gymId !== null &&
+        Number(routineEntity.gymId) !== mg
+      ) {
+        throw new ForbiddenException(
+          'No puede crear rutinas para otra sucursal',
+        );
       }
       routineEntity.gymId = mg;
     }
 
-    const routine = await this.routinesRepo.save(this.routinesRepo.create(routineEntity));
+    const routine = await this.routinesRepo.save(
+      this.routinesRepo.create(routineEntity),
+    );
     if (exercises?.length) {
-      const items = exercises.map((e: any, i: number) => this.reRepo.create({ ...e, routineId: routine.id, orderPosition: e.orderPosition ?? i } as DeepPartial<RoutineExercise>));
+      const items = exercises.map((e: any, i: number) =>
+        this.reRepo.create({
+          ...e,
+          routineId: routine.id,
+          orderPosition: e.orderPosition ?? i,
+        } as DeepPartial<RoutineExercise>),
+      );
       await this.reRepo.save(items);
     }
     return this.findOne(routine.id);
@@ -40,7 +64,8 @@ export class RoutinesService {
 
   findAll() {
     const mg = this.managerGymId();
-    const qb = this.routinesRepo.createQueryBuilder('routine')
+    const qb = this.routinesRepo
+      .createQueryBuilder('routine')
       .leftJoinAndSelect('routine.trainer', 'trainer')
       .leftJoinAndSelect('routine.assignedUser', 'assignedUser')
       .leftJoinAndSelect('routine.gym', 'gym')
@@ -57,7 +82,8 @@ export class RoutinesService {
 
   findByUser(userId: number) {
     const mg = this.managerGymId();
-    const qb = this.routinesRepo.createQueryBuilder('routine')
+    const qb = this.routinesRepo
+      .createQueryBuilder('routine')
       .leftJoinAndSelect('routine.exercises', 'exercises')
       .leftJoinAndSelect('exercises.exercise', 'exercise')
       .where('routine.assigned_user_id = :userId', { userId })
@@ -72,7 +98,8 @@ export class RoutinesService {
 
   findByTrainer(trainerId: number) {
     const mg = this.managerGymId();
-    const qb = this.routinesRepo.createQueryBuilder('routine')
+    const qb = this.routinesRepo
+      .createQueryBuilder('routine')
       .leftJoinAndSelect('routine.assignedUser', 'assignedUser')
       .leftJoinAndSelect('routine.exercises', 'exercises')
       .where('routine.trainer_id = :trainerId', { trainerId })
@@ -103,16 +130,17 @@ export class RoutinesService {
         return true;
       })
       .map((r) => ({
-        id:       r.assignedUser.id,
-        email:    r.assignedUser.email,
+        id: r.assignedUser.id,
+        email: r.assignedUser.email,
         isActive: r.assignedUser.isActive,
-        profile:  r.assignedUser.profile ?? null,
+        profile: r.assignedUser.profile ?? null,
       }));
   }
 
   async findOne(id: number) {
     const mg = this.managerGymId();
-    const qb = this.routinesRepo.createQueryBuilder('routine')
+    const qb = this.routinesRepo
+      .createQueryBuilder('routine')
       .leftJoinAndSelect('routine.trainer', 'trainer')
       .leftJoinAndSelect('routine.assignedUser', 'assignedUser')
       .leftJoinAndSelect('routine.gym', 'gym')
@@ -129,7 +157,10 @@ export class RoutinesService {
 
     if (mg !== null) {
       const exists = await this.routinesRepo.exist({ where: { id } });
-      if (exists) throw new ForbiddenException('No tiene permisos para acceder a esta rutina');
+      if (exists)
+        throw new ForbiddenException(
+          'No tiene permisos para acceder a esta rutina',
+        );
     }
 
     throw new NotFoundException(`Rutina ${id} no encontrada`);
@@ -138,18 +169,29 @@ export class RoutinesService {
   async update(id: number, data: any) {
     const r = await this.findOne(id);
     const mg = this.managerGymId();
-    
+
     const { exercises, ...rData } = data;
-    if (mg !== null && rData.gymId !== undefined && rData.gymId !== null && Number(rData.gymId) !== mg) {
+    if (
+      mg !== null &&
+      rData.gymId !== undefined &&
+      rData.gymId !== null &&
+      Number(rData.gymId) !== mg
+    ) {
       throw new ForbiddenException('No puede mover la rutina a otra sucursal');
     }
 
     Object.assign(r, rData);
     await this.routinesRepo.save(r);
-    
+
     if (exercises) {
       await this.reRepo.delete({ routineId: id });
-      const items = exercises.map((e: any, i: number) => this.reRepo.create({ ...e, routineId: id, orderPosition: e.orderPosition ?? i }));
+      const items = exercises.map((e: any, i: number) =>
+        this.reRepo.create({
+          ...e,
+          routineId: id,
+          orderPosition: e.orderPosition ?? i,
+        }),
+      );
       await this.reRepo.save(items);
     }
     return this.findOne(id);
@@ -158,7 +200,7 @@ export class RoutinesService {
   async remove(id: number) {
     await this.findOne(id);
     const r = await this.routinesRepo.delete(id);
-    if (r.affected === 0) throw new NotFoundException(`Rutina ${id} no encontrada`);
+    if (r.affected === 0)
+      throw new NotFoundException(`Rutina ${id} no encontrada`);
   }
 }
-

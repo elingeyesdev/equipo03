@@ -76,42 +76,60 @@ export const AppDataSource = new DataSource({
   // 🔥 LISTA COMPLETA DE ENTIDADES (33 en total)
   entities: [
     // Roles & Permisos (4)
-    Role, Permission, RolePermission, UserRole,
+    Role,
+    Permission,
+    RolePermission,
+    UserRole,
 
     // Usuarios (2)
-    User, UserProfile,
+    User,
+    UserProfile,
 
     // Gimnasios (3)
-    Gym, GymLocation, GymSchedule,
+    Gym,
+    GymLocation,
+    GymSchedule,
 
     // Suscripciones (3)
-    SubscriptionPlan, UserSubscription, SubscriptionPayment,
+    SubscriptionPlan,
+    UserSubscription,
+    SubscriptionPayment,
 
     // Ejercicios (1)
     ExerciseCatalog,
 
     // Actividades (3)
-    GymActivity, GymActivitySchedule, GymActivityAttendance,
+    GymActivity,
+    GymActivitySchedule,
+    GymActivityAttendance,
 
     // Reservas & Waitlist (2)
-    Reservation, WaitlistEntry,
+    Reservation,
+    WaitlistEntry,
 
     // Check-ins (1)
     CheckIn,
 
     // Rutinas (2)
-    Routine, RoutineExercise,
+    Routine,
+    RoutineExercise,
 
     // Entrenamiento (7)
-    UserTraining, UserTrainingGoals, UserTrainingPreferences,
-    UserTrainingRestriction, EmergencyContact,
-    WorkoutSession, WorkoutSet,
+    UserTraining,
+    UserTrainingGoals,
+    UserTrainingPreferences,
+    UserTrainingRestriction,
+    EmergencyContact,
+    WorkoutSession,
+    WorkoutSet,
 
     // Métricas (1)
     PhysicalMetricsHistory,
 
     // Notificaciones (3)
-    NotificationTemplate, Notification, UserNotificationPreference,
+    NotificationTemplate,
+    Notification,
+    UserNotificationPreference,
 
     // Sistema (1)
     SystemSetting,

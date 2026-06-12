@@ -6,19 +6,31 @@ export class CreateSettingDto {
   @IsString()
   settingKey: string;
 
-  @ApiProperty({ example: { value: 3, description: 'Máximo de check-ins por día por usuario' } })
+  @ApiProperty({
+    example: {
+      value: 3,
+      description: 'Máximo de check-ins por día por usuario',
+    },
+  })
   settingValue: any;
 
   @ApiPropertyOptional({ example: 'system' })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   category?: string;
 }
 
 export class UpdateSettingDto {
-  @ApiProperty({ example: { value: 5, description: 'Actualizado a 5 check-ins' } })
+  @ApiProperty({
+    example: { value: 5, description: 'Actualizado a 5 check-ins' },
+  })
   settingValue: any;
 
-  @ApiPropertyOptional({ example: 1, description: 'ID del usuario que actualiza' })
-  @IsOptional() @IsInt()
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'ID del usuario que actualiza',
+  })
+  @IsOptional()
+  @IsInt()
   updatedBy?: number;
 }

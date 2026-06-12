@@ -1,5 +1,10 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { User } from '../../users/domain/user.entity';
 import { NotificationTemplate } from './notification-template.entity';
@@ -7,35 +12,38 @@ import { NotificationTemplate } from './notification-template.entity';
 @Entity('notifications')
 export class Notification {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column({ type: 'integer', name: 'user_id' })
-  userId: number;
+  userId!: number;
 
   @Column({ type: 'integer', name: 'template_id', nullable: true })
-  templateId: number;
+  templateId!: number;
 
   @Column({ type: 'varchar', length: 255 })
-  title: string;
+  title!: string;
 
   @Column({ type: 'text' })
-  body: string;
+  body!: string;
 
   @CreateDateColumn({ name: 'sent_at' })
-  sentAt: Date;
+  sentAt!: Date;
 
   @Column({ type: 'timestamp', name: 'read_at', nullable: true })
-  readAt: Date;
+  readAt!: Date;
 
   @Column({ type: 'varchar', length: 20, default: 'SENT' })
-  status: string;
+  status!: string;
 
   // ── Relations ─────────────────────────────────────
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
-  user: User;
+  user!: User;
 
-  @ManyToOne(() => NotificationTemplate, { nullable: true, onDelete: 'SET NULL' })
+  @ManyToOne(() => NotificationTemplate, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
   @JoinColumn({ name: 'template_id' })
-  template: NotificationTemplate;
+  template!: NotificationTemplate;
 }

@@ -1,14 +1,24 @@
-import { Inject, Injectable, ForbiddenException, NotFoundException, Scope } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+  Scope,
+} from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PhysicalMetricsHistory } from '../domain/physical-metrics-history.entity';
-import { getManagerGymId, type RequestWithUser } from '../../common/security/gym-scope';
+import {
+  getManagerGymId,
+  type RequestWithUser,
+} from '../../common/security/gym-scope';
 
 @Injectable({ scope: Scope.REQUEST })
 export class MetricsService {
   constructor(
-    @InjectRepository(PhysicalMetricsHistory) private repo: Repository<PhysicalMetricsHistory>,
+    @InjectRepository(PhysicalMetricsHistory)
+    private repo: Repository<PhysicalMetricsHistory>,
     @Inject(REQUEST) private readonly request: RequestWithUser,
   ) {}
 
@@ -19,8 +29,15 @@ export class MetricsService {
   create(data: Partial<PhysicalMetricsHistory>) {
     const mg = this.managerGymId();
     const merged = { ...data };
-    if (mg !== null && merged.gymId !== undefined && merged.gymId !== null && Number(merged.gymId) !== mg) {
-      throw new ForbiddenException('No puede registrar métricas para otra sucursal');
+    if (
+      mg !== null &&
+      merged.gymId !== undefined &&
+      merged.gymId !== null &&
+      Number(merged.gymId) !== mg
+    ) {
+      throw new ForbiddenException(
+        'No puede registrar métricas para otra sucursal',
+      );
     }
     if (mg !== null && (merged.gymId === undefined || merged.gymId === null)) {
       merged.gymId = mg;
@@ -69,7 +86,8 @@ export class MetricsService {
     }
 
     const m = await qb.getOne();
-    if (!m) throw new NotFoundException(`No hay métricas para usuario ${userId}`);
+    if (!m)
+      throw new NotFoundException(`No hay métricas para usuario ${userId}`);
     return m;
   }
 
@@ -91,7 +109,10 @@ export class MetricsService {
 
     if (mg !== null) {
       const exists = await this.repo.exist({ where: { id } });
-      if (exists) throw new ForbiddenException('No tiene permisos para acceder a esta medición');
+      if (exists)
+        throw new ForbiddenException(
+          'No tiene permisos para acceder a esta medición',
+        );
     }
 
     throw new NotFoundException(`Métrica ${id} no encontrada`);
@@ -100,6 +121,7 @@ export class MetricsService {
   async remove(id: number) {
     await this.findOne(id);
     const r = await this.repo.delete(id);
-    if (r.affected === 0) throw new NotFoundException(`Métrica ${id} no encontrada`);
+    if (r.affected === 0)
+      throw new NotFoundException(`Métrica ${id} no encontrada`);
   }
 }

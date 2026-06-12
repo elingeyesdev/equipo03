@@ -12,7 +12,18 @@ import { TrainingService } from './application/training.service';
 import { TrainingController } from './infrastructure/training.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserTraining, UserTrainingGoals, UserTrainingPreferences, UserTrainingRestriction, EmergencyContact, WorkoutSession, WorkoutSet, UserSubscription])],
+  imports: [
+    TypeOrmModule.forFeature([
+      UserTraining,
+      UserTrainingGoals,
+      UserTrainingPreferences,
+      UserTrainingRestriction,
+      EmergencyContact,
+      WorkoutSession,
+      WorkoutSet,
+      UserSubscription,
+    ]),
+  ],
   controllers: [TrainingController],
   providers: [TrainingService],
   exports: [TrainingService],

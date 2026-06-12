@@ -41,18 +41,22 @@ export class ActivitiesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPER_ADMIN', 'GERENTE')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Crear actividad (SUPER_ADMIN: global; GERENTE: su sede)' })
+  @ApiOperation({
+    summary: 'Crear actividad (SUPER_ADMIN: global; GERENTE: su sede)',
+  })
   @ApiBody({ type: CreateActivityDto })
   @ApiResponse({ status: 201, description: 'Actividad creada' })
   @ApiResponse({ status: 403, description: 'Rol sin permiso o sede ajena' })
   create(@Body() body: CreateActivityDto) {
-    return this.svc.createActivity(body as any);
+    return this.svc.createActivity(body);
   }
 
   @Get()
   @ApiOperation({ summary: 'Listar actividades (incluye schedules por sede)' })
   findAll(@Query('gymId') gymId?: string) {
-    return this.svc.findAllActivities(gymId !== undefined ? Number(gymId) : undefined);
+    return this.svc.findAllActivities(
+      gymId !== undefined ? Number(gymId) : undefined,
+    );
   }
 
   @Get(':id')
@@ -65,20 +69,27 @@ export class ActivitiesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPER_ADMIN', 'GERENTE')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Actualizar actividad (SUPER_ADMIN: global; GERENTE: su sede)' })
+  @ApiOperation({
+    summary: 'Actualizar actividad (SUPER_ADMIN: global; GERENTE: su sede)',
+  })
   @ApiBody({ type: UpdateActivityDto })
   @ApiResponse({ status: 200, description: 'Actividad actualizada' })
   @ApiResponse({ status: 403, description: 'Rol sin permiso o sede ajena' })
   @ApiResponse({ status: 404, description: 'Actividad no encontrada' })
-  update(@Param('id', ParseIntPipe) id: number, @Body() body: UpdateActivityDto) {
-    return this.svc.updateActivity(id, body as any);
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: UpdateActivityDto,
+  ) {
+    return this.svc.updateActivity(id, body);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPER_ADMIN', 'GERENTE')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Desactivar actividad (SUPER_ADMIN: global; GERENTE: su sede)' })
+  @ApiOperation({
+    summary: 'Desactivar actividad (SUPER_ADMIN: global; GERENTE: su sede)',
+  })
   @ApiResponse({ status: 200, description: 'Actividad desactivada' })
   @ApiResponse({ status: 403, description: 'Rol sin permiso o sede ajena' })
   @ApiResponse({ status: 404, description: 'Actividad no encontrada' })
@@ -96,8 +107,14 @@ export class ActivitiesController {
   @ApiBody({ type: CreateActivityScheduleDto })
   @ApiResponse({ status: 201, description: 'Horario creado exitosamente' })
   @ApiResponse({ status: 400, description: 'Datos inválidos' })
-  @ApiResponse({ status: 403, description: 'Sin permisos o instructor no válido' })
-  @ApiResponse({ status: 409, description: 'Conflicto de horario u horario fuera de apertura de la sede' })
+  @ApiResponse({
+    status: 403,
+    description: 'Sin permisos o instructor no válido',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Conflicto de horario u horario fuera de apertura de la sede',
+  })
   createSchedule(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: CreateActivityScheduleDto,

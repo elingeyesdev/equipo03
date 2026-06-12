@@ -1,5 +1,12 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, OneToOne, OneToMany, ManyToOne, JoinColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  OneToOne,
+  OneToMany,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { GymLocation } from './gym-location.entity';
 import { GymSchedule } from './gym-schedule.entity';

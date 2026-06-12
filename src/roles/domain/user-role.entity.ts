@@ -1,5 +1,10 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { User } from '../../users/domain/user.entity';
 import { Role } from './role.entity';
@@ -8,40 +13,40 @@ import { Gym } from '../../gyms/domain/gym.entity';
 @Entity('user_roles')
 export class UserRole {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column({ type: 'integer', name: 'user_id' })
-  userId: number;
+  userId!: number;
 
   @Column({ type: 'integer', name: 'role_id' })
-  roleId: number;
+  roleId!: number;
 
   @Column({ type: 'integer', name: 'gym_id', nullable: true })
-  gymId: number;
+  gymId!: number;
 
   @CreateDateColumn({ name: 'assigned_at' })
-  assignedAt: Date;
+  assignedAt!: Date;
 
   @Column({ type: 'integer', name: 'assigned_by', nullable: true })
-  assignedBy: number;
+  assignedBy!: number;
 
   @Column({ type: 'timestamp', name: 'expires_at', nullable: true })
-  expiresAt: Date;
+  expiresAt!: Date;
 
   // ── Relations ─────────────────────────────────────
   @ManyToOne(() => User, (u) => u.userRoles, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
-  user: User;
+  user!: User;
 
   @ManyToOne(() => Role, (r) => r.userRoles, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'role_id' })
-  role: Role;
+  role!: Role;
 
   @ManyToOne(() => Gym, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'gym_id' })
-  gym: Gym;
+  gym!: Gym;
 
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'assigned_by' })
-  assignedByUser: User;
+  assignedByUser!: User;
 }

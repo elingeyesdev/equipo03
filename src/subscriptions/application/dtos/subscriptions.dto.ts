@@ -1,4 +1,10 @@
-import { IsString, IsOptional, IsInt, IsNumber, IsBoolean, IsArray } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsInt,
+  IsNumber,
+  IsBoolean,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreatePlanDto {
@@ -6,11 +12,14 @@ export class CreatePlanDto {
   @IsString()
   name: string;
 
-  @ApiPropertyOptional({ example: 'Acceso total, clases grupales, locker premium' })
-  @IsOptional() @IsString()
+  @ApiPropertyOptional({
+    example: 'Acceso total, clases grupales, locker premium',
+  })
+  @IsOptional()
+  @IsString()
   description?: string;
 
-  @ApiProperty({ example: 350.00, description: 'Precio en moneda local' })
+  @ApiProperty({ example: 350.0, description: 'Precio en moneda local' })
   @IsNumber()
   price: number;
 
@@ -18,7 +27,9 @@ export class CreatePlanDto {
   @IsInt()
   durationDays: number;
 
-  @ApiPropertyOptional({ example: { clases_grupales: true, locker: true, sauna: false } })
+  @ApiPropertyOptional({
+    example: { clases_grupales: true, locker: true, sauna: false },
+  })
   @IsOptional()
   features?: any;
 }
@@ -33,7 +44,8 @@ export class CreateSubscriptionDto {
   planId: number;
 
   @ApiPropertyOptional({ example: 1, description: 'ID del gimnasio sede' })
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsInt()
   homeGymId?: number;
 
   @ApiProperty({ example: '2026-05-01' })
@@ -44,39 +56,51 @@ export class CreateSubscriptionDto {
   @IsString()
   endDate: string;
 
-  @ApiPropertyOptional({ example: 'ACTIVE', description: 'ACTIVE | EXPIRED | FROZEN | CANCELLED' })
-  @IsOptional() @IsString()
+  @ApiPropertyOptional({
+    example: 'ACTIVE',
+    description: 'ACTIVE | EXPIRED | FROZEN | CANCELLED',
+  })
+  @IsOptional()
+  @IsString()
   status?: string;
 }
 
 export class UpdateSubscriptionDto {
   @ApiPropertyOptional({ example: 'FROZEN' })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   status?: string;
 
   @ApiPropertyOptional({ example: '2026-06-30' })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   endDate?: string;
 
   @ApiPropertyOptional({ example: true })
-  @IsOptional() @IsBoolean()
+  @IsOptional()
+  @IsBoolean()
   autoRenew?: boolean;
 }
 
 export class CreatePaymentDto {
-  @ApiProperty({ example: 350.00 })
+  @ApiProperty({ example: 350.0 })
   @IsNumber()
   amount: number;
 
   @ApiPropertyOptional({ example: 'BOB', description: 'Moneda' })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   currency?: string;
 
-  @ApiProperty({ example: 'TRANSFERENCIA', description: 'EFECTIVO | TRANSFERENCIA | QR | TARJETA' })
+  @ApiProperty({
+    example: 'TRANSFERENCIA',
+    description: 'EFECTIVO | TRANSFERENCIA | QR | TARJETA',
+  })
   @IsString()
   paymentMethod: string;
 
   @ApiPropertyOptional({ example: 'REF-2026-001' })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   transactionReference?: string;
 }

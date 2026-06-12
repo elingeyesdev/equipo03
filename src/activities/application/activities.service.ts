@@ -15,7 +15,10 @@ import { GymActivitySchedule } from '../domain/gym-activity-schedule.entity';
 import { GymActivityAttendance } from '../domain/gym-activity-attendance.entity';
 import { User } from '../../users/domain/user.entity';
 import { GymSchedule } from '../../gyms/domain/gym-schedule.entity';
-import { getManagerGymId, type RequestWithUser } from '../../common/security/gym-scope';
+import {
+  getManagerGymId,
+  type RequestWithUser,
+} from '../../common/security/gym-scope';
 import {
   aliasesForCanonicalDay,
   CreateActivityScheduleDto,
@@ -34,10 +37,13 @@ function toHHmm(time: string): string {
 export class ActivitiesService {
   constructor(
     @InjectRepository(GymActivity) private actRepo: Repository<GymActivity>,
-    @InjectRepository(GymActivitySchedule) private schedRepo: Repository<GymActivitySchedule>,
-    @InjectRepository(GymActivityAttendance) private attRepo: Repository<GymActivityAttendance>,
+    @InjectRepository(GymActivitySchedule)
+    private schedRepo: Repository<GymActivitySchedule>,
+    @InjectRepository(GymActivityAttendance)
+    private attRepo: Repository<GymActivityAttendance>,
     @InjectRepository(User) private userRepo: Repository<User>,
-    @InjectRepository(GymSchedule) private gymScheduleRepo: Repository<GymSchedule>,
+    @InjectRepository(GymSchedule)
+    private gymScheduleRepo: Repository<GymSchedule>,
     @Inject(REQUEST) private readonly request: RequestWithUser,
   ) {}
 
@@ -45,10 +51,19 @@ export class ActivitiesService {
     return getManagerGymId(this.request);
   }
 
-  private resolveListGymFilter(managerGymId: number | null, requestedGymId?: number): number | undefined | null {
+  private resolveListGymFilter(
+    managerGymId: number | null,
+    requestedGymId?: number,
+  ): number | undefined | null {
     if (managerGymId === null) return requestedGymId ?? undefined;
-    if (requestedGymId !== undefined && requestedGymId !== null && Number(requestedGymId) !== managerGymId) {
-      throw new ForbiddenException('No tiene permisos para consultar otra sucursal');
+    if (
+      requestedGymId !== undefined &&
+      requestedGymId !== null &&
+      Number(requestedGymId) !== managerGymId
+    ) {
+      throw new ForbiddenException(
+        'No tiene permisos para consultar otra sucursal',
+      );
     }
     return managerGymId;
   }
@@ -79,12 +94,12 @@ export class ActivitiesService {
 
   async deleteActivity(id: number) {
     await this.assertActivityInManagerScope(id);
-    await this.actRepo.update(id, { isActive: false } as Partial<GymActivity>);
+    await this.actRepo.update(id, { isActive: false });
     return { message: `Actividad ${id} desactivada` };
   }
 
   findAllActivities(gymId?: number) {
-    const mg        = this.managerGymId();
+    const mg = this.managerGymId();
     const effective = this.resolveListGymFilter(
       mg,
       gymId === undefined ? undefined : Number(gymId),
@@ -94,10 +109,10 @@ export class ActivitiesService {
     // WHERE usa nombre de PROPIEDAD TypeORM (isActive), no columna (is_active)
     const qb = this.actRepo
       .createQueryBuilder('activity')
-      .leftJoinAndSelect('activity.gym',              'actGym')
-      .leftJoinAndSelect('activity.schedules',        'sched')
-      .leftJoinAndSelect('sched.instructor',          'schedInstructor')
-      .leftJoinAndSelect('schedInstructor.profile',   'schedInstructorProfile')
+      .leftJoinAndSelect('activity.gym', 'actGym')
+      .leftJoinAndSelect('activity.schedules', 'sched')
+      .leftJoinAndSelect('sched.instructor', 'schedInstructor')
+      .leftJoinAndSelect('schedInstructor.profile', 'schedInstructorProfile')
       .where('activity.isActive = :active', { active: true });
 
     if (effective !== undefined && effective !== null) {
@@ -127,30 +142,42 @@ export class ActivitiesService {
     });
     if (!a) throw new NotFoundException(`Actividad ${id} no encontrada`);
     if (mg !== null && Number(a.gymId) !== mg) {
-      throw new ForbiddenException('No tiene permisos para acceder a esta actividad');
+      throw new ForbiddenException(
+        'No tiene permisos para acceder a esta actividad',
+      );
     }
     return a;
   }
 
-  private async assertActivityInManagerScope(gymActivityId: number): Promise<GymActivity> {
+  private async assertActivityInManagerScope(
+    gymActivityId: number,
+  ): Promise<GymActivity> {
     const mg = this.managerGymId();
     const a = await this.actRepo.findOne({ where: { id: gymActivityId } });
-    if (!a) throw new NotFoundException(`Actividad ${gymActivityId} no encontrada`);
+    if (!a)
+      throw new NotFoundException(`Actividad ${gymActivityId} no encontrada`);
     if (mg !== null && Number(a.gymId) !== mg) {
-      throw new ForbiddenException('No tiene permisos para gestionar esta actividad');
+      throw new ForbiddenException(
+        'No tiene permisos para gestionar esta actividad',
+      );
     }
     return a;
   }
 
-  private async assertScheduleInManagerScope(scheduleId: number): Promise<GymActivitySchedule> {
+  private async assertScheduleInManagerScope(
+    scheduleId: number,
+  ): Promise<GymActivitySchedule> {
     const mg = this.managerGymId();
     const s = await this.schedRepo.findOne({
       where: { id: scheduleId },
       relations: ['gymActivity'],
     });
-    if (!s?.gymActivity) throw new NotFoundException(`Horario ${scheduleId} no encontrado`);
+    if (!s?.gymActivity)
+      throw new NotFoundException(`Horario ${scheduleId} no encontrado`);
     if (mg !== null && Number(s.gymActivity.gymId) !== mg) {
-      throw new ForbiddenException('No tiene permisos para gestionar este horario');
+      throw new ForbiddenException(
+        'No tiene permisos para gestionar este horario',
+      );
     }
     return s;
   }
@@ -159,7 +186,10 @@ export class ActivitiesService {
    * Crea un horario para una actividad: valida instructor con rol permitido,
    * solapamiento de instructor en mismo día/hora y (si hay filas) horario del gimnasio.
    */
-  async createSchedule(activityId: number, dto: CreateActivityScheduleDto): Promise<GymActivitySchedule> {
+  async createSchedule(
+    activityId: number,
+    dto: CreateActivityScheduleDto,
+  ): Promise<GymActivitySchedule> {
     const activity = await this.assertActivityInManagerScope(activityId);
     if (!activity.isActive) {
       throw new BadRequestException('La actividad no está activa');
@@ -167,20 +197,31 @@ export class ActivitiesService {
 
     await this.assertInstructorEligible(dto.instructorId);
 
-    const dayVariants = aliasesForCanonicalDay(dto.dayOfWeek as DayOfWeek);
+    const dayVariants = aliasesForCanonicalDay(dto.dayOfWeek);
     const overlapCount = await this.schedRepo
       .createQueryBuilder('sched')
       .where('sched.instructor_id = :iid', { iid: dto.instructorId })
       .andWhere('sched.day_of_week IN (:...days)', { days: dayVariants })
-      .andWhere('sched.start_time < CAST(:newEnd AS time)', { newEnd: dto.endTime })
-      .andWhere('sched.end_time > CAST(:newStart AS time)', { newStart: dto.startTime })
+      .andWhere('sched.start_time < CAST(:newEnd AS time)', {
+        newEnd: dto.endTime,
+      })
+      .andWhere('sched.end_time > CAST(:newStart AS time)', {
+        newStart: dto.startTime,
+      })
       .getCount();
 
     if (overlapCount > 0) {
-      throw new ConflictException('El instructor ya tiene una clase en este horario');
+      throw new ConflictException(
+        'El instructor ya tiene una clase en este horario',
+      );
     }
 
-    await this.assertWithinGymOpeningHours(activity.gymId, dto.dayOfWeek, dto.startTime, dto.endTime);
+    await this.assertWithinGymOpeningHours(
+      activity.gymId,
+      dto.dayOfWeek,
+      dto.startTime,
+      dto.endTime,
+    );
 
     const entity = this.schedRepo.create({
       gymActivityId: activityId,
@@ -200,7 +241,9 @@ export class ActivitiesService {
       relations: ['userRoles', 'userRoles.role'],
     });
     if (!user) {
-      throw new NotFoundException(`Usuario instructor ${instructorId} no encontrado`);
+      throw new NotFoundException(
+        `Usuario instructor ${instructorId} no encontrado`,
+      );
     }
     if (!user.isActive) {
       throw new ForbiddenException('El instructor indicado no está activo');
@@ -209,7 +252,9 @@ export class ActivitiesService {
       INSTRUCTOR_ROLE_NAMES.has(String(ur.role?.name ?? '').toUpperCase()),
     );
     if (!ok) {
-      throw new ForbiddenException('El usuario indicado no tiene rol de instructor');
+      throw new ForbiddenException(
+        'El usuario indicado no tiene rol de instructor',
+      );
     }
   }
 
@@ -227,7 +272,9 @@ export class ActivitiesService {
         isHoliday: false,
       },
     });
-    const sameDay = slots.filter((s) => dayVariants.includes(String(s.dayOfWeek).toUpperCase()));
+    const sameDay = slots.filter((s) =>
+      dayVariants.includes(String(s.dayOfWeek).toUpperCase()),
+    );
     if (sameDay.length === 0) {
       return;
     }
@@ -235,8 +282,8 @@ export class ActivitiesService {
     const start = toHHmm(startTime);
     const end = toHHmm(endTime);
     const covered = sameDay.some((row) => {
-      const open = toHHmm(row.opensAt as unknown as string);
-      const close = toHHmm(row.closesAt as unknown as string);
+      const open = toHHmm(row.opensAt);
+      const close = toHHmm(row.closesAt);
       return open <= start && close >= end;
     });
 
@@ -249,7 +296,10 @@ export class ActivitiesService {
 
   async findSchedulesByActivity(gymActivityId: number) {
     await this.assertActivityInManagerScope(gymActivityId);
-    return this.schedRepo.find({ where: { gymActivityId }, relations: ['instructor'] });
+    return this.schedRepo.find({
+      where: { gymActivityId },
+      relations: ['instructor'],
+    });
   }
 
   async deleteSchedule(scheduleId: number): Promise<{ message: string }> {
@@ -260,13 +310,18 @@ export class ActivitiesService {
 
   async registerAttendance(data: Partial<GymActivityAttendance>) {
     if (data.gymActivityScheduleId != null) {
-      await this.assertScheduleInManagerScope(Number(data.gymActivityScheduleId));
+      await this.assertScheduleInManagerScope(
+        Number(data.gymActivityScheduleId),
+      );
     }
     return this.attRepo.save(this.attRepo.create(data));
   }
 
   async findAttendances(gymActivityScheduleId: number) {
     await this.assertScheduleInManagerScope(gymActivityScheduleId);
-    return this.attRepo.find({ where: { gymActivityScheduleId }, relations: ['user'] });
+    return this.attRepo.find({
+      where: { gymActivityScheduleId },
+      relations: ['user'],
+    });
   }
 }

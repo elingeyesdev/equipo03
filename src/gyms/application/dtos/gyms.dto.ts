@@ -1,4 +1,13 @@
-import { IsString, IsOptional, IsInt, IsBoolean, IsNumber, IsArray, ValidateNested, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsInt,
+  IsBoolean,
+  IsNumber,
+  IsArray,
+  ValidateNested,
+  Min,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
@@ -23,7 +32,11 @@ export class CreateGymLocationDto {
 }
 
 export class CreateGymScheduleDto {
-  @ApiProperty({ example: 'LUNES', description: 'LUNES | MARTES | MIERCOLES | JUEVES | VIERNES | SABADO | DOMINGO' })
+  @ApiProperty({
+    example: 'LUNES',
+    description:
+      'LUNES | MARTES | MIERCOLES | JUEVES | VIERNES | SABADO | DOMINGO',
+  })
   @IsString()
   dayOfWeek: string;
 
@@ -48,16 +61,26 @@ export class CreateGymDto {
   @IsString()
   name: string;
 
-  @ApiPropertyOptional({ example: 'Gimnasio premium con área de CrossFit, piscina y spa en el centro de Santa Cruz' })
+  @ApiPropertyOptional({
+    example:
+      'Gimnasio premium con área de CrossFit, piscina y spa en el centro de Santa Cruz',
+  })
   @IsOptional()
   @IsString()
   description?: string;
 
-  @ApiProperty({ example: 150, description: 'Capacidad máxima de personas simultáneas' })
+  @ApiProperty({
+    example: 150,
+    description: 'Capacidad máxima de personas simultáneas',
+  })
   @IsInt()
   maxCapacity: number;
 
-  @ApiPropertyOptional({ example: 1, description: 'ID de la sede o marca principal a la que pertenece esta sucursal' })
+  @ApiPropertyOptional({
+    example: 1,
+    description:
+      'ID de la sede o marca principal a la que pertenece esta sucursal',
+  })
   @IsOptional()
   @IsInt()
   parentId?: number;
@@ -97,7 +120,9 @@ export class UpdateGymDto {
   @IsString()
   name?: string;
 
-  @ApiPropertyOptional({ example: 'Nueva descripción actualizada del gimnasio' })
+  @ApiPropertyOptional({
+    example: 'Nueva descripción actualizada del gimnasio',
+  })
   @IsOptional()
   @IsString()
   description?: string;
@@ -107,17 +132,27 @@ export class UpdateGymDto {
   @IsInt()
   maxCapacity?: number;
 
-  @ApiPropertyOptional({ example: 1, description: 'ID de la sede o marca principal' })
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'ID de la sede o marca principal',
+  })
   @IsOptional()
   @IsInt()
   parentId?: number;
 
-  @ApiPropertyOptional({ example: true, description: 'true = abierto, false = cerrado' })
+  @ApiPropertyOptional({
+    example: true,
+    description: 'true = abierto, false = cerrado',
+  })
   @IsOptional()
   @IsBoolean()
   isOpen?: boolean;
 
-  @ApiPropertyOptional({ example: 40, description: 'Cantidad de máquinas disponibles en la sucursal (solo sucursales, no marcas)' })
+  @ApiPropertyOptional({
+    example: 40,
+    description:
+      'Cantidad de máquinas disponibles en la sucursal (solo sucursales, no marcas)',
+  })
   @IsOptional()
   @IsInt()
   @Min(0)
@@ -154,12 +189,12 @@ export class UpdateGymLocationDto {
   @IsString()
   city?: string;
 
-  @ApiPropertyOptional({ example: -17.7650 })
+  @ApiPropertyOptional({ example: -17.765 })
   @IsOptional()
   @IsNumber()
   latitude?: number;
 
-  @ApiPropertyOptional({ example: -63.1950 })
+  @ApiPropertyOptional({ example: -63.195 })
   @IsOptional()
   @IsNumber()
   longitude?: number;

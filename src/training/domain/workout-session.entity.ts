@@ -1,5 +1,10 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, OneToMany,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  OneToMany,
 } from 'typeorm';
 import { Routine } from '../../routines/domain/routine.entity';
 import { User } from '../../users/domain/user.entity';
@@ -9,51 +14,51 @@ import { WorkoutSet } from './workout-set.entity';
 @Entity('workout_sessions')
 export class WorkoutSession {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column({ type: 'integer', name: 'routine_id', nullable: true })
-  routineId: number | null;
+  routineId!: number | null;
 
   @Column({ type: 'integer', name: 'user_id' })
-  userId: number;
+  userId!: number;
 
   @Column({ type: 'integer', name: 'gym_id', nullable: true })
-  gymId: number | null;
+  gymId!: number | null;
 
   @Column({ type: 'varchar', length: 50, name: 'sport_type', nullable: true })
-  sportType: string | null;
+  sportType!: string | null;
 
   @Column({ type: 'timestamp', name: 'started_at', default: () => 'now()' })
-  startedAt: Date;
+  startedAt!: Date;
 
   @Column({ type: 'timestamp', name: 'finished_at', nullable: true })
-  finishedAt: Date;
+  finishedAt!: Date;
 
   @Column({ type: 'varchar', length: 20, default: 'IN_PROGRESS' })
-  status: string;
+  status!: string;
 
   @Column({ type: 'integer', name: 'duration_seconds', nullable: true })
-  durationSeconds: number | null;
+  durationSeconds!: number | null;
 
   @Column({ type: 'integer', name: 'calories_burned', nullable: true })
-  caloriesBurned: number | null;
+  caloriesBurned!: number | null;
 
   @Column({ type: 'text', nullable: true })
-  notes: string;
+  notes!: string;
 
   // ── Relations ─────────────────────────────────────
   @ManyToOne(() => Routine, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'routine_id' })
-  routine: Routine | null;
+  routine!: Routine | null;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
-  user: User;
+  user!: User;
 
   @ManyToOne(() => Gym, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'gym_id' })
-  gym: Gym | null;
+  gym!: Gym | null;
 
   @OneToMany(() => WorkoutSet, (ws) => ws.session, { cascade: true })
-  sets: WorkoutSet[];
+  sets!: WorkoutSet[];
 }

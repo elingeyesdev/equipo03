@@ -1,5 +1,10 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn, Unique,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToOne,
+  JoinColumn,
+  Unique,
 } from 'typeorm';
 import { Gym } from './gym.entity';
 
@@ -7,25 +12,25 @@ import { Gym } from './gym.entity';
 @Entity('gym_location')
 export class GymLocation {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column({ type: 'integer', name: 'gym_id', unique: true })
-  gymId: number;
+  gymId!: number;
 
   @Column({ type: 'varchar', length: 255 })
-  address: string;
+  address!: string;
 
   @Column({ type: 'varchar', length: 100 })
-  city: string;
+  city!: string;
 
   @Column({ type: 'decimal', precision: 10, scale: 8 })
-  latitude: number;
+  latitude!: number;
 
   @Column({ type: 'decimal', precision: 11, scale: 8 })
-  longitude: number;
+  longitude!: number;
 
   // ── Relations ─────────────────────────────────────
   @OneToOne(() => Gym, (g) => g.location, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'gym_id' })
-  gym: Gym;
+  gym!: Gym;
 }

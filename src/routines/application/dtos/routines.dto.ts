@@ -1,4 +1,12 @@
-import { IsString, IsOptional, IsInt, IsBoolean, IsNumber, IsArray, ValidateNested } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsInt,
+  IsBoolean,
+  IsNumber,
+  IsArray,
+  ValidateNested,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
@@ -20,15 +28,18 @@ export class RoutineExerciseItemDto {
   repsRecommended: string;
 
   @ApiPropertyOptional({ example: 60.0 })
-  @IsOptional() @IsNumber()
+  @IsOptional()
+  @IsNumber()
   weightRecommendedKg?: number;
 
   @ApiPropertyOptional({ example: 90 })
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsInt()
   restSecondsBetweenSets?: number;
 
   @ApiPropertyOptional({ example: 'Controlar el negativo' })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   notes?: string;
 }
 
@@ -38,7 +49,8 @@ export class CreateRoutineDto {
   name: string;
 
   @ApiPropertyOptional({ example: 'Pecho, hombros y tríceps' })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   description?: string;
 
   @ApiProperty({ example: 1, description: 'ID del entrenador' })
@@ -46,11 +58,13 @@ export class CreateRoutineDto {
   trainerId: number;
 
   @ApiPropertyOptional({ example: 2, description: 'ID del usuario asignado' })
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsInt()
   assignedUserId?: number;
 
   @ApiPropertyOptional({ example: 1, description: 'ID del gimnasio' })
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsInt()
   gymId?: number;
 
   @ApiProperty({ example: 'INTERMEDIO' })
@@ -58,47 +72,80 @@ export class CreateRoutineDto {
   difficultyLevel: string;
 
   @ApiPropertyOptional({ example: 8 })
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsInt()
   durationWeeks?: number;
 
   @ApiPropertyOptional({ example: false })
-  @IsOptional() @IsBoolean()
+  @IsOptional()
+  @IsBoolean()
   isTemplate?: boolean;
 
   @ApiPropertyOptional({
     type: [RoutineExerciseItemDto],
     example: [
-      { exerciseId: 1, orderPosition: 0, setsRecommended: 4, repsRecommended: '8-12', weightRecommendedKg: 60, restSecondsBetweenSets: 90 },
-      { exerciseId: 2, orderPosition: 1, setsRecommended: 3, repsRecommended: '10-15', weightRecommendedKg: 40, restSecondsBetweenSets: 60 },
+      {
+        exerciseId: 1,
+        orderPosition: 0,
+        setsRecommended: 4,
+        repsRecommended: '8-12',
+        weightRecommendedKg: 60,
+        restSecondsBetweenSets: 90,
+      },
+      {
+        exerciseId: 2,
+        orderPosition: 1,
+        setsRecommended: 3,
+        repsRecommended: '10-15',
+        weightRecommendedKg: 40,
+        restSecondsBetweenSets: 60,
+      },
     ],
   })
-  @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => RoutineExerciseItemDto)
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => RoutineExerciseItemDto)
   exercises?: RoutineExerciseItemDto[];
 }
 
 export class UpdateRoutineDto {
   @ApiPropertyOptional({ example: 'Rutina Pull - Día B' })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   name?: string;
 
   @ApiPropertyOptional({ example: 'Espalda y bíceps' })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   description?: string;
 
   @ApiPropertyOptional({ example: 'AVANZADO' })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   difficultyLevel?: string;
 
   @ApiPropertyOptional({ example: false })
-  @IsOptional() @IsBoolean()
+  @IsOptional()
+  @IsBoolean()
   isActive?: boolean;
 
   @ApiPropertyOptional({
     type: [RoutineExerciseItemDto],
     example: [
-      { exerciseId: 3, orderPosition: 0, setsRecommended: 3, repsRecommended: '12', weightRecommendedKg: 50, restSecondsBetweenSets: 75 },
+      {
+        exerciseId: 3,
+        orderPosition: 0,
+        setsRecommended: 3,
+        repsRecommended: '12',
+        weightRecommendedKg: 50,
+        restSecondsBetweenSets: 75,
+      },
     ],
   })
-  @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => RoutineExerciseItemDto)
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => RoutineExerciseItemDto)
   exercises?: RoutineExerciseItemDto[];
 }

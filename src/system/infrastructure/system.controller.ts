@@ -1,10 +1,29 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, ParseIntPipe } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody, ApiResponse } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+  ParseIntPipe,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiBody,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { SystemService } from '../application/system.service';
-import { CreateSettingDto, UpdateSettingDto } from '../application/dtos/system.dto';
+import {
+  CreateSettingDto,
+  UpdateSettingDto,
+} from '../application/dtos/system.dto';
 
 @ApiTags('System')
 @Controller('system/settings')
@@ -18,15 +37,21 @@ export class SystemController {
   @Post()
   @ApiOperation({ summary: 'Crear configuración del sistema' })
   @ApiBody({ type: CreateSettingDto })
-  create(@Body() body: CreateSettingDto) { return this.svc.create(body); }
+  create(@Body() body: CreateSettingDto) {
+    return this.svc.create(body);
+  }
 
   @Get()
   @ApiOperation({ summary: 'Listar configuraciones' })
-  findAll() { return this.svc.findAll(); }
+  findAll() {
+    return this.svc.findAll();
+  }
 
   @Get(':key')
   @ApiOperation({ summary: 'Obtener configuración por clave' })
-  findByKey(@Param('key') key: string) { return this.svc.findByKey(key); }
+  findByKey(@Param('key') key: string) {
+    return this.svc.findByKey(key);
+  }
 
   @Put(':key')
   @ApiOperation({ summary: 'Actualizar configuración' })
@@ -37,5 +62,7 @@ export class SystemController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar configuración' })
-  remove(@Param('id', ParseIntPipe) id: number) { return this.svc.remove(id); }
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.svc.remove(id);
+  }
 }

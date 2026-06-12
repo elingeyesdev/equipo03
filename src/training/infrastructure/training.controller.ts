@@ -1,57 +1,128 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards, ParseIntPipe, ForbiddenException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody, ApiQuery } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  Req,
+  UseGuards,
+  ParseIntPipe,
+  ForbiddenException,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiBody,
+  ApiQuery,
+} from '@nestjs/swagger';
 import type { RequestWithUser } from '../../common/security/gym-scope';
 import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
 import { TrainingService } from '../application/training.service';
 import {
-  CreateTrainingProfileDto, CreateRestrictionDto, CreateEmergencyContactDto,
-  CreateSessionDto, UpdateSessionDto, AddSetDto, SaveCompletedSessionDto,
+  CreateTrainingProfileDto,
+  CreateRestrictionDto,
+  CreateEmergencyContactDto,
+  CreateSessionDto,
+  UpdateSessionDto,
+  AddSetDto,
+  SaveCompletedSessionDto,
 } from '../application/dtos/training.dto';
 
 @ApiTags('Training')
 @Controller('training')
-@UseGuards(JwtAuthGuard) @ApiBearerAuth('access-token')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth('access-token')
 export class TrainingController {
   constructor(private readonly svc: TrainingService) {}
 
-  @Post('profile') @ApiOperation({ summary: 'Crear perfil de entrenamiento' })
+  @Post('profile')
+  @ApiOperation({ summary: 'Crear perfil de entrenamiento' })
   @ApiBody({ type: CreateTrainingProfileDto })
-  createProfile(@Body() body: CreateTrainingProfileDto) { return this.svc.createTrainingProfile(body.userId, body.goals, body.preferences); }
+  createProfile(@Body() body: CreateTrainingProfileDto) {
+    return this.svc.createTrainingProfile(
+      body.userId,
+      body.goals,
+      body.preferences,
+    );
+  }
 
-  @Get('profile/:userId') @ApiOperation({ summary: 'Obtener perfil de entrenamiento' })
-  getProfile(@Param('userId', ParseIntPipe) uid: number) { return this.svc.getTrainingProfile(uid); }
+  @Get('profile/:userId')
+  @ApiOperation({ summary: 'Obtener perfil de entrenamiento' })
+  getProfile(@Param('userId', ParseIntPipe) uid: number) {
+    return this.svc.getTrainingProfile(uid);
+  }
 
-  @Post('restrictions') @ApiOperation({ summary: 'Crear restricción' })
+  @Post('restrictions')
+  @ApiOperation({ summary: 'Crear restricción' })
   @ApiBody({ type: CreateRestrictionDto })
-  createRestriction(@Body() body: CreateRestrictionDto) { return this.svc.createRestriction(body); }
+  createRestriction(@Body() body: CreateRestrictionDto) {
+    return this.svc.createRestriction(body);
+  }
 
-  @Get('restrictions/:userId') @ApiOperation({ summary: 'Restricciones de usuario' })
-  findRestriction(@Param('userId', ParseIntPipe) uid: number) { return this.svc.findRestriction(uid); }
+  @Get('restrictions/:userId')
+  @ApiOperation({ summary: 'Restricciones de usuario' })
+  findRestriction(@Param('userId', ParseIntPipe) uid: number) {
+    return this.svc.findRestriction(uid);
+  }
 
-  @Post('emergency-contacts') @ApiOperation({ summary: 'Crear contacto de emergencia' })
+  @Post('emergency-contacts')
+  @ApiOperation({ summary: 'Crear contacto de emergencia' })
   @ApiBody({ type: CreateEmergencyContactDto })
-  createEC(@Body() body: CreateEmergencyContactDto) { return this.svc.createEmergencyContact(body); }
+  createEC(@Body() body: CreateEmergencyContactDto) {
+    return this.svc.createEmergencyContact(body);
+  }
 
-  @Get('emergency-contacts/:userId') @ApiOperation({ summary: 'Contactos de emergencia' })
-  findECs(@Param('userId', ParseIntPipe) uid: number) { return this.svc.findEmergencyContacts(uid); }
+  @Get('emergency-contacts/:userId')
+  @ApiOperation({ summary: 'Contactos de emergencia' })
+  findECs(@Param('userId', ParseIntPipe) uid: number) {
+    return this.svc.findEmergencyContacts(uid);
+  }
 
-  @Delete('emergency-contacts/:id') @ApiOperation({ summary: 'Eliminar contacto' })
-  removeEC(@Param('id', ParseIntPipe) id: number) { return this.svc.removeEmergencyContact(id); }
+  @Delete('emergency-contacts/:id')
+  @ApiOperation({ summary: 'Eliminar contacto' })
+  removeEC(@Param('id', ParseIntPipe) id: number) {
+    return this.svc.removeEmergencyContact(id);
+  }
 
-  @Post('sessions') @ApiOperation({ summary: 'Iniciar sesión de entrenamiento' })
+  @Post('sessions')
+  @ApiOperation({ summary: 'Iniciar sesión de entrenamiento' })
   @ApiBody({ type: CreateSessionDto })
-  createSession(@Body() body: CreateSessionDto) { return this.svc.createSession(body); }
+  createSession(@Body() body: CreateSessionDto) {
+    return this.svc.createSession(body);
+  }
 
-  @Post('sessions/completed') @ApiOperation({ summary: 'Guardar entrenamiento completado de un solo golpe' })
+  @Post('sessions/completed')
+  @ApiOperation({
+    summary: 'Guardar entrenamiento completado de un solo golpe',
+  })
   @ApiBody({ type: SaveCompletedSessionDto })
-  saveCompleted(@Req() req: RequestWithUser, @Body() body: SaveCompletedSessionDto) {
+  saveCompleted(
+    @Req() req: RequestWithUser,
+    @Body() body: SaveCompletedSessionDto,
+  ) {
     return this.svc.saveCompletedSession(Number(req.user!.userId), body);
   }
 
   @Get('sessions')
-  @ApiOperation({ summary: 'Listar mis sesiones paginadas (más recientes primero)' })
-  @ApiQuery({ name: 'limit', required: false, example: 50, description: 'Máx registros (default 50)' })
-  @ApiQuery({ name: 'offset', required: false, example: 0, description: 'Registros a saltar (default 0)' })
+  @ApiOperation({
+    summary: 'Listar mis sesiones paginadas (más recientes primero)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    example: 50,
+    description: 'Máx registros (default 50)',
+  })
+  @ApiQuery({
+    name: 'offset',
+    required: false,
+    example: 0,
+    description: 'Registros a saltar (default 0)',
+  })
   findSessions(
     @Req() req: RequestWithUser,
     @Query('limit') limit?: string,
@@ -63,7 +134,9 @@ export class TrainingController {
   }
 
   @Get('sessions/user/:userId')
-  @ApiOperation({ summary: 'Sesiones de usuario (USER solo puede ver las propias)' })
+  @ApiOperation({
+    summary: 'Sesiones de usuario (USER solo puede ver las propias)',
+  })
   findByUser(
     @Req() req: RequestWithUser,
     @Param('userId', ParseIntPipe) uid: number,
@@ -73,7 +146,9 @@ export class TrainingController {
     // USER solo puede consultar su propio historial
     if (role === 'USER' || role === 'CLIENTE') {
       if (selfId !== uid) {
-        throw new ForbiddenException('Solo puedes consultar tus propias sesiones.');
+        throw new ForbiddenException(
+          'Solo puedes consultar tus propias sesiones.',
+        );
       }
     }
     return this.svc.findSessionsByUser(uid);
@@ -90,14 +165,26 @@ export class TrainingController {
     return this.svc.getStrengthRecords(Number(req.user!.userId));
   }
 
-  @Get('sessions/:id') @ApiOperation({ summary: 'Obtener sesión' })
-  findOneSession(@Param('id', ParseIntPipe) id: number) { return this.svc.findOneSession(id); }
+  @Get('sessions/:id')
+  @ApiOperation({ summary: 'Obtener sesión' })
+  findOneSession(@Param('id', ParseIntPipe) id: number) {
+    return this.svc.findOneSession(id);
+  }
 
-  @Put('sessions/:id') @ApiOperation({ summary: 'Actualizar/finalizar sesión' })
+  @Put('sessions/:id')
+  @ApiOperation({ summary: 'Actualizar/finalizar sesión' })
   @ApiBody({ type: UpdateSessionDto })
-  updateSession(@Param('id', ParseIntPipe) id: number, @Body() body: UpdateSessionDto) { return this.svc.updateSession(id, body); }
+  updateSession(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: UpdateSessionDto,
+  ) {
+    return this.svc.updateSession(id, body);
+  }
 
-  @Post('sessions/:id/sets') @ApiOperation({ summary: 'Agregar serie completada' })
+  @Post('sessions/:id/sets')
+  @ApiOperation({ summary: 'Agregar serie completada' })
   @ApiBody({ type: AddSetDto })
-  addSet(@Param('id', ParseIntPipe) id: number, @Body() body: AddSetDto) { return this.svc.addSet(id, body); }
+  addSet(@Param('id', ParseIntPipe) id: number, @Body() body: AddSetDto) {
+    return this.svc.addSet(id, body);
+  }
 }

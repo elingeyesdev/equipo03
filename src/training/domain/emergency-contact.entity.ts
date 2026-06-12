@@ -1,30 +1,34 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { User } from '../../users/domain/user.entity';
 
 @Entity('emergency_contacts')
 export class EmergencyContact {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column({ type: 'integer', name: 'user_id' })
-  userId: number;
+  userId!: number;
 
   @Column({ type: 'varchar', length: 150, name: 'full_name' })
-  fullName: string;
+  fullName!: string;
 
   @Column({ type: 'varchar', length: 20 })
-  phone: string;
+  phone!: string;
 
   @Column({ type: 'varchar', length: 50 })
-  relation: string;
+  relation!: string;
 
   @Column({ type: 'boolean', name: 'is_primary', default: false })
-  isPrimary: boolean;
+  isPrimary!: boolean;
 
   // ── Relations ─────────────────────────────────────
   @ManyToOne(() => User, (u) => u.emergencyContacts, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
-  user: User;
+  user!: User;
 }

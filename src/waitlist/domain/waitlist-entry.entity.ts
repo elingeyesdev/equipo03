@@ -1,5 +1,10 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { Reservation } from '../../reservations/domain/reservation.entity';
 import { User } from '../../users/domain/user.entity';
@@ -8,42 +13,42 @@ import { GymActivitySchedule } from '../../activities/domain/gym-activity-schedu
 @Entity('waitlist_entries')
 export class WaitlistEntry {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column({ type: 'integer', name: 'reservation_id', nullable: true })
-  reservationId: number;
+  reservationId!: number;
 
   @Column({ type: 'integer', name: 'user_id' })
-  userId: number;
+  userId!: number;
 
   @Column({ type: 'integer', name: 'gym_activity_schedule_id' })
-  gymActivityScheduleId: number;
+  gymActivityScheduleId!: number;
 
   @Column({ type: 'integer', name: 'position_in_queue' })
-  positionInQueue: number;
+  positionInQueue!: number;
 
   @Column({ type: 'varchar', length: 20, default: 'WAITING' })
-  status: string;
+  status!: string;
 
   @Column({ type: 'timestamp', name: 'notified_at', nullable: true })
-  notifiedAt: Date;
+  notifiedAt!: Date;
 
   @Column({ type: 'timestamp', name: 'assigned_at', nullable: true })
-  assignedAt: Date;
+  assignedAt!: Date;
 
   @CreateDateColumn({ name: 'created_at' })
-  createdAt: Date;
+  createdAt!: Date;
 
   // ── Relations ─────────────────────────────────────
   @ManyToOne(() => Reservation, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'reservation_id' })
-  reservation: Reservation;
+  reservation!: Reservation;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
-  user: User;
+  user!: User;
 
   @ManyToOne(() => GymActivitySchedule, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'gym_activity_schedule_id' })
-  gymActivitySchedule: GymActivitySchedule;
+  gymActivitySchedule!: GymActivitySchedule;
 }

@@ -40,9 +40,9 @@ describe('CreateActivityScheduleDto', () => {
       endTime: '11:00',
       maxAttendees: 15,
     });
-    expect((await validate(dtoNeg)).some((e) => e.property === 'instructorId')).toBe(
-      true,
-    );
+    expect(
+      (await validate(dtoNeg)).some((e) => e.property === 'instructorId'),
+    ).toBe(true);
 
     const dtoZero = plainToInstance(CreateActivityScheduleDto, {
       instructorId: 0,

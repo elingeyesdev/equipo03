@@ -6,8 +6,11 @@ export class CreateExerciseDto {
   @IsString()
   name: string;
 
-  @ApiPropertyOptional({ example: 'Ejercicio compuesto principal para pectorales' })
-  @IsOptional() @IsString()
+  @ApiPropertyOptional({
+    example: 'Ejercicio compuesto principal para pectorales',
+  })
+  @IsOptional()
+  @IsString()
   description?: string;
 
   @ApiProperty({ example: 'Pecho' })
@@ -15,11 +18,13 @@ export class CreateExerciseDto {
   muscleGroup: string;
 
   @ApiPropertyOptional({ example: ['Tríceps', 'Deltoides Anterior'] })
-  @IsOptional() @IsArray()
+  @IsOptional()
+  @IsArray()
   secondaryMuscleGroups?: string[];
 
   @ApiPropertyOptional({ example: 'Barra olímpica, Banco plano' })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   equipmentRequired?: string;
 
   @ApiProperty({ example: 'INTERMEDIO' })
@@ -27,32 +32,43 @@ export class CreateExerciseDto {
   difficultyLevel: string;
 
   @ApiPropertyOptional({ example: 'https://youtube.com/watch?v=example' })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   videoUrl?: string;
 
-  @ApiPropertyOptional({ example: 'https://images.example.com/bench-press.jpg' })
-  @IsOptional() @IsString()
+  @ApiPropertyOptional({
+    example: 'https://images.example.com/bench-press.jpg',
+  })
+  @IsOptional()
+  @IsString()
   imageUrl?: string;
 }
 
 export class UpdateExerciseDto {
   @ApiPropertyOptional({ example: 'Press Inclinado con Mancuernas' })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   name?: string;
 
-  @ApiPropertyOptional({ example: 'Variación inclinada para pectoral superior' })
-  @IsOptional() @IsString()
+  @ApiPropertyOptional({
+    example: 'Variación inclinada para pectoral superior',
+  })
+  @IsOptional()
+  @IsString()
   description?: string;
 
   @ApiPropertyOptional({ example: 'Pecho' })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   muscleGroup?: string;
 
   @ApiPropertyOptional({ example: 'AVANZADO' })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   difficultyLevel?: string;
 
   @ApiPropertyOptional({ example: false })
-  @IsOptional() @IsBoolean()
+  @IsOptional()
+  @IsBoolean()
   isActive?: boolean;
 }

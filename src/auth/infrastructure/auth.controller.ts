@@ -11,9 +11,20 @@ import {
   Request,
   Logger,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBody, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBody,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { AuthService } from '../application/auth.service';
-import { RegisterDto, LoginDto, ForgotPasswordDto, ResetPasswordDto } from '../application/dtos/auth.dto';
+import {
+  RegisterDto,
+  LoginDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+} from '../application/dtos/auth.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { UsersService } from '../../users/application/users.service';
 
@@ -37,9 +48,17 @@ export class AuthController {
   @Get('me')
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Obtener perfil completo del usuario autenticado' })
-  @ApiResponse({ status: 200, description: 'Perfil del usuario con relaciones' })
+  @ApiResponse({
+    status: 200,
+    description: 'Perfil del usuario con relaciones',
+  })
   @ApiResponse({ status: 401, description: 'Token inválido o ausente' })
-  async getMe(@Request() req: { user: { userId: number; role: string | null; gymId: number | null } }) {
+  async getMe(
+    @Request()
+    req: {
+      user: { userId: number; role: string | null; gymId: number | null };
+    },
+  ) {
     const user = await this.usersService.findOne(req.user.userId);
     return this.usersService.toPublicDto(user, req.user.role, req.user.gymId);
   }
@@ -72,7 +91,10 @@ export class AuthController {
   )
   @ApiOperation({ summary: 'Iniciar sesión y obtener JWT' })
   @ApiBody({ type: LoginDto })
-  @ApiResponse({ status: 200, description: 'Login exitoso, retorna accessToken' })
+  @ApiResponse({
+    status: 200,
+    description: 'Login exitoso, retorna accessToken',
+  })
   @ApiResponse({ status: 401, description: 'Credenciales inválidas' })
   login(@Body() body: LoginDto) {
     return this.authService.login(body);
@@ -86,9 +108,14 @@ export class AuthController {
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   @UsePipes(OTP_PIPE)
-  @ApiOperation({ summary: 'Solicitar código OTP para recuperación de contraseña' })
+  @ApiOperation({
+    summary: 'Solicitar código OTP para recuperación de contraseña',
+  })
   @ApiBody({ type: ForgotPasswordDto })
-  @ApiResponse({ status: 200, description: 'Respuesta genérica (anti-enumeración)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Respuesta genérica (anti-enumeración)',
+  })
   forgotPassword(@Body() body: ForgotPasswordDto) {
     return this.authService.forgotPassword(body.email);
   }
@@ -102,9 +129,16 @@ export class AuthController {
   @UsePipes(OTP_PIPE)
   @ApiOperation({ summary: 'Resetear contraseña con OTP válido' })
   @ApiBody({ type: ResetPasswordDto })
-  @ApiResponse({ status: 200, description: '{ success: true, message: "Contraseña actualizada" }' })
+  @ApiResponse({
+    status: 200,
+    description: '{ success: true, message: "Contraseña actualizada" }',
+  })
   @ApiResponse({ status: 400, description: 'OTP inválido o expirado' })
   resetPassword(@Body() body: ResetPasswordDto) {
-    return this.authService.resetPassword(body.email, body.otpCode, body.newPassword);
+    return this.authService.resetPassword(
+      body.email,
+      body.otpCode,
+      body.newPassword,
+    );
   }
 }

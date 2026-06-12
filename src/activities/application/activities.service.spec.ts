@@ -45,7 +45,10 @@ describe('ActivitiesService — createSchedule', () => {
       providers: [
         ActivitiesService,
         { provide: getRepositoryToken(GymActivity), useValue: actRepo },
-        { provide: getRepositoryToken(GymActivitySchedule), useValue: schedRepo },
+        {
+          provide: getRepositoryToken(GymActivitySchedule),
+          useValue: schedRepo,
+        },
         { provide: getRepositoryToken(GymActivityAttendance), useValue: {} },
         { provide: getRepositoryToken(User), useValue: userRepo },
         { provide: getRepositoryToken(GymSchedule), useValue: gymScheduleRepo },

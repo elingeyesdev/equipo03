@@ -16,8 +16,10 @@ export function getManagerGymId(req: RequestWithUser): number | null {
   const user = req.user;
   if (!user) return null;
   if (user.role !== 'GERENTE' && user.role !== 'RECEPCIONISTA') return null;
-  if (user.gymId !== null && user.gymId !== undefined) return Number(user.gymId);
-  if (user.brandId !== null && user.brandId !== undefined) return Number(user.brandId);
+  if (user.gymId !== null && user.gymId !== undefined)
+    return Number(user.gymId);
+  if (user.brandId !== null && user.brandId !== undefined)
+    return Number(user.brandId);
   throw new ForbiddenException('El usuario no tiene un gimnasio asignado');
 }
 
@@ -39,17 +41,26 @@ export function getStaffGymId(req: RequestWithUser): number | null {
   const user = req.user;
   if (!user || !user.role) return null;
   if (!BRAND_SCOPED_ROLES.has(user.role)) return null;
-  if (user.gymId !== null && user.gymId !== undefined) return Number(user.gymId);
-  if (user.brandId !== null && user.brandId !== undefined) return Number(user.brandId);
+  if (user.gymId !== null && user.gymId !== undefined)
+    return Number(user.gymId);
+  if (user.brandId !== null && user.brandId !== undefined)
+    return Number(user.brandId);
   return null;
 }
 
-export function ensureManagerMatchesResourceGym(managerGymId: number | null, resourceGymId: number | null | undefined): void {
+export function ensureManagerMatchesResourceGym(
+  managerGymId: number | null,
+  resourceGymId: number | null | undefined,
+): void {
   if (managerGymId === null) return;
   if (resourceGymId === null || resourceGymId === undefined) {
-    throw new ForbiddenException('No tiene permisos para acceder a este recurso');
+    throw new ForbiddenException(
+      'No tiene permisos para acceder a este recurso',
+    );
   }
   if (Number(resourceGymId) !== managerGymId) {
-    throw new ForbiddenException('No tiene permisos para acceder a otra sucursal');
+    throw new ForbiddenException(
+      'No tiene permisos para acceder a otra sucursal',
+    );
   }
 }

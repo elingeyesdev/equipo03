@@ -1,4 +1,12 @@
-import { IsString, IsOptional, IsInt, IsIn, IsArray, ArrayNotEmpty, Matches } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsInt,
+  IsIn,
+  IsArray,
+  ArrayNotEmpty,
+  Matches,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class BulkStatusDto {
@@ -61,7 +69,10 @@ export class CreateReservationDto {
   @IsInt()
   gymActivityScheduleId?: number;
 
-  @ApiProperty({ example: '2026-05-25', description: 'Fecha de la reserva (YYYY-MM-DD)' })
+  @ApiProperty({
+    example: '2026-05-25',
+    description: 'Fecha de la reserva (YYYY-MM-DD)',
+  })
   @IsString()
   reservationDate!: string;
 
@@ -86,7 +97,8 @@ export class CreateReservationDto {
 
   @ApiPropertyOptional({
     example: 1,
-    description: 'ID de la sede. Requerido solo en flujo abierto (sin gymActivityScheduleId).',
+    description:
+      'ID de la sede. Requerido solo en flujo abierto (sin gymActivityScheduleId).',
   })
   @IsOptional()
   @IsInt()
@@ -100,7 +112,9 @@ export class CreateReservationDto {
       'IGNORADO en clases programadas (se toma del Schedule en BD).',
   })
   @IsOptional()
-  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: 'startTime debe tener formato HH:mm' })
+  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/, {
+    message: 'startTime debe tener formato HH:mm',
+  })
   startTime?: string;
 
   @ApiPropertyOptional({
@@ -111,6 +125,8 @@ export class CreateReservationDto {
       'IGNORADO en clases programadas (se toma del Schedule en BD).',
   })
   @IsOptional()
-  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: 'endTime debe tener formato HH:mm' })
+  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/, {
+    message: 'endTime debe tener formato HH:mm',
+  })
   endTime?: string;
 }

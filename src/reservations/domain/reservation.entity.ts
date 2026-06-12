@@ -1,5 +1,10 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { User } from '../../users/domain/user.entity';
 import { Gym } from '../../gyms/domain/gym.entity';
@@ -9,63 +14,69 @@ import { GymActivitySchedule } from '../../activities/domain/gym-activity-schedu
 @Entity('reservations')
 export class Reservation {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column({ type: 'integer', name: 'user_id' })
-  userId: number;
+  userId!: number;
 
   /**
    * NULL cuando la reserva es de acceso libre (isFreeAccess).
    * Apunta a un horario concreto en flujo estándar.
    */
   @Column({ type: 'integer', name: 'gym_activity_schedule_id', nullable: true })
-  gymActivityScheduleId: number | null;
+  gymActivityScheduleId!: number | null;
 
   /**
    * Sede. Obligatorio en flujo libre; derivable del schedule en flujo estándar.
    */
   @Column({ type: 'integer', name: 'gym_id', nullable: true })
-  gymId: number | null;
+  gymId!: number | null;
 
   /**
    * Actividad. Obligatorio en flujo libre; derivable del schedule en flujo estándar.
    */
   @Column({ type: 'integer', name: 'activity_id', nullable: true })
-  activityId: number | null;
+  activityId!: number | null;
 
   @Column({ type: 'date', name: 'reservation_date' })
-  reservationDate: Date;
+  reservationDate!: Date;
 
   /**
    * Flujo libre: viene del DTO (cliente elige hora).
    * Flujo programado: copiado del GymActivitySchedule de la BD (el cliente no lo dicta).
    */
   @Column({ type: 'time', name: 'start_time', nullable: true })
-  startTime: string | null;
+  startTime!: string | null;
 
   @Column({ type: 'time', name: 'end_time', nullable: true })
-  endTime: string | null;
+  endTime!: string | null;
 
   @Column({ type: 'varchar', length: 20 })
-  status: string;
+  status!: string;
 
   @CreateDateColumn({ name: 'created_at' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @Column({ type: 'timestamp', name: 'cancelled_at', nullable: true })
-  cancelledAt: Date;
+  cancelledAt!: Date;
 
   @Column({ type: 'integer', name: 'created_by' })
-  createdBy: number;
+  createdBy!: number;
 
   /** Token opaco generado al crear la reserva. Es el secreto que lleva el QR. */
-  @Column({ name: 'qr_token', type: 'varchar', length: 36, unique: true, nullable: true })
-  qrToken: string | null;
+  @Column({
+    name: 'qr_token',
+    type: 'varchar',
+    length: 36,
+    unique: true,
+    nullable: true,
+  })
+  qrToken!: string | null;
 
   // ── Relations ─────────────────────────────────────
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
-  user: User;
+  user!: User;
 
   @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'created_by' })
@@ -73,13 +84,13 @@ export class Reservation {
 
   @ManyToOne(() => GymActivitySchedule, { onDelete: 'CASCADE', nullable: true })
   @JoinColumn({ name: 'gym_activity_schedule_id' })
-  gymActivitySchedule: GymActivitySchedule | null;
+  gymActivitySchedule!: GymActivitySchedule | null;
 
   @ManyToOne(() => Gym, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'gym_id' })
-  gym: Gym | null;
+  gym!: Gym | null;
 
   @ManyToOne(() => GymActivity, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'activity_id' })
-  activity: GymActivity | null;
+  activity!: GymActivity | null;
 }

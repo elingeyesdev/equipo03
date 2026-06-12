@@ -1,24 +1,28 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToOne,
+  JoinColumn,
 } from 'typeorm';
 import { UserTraining } from './user-training.entity';
 
 @Entity('user_training_goals')
 export class UserTrainingGoals {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column({ type: 'integer', name: 'user_training_id', unique: true })
-  userTrainingId: number;
+  userTrainingId!: number;
 
   @Column({ type: 'varchar', length: 50, name: 'primary_goal' })
-  primaryGoal: string;
+  primaryGoal!: string;
 
   @Column({ type: 'varchar', length: 30, name: 'experience_level' })
-  experienceLevel: string;
+  experienceLevel!: string;
 
   // ── Relations ─────────────────────────────────────
   @OneToOne(() => UserTraining, (ut) => ut.goals, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_training_id' })
-  userTraining: UserTraining;
+  userTraining!: UserTraining;
 }

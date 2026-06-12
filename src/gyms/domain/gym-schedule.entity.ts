@@ -1,30 +1,34 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { Gym } from './gym.entity';
 
 @Entity('gym_schedules')
 export class GymSchedule {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column({ type: 'integer', name: 'gym_id' })
-  gymId: number;
+  gymId!: number;
 
   @Column({ type: 'varchar', length: 10, name: 'day_of_week' })
-  dayOfWeek: string;
+  dayOfWeek!: string;
 
   @Column({ type: 'time', name: 'opens_at' })
-  opensAt: string;
+  opensAt!: string;
 
   @Column({ type: 'time', name: 'closes_at' })
-  closesAt: string;
+  closesAt!: string;
 
   @Column({ type: 'boolean', name: 'is_holiday', default: false })
-  isHoliday: boolean;
+  isHoliday!: boolean;
 
   // ── Relations ─────────────────────────────────────
   @ManyToOne(() => Gym, (g) => g.schedules, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'gym_id' })
-  gym: Gym;
+  gym!: Gym;
 }

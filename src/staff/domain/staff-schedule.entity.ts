@@ -1,5 +1,10 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column, Index, ManyToOne, JoinColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  Index,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { User } from '../../users/domain/user.entity';
 import { Gym } from '../../gyms/domain/gym.entity';
@@ -8,29 +13,33 @@ import { Gym } from '../../gyms/domain/gym.entity';
 @Index('uq_staff_schedule', ['userId', 'gymId', 'dayOfWeek'], { unique: true })
 export class StaffSchedule {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column({ type: 'integer', name: 'user_id' })
-  userId: number;
+  userId!: number;
 
   @Column({ type: 'integer', name: 'gym_id' })
-  gymId: number;
+  gymId!: number;
 
-  @Column({ type: 'integer', name: 'day_of_week', comment: '0=Domingo, 6=Sábado' })
-  dayOfWeek: number;
+  @Column({
+    type: 'integer',
+    name: 'day_of_week',
+    comment: '0=Domingo, 6=Sábado',
+  })
+  dayOfWeek!: number;
 
   @Column({ type: 'time', name: 'start_time' })
-  startTime: string;
+  startTime!: string;
 
   @Column({ type: 'time', name: 'end_time' })
-  endTime: string;
+  endTime!: string;
 
   // ── Relations ─────────────────────────────────────
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
-  user: User;
+  user!: User;
 
   @ManyToOne(() => Gym, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'gym_id' })
-  gym: Gym;
+  gym!: Gym;
 }
