@@ -20,7 +20,10 @@ export class SedeDTOMapper {
     const lng = location.longitude ?? dto.longitude ?? 0;
     const rawMaxCap = dto.maxCapacity ?? dto.capacity ?? dto.aforoMaximo;
     const maxCap = (typeof rawMaxCap === 'number' && rawMaxCap > 0) ? rawMaxCap : 100;
-    const actualCap = dto.aforoActual ?? 0;
+    const rawActual = dto.currentOccupancy ?? dto.aforoActual ?? dto.current_occupancy ?? 0;
+    const actualCap = Math.min(Number(rawActual), maxCap);
+    const infrastructure = dto.infrastructure as { machineCapacity?: number } | null | undefined;
+    const capacidadMaquinas = infrastructure?.machineCapacity || 0;
     
     // Mapeo simple de schedules del backend a HorariosMap
     let horariosMap: HorariosMap | undefined = dto.horarios as HorariosMap | undefined;
@@ -92,6 +95,7 @@ export class SedeDTOMapper {
       imagenUrl: dto.imagenUrl as string | undefined,
       telefono: dto.telefono as string | undefined,
       parentName: dto.parentName as string | undefined,
+      capacidadMaquinas,
     });
   }
 

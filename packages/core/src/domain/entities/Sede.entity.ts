@@ -27,6 +27,7 @@ export type SedeProps = {
   resenasCount?: number;
   telefono?: string;
   parentName?: string;
+  capacidadMaquinas?: number;
 };
 
 export interface SedeDTO {
@@ -74,6 +75,7 @@ export class Sede {
   get resenasCount(): number | undefined { return this.props.resenasCount; }
   get telefono(): string | undefined { return this.props.telefono; }
   get parentName(): string | undefined { return this.props.parentName; }
+  get capacidadMaquinas(): number { return this.props.capacidadMaquinas ?? 0; }
 
   // === Métodos de dominio ===
 

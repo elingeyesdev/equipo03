@@ -52,6 +52,29 @@ const SPORT_CATEGORY: Record<string, FilterKey> = {
   OTRO:        'HIIT',
 };
 
+// ── Extracción defensiva de sede y ejercicio ──────────────────────────────────
+const getLocationText = (session: WorkoutSession): string => {
+  const s       = session as any;
+  const gymObj  = s.gym ?? {};
+  const gymName = gymObj.name ?? s.gym_name ?? s.gymName;
+  const brandName = gymObj.parent?.name ?? s.brand_name ?? s.brandName;
+  if (!gymName) return 'Sede no registrada';
+  return brandName && brandName !== gymName ? `${brandName} - ${gymName}` : gymName;
+};
+
+const getActivityText = (session: WorkoutSession): string => {
+  const s         = session as any;
+  const firstSet  = (session.sets?.[0] ?? {}) as any;
+  const exerciseName =
+    firstSet.exercise?.name ??
+    firstSet.routineExercise?.exercise?.name ??
+    firstSet.exerciseName ??
+    s.exercise_name ??
+    s.exerciseName;
+  const routineName = session.routine?.name ?? s.routine_name;
+  return exerciseName ?? routineName ?? s.sport_type ?? s.sportType ?? 'Actividad Desconocida';
+};
+
 const formatDate = (iso: string): string => {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '—';
@@ -99,21 +122,7 @@ const SessionCard = ({
     icon = 'alert-circle-outline';
     accent = '#666';
   } else {
-    const routineName = item.routine?.name;
-    const setExerciseName =
-      item.sets?.[0]?.routineExercise?.exercise?.name ||
-      (item.sets?.[0] as any)?.exercise?.name ||
-      (item.sets?.[0] as any)?.exerciseName;
-    const routineFirstEx =
-      (item.routine as any)?.exercises?.[0]?.exercise?.name ||
-      (item.routine as any)?.routineExercises?.[0]?.exercise?.name;
-
-    displayTitle =
-      routineName ||
-      setExerciseName ||
-      routineFirstEx ||
-      label ||
-      'Entrenamiento Libre';
+    displayTitle = getActivityText(item) || label || 'Entrenamiento Libre';
 
     // ── Subtítulo: lista de ejercicios únicos
     const setNames = (item.sets ?? [])
@@ -234,21 +243,7 @@ const DetailSheet = ({
     icon = 'alert-circle-outline';
     accent = '#666';
   } else {
-    const routineName = session.routine?.name;
-    const setExerciseName =
-      sets[0]?.routineExercise?.exercise?.name ||
-      (sets[0] as any)?.exercise?.name ||
-      (sets[0] as any)?.exerciseName;
-    const routineFirstEx =
-      (session.routine as any)?.exercises?.[0]?.exercise?.name ||
-      (session.routine as any)?.routineExercises?.[0]?.exercise?.name;
-
-    sheetTitle =
-      routineName ||
-      setExerciseName ||
-      routineFirstEx ||
-      label ||
-      'Entrenamiento Libre';
+    sheetTitle = getActivityText(session) || label || 'Entrenamiento Libre';
   }
 
   // ── Métricas agregadas ───────────────────────────────────────────────────
@@ -304,11 +299,9 @@ const DetailSheet = ({
           <View style={{ flex: 1 }}>
             <Text style={sheet.headerTitle}>{sheetTitle}</Text>
             <Text style={sheet.headerSub}>{formatDate(session.startedAt)}</Text>
-            {session.gym && (
-              <Text style={sheet.headerGym}>
-                <MaterialCommunityIcons name="map-marker-outline" size={12} color="#555" /> {session.gym.name}
-              </Text>
-            )}
+            <Text style={sheet.headerGym}>
+              <MaterialCommunityIcons name="map-marker-outline" size={12} color="#555" /> {getLocationText(session)}
+            </Text>
           </View>
           <TouchableOpacity onPress={close} style={sheet.closeBtn}>
             <MaterialCommunityIcons name="close" size={20} color="#555" />

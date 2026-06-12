@@ -11,6 +11,7 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { Audio } from 'expo-av';
 import { AuthService } from '../../../app/Providers/auth/AuthService';
 import { trainingApi } from '../../../app/Providers/training/api/training.api';
+import { VisitStorageService } from '../../../app/Providers/geolocation/services/VisitStorageService';
 import { TrackingType } from './WorkoutModeScreen';
 
 const CALORIE_RATE: Record<string, number> = {
@@ -58,6 +59,7 @@ export const WorkoutActiveScreen = () => {
   const [restEndTime, setRestEndTime]         = useState<number | null>(null);
   const [restTimeLeft, setRestTimeLeft]       = useState(0);
   const [isFinished, setIsFinished]           = useState(false);
+  const [activeGymId, setActiveGymId]         = useState<number | undefined>(undefined);
 
   // Inputs por tipo
   const [peso, setPeso]           = useState(''); // PESO_REPS
@@ -102,6 +104,12 @@ export const WorkoutActiveScreen = () => {
       console.warn('[WorkoutActive] beep.m4a no encontrado en assets.');
     }
   };
+
+  useEffect(() => {
+    VisitStorageService.getActiveVisit().then(visit => {
+      if (visit?.gymId != null) setActiveGymId(Number(visit.gymId));
+    });
+  }, []);
 
   useEffect(() => {
     playBeep();
@@ -293,14 +301,23 @@ export const WorkoutActiveScreen = () => {
     }
 
     try {
-      const user = await AuthService.getCurrentUser();
+      const [user, freshVisit] = await Promise.all([
+        AuthService.getCurrentUser(),
+        VisitStorageService.getActiveVisit(),
+      ]);
+      const currentGymId =
+        activeGymId                    != null ? activeGymId
+        : freshVisit?.gymId            != null ? Number(freshVisit.gymId)
+        : user?.gymId                  != null ? Number(user.gymId)
+        : route.params?.gymId          != null ? Number(route.params.gymId)
+        : undefined;
       const payload: Parameters<typeof trainingApi.saveCompletedSession>[0] = {
         sportType:       SPORT_TO_BACKEND[String(sport).toUpperCase()] ?? 'OTRO',
         durationSeconds: duration_seconds,
         caloriesBurned:  calories_burned,
+        gymId:           currentGymId,
         sets:            setsToSend,
       };
-      if (user?.gymId) payload.gymId = Number(user.gymId);
       await trainingApi.saveCompletedSession(payload);
 
       setIsFinished(true);

@@ -45,6 +45,17 @@ export const SedeMarker: React.FC<SedeMarkerProps> = ({ sede, distancia, onPress
             </View>
             <AforoBadge aforo={sede.aforo} size="small" />
           </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+            <MaterialCommunityIcons name="account-group-outline" size={12} color="#a0a0b8" />
+            <Text style={styles.calloutAforo}>
+              Aforo hoy: {sede.aforo.actual} / {sede.aforo.maximo}
+            </Text>
+          </View>
+          {sede.capacidadMaquinas > 0 && (
+            <Text style={{ fontSize: 12, color: '#aaa', marginTop: 2 }}>
+              Aforo Máquinas: {sede.capacidadMaquinas}
+            </Text>
+          )}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <MaterialCommunityIcons name="circle-small" size={14} color={pinColor} />
             <Text style={[styles.calloutStatus, { color: pinColor }]}>{statusLabel}</Text>
@@ -80,6 +91,11 @@ const styles = StyleSheet.create({
   },
   calloutDistance: {
     fontSize: 12,
+    color: '#a0a0b8',
+    fontWeight: '600',
+  },
+  calloutAforo: {
+    fontSize: 11,
     color: '#a0a0b8',
     fontWeight: '600',
   },

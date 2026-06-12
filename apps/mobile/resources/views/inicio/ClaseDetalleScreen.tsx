@@ -122,7 +122,6 @@ export const ClaseDetalleScreen = () => {
     authAxios
       .get('/api/staff/me/students')
       .then(res => {
-        console.log('RESERVAS DEL INSTRUCTOR:', res.data);
         const raw = res.data?.data ?? res.data ?? [];
         const list: StudentReservation[] = Array.isArray(raw) ? raw : [];
         setAllReservas(list);

@@ -66,6 +66,7 @@ interface SucursalFormData {
   description: string;
   address: string;
   maxCapacity: number;
+  machineCapacity: number;
   isOpen: boolean;
   latitude: number;
   longitude: number;
@@ -77,6 +78,7 @@ interface SucursalFormData {
 interface SucursalModalProps {
   isOpen: boolean;
   onClose: () => void;
+  role: string;
   sucursalToEdit: GymDto | null;
   onSave: (data: SucursalFormData) => void;
   parentGyms: Record<number, string>;
@@ -101,7 +103,8 @@ const LocationMarker = ({ position, setPosition }: LocationMarkerProps) => {
   );
 };
 
-const SucursalModal = ({ isOpen, onClose, sucursalToEdit, onSave, parentGyms, existingGyms = [] }: SucursalModalProps) => {
+const SucursalModal = ({ isOpen, onClose, role, sucursalToEdit, onSave, parentGyms, existingGyms = [] }: SucursalModalProps) => {
+  const canEditMachineCapacity = ['SUPER_ADMIN', 'GERENTE'].includes(role);
   const [showMap, setShowMap] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
@@ -155,6 +158,7 @@ const SucursalModal = ({ isOpen, onClose, sucursalToEdit, onSave, parentGyms, ex
         description: '',
         address: '',
         maxCapacity: 100,
+        machineCapacity: 0,
         isOpen: true,
         latitude: -17.7833,
         longitude: -63.1667,
@@ -182,6 +186,7 @@ const SucursalModal = ({ isOpen, onClose, sucursalToEdit, onSave, parentGyms, ex
         description: sucursalToEdit.description || '',
         address: sucursalToEdit.location?.address || '',
         maxCapacity: sucursalToEdit.maxCapacity || 100,
+        machineCapacity: (sucursalToEdit as any).infrastructure?.machineCapacity || 0,
         isOpen: sucursalToEdit.isOpen ?? true,
         latitude: sucursalToEdit.location?.latitude || -17.7833,
         longitude: sucursalToEdit.location?.longitude || -63.1667,
@@ -334,6 +339,20 @@ const SucursalModal = ({ isOpen, onClose, sucursalToEdit, onSave, parentGyms, ex
             min="1"
             required
           />
+
+          {canEditMachineCapacity && (
+            <>
+              <label className={labelCls2}>Aforo Máquinas</label>
+              <input
+                type="number"
+                className={inputCls2}
+                value={formData.machineCapacity}
+                onChange={e => setFormData({...formData, machineCapacity: parseInt(e.target.value) || 0})}
+                placeholder="Ej. 30"
+                min="0"
+              />
+            </>
+          )}
 
           <div className="flex items-center gap-2 mt-3">
             <input
@@ -616,6 +635,7 @@ export const SucursalesView = () => {
           name: payload.name,
           description: payload.description,
           maxCapacity: payload.maxCapacity,
+          machineCapacity: Number(formData.machineCapacity) || 0,
           parentId: payload.parentId,
         });
 
@@ -846,6 +866,7 @@ export const SucursalesView = () => {
       <SucursalModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+        role={user.role}
         sucursalToEdit={sucursalToEdit}
         onSave={handleSaveSucursal}
         parentGyms={parentGyms}
