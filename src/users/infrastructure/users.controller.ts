@@ -11,6 +11,8 @@ import {
   Req,
   UseGuards,
   ParseIntPipe,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -25,7 +27,7 @@ import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UsersService } from '../application/users.service';
-import { CreateUserDto, UpdateUserDto, UpdateProfileDto, UpdatePushTokenDto } from '../application/dtos/users.dto';
+import { CreateUserDto, UpdateUserDto, UpdateProfileDto, UpdatePushTokenDto, SaveMetricsDto } from '../application/dtos/users.dto';
 import type { RequestWithUser } from '../../common/security/gym-scope';
 
 @ApiTags('Users')
@@ -71,6 +73,23 @@ export class UsersController {
     return this.usersService.findAll({ role, gymId });
   }
 
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Perfil del usuario autenticado (incluye birthDate y última métrica)' })
+  @ApiResponse({ status: 200 })
+  async getMe(@Req() req: RequestWithUser) {
+    const userId  = Number(req.user!.userId);
+    const user    = await this.usersService.findOne(userId);
+    const dto     = this.usersService.toPublicDto(user);
+    const birthDate = user.profile?.dateOfBirth ?? null;
+    return {
+      ...dto,
+      birthDate,
+      profile: dto.profile ? { ...dto.profile, birthDate } : null,
+    };
+  }
+
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
@@ -109,6 +128,33 @@ export class UsersController {
       gymId ?? undefined,
       body,
     );
+  }
+
+  @Post('me/metrics')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Guardar métricas: actualiza height_cm en perfil e inserta peso en historial' })
+  @ApiBody({ type: SaveMetricsDto })
+  @ApiResponse({ status: 201, schema: { example: { success: true } } })
+  saveMyMetrics(@Req() req: RequestWithUser, @Body() body: SaveMetricsDto) {
+    const { userId, gymId } = req.user!;
+    return this.usersService.saveMyMetrics(
+      Number(userId),
+      gymId ?? undefined,
+      body.weightKg,
+      body.heightCm,
+      body.edad,
+    );
+  }
+
+  @Get('me/metrics/latest')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Última métrica física del usuario autenticado' })
+  @ApiResponse({ status: 200 })
+  getLatestMetrics(@Req() req: RequestWithUser) {
+    return this.usersService.getLatestMetrics(Number(req.user!.userId));
   }
 
   @Get('me/metrics')

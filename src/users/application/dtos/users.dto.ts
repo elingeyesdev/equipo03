@@ -6,6 +6,7 @@ import {
   IsBoolean,
   IsNumber,
   IsArray,
+  IsDateString,
   Matches,
   IsPhoneNumber,
 } from 'class-validator';
@@ -16,6 +17,21 @@ const PASSWORD_MSG   = 'La contraseña debe tener mínimo 8 caracteres, incluir 
 const CI_REGEX       = /^\d{6,9}(-[a-zA-Z0-9]{1,2})?$/;
 const CI_MSG         = 'Formato de documento de identidad inválido';
 const PHONE_MSG      = 'El número de teléfono debe ser un formato internacional válido (ej. +59170000000)';
+
+export class SaveMetricsDto {
+  @ApiProperty({ example: 75.5, description: 'Peso en kilogramos' })
+  @IsNumber()
+  weightKg!: number;
+
+  @ApiProperty({ example: 170.5, description: 'Altura en centímetros' })
+  @IsNumber()
+  heightCm!: number;
+
+  @ApiPropertyOptional({ example: 25, description: 'Edad del usuario (se convierte a fecha de nacimiento aproximada)' })
+  @IsOptional()
+  @IsNumber()
+  edad?: number;
+}
 
 export class UpdatePushTokenDto {
   @ApiProperty({ example: 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]', description: 'Token de Expo para notificaciones push' })
@@ -44,30 +60,20 @@ export class UpdateProfileDto {
   @IsString()
   gender?: string;
 
-  @ApiPropertyOptional({ example: '1995-06-15' })
+  @ApiPropertyOptional({ example: '1995-06-15', description: 'Fecha de nacimiento (YYYY-MM-DD)' })
   @IsOptional()
-  @IsString()
-  dateOfBirth?: string;
+  @IsDateString()
+  birthDate?: string;
 
   @ApiPropertyOptional({ example: 75.5 })
   @IsOptional()
   @IsNumber()
   weightKg?: number;
 
-  @ApiPropertyOptional({ example: 18.4 })
-  @IsOptional()
-  @IsNumber()
-  bodyFatPercentage?: number;
-
   @ApiPropertyOptional({ example: 38.2 })
   @IsOptional()
   @IsNumber()
   muscleMassKg?: number;
-
-  @ApiPropertyOptional({ example: 82.0 })
-  @IsOptional()
-  @IsNumber()
-  waistCm?: number;
 
   @ApiPropertyOptional({ example: 95.0 })
   @IsOptional()

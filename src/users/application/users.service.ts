@@ -237,20 +237,16 @@ export class UsersService {
 
     const {
       weightKg,
-      bodyFatPercentage,
       muscleMassKg,
-      waistCm,
       chestCm,
       notes,
-      dateOfBirth,
+      birthDate,
       ...profileData
     } = data;
 
     const hasMetrics =
       weightKg != null ||
-      bodyFatPercentage != null ||
       muscleMassKg != null ||
-      waistCm != null ||
       chestCm != null ||
       notes != null;
 
@@ -272,7 +268,7 @@ export class UsersService {
     }
 
     Object.assign(profile, profileData);
-    if (dateOfBirth !== undefined) profile.dateOfBirth = new Date(dateOfBirth);
+    if (birthDate !== undefined) profile.dateOfBirth = new Date(birthDate);
 
     let savedProfile: UserProfile;
     try {
@@ -295,9 +291,7 @@ export class UsersService {
         userId,
         gymId: gymId ?? undefined,
         weightKg,
-        bodyFatPercentage,
         muscleMassKg,
-        waistCm,
         chestCm,
         notes,
       });
@@ -332,6 +326,45 @@ export class UsersService {
       where: { userId },
       order: { recordedAt: 'DESC' },
     });
+  }
+
+  getLatestMetrics(userId: number) {
+    return this.metricsRepo.findOne({
+      where: { userId },
+      order: { recordedAt: 'DESC' },
+    });
+  }
+
+  async saveMyMetrics(
+    userId: number,
+    gymId: number | undefined,
+    weightKg: number,
+    heightCm: number,
+    edad?: number,
+  ): Promise<{ success: boolean }> {
+    // 1. INSERT peso en historial
+    await this.metricsRepo.save(
+      this.metricsRepo.create({ userId, gymId, weightKg }),
+    );
+
+    // 2. UPDATE perfil: altura y, si viene edad, fecha de nacimiento
+    let profile = await this.profilesRepo.findOne({ where: { userId } });
+    if (!profile) {
+      const owner = await this.usersRepo.findOne({ where: { id: userId }, select: ['id', 'email'] });
+      profile = this.profilesRepo.create({
+        userId,
+        firstName: owner?.email?.split('@')[0] ?? '',
+        lastName:  '',
+      });
+    }
+    profile.heightCm = heightCm;
+    if (edad !== undefined && edad > 0) {
+      const birthYear = new Date().getFullYear() - edad;
+      profile.dateOfBirth = new Date(`${birthYear}-01-01`);
+    }
+    await this.profilesRepo.save(profile);
+
+    return { success: true };
   }
 
   toPublicDto(
