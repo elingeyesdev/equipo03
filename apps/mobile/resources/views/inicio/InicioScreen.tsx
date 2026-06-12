@@ -24,8 +24,9 @@ import { useFilterStore } from '../../../app/Providers/geolocation/stores/Filter
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { useMyReservationsQuery } from '../../../app/Providers/reservations/hooks/useMyReservationsQuery';
 import { UserReservation } from '../../../app/Providers/reservations/api/reservation.types';
-import { ManagerDashboard } from './ManagerDashboard';
-import { TrainerDashboard } from './TrainerDashboard';
+import { ManagerDashboard }    from './ManagerDashboard';
+import { TrainerDashboard }    from './TrainerDashboard';
+import { InstructorDashboard } from './InstructorDashboard';
 import { NutritionistDashboard } from './NutritionistDashboard';
 
 const { width } = Dimensions.get('window');
@@ -490,7 +491,8 @@ export const InicioScreen = () => {
   const role = user?.role ?? '';
 
   if (role === 'GERENTE' || (role as string) === 'COORDINADOR') return <ManagerDashboard />;
-  if ((role as string) === 'INSTRUCTOR' || role === 'ENTRENADOR') return <TrainerDashboard />;
+  if ((role as string) === 'INSTRUCTOR') return <InstructorDashboard />;
+  if (role === 'ENTRENADOR') return <TrainerDashboard />;
   if (role === 'NUTRICIONISTA') return <NutritionistDashboard />;
   if ((role as string) === 'PERSONAL_DE_LIMPIEZA') return (
     <SafeAreaView style={ph.safe} edges={['top']}>

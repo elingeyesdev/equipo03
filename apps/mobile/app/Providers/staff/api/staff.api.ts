@@ -24,15 +24,17 @@ attach401Guard(staffClient);
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
 export type StaffClass = {
-  id:           number;
-  activityName: string;
-  startTime:    string;   // HH:mm
-  endTime:      string;   // HH:mm
+  id:            number;
+  activityName:  string;
+  startTime:     string;   // HH:mm
+  endTime:       string;   // HH:mm
   enrolledCount: number;
   maxAttendees?: number;
-  location?:    string;
-  status?:      string;
+  maxCapacity?:  number;   // alias que algunos endpoints devuelven
+  location?:     string;
+  status?:       string;
   reservations?: { id: number; user?: { id: number; email?: string } }[];
+  attendees?:    { id: number | string; fullName: string }[];
 };
 
 export type StaffAppointment = {
@@ -64,9 +66,11 @@ export type MyAppointment = {
 };
 
 export type ScheduleReservation = {
-  id:     number;
-  status: string;
-  userId: string;
+  id:         number;
+  status:     string;
+  userId:     string;
+  createdAt?: string;
+  date?:      string;
   user?: {
     id:       number;
     email?:   string;

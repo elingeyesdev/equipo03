@@ -119,7 +119,7 @@ export const WorkoutActiveScreen = () => {
       });
     }, 1000);
     return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); 
 
   useEffect(() => {
     if (countdown !== 0) return;
@@ -283,13 +283,11 @@ export const WorkoutActiveScreen = () => {
       }));
     }
 
-    // Backend rejects sessions under 60 s with no sets — show a clear message
     if (setsToSend.length === 0 && duration_seconds < 60) {
       Alert.alert(
         'Sesión muy corta',
         'Registra al menos 1 serie o entrena por lo menos 1 minuto antes de finalizar.',
       );
-      // Restart the timer (it was stopped at the top of this function)
       intervalRef.current = setInterval(tick, 1000);
       return;
     }
@@ -480,7 +478,6 @@ export const WorkoutActiveScreen = () => {
     );
   }
 
-  // ── MUSCULACIÓN / HIIT / CORE ──────────────────────────────────────────────────
   const isResting = restEndTime !== null;
 
   return (

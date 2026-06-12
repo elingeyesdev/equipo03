@@ -27,10 +27,7 @@ interface RoleGuardProps {
   routePath: string;
 }
 
-/**
- * RoleGuard v2 — consume NAV_ROUTES como fuente de verdad.
- * Si la ruta no existe en el mapa, bloquea por defecto (fail-secure).
- */
+
 export const RoleGuard: React.FC<RoleGuardProps> = ({ children, routePath }) => {
   const { user, isAuthenticated, isLoading } = useAuth();
   const location = useLocation();

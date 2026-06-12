@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import QRCode from 'react-native-qrcode-svg';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import authAxios from '../../../app/Providers/auth/authAxios';
@@ -18,6 +19,7 @@ const ROLE_COLOR: Record<string, string> = {
 };
 
 export const CarnetVirtualScreen = () => {
+  const navigation = useNavigation();
   const { user } = useAuth();
   const [tab, setTab] = useState<Tab>('CARNET');
   const [gymName,   setGymName]   = useState<string | null>(null);
@@ -63,6 +65,13 @@ export const CarnetVirtualScreen = () => {
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
+
+      <View style={s.topBar}>
+        <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
+          <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
+        </TouchableOpacity>
+        <Text style={s.topBarTitle}>Mi Carnet Digital</Text>
+      </View>
 
       {/* Toggle */}
       <View style={s.toggle}>
@@ -134,8 +143,11 @@ export const CarnetVirtualScreen = () => {
 };
 
 const s = StyleSheet.create({
-  safe:   { flex: 1, backgroundColor: '#000' },
-  scroll: { padding: 20, paddingBottom: 60, alignItems: 'center' },
+  safe:        { flex: 1, backgroundColor: '#000' },
+  scroll:      { padding: 20, paddingBottom: 60, alignItems: 'center' },
+  topBar:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
+  backBtn:     { width: 40, height: 40, backgroundColor: '#1C1C1E', borderRadius: 12, borderWidth: 1, borderColor: '#3A3A3C', justifyContent: 'center', alignItems: 'center' },
+  topBarTitle: { flex: 1, color: '#fff', fontSize: 18, fontWeight: '700' },
 
   toggle:          { flexDirection: 'row', margin: 20, backgroundColor: '#111', borderRadius: 30, padding: 4, borderWidth: 1, borderColor: '#222' },
   toggleBtn:       { flex: 1, paddingVertical: 10, borderRadius: 26, alignItems: 'center' },

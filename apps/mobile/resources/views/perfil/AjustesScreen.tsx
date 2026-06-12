@@ -4,18 +4,20 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   Alert,
   Platform,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { userApi } from '../../../app/Providers/users/api/user.api';
 
 export const AjustesScreen = () => {
+  const navigation = useNavigation();
   const { logout, user } = useAuth();
   const [pushLoading, setPushLoading] = useState(false);
 
@@ -80,7 +82,13 @@ export const AjustesScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.topBarTitle}>Ajustes</Text>
+      </View>
       <View style={styles.content}>
 
         <View style={styles.section}>
@@ -132,6 +140,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000000',
   },
+  topBar:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
+  backBtn:     { width: 40, height: 40, backgroundColor: '#1C1C1E', borderRadius: 12, borderWidth: 1, borderColor: '#3A3A3C', justifyContent: 'center', alignItems: 'center' },
+  topBarTitle: { flex: 1, color: '#fff', fontSize: 18, fontWeight: '700' },
   content: {
     padding: 20,
   },

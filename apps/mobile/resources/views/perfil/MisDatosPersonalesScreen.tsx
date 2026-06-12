@@ -53,33 +53,6 @@ export const MisDatosPersonalesScreen = () => {
   const [isFetching,         setIsFetching]         = useState(!p);
   const [savingSection,      setSavingSection]      = useState<SavingSection>(null);
 
-  // ── Botón editar en header nativo ────────────────────────────────────────────
-  useEffect(() => {
-    navigation.setOptions({
-      headerBackVisible: false,
-      headerLeft: () => (
-        <TouchableOpacity
-          style={{ width: 40, height: 40, marginLeft: 4, backgroundColor: '#1C1C1E', borderRadius: 12, borderWidth: 1, borderColor: '#3A3A3C', justifyContent: 'center', alignItems: 'center' }}
-          onPress={() => navigation.goBack()}
-        >
-          <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
-        </TouchableOpacity>
-      ),
-      headerRight: () => (
-        <TouchableOpacity
-          onPress={() => setIsEditing(prev => !prev)}
-          style={{ padding: 4, marginRight: 4 }}
-          disabled={savingSection !== null}
-        >
-          <MaterialCommunityIcons
-            name={isEditing ? 'close' : 'pencil-outline'}
-            size={22}
-            color="#FF5E00"
-          />
-        </TouchableOpacity>
-      ),
-    });
-  }, [isEditing, savingSection, navigation]);
 
   // ── Teclado ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -219,7 +192,7 @@ export const MisDatosPersonalesScreen = () => {
   // ── Loading inicial ───────────────────────────────────────────────────────────
   if (isFetching) {
     return (
-      <SafeAreaView style={[s.container, s.centered]}>
+      <SafeAreaView style={[s.container, s.centered]} edges={['top', 'bottom']}>
         <ActivityIndicator size="large" color="#f05b22" />
         <Text style={s.loadingText}>Cargando perfil...</Text>
       </SafeAreaView>
@@ -227,7 +200,20 @@ export const MisDatosPersonalesScreen = () => {
   }
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView style={s.container} edges={['top', 'bottom']}>
+      <View style={s.topBar}>
+        <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
+          <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
+        </TouchableOpacity>
+        <Text style={s.topBarTitle}>Mis Datos Personales</Text>
+        <TouchableOpacity
+          style={s.editBtn}
+          onPress={() => setIsEditing(prev => !prev)}
+          disabled={savingSection !== null}
+        >
+          <MaterialCommunityIcons name={isEditing ? 'close' : 'pencil-outline'} size={22} color="#FF5E00" />
+        </TouchableOpacity>
+      </View>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={s.scrollContent} keyboardShouldPersistTaps="handled">
 
@@ -454,6 +440,10 @@ const s = StyleSheet.create({
   container:          { flex: 1, backgroundColor: '#0A0A0A' },
   centered:           { justifyContent: 'center', alignItems: 'center' },
   loadingText:        { color: '#B0B0B0', marginTop: 12, fontSize: 14 },
+  topBar:             { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
+  backBtn:            { width: 40, height: 40, backgroundColor: '#1C1C1E', borderRadius: 12, borderWidth: 1, borderColor: '#3A3A3C', justifyContent: 'center', alignItems: 'center' },
+  topBarTitle:        { flex: 1, color: '#fff', fontSize: 18, fontWeight: '700' },
+  editBtn:            { padding: 8 },
   scrollContent:      { padding: 20, paddingBottom: 100 },
 
   // ── Secciones

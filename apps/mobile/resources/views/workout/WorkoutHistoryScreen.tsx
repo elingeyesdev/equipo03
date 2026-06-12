@@ -115,7 +115,7 @@ const SessionCard = ({
       label ||
       'Entrenamiento Libre';
 
-    // ── Subtítulo: lista de ejercicios únicos ────────────────────────────────
+    // ── Subtítulo: lista de ejercicios únicos
     const setNames = (item.sets ?? [])
       .map(
         s =>

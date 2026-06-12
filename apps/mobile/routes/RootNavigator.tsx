@@ -193,18 +193,7 @@ const StaffStack = () => (
     <StaffNav.Screen
       name="ClaseDetalle"
       component={ClaseDetalleScreen}
-      options={({ navigation }) => ({
-        headerShown:       true,
-        title:             'Detalle de Clase',
-        headerStyle:       { backgroundColor: '#1E1E1E' },
-        headerTintColor:   '#fff',
-        headerBackVisible: false,
-        headerLeft: () => (
-          <TouchableOpacity style={backBtnStyle} onPress={() => navigation.goBack()}>
-            <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
-          </TouchableOpacity>
-        ),
-      })}
+      options={{ headerShown: false }}
     />
     <StaffNav.Screen
       name="AsignarRutina"

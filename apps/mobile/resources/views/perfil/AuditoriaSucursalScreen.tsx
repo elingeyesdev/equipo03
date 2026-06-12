@@ -313,6 +313,11 @@ export const AuditoriaSucursalScreen = () => {
 
       {/* Header */}
       <View style={s.topBar}>
+        {navigation.canGoBack() && (
+          <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
+            <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
+          </TouchableOpacity>
+        )}
         <MaterialCommunityIcons name="shield-check-outline" size={20} color="#f05b22" />
         <Text style={s.topTitle}>Auditoría de Sucursal</Text>
         <View style={s.countBadge}>
@@ -523,6 +528,7 @@ const s = StyleSheet.create({
   retryTxt: { color: '#f05b22', fontWeight: '600' },
 
   topBar:     { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#111' },
+  backBtn:    { width: 40, height: 40, backgroundColor: '#1C1C1E', borderRadius: 12, borderWidth: 1, borderColor: '#3A3A3C', justifyContent: 'center', alignItems: 'center' },
   topTitle:   { flex: 1, color: '#fff', fontSize: 16, fontWeight: '800' },
   countBadge: { backgroundColor: '#1C1C1E', borderRadius: 20, paddingHorizontal: 9, paddingVertical: 3, borderWidth: 1, borderColor: '#FF5E00' },
   countTxt:   { color: '#f05b22', fontSize: 12, fontWeight: '700' },

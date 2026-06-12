@@ -86,7 +86,6 @@ export const trainingApi = {
     sets?:           any[];
   }): Promise<WorkoutSession | null> => {
     try {
-      console.log('PAYLOAD ENVIADO AL BACKEND:', JSON.stringify(payload, null, 2));
       const response = await trainingClient.post('/api/training/sessions/completed', payload);
       return response.data?.data ?? response.data;
     } catch (err: any) {

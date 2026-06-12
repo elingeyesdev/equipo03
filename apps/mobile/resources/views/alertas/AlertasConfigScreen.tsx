@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { AlertasController, AlertaFrequencia } from '../../../app/Http/Controllers/alertas/AlertasController';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 
@@ -30,6 +31,7 @@ const FRECUENCIA_OPTIONS: { value: AlertaFrequencia; label: string; desc: string
 ];
 
 export const AlertasConfigScreen = () => {
+  const navigation          = useNavigation();
   const { user }            = useAuth();
   const medicalConditions   = (user as any)?.profile?.medicalConditions as string | undefined;
   const vm                  = AlertasController(medicalConditions);
@@ -50,8 +52,13 @@ export const AlertasConfigScreen = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.topBarTitle}>Alertas de Salud</Text>
+      </View>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Header */}
         <Text style={styles.title}>Alertas de Salud</Text>
         <Text style={styles.subtitle}>
           Configura notificaciones automáticas basadas en tus restricciones médicas registradas.
@@ -210,6 +217,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000000',
   },
+  topBar:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
+  backBtn:     { width: 40, height: 40, backgroundColor: '#1C1C1E', borderRadius: 12, borderWidth: 1, borderColor: '#3A3A3C', justifyContent: 'center', alignItems: 'center' },
+  topBarTitle: { flex: 1, color: '#fff', fontSize: 18, fontWeight: '700' },
   centered: {
     justifyContent: 'center',
     alignItems: 'center',
