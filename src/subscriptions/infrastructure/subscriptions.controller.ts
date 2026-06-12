@@ -14,7 +14,8 @@ export class SubscriptionsController {
   @ApiBody({ type: CreatePlanDto })
   createPlan(@Body() body: CreatePlanDto) { return this.svc.createPlan(body); }
 
-  @Get('plans') @ApiOperation({ summary: 'Listar planes' })
+  @Get('plans') @UseGuards(JwtAuthGuard) @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Listar planes' })
   findPlans() { return this.svc.findAllPlans(); }
 
   @Post() @UseGuards(JwtAuthGuard) @ApiBearerAuth('access-token')

@@ -1,4 +1,5 @@
-import { IsString, IsOptional, IsInt, IsBoolean, IsNumber, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsBoolean, IsNumber, IsArray, IsObject, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 // ── Training Profile ─────────────────────────────────────
@@ -163,26 +164,45 @@ export class SaveCompletedSessionDto {
   notes?: string;
 
   @ApiPropertyOptional({ description: 'Series completadas durante el entrenamiento', type: () => [AddSetDto] })
-  @IsOptional() @IsArray()
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AddSetDto)
   sets?: AddSetDto[];
 }
 
 export class AddSetDto {
-  @ApiProperty({ example: 1, description: 'ID del routine_exercise' })
-  @IsInt()
-  routineExerciseId: number;
+  @ApiPropertyOptional({ example: 1, description: 'ID del routine_exercise. Omitir en entrenamientos libres.' })
+  @IsOptional() @IsInt()
+  routineExerciseId?: number;
+
+  @ApiPropertyOptional({ example: 5, description: 'ID del ejercicio del catálogo. Usar en entrenamientos libres.' })
+  @IsOptional() @IsInt()
+  exerciseId?: number;
+
+  @ApiPropertyOptional({ example: 'Press de Banca', description: 'Nombre del ejercicio (solo para compatibilidad con el frontend móvil, no se persiste explícitamente en la BD).' })
+  @IsOptional() @IsString()
+  exerciseName?: string;
 
   @ApiProperty({ example: 1 })
   @IsInt()
   setNumber: number;
 
-  @ApiProperty({ example: 10 })
-  @IsInt()
-  repsCompleted: number;
+  @ApiPropertyOptional({ example: 10, description: 'Repeticiones completadas. Omitir en isométricos o cardio.' })
+  @IsOptional() @IsInt()
+  repsCompleted?: number;
 
-  @ApiPropertyOptional({ example: 80.5 })
+  @ApiPropertyOptional({ example: 80.5, description: 'Peso en kg. Omitir en ejercicios sin carga.' })
   @IsOptional() @IsNumber()
   weightUsedKg?: number;
+
+  @ApiPropertyOptional({ example: 60, description: 'Duración en segundos. Para isométricos o cardio.' })
+  @IsOptional() @IsInt()
+  durationSeconds?: number;
+
+  @ApiPropertyOptional({ example: 500, description: 'Distancia en metros. Para cardio métrico.' })
+  @IsOptional() @IsInt()
+  distanceMeters?: number;
 
   @ApiPropertyOptional({ example: 90 })
   @IsOptional() @IsInt()
@@ -191,4 +211,8 @@ export class AddSetDto {
   @ApiPropertyOptional({ example: 7, description: 'RPE 1-10' })
   @IsOptional() @IsInt()
   ratingPerceivedExertion?: number;
+
+  @ApiPropertyOptional({ example: { asistidaMaquina: true, lastre: '5kg' }, description: 'Datos arbitrarios del set.' })
+  @IsOptional() @IsObject()
+  metadata?: Record<string, unknown>;
 }

@@ -8,7 +8,7 @@ import { DashboardService } from '../application/dashboard.service';
 @ApiTags('Dashboard')
 @Controller('dashboard')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('SUPER_ADMIN', 'GERENTE')
+@Roles('SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA')
 @ApiBearerAuth('access-token')
 export class DashboardController {
   constructor(private readonly svc: DashboardService) {}

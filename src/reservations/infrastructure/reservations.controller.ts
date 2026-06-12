@@ -90,8 +90,6 @@ export class ReservationsController {
     const raw = req.user?.userId ?? req.user?.id ?? req.user?.sub;
     const userId = raw !== undefined && raw !== null ? Number(raw) : NaN;
 
-    console.log('GET /me -> Extraído ID:', userId, 'desde req.user:', req.user);
-
     if (!userId || isNaN(userId)) {
       throw new UnauthorizedException('No se pudo extraer el ID del token. Vuelve a iniciar sesión.');
     }
@@ -125,7 +123,7 @@ export class ReservationsController {
    */
   @Get('gym')
   @UseGuards(RolesGuard)
-  @Roles('GERENTE', 'SUPER_ADMIN')
+  @Roles('GERENTE', 'SUPER_ADMIN', 'RECEPCIONISTA')
   @ApiOperation({
     summary: 'Auditoría de sede: reservas CONFIRMADA/COMPLETADA (GERENTE / SUPER_ADMIN)',
   })
@@ -153,7 +151,7 @@ export class ReservationsController {
 
   @Get('validate')
   @UseGuards(RolesGuard)
-  @Roles('GERENTE', 'SUPER_ADMIN')
+  @Roles('GERENTE', 'SUPER_ADMIN', 'RECEPCIONISTA')
   @ApiOperation({ summary: 'Validar token QR de reserva' })
   @ApiQuery({ name: 'token', type: 'string', description: 'UUID de reserva' })
   @ApiResponse({ status: 200, description: 'Reserva validada exitosamente' })
@@ -186,7 +184,7 @@ export class ReservationsController {
   /** @deprecated — vulnerable a race conditions. Usar POST /check-in/token */
   @Patch(':id/check-in')
   @UseGuards(RolesGuard)
-  @Roles('GERENTE', 'SUPER_ADMIN')
+  @Roles('GERENTE', 'SUPER_ADMIN', 'RECEPCIONISTA')
   @ApiOperation({ summary: '[DEPRECATED] Check-in por ID (usar /check-in/token)' })
   @ApiBody({ type: CheckInReservationDto })
   @ApiResponse({ status: 200, description: 'Check-in registrado, reserva marcada COMPLETADA' })
@@ -204,7 +202,7 @@ export class ReservationsController {
    */
   @Post('check-in/token')
   @UseGuards(RolesGuard)
-  @Roles('GERENTE', 'SUPER_ADMIN')
+  @Roles('GERENTE', 'SUPER_ADMIN', 'RECEPCIONISTA')
   @ApiOperation({ summary: 'Check-in por QR token — bloqueo pesimista, anti-fraude (GERENTE / SUPER_ADMIN)' })
   @ApiBody({ type: CheckInByTokenDto })
   @ApiResponse({ status: 201, description: 'Check-in registrado, reserva COMPLETADA' })
@@ -224,7 +222,7 @@ export class ReservationsController {
 
   @Put(':id/confirm')
   @UseGuards(RolesGuard)
-  @Roles('GERENTE', 'SUPER_ADMIN')
+  @Roles('GERENTE', 'SUPER_ADMIN', 'RECEPCIONISTA')
   @ApiOperation({ summary: 'Confirmar ingreso de una reserva (marca como COMPLETADA)' })
   @ApiResponse({ status: 200, description: 'Reserva actualizada a COMPLETADA' })
   @ApiResponse({ status: 400, description: 'Reserva ya completada o cancelada' })

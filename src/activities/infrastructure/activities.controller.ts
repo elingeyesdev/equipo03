@@ -30,6 +30,8 @@ import {
 
 @ApiTags('Activities')
 @Controller('activities')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth('access-token')
 export class ActivitiesController {
   constructor(private readonly svc: ActivitiesService) {}
 

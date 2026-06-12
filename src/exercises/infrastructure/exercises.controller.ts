@@ -6,6 +6,8 @@ import { CreateExerciseDto, UpdateExerciseDto } from '../application/dtos/exerci
 
 @ApiTags('Exercises')
 @Controller('exercises')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth('access-token')
 export class ExercisesController {
   constructor(private readonly svc: ExercisesService) {}
 

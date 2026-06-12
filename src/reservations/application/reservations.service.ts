@@ -103,20 +103,14 @@ export class ReservationsService {
 
     if (roleUp === 'CLIENTE' || roleUp === 'USER') {
       qb.andWhere('reservation.user_id = :uid', { uid: Number(userId) });
-    } else if (roleUp === 'GERENTE') {
+    } else if (roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA') {
       const gymId = this.managerGymId();
-      console.log('4. [SCOPE] Forzando búsqueda en Sucursal:', gymId);
-      this.logger.debug(`[applyListScope] GERENTE gymId=${gymId} userId=${userId}`);
+      this.logger.debug(`[applyListScope] ${roleUp} gymId=${gymId} userId=${userId}`);
       const auditStatuses = ['CONFIRMADA', 'COMPLETADA'];
-      console.log('3. [GERENTE AUDIT] Estados filtrados:', auditStatuses);
-      // OR cubre ambos flujos (columna real en ambos casos):
-      //   activity.gym_id   → reservas programadas (JOIN schedule→gymActivity)
-      //   reservation.gym_id → reservas libres (gym_id directo en la fila)
       qb.andWhere(
         '(activity.gym_id = :gymId OR reservation.gym_id = :gymId)',
         { gymId },
       );
-      // Auditoría de puerta: solo estados relevantes
       qb.andWhere('reservation.status IN (:...auditStatuses)', { auditStatuses });
     } else if (roleUp !== 'SUPER_ADMIN') {
       throw new ForbiddenException('No tiene permisos para listar reservas.');
@@ -314,9 +308,9 @@ export class ReservationsService {
     let reservationUserId: number;
     if (roleUp === 'CLIENTE' || roleUp === 'USER') {
       reservationUserId = actorId;
-    } else if (roleUp === 'GERENTE') {
+    } else if (roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA') {
       if (data.targetUserId == null) {
-        throw new BadRequestException('targetUserId es obligatorio para crear reservas como gerente.');
+        throw new BadRequestException('targetUserId es obligatorio para crear reservas como staff.');
       }
       reservationUserId = Number(data.targetUserId);
       await this.assertTargetUserExists(reservationUserId);
@@ -673,7 +667,8 @@ export class ReservationsService {
       userId = Number(authUserId); // sobrescribe cualquier valor externo
     } else if (
       roleUp !== 'SUPER_ADMIN' &&
-      roleUp !== 'GERENTE'
+      roleUp !== 'GERENTE' &&
+      roleUp !== 'RECEPCIONISTA'
     ) {
       throw new ForbiddenException('No tiene permisos para listar reservas.');
     }
@@ -701,7 +696,7 @@ export class ReservationsService {
       }
     }
 
-    if (roleUp === 'GERENTE') {
+    if (roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA') {
       const gymId = this.managerGymId();
       qb.andWhere(
         '(activity.gym_id = :gymId OR reservation.gym_id = :gymId)',
@@ -771,7 +766,7 @@ export class ReservationsService {
     // Auth scope check
     const { role } = this.getAuthUser();
     const roleUp = role?.toUpperCase();
-    if (roleUp === 'GERENTE') {
+    if (roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA') {
       const managerGymId = this.managerGymId();
       const reservationGymId = r.gymId ?? r.gymActivitySchedule?.gymActivity?.gymId;
       if (Number(reservationGymId) !== Number(managerGymId)) {
@@ -795,8 +790,8 @@ export class ReservationsService {
     const { role, userId, gymId: tokenGymId } = this.getAuthUser();
     const roleUp = role?.toUpperCase();
 
-    if (roleUp !== 'GERENTE' && roleUp !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Solo GERENTE o SUPER_ADMIN pueden registrar ingresos.');
+    if (roleUp !== 'GERENTE' && roleUp !== 'RECEPCIONISTA' && roleUp !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Solo GERENTE, RECEPCIONISTA o SUPER_ADMIN pueden registrar ingresos.');
     }
 
     // Cargar reserva con todas las relaciones necesarias (libre y programada)
@@ -809,9 +804,8 @@ export class ReservationsService {
       throw new NotFoundException(`Reserva ${reservationId} no encontrada.`);
     }
 
-    // Validación multitenant: GERENTE solo puede hacer check-in en su sede.
-    // gymId vive directamente en la reserva (libre) o en el schedule (programada).
-    if (roleUp === 'GERENTE') {
+    // Validación multitenant: GERENTE/RECEPCIONISTA solo pueden hacer check-in en su sede.
+    if (roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA') {
       const managerGymId = this.managerGymId();
       const reservationGymId =
         reservation.gymId ??
@@ -895,8 +889,8 @@ export class ReservationsService {
     const { role, userId, gymId: tokenGymId } = this.getAuthUser();
     const roleUp = role?.toUpperCase();
 
-    if (roleUp !== 'GERENTE' && roleUp !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Solo GERENTE o SUPER_ADMIN pueden registrar ingresos.');
+    if (roleUp !== 'GERENTE' && roleUp !== 'RECEPCIONISTA' && roleUp !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Solo GERENTE, RECEPCIONISTA o SUPER_ADMIN pueden registrar ingresos.');
     }
 
     // ── 1. Verificar JWT — lanza JsonWebTokenError / TokenExpiredError si inválido ──
@@ -952,7 +946,7 @@ export class ReservationsService {
       }
 
       // ── 6. Validación de sucursal estricta (anti-fraude cruzado) ──────────
-      if (roleUp === 'GERENTE') {
+      if (roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA') {
         const managerGymId = this.managerGymId();
         const reservationGymId =
           reservation.gymId ??
@@ -1047,13 +1041,11 @@ export class ReservationsService {
   private async notifyGymManagers(gymId: number, reservationId?: number): Promise<void> {
     try {
       const tokens = await this.usersService.getManagerPushTokens(gymId);
-      tokens.forEach((token) => {
-        this.pushService
-          .sendPushMessage(token, 'Nueva Reserva', 'Tienes una nueva reserva confirmada en tu sucursal.')
-          .catch(() => {});
-      });
       if (tokens.length > 0) {
-        this.logger.log(`[PUSH] ${tokens.length} gerente(s) notificado(s) en gym=${gymId}`);
+        this.pushService
+          .sendPushBatch(tokens, 'Nueva Reserva', 'Tienes una nueva reserva confirmada en tu sucursal.')
+          .catch(() => {});
+        this.logger.log(`[PUSH] batch de ${tokens.length} gerente(s) en gym=${gymId}`);
       }
 
       // Emisión en tiempo real para la Web
@@ -1146,11 +1138,11 @@ export class ReservationsService {
     const { role, gymId } = this.getAuthUser();
     const roleUp = role?.toUpperCase();
 
-    if (roleUp !== 'GERENTE' && roleUp !== 'SUPER_ADMIN') {
+    if (roleUp !== 'GERENTE' && roleUp !== 'RECEPCIONISTA' && roleUp !== 'SUPER_ADMIN') {
       throw new ForbiddenException('Solo el staff puede confirmar el ingreso.');
     }
 
-    const r = await this.repo.findOne({ 
+    const r = await this.repo.findOne({
       where: { id },
       relations: ['gymActivitySchedule', 'gymActivitySchedule.gymActivity']
     });
@@ -1159,7 +1151,7 @@ export class ReservationsService {
       throw new NotFoundException(`Reserva ${id} no encontrada`);
     }
 
-    if (roleUp === 'GERENTE') {
+    if (roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA') {
       const reservationGymId = r.gymId ?? r.gymActivitySchedule?.gymActivity?.gymId;
       if (Number(reservationGymId) !== Number(gymId)) {
         throw new ForbiddenException('Esta reserva pertenece a otra sede corporativa.');

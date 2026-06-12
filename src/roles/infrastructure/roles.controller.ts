@@ -29,7 +29,7 @@ export class RolesController {
   createRole(@Body() body: CreateRoleDto) { return this.svc.createRole(body); }
 
   @Get()
-  @Roles('SUPER_ADMIN', 'GERENTE')
+  @Roles('SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA')
   @ApiOperation({ summary: 'Listar roles' })
   findAllRoles() { return this.svc.findAllRoles(); }
 

@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Req, UseGuards, ParseIntPipe } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards, ParseIntPipe, ForbiddenException } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody, ApiQuery } from '@nestjs/swagger';
 import type { RequestWithUser } from '../../common/security/gym-scope';
 import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
 import { TrainingService } from '../application/training.service';
@@ -48,11 +48,47 @@ export class TrainingController {
     return this.svc.saveCompletedSession(Number(req.user!.userId), body);
   }
 
-  @Get('sessions') @ApiOperation({ summary: 'Listar mis sesiones (filtradas por usuario autenticado)' })
-  findSessions(@Req() req: RequestWithUser) { return this.svc.findAllSessions(Number(req.user!.userId)); }
+  @Get('sessions')
+  @ApiOperation({ summary: 'Listar mis sesiones paginadas (más recientes primero)' })
+  @ApiQuery({ name: 'limit', required: false, example: 50, description: 'Máx registros (default 50)' })
+  @ApiQuery({ name: 'offset', required: false, example: 0, description: 'Registros a saltar (default 0)' })
+  findSessions(
+    @Req() req: RequestWithUser,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    const take = Math.min(limit ? parseInt(limit, 10) : 50, 100);
+    const skip = offset ? parseInt(offset, 10) : 0;
+    return this.svc.findAllSessions(Number(req.user!.userId), take, skip);
+  }
 
-  @Get('sessions/user/:userId') @ApiOperation({ summary: 'Sesiones de usuario' })
-  findByUser(@Param('userId', ParseIntPipe) uid: number) { return this.svc.findSessionsByUser(uid); }
+  @Get('sessions/user/:userId')
+  @ApiOperation({ summary: 'Sesiones de usuario (USER solo puede ver las propias)' })
+  findByUser(
+    @Req() req: RequestWithUser,
+    @Param('userId', ParseIntPipe) uid: number,
+  ) {
+    const role = req.user?.role?.toUpperCase();
+    const selfId = Number(req.user!.userId);
+    // USER solo puede consultar su propio historial
+    if (role === 'USER' || role === 'CLIENTE') {
+      if (selfId !== uid) {
+        throw new ForbiddenException('Solo puedes consultar tus propias sesiones.');
+      }
+    }
+    return this.svc.findSessionsByUser(uid);
+  }
+
+  @Get('sessions/strength-records')
+  @ApiOperation({
+    summary: 'Récords de fuerza por ejercicio (gráfico de hipertrofia)',
+    description:
+      'Devuelve el historial de peso máximo levantado por ejercicio. ' +
+      'Formato: [{ exerciseId, exerciseName, muscleGroup, history: [{ date, maxWeightKg, totalSets }] }]',
+  })
+  getStrengthRecords(@Req() req: RequestWithUser) {
+    return this.svc.getStrengthRecords(Number(req.user!.userId));
+  }
 
   @Get('sessions/:id') @ApiOperation({ summary: 'Obtener sesión' })
   findOneSession(@Param('id', ParseIntPipe) id: number) { return this.svc.findOneSession(id); }
