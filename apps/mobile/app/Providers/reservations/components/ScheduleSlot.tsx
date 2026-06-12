@@ -62,11 +62,10 @@ const styles = StyleSheet.create({
   selected: {
     borderColor: Colors.primary,
     borderWidth: 2,
-    backgroundColor: 'rgba(255, 94, 0, 0.1)', // Tinte suave del primario
+    backgroundColor: '#1C1C1E',
   },
   disabled: {
     backgroundColor: Colors.background,
-    opacity: 0.5,
   },
   timeInfo: {
     flexDirection: 'row',

@@ -42,8 +42,10 @@ export const WorkoutActiveScreen = () => {
 
   const navigation = useNavigation<any>();
   const route      = useRoute<any>();
-  const { sport = 'DEFAULT', exerciseName, trackingType = 'PESO_REPS' as TrackingType } = route.params ?? {};
+  const { sport = 'DEFAULT', exercise, exerciseName: fallbackName, trackingType = 'PESO_REPS' as TrackingType } = route.params ?? {};
 
+  const exerciseId   = exercise?.id || route.params?.exerciseId;
+  const exerciseName = exercise?.name || fallbackName;
   const displayName  = (exerciseName ?? String(sport).toUpperCase()) as string;
   const isCardio     = (trackingType as TrackingType) === 'DISTANCE_TIME';
 
@@ -253,22 +255,68 @@ export const WorkoutActiveScreen = () => {
     const duration_seconds = elapsedSeconds;
     const rate             = CALORIE_RATE[String(sport).toUpperCase()] ?? CALORIE_RATE.DEFAULT;
     const calories_burned  = Math.round(duration_seconds * rate);
+
+    const exId = exerciseId ? Number(exerciseId) : undefined;
+    const exName = exerciseName || undefined;
+
+    // For cardio (DISTANCE_TIME), build one set from the distance/time inputs
+    let setsToSend: any[];
+    if (isCardio) {
+      setsToSend = (distancia || tiempoMin)
+        ? [{
+            setNumber:       1,
+            exerciseId:      exId,
+            exerciseName:    exName,
+            distanceMeters:  distancia  ? Number(distancia)               : undefined,
+            durationSeconds: tiempoMin  ? Math.round(Number(tiempoMin) * 60) : undefined,
+          }]
+        : [];
+    } else {
+      setsToSend = completedSeries.map((s, index) => ({
+        setNumber:       index + 1,
+        exerciseId:      exId,
+        exerciseName:    exName,
+        weightUsedKg:    s.peso       ? Number(s.peso)       : undefined,
+        repsCompleted:   s.reps       ? Number(s.reps)       : undefined,
+        durationSeconds: s.duracionSec ? Number(s.duracionSec) : undefined,
+        distanceMeters:  s.distanciaM  ? Number(s.distanciaM)  : undefined,
+      }));
+    }
+
+    // Backend rejects sessions under 60 s with no sets — show a clear message
+    if (setsToSend.length === 0 && duration_seconds < 60) {
+      Alert.alert(
+        'Sesión muy corta',
+        'Registra al menos 1 serie o entrena por lo menos 1 minuto antes de finalizar.',
+      );
+      // Restart the timer (it was stopped at the top of this function)
+      intervalRef.current = setInterval(tick, 1000);
+      return;
+    }
+
     try {
-      const user    = await AuthService.getCurrentUser();
+      const user = await AuthService.getCurrentUser();
       const payload: Parameters<typeof trainingApi.saveCompletedSession>[0] = {
         sportType:       SPORT_TO_BACKEND[String(sport).toUpperCase()] ?? 'OTRO',
         durationSeconds: duration_seconds,
         caloriesBurned:  calories_burned,
+        sets:            setsToSend,
       };
       if (user?.gymId) payload.gymId = Number(user.gymId);
       await trainingApi.saveCompletedSession(payload);
-    } catch (e) {
-      console.warn('[WorkoutActive] No se pudo registrar la sesion:', e);
+
+      setIsFinished(true);
+      navigation.replace('WorkoutSummary', {
+        duration_seconds, calories_burned, sport, exerciseName, series: completedSeries,
+      });
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.message || 'Error desconocido';
+      if (e?.response?.status === 400) {
+        Alert.alert('No se pudo guardar', msg);
+      } else {
+        console.warn('[WorkoutActive] No se pudo registrar la sesion:', e);
+      }
     }
-    setIsFinished(true);
-    navigation.replace('WorkoutSummary', {
-      duration_seconds, calories_burned, sport, exerciseName, series: completedSeries,
-    });
   };
 
   const renderSerieLabel = (ser: Serie): string => {
@@ -379,7 +427,7 @@ export const WorkoutActiveScreen = () => {
         <View style={{ flex: 1 }}>
           <View style={s.topBackRow}>
             <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
-              <MaterialCommunityIcons name="arrow-left" size={22} color="#f05b22" />
+              <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
             </TouchableOpacity>
           </View>
           <View style={s.cardioWrap}>
@@ -443,7 +491,7 @@ export const WorkoutActiveScreen = () => {
 
         <View style={s.musTopBar}>
           <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
-            <MaterialCommunityIcons name="arrow-left" size={22} color="#f05b22" />
+            <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
           </TouchableOpacity>
           <View style={s.musTopRight}>
             {isPaused && <Text style={s.pausedBadge}>PAUSADO</Text>}
@@ -530,7 +578,7 @@ const s = StyleSheet.create({
   topBackRow: { paddingHorizontal: 20, paddingTop: 12 },
   backBtn: {
     width: 40, height: 40, borderRadius: 12,
-    backgroundColor: '#161618',
+    backgroundColor: '#1C1C1E',
     justifyContent: 'center', alignItems: 'center',
     borderWidth: 1, borderColor: '#222',
   },
@@ -576,21 +624,19 @@ const s = StyleSheet.create({
     letterSpacing: 1, marginBottom: 8, textTransform: 'uppercase',
   },
   inputField: {
-    backgroundColor: '#161618', borderRadius: 14, borderWidth: 1, borderColor: '#222',
+    backgroundColor: '#1C1C1E', borderRadius: 14, borderWidth: 1, borderColor: '#222',
     height: 58, textAlign: 'center', color: '#fff', fontSize: 24, fontWeight: '700',
   },
 
   timerInputRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   copyTimerBtn: {
-    backgroundColor: '#161618', borderRadius: 14, borderWidth: 1, borderColor: '#f05b2244',
+    backgroundColor: '#1C1C1E', borderRadius: 14, borderWidth: 1, borderColor: '#FF5E00',
     width: 58, height: 58, justifyContent: 'center', alignItems: 'center',
   },
 
   markBtn: {
     backgroundColor: '#2ecc71', borderRadius: 16, height: 60,
     justifyContent: 'center', alignItems: 'center',
-    shadowColor: '#2ecc71', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25, shadowRadius: 8, elevation: 5,
   },
   markBtnTxt: { color: '#fff', fontSize: 16, fontWeight: '800' },
 
@@ -598,15 +644,15 @@ const s = StyleSheet.create({
   restControlLabel: { color: '#444', fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
   restControlRow:   { flexDirection: 'row', alignItems: 'center', gap: 16 },
   restAdjBtn:       {
-    backgroundColor: '#161618', borderRadius: 10, borderWidth: 1, borderColor: '#222',
+    backgroundColor: '#1C1C1E', borderRadius: 10, borderWidth: 1, borderColor: '#222',
     paddingVertical: 7, paddingHorizontal: 14,
   },
   restAdjTxt:       { color: '#aaa', fontSize: 13, fontWeight: '700' },
-  restAdjDisabled:  { opacity: 0.3 },
+  restAdjDisabled:  {},
   restDurationTxt:  { color: '#f05b22', fontSize: 18, fontWeight: '900', minWidth: 48, textAlign: 'center' },
 
   restBlock: {
-    backgroundColor: '#1a0e00', borderRadius: 20, borderWidth: 1, borderColor: '#f05b2244',
+    backgroundColor: '#1C1C1E', borderRadius: 20, borderWidth: 1, borderColor: '#FF5E00',
     paddingVertical: 28, paddingHorizontal: 24, alignItems: 'center', gap: 12,
   },
   restLabel: { color: '#f05b22', fontSize: 12, fontWeight: '800', letterSpacing: 3 },

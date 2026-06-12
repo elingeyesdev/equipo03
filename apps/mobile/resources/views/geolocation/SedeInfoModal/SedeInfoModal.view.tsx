@@ -1,6 +1,6 @@
 /**
  * SedeInfoModal View — Modal con información detallada de una sede.
- * 
+ *
  * Implementado como bottom sheet con animación slide-up.
  * Muestra: nombre, dirección, aforo, horarios, servicios y acciones.
  */
@@ -14,6 +14,7 @@ import {
   ScrollView,
   Pressable,
 } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Sede } from '@gymsync/core';
 import { Distancia } from '@gymsync/core';
 import { AforoBadge } from '../UI/AforoBadge/AforoBadge.component';
@@ -58,14 +59,17 @@ export const SedeInfoModalView: React.FC<SedeInfoModalViewProps> = ({
                 <Text style={styles.sedeBrand}>{sede.parentName}</Text>
               )}
               <Text style={styles.sedeName}>{sede.nombre}</Text>
-              <Text style={styles.sedeAddress}>📍 {sede.direccion}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <MaterialCommunityIcons name="map-marker-outline" size={13} color="#B0B0B0" />
+                <Text style={styles.sedeAddress}>{sede.direccion}</Text>
+              </View>
             </View>
             <TouchableOpacity
               style={styles.closeButton}
               onPress={onClose}
               accessibilityLabel="Cerrar"
             >
-              <Text style={styles.closeButtonText}>✕</Text>
+              <MaterialCommunityIcons name="close" size={18} color="#B0B0B0" />
             </TouchableOpacity>
           </View>
 
@@ -108,7 +112,10 @@ export const SedeInfoModalView: React.FC<SedeInfoModalViewProps> = ({
           >
             {/* Horarios */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>🕐 Horarios ({sede.estaAbierta ? 'Abierto Ahora' : 'Cerrado'})</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <MaterialCommunityIcons name="clock-outline" size={15} color="#B0B0B0" />
+                <Text style={styles.sectionTitle}>Horarios ({sede.estaAbierta ? 'Abierto Ahora' : 'Cerrado'})</Text>
+              </View>
               {sede.horarios && Object.keys(sede.horarios.raw).length > 0 ? (
                 Object.entries(sede.horarios.raw).map(([dia, horario]) => (
                   <View key={dia} style={styles.horarioRow}>
@@ -128,7 +135,10 @@ export const SedeInfoModalView: React.FC<SedeInfoModalViewProps> = ({
             {/* Servicios */}
             {sede.servicios.length > 0 && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>💪 Servicios</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <MaterialCommunityIcons name="dumbbell" size={15} color="#B0B0B0" />
+                  <Text style={styles.sectionTitle}>Servicios</Text>
+                </View>
                 <View style={styles.serviciosGrid}>
                   {sede.servicios.map((servicio) => (
                     <View key={servicio} style={styles.servicioTag}>
@@ -142,10 +152,13 @@ export const SedeInfoModalView: React.FC<SedeInfoModalViewProps> = ({
             {/* Beneficios */}
             {sede.beneficios && sede.beneficios.length > 0 && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>⭐ Beneficios</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <MaterialCommunityIcons name="star-outline" size={15} color="#B0B0B0" />
+                  <Text style={styles.sectionTitle}>Beneficios</Text>
+                </View>
                 <View style={styles.serviciosGrid}>
                   {sede.beneficios.map((beneficio) => (
-                    <View key={beneficio} style={[styles.servicioTag, { backgroundColor: 'rgba(241, 196, 15, 0.2)' }]}>
+                    <View key={beneficio} style={[styles.servicioTag, { backgroundColor: '#1C1C1E' }]}>
                       <Text style={[styles.servicioText, { color: '#f1c40f' }]}>{beneficio}</Text>
                     </View>
                   ))}
@@ -156,7 +169,10 @@ export const SedeInfoModalView: React.FC<SedeInfoModalViewProps> = ({
             {/* Teléfono */}
             {sede.telefono && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>📞 Contacto</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <MaterialCommunityIcons name="phone-outline" size={15} color="#B0B0B0" />
+                  <Text style={styles.sectionTitle}>Contacto</Text>
+                </View>
                 <Text style={styles.telefonoText}>{sede.telefono}</Text>
               </View>
             )}
@@ -165,12 +181,15 @@ export const SedeInfoModalView: React.FC<SedeInfoModalViewProps> = ({
           {/* Botón de acción */}
           <View style={[styles.actionBar, { flexDirection: 'row', gap: 12 }]}>
             <TouchableOpacity
-              style={[styles.navigateButton, { flex: 1, backgroundColor: 'transparent', borderWidth: 1, borderColor: '#00D9FF' }]}
+              style={[styles.navigateButton, { flex: 1, backgroundColor: 'transparent', borderWidth: 1, borderColor: '#38BDF8' }]}
               onPress={onNavigate}
               activeOpacity={0.8}
               accessibilityLabel={`Navegar a ${sede.nombre}`}
             >
-              <Text style={[styles.navigateButtonText, { color: '#00D9FF' }]}>🧭 Cómo llegar</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <MaterialCommunityIcons name="navigation-variant-outline" size={16} color="#38BDF8" />
+                <Text style={[styles.navigateButtonText, { color: '#38BDF8' }]}>Cómo llegar</Text>
+              </View>
             </TouchableOpacity>
 
             {isAdmin ? (
@@ -184,7 +203,10 @@ export const SedeInfoModalView: React.FC<SedeInfoModalViewProps> = ({
                 activeOpacity={0.8}
                 accessibilityLabel={`Reservar en ${sede.nombre}`}
               >
-                <Text style={[styles.navigateButtonText, { color: '#FFF' }]}>📅 Reservar</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <MaterialCommunityIcons name="calendar-check-outline" size={16} color="#FFF" />
+                  <Text style={[styles.navigateButtonText, { color: '#FFF' }]}>Reservar</Text>
+                </View>
               </TouchableOpacity>
             ) : null}
           </View>

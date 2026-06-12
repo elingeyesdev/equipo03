@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#ff444455',
+    borderColor: '#FF453A',
     marginTop: 20,
   },
   icon: {

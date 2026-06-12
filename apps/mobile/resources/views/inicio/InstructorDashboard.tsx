@@ -177,7 +177,7 @@ const s = StyleSheet.create({
   saludo:     { color: '#555', fontSize: 14 },
   nombre:     { color: '#fff', fontSize: 28, fontWeight: '900', marginTop: 2 },
   sub:        { color: '#444', fontSize: 13, marginTop: 4 },
-  avatar:     { width: 52, height: 52, borderRadius: 26, backgroundColor: '#1c1c1e', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(240,91,34,0.3)' },
+  avatar:     { width: 52, height: 52, borderRadius: 26, backgroundColor: '#1C1C1E', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#FF5E00' },
 
   fechaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20 },
   fechaTxt: { color: '#444', fontSize: 13 },
@@ -192,7 +192,7 @@ const s = StyleSheet.create({
   card:     { flexDirection: 'row', backgroundColor: '#0e0e0e', borderRadius: 14, borderWidth: 1, borderColor: '#1a1a1a', borderLeftWidth: 3, borderLeftColor: '#f05b22', padding: 14, marginBottom: 10, alignItems: 'center', gap: 12 },
   timeCol:  { alignItems: 'center', width: 44 },
   timeStart:{ color: '#f05b22', fontSize: 13, fontWeight: '800' },
-  timeLine: { width: 1.5, height: 14, backgroundColor: '#f05b2244', marginVertical: 4 },
+  timeLine: { width: 1.5, height: 14, backgroundColor: '#3A3A3C', marginVertical: 4 },
   timeEnd:  { color: '#444', fontSize: 11 },
 
   infoCol:     { flex: 1 },

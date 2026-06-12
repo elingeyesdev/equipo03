@@ -188,9 +188,9 @@ const s = StyleSheet.create({
   saludo:     { color: '#555', fontSize: 14, fontWeight: '500' },
   nombre:     { color: '#fff', fontSize: 28, fontWeight: '900', marginTop: 2 },
   sub:        { color: '#444', fontSize: 13, marginTop: 4 },
-  avatarBox:  { width: 52, height: 52, borderRadius: 26, backgroundColor: '#1c1c1e', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(240,91,34,0.3)' },
+  avatarBox:  { width: 52, height: 52, borderRadius: 26, backgroundColor: '#1C1C1E', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#FF5E00' },
 
-  card:       { backgroundColor: '#0e0e0e', borderRadius: 16, padding: 18, marginBottom: 24, borderWidth: 1, borderColor: '#1a1a1a' },
+  card:       { backgroundColor: '#0e0e0e', borderRadius: 16, padding: 18, marginBottom: 24, borderWidth: 1, borderColor: '#3A3A3C' },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 14 },
   cardTitle:  { flex: 1, color: '#fff', fontSize: 14, fontWeight: '700' },
   dot:        { width: 7, height: 7, borderRadius: 4 },
@@ -201,7 +201,7 @@ const s = StyleSheet.create({
   aforoMax:     { color: '#444', fontSize: 20, fontWeight: '600' },
   aforoPct:     { color: '#555', fontSize: 12, marginBottom: 14 },
 
-  barBg:    { height: 8, backgroundColor: '#1a1a1a', borderRadius: 4, overflow: 'hidden', marginBottom: 14 },
+  barBg:    { height: 8, backgroundColor: '#3A3A3C', borderRadius: 4, overflow: 'hidden', marginBottom: 14 },
   barFill:  { height: '100%', borderRadius: 4 },
 
   aforoRow:     { flexDirection: 'row', gap: 16 },
@@ -215,11 +215,11 @@ const s = StyleSheet.create({
   primaryBtn:    { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#f05b22', borderRadius: 14, padding: 18, marginBottom: 10 },
   primaryBtnTxt: { flex: 1, color: '#0A0A0A', fontSize: 16, fontWeight: '800' },
 
-  secondaryBtn:    { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#0e0e0e', borderRadius: 14, padding: 18, marginBottom: 24, borderWidth: 1, borderColor: 'rgba(240,91,34,0.3)' },
+  secondaryBtn:    { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#0e0e0e', borderRadius: 14, padding: 18, marginBottom: 24, borderWidth: 1, borderColor: '#FF5E00' },
   secondaryBtnTxt: { flex: 1, color: '#f05b22', fontSize: 15, fontWeight: '700' },
 
   statsRow:  { flexDirection: 'row', gap: 10 },
-  statCard:  { flex: 1, backgroundColor: '#0e0e0e', borderRadius: 12, padding: 14, alignItems: 'center', gap: 6, borderWidth: 1, borderColor: '#1a1a1a' },
+  statCard:  { flex: 1, backgroundColor: '#0e0e0e', borderRadius: 12, padding: 14, alignItems: 'center', gap: 6, borderWidth: 1, borderColor: '#3A3A3C' },
   statNum:   { color: '#fff', fontSize: 22, fontWeight: '900' },
   statLabel: { color: '#444', fontSize: 10, textAlign: 'center' },
 });

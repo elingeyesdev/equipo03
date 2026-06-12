@@ -4,9 +4,7 @@ import {
   SafeAreaView, TouchableOpacity, Dimensions,
 } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
-import axios from 'axios';
-import { Env } from '../../../app/Providers/geolocation/config/environment';
-import { AuthService } from '../../../app/Providers/auth/AuthService';
+import authAxios from '../../../app/Providers/auth/authAxios';
 
 type MetricEntry = {
   id: string;
@@ -44,11 +42,7 @@ export const HistorialMetricasScreen = () => {
     let cancelled = false;
     const load = async () => {
       try {
-        const token = await AuthService.getToken();
-        const res   = await axios.get(
-          `${Env.API_BASE_URL}/api/users/me/metrics`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const res = await authAxios.get('/api/users/me/metrics');
         if (cancelled) return;
         setEntries(res.data?.data ?? res.data ?? []);
       } catch (e: any) {
@@ -182,7 +176,7 @@ const s = StyleSheet.create({
 
   // Filtros
   filterRow:        { flexDirection: 'row', gap: 8, marginBottom: 16 },
-  filterBtn:        { flex: 1, paddingVertical: 9, borderRadius: 8, backgroundColor: '#1a1a1a', alignItems: 'center', borderWidth: 1, borderColor: '#2a2a2a' },
+  filterBtn:        { flex: 1, paddingVertical: 9, borderRadius: 8, backgroundColor: '#1C1C1E', alignItems: 'center', borderWidth: 1, borderColor: '#3A3A3C' },
   filterBtnActive:  { backgroundColor: '#00c853', borderColor: '#00c853' },
   filterText:       { color: '#888', fontWeight: '700', fontSize: 13 },
   filterTextActive: { color: '#000' },
@@ -192,7 +186,7 @@ const s = StyleSheet.create({
   chartTitle:       { color: '#fff', fontWeight: 'bold', fontSize: 15, marginBottom: 4, paddingHorizontal: 8 },
 
   // Cards historial
-  card:             { backgroundColor: '#111', borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#1e1e1e' },
+  card:             { backgroundColor: '#111', borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#3A3A3C' },
   cardHeader:       { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
   cardDate:         { color: '#fff', fontWeight: '700', fontSize: 14 },
   cardIndex:        { color: '#444', fontSize: 12 },

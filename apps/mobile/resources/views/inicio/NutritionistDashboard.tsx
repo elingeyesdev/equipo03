@@ -177,7 +177,7 @@ export const NutritionistDashboard = () => {
                 </View>
 
                 {/* Badge estado */}
-                <View style={[s.statusBadge, { borderColor: statusColor + '55', backgroundColor: statusColor + '18' }]}>
+                <View style={[s.statusBadge, { borderColor: statusColor, backgroundColor: '#1C1C1E' }]}>
                   <Text style={[s.statusTxt, { color: statusColor }]}>{statusLabel}</Text>
                 </View>
               </View>
@@ -199,7 +199,7 @@ const s = StyleSheet.create({
   saludo:     { color: '#555', fontSize: 14 },
   nombre:     { color: '#fff', fontSize: 26, fontWeight: '900', marginTop: 2 },
   sub:        { color: '#444', fontSize: 13, marginTop: 4 },
-  avatar:     { width: 50, height: 50, borderRadius: 25, backgroundColor: '#071a15', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(6,214,160,0.25)' },
+  avatar:     { width: 50, height: 50, borderRadius: 25, backgroundColor: '#1C1C1E', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#00E5A3' },
 
   fechaRow:  { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
   fechaTxt:  { color: '#444', fontSize: 13 },
@@ -212,20 +212,20 @@ const s = StyleSheet.create({
   card:     { flexDirection: 'row', backgroundColor: '#0e0e0e', borderRadius: 14, borderWidth: 1, borderColor: '#1a1a1a', borderLeftWidth: 3, borderLeftColor: '#06d6a0', padding: 14, marginBottom: 10, alignItems: 'flex-start', gap: 12 },
   timeCol:  { alignItems: 'center', width: 44, paddingTop: 2 },
   timeStart:{ color: '#06d6a0', fontSize: 13, fontWeight: '800' },
-  timeLine: { width: 1.5, height: 14, backgroundColor: '#06d6a044', marginVertical: 4 },
+  timeLine: { width: 1.5, height: 14, backgroundColor: '#3A3A3C', marginVertical: 4 },
   timeEnd:  { color: '#444', fontSize: 11 },
 
   infoCol:     { flex: 1, gap: 6 },
   infoTop:     { flexDirection: 'row', alignItems: 'center', gap: 6 },
   patientName: { color: '#fff', fontSize: 14, fontWeight: '700', flex: 1 },
 
-  typeBadge: { alignSelf: 'flex-start', backgroundColor: 'rgba(6,214,160,0.1)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: 'rgba(6,214,160,0.25)' },
+  typeBadge: { alignSelf: 'flex-start', backgroundColor: '#1C1C1E', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: '#00E5A3' },
   typeTxt:   { color: '#06d6a0', fontSize: 10, fontWeight: '700' },
 
   notes: { color: '#555', fontSize: 11, lineHeight: 16 },
 
-  completeBtn:    { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', backgroundColor: 'rgba(6,214,160,0.08)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: 'rgba(6,214,160,0.3)', marginTop: 2 },
-  completeBtnOff: { opacity: 0.5 },
+  completeBtn:    { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', backgroundColor: '#1C1C1E', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: '#00E5A3', marginTop: 2 },
+  completeBtnOff: {},
   completeBtnTxt: { color: '#06d6a0', fontSize: 11, fontWeight: '700' },
 
   statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, alignSelf: 'flex-start', marginTop: 2 },

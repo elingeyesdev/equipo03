@@ -52,7 +52,7 @@ export class SedeDTOMapper {
         const rawCierre   = s.closesAt ?? s.closeTime ?? s.endTime;
         const apertura = typeof rawApertura === 'string' ? rawApertura.substring(0, 5) : String(rawApertura ?? '');
         const cierre   = typeof rawCierre   === 'string' ? rawCierre.substring(0, 5)   : String(rawCierre   ?? '');
-        if (apertura && cierre) horariosMap![d] = { apertura, cierre };
+        if (apertura && cierre) (horariosMap as any)![d] = { apertura, cierre };
       });
     }
 

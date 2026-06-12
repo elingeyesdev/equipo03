@@ -230,7 +230,7 @@ const s = StyleSheet.create({
   safe:    { flex: 1, backgroundColor: '#000' },
   center:  { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, gap: 10 },
 
-  subHeader: { paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#1a1a1a' },
+  subHeader: { paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#3A3A3C' },
   title:     { color: '#fff', fontSize: 18, fontWeight: '900' },
   sub:       { color: '#555', fontSize: 13, marginTop: 2 },
 
@@ -238,24 +238,24 @@ const s = StyleSheet.create({
   addBtnTxt: { color: '#fff', fontWeight: '700', fontSize: 13 },
 
   list: { paddingHorizontal: 16, paddingBottom: 100 },
-  row:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#0e0e0e', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 8, borderWidth: 1, borderColor: '#1a1a1a' },
+  row:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#0e0e0e', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 8, borderWidth: 1, borderColor: '#3A3A3C' },
   rowLeft:  { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
   dot:      { width: 8, height: 8, borderRadius: 4 },
   rowName:  { color: '#fff', fontSize: 14, fontWeight: '600', flex: 1 },
   empty:    { color: '#555', fontSize: 14, textAlign: 'center', marginTop: 8 },
 
-  footer:    { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, backgroundColor: '#000', borderTopWidth: 1, borderTopColor: '#1a1a1a' },
+  footer:    { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, backgroundColor: '#000', borderTopWidth: 1, borderTopColor: '#3A3A3C' },
   saveBtn:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#22C55E', borderRadius: 14, paddingVertical: 14 },
-  saveBtnOff:{ opacity: 0.5 },
+  saveBtnOff:{},
   saveBtnTxt:{ color: '#fff', fontWeight: '900', fontSize: 15 },
 
   modalBg:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
   modalSheet: { backgroundColor: '#111', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
   modalHandle:{ width: 40, height: 4, backgroundColor: '#333', borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
   modalTitle: { color: '#fff', fontSize: 18, fontWeight: '900', marginBottom: 16 },
-  searchInput:{ backgroundColor: '#1c1c1e', borderRadius: 12, padding: 14, color: '#fff', fontSize: 15, borderWidth: 1, borderColor: '#2a2a2a', marginBottom: 8 },
+  searchInput:{ backgroundColor: '#1C1C1E', borderRadius: 12, padding: 14, color: '#fff', fontSize: 15, borderWidth: 1, borderColor: '#3A3A3C', marginBottom: 8 },
   noResults:  { color: '#555', textAlign: 'center', marginTop: 16 },
-  resultRow:  { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#1c1c1e' },
+  resultRow:  { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#3A3A3C' },
   resultName: { color: '#fff', fontSize: 14, fontWeight: '600' },
   resultEmail:{ color: '#555', fontSize: 11, marginTop: 2 },
 });

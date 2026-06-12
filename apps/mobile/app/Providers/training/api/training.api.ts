@@ -27,9 +27,16 @@ attach401Guard(trainingClient);
 export type WorkoutSet = {
   id:               number;
   setNumber:        number;
-  repsCompleted:    number;
+  repsCompleted:    number | null;
   weightUsedKg:     number | null;
+  durationSeconds:  number | null;
+  distanceMeters:   number | null;
   restTakenSeconds: number | null;
+  exercise?: { id: number; name: string; muscleGroup?: string } | null;
+  exerciseName?: string;
+  routineExercise?: {
+    exercise?: { name: string } | null;
+  } | null;
 };
 
 export type WorkoutSession = {
@@ -60,18 +67,31 @@ export const trainingApi = {
     }
   },
 
+  getExercises: async (): Promise<any[]> => {
+    try {
+      const response = await trainingClient.get('/api/exercises');
+      const raw = response.data?.data ?? response.data;
+      return Array.isArray(raw) ? raw : [];
+    } catch (err: any) {
+      console.warn('[Training] Error getExercises:', err?.response?.status ?? err?.message);
+      return [];
+    }
+  },
+
   saveCompletedSession: async (payload: {
     gymId?:          number;
     sportType?:      string;
     durationSeconds: number;
     caloriesBurned:  number;
+    sets?:           any[];
   }): Promise<WorkoutSession | null> => {
     try {
+      console.log('PAYLOAD ENVIADO AL BACKEND:', JSON.stringify(payload, null, 2));
       const response = await trainingClient.post('/api/training/sessions/completed', payload);
       return response.data?.data ?? response.data;
     } catch (err: any) {
-      console.warn('[Training] Error saveCompleted:', err?.response?.status ?? err?.message);
-      return null;
+      console.error('ERROR 400 DETALLE:', err?.response?.data?.message || err?.message);
+      throw err;
     }
   },
 };

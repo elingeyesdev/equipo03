@@ -77,7 +77,7 @@ const WheelPicker = ({ items, selectedIdx, onChange }: {
 const wp = StyleSheet.create({
   wrap:   { alignItems: 'center', width: 64 },
   btn:    { padding: 6 },
-  valBox: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1.5, borderColor: Colors.secondary + '80', backgroundColor: 'rgba(0,217,255,0.08)', minWidth: 52, alignItems: 'center' },
+  valBox: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1.5, borderColor: Colors.secondary, backgroundColor: '#1C1C1E', minWidth: 52, alignItems: 'center' },
   val:    { fontSize: 26, fontWeight: '800', color: Colors.secondary },
 });
 
@@ -464,13 +464,23 @@ export const ScheduleSelectionScreen = ({ route, navigation }: Props) => {
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <Text style={[s.actName, sel && s.actNameSel]}>{a?.name ?? '—'}</Text>
                     {/* Badge tipo */}
-                    <Text style={a.isFreeAccess ? s.badgeFree : s.badgeSched}>
-                      {a.isFreeAccess ? '🔓 Libre' : '📅 Horarios'}
-                    </Text>
+                    <View style={[a.isFreeAccess ? s.badgeFree : s.badgeSched, { flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                      <MaterialCommunityIcons
+                        name={a.isFreeAccess ? 'lock-open-variant-outline' : 'calendar-check-outline'}
+                        size={10}
+                        color={a.isFreeAccess ? '#FF5E00' : Colors.secondary}
+                      />
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: a.isFreeAccess ? '#FF5E00' : Colors.secondary }}>
+                        {a.isFreeAccess ? 'Libre' : 'Horarios'}
+                      </Text>
+                    </View>
                   </View>
                   {!!a?.description && <Text style={s.actDesc} numberOfLines={2}>{a.description}</Text>}
                   {noSchedules && (
-                    <Text style={s.actNoSched}>⚠️ Sin horarios disponibles</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 }}>
+                      <MaterialCommunityIcons name="alert-circle-outline" size={11} color="#EF4444" />
+                      <Text style={[s.actNoSched, { marginTop: 0 }]}>Sin horarios disponibles</Text>
+                    </View>
                   )}
                 </View>
                 <View style={[s.durBadge, sel && s.durBadgeSel]}>
@@ -497,7 +507,7 @@ export const ScheduleSelectionScreen = ({ route, navigation }: Props) => {
               </Text>
             ) : (
               <View style={s.schedGrid}>
-                {daySchedules.map(sc => {
+                {daySchedules.map((sc: any) => {
                   // Resolución defensiva del ID: campo 'id' o fallbacks del backend
                   const scId: number = sc.id ?? (sc as any).gymActivityScheduleId ?? (sc as any).scheduleId ?? sc.id;
                   const isSel = selectedScheduleId === scId;
@@ -511,9 +521,10 @@ export const ScheduleSelectionScreen = ({ route, navigation }: Props) => {
                       <Text style={[s.schedTime, isSel && s.schedTimeSel]}>
                         {sc.startTime.substring(0, 5)} – {sc.endTime.substring(0, 5)}
                       </Text>
-                      <Text style={[s.schedCap, isSel && s.schedCapSel]}>
-                        👥 {sc.maxAttendees} cupos
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                        <MaterialCommunityIcons name="account-group-outline" size={11} color={isSel ? Colors.secondary : Colors.textSoft} />
+                        <Text style={[s.schedCap, isSel && s.schedCapSel]}>{sc.maxAttendees} cupos</Text>
+                      </View>
                       {isSel && (
                         <MaterialCommunityIcons name="check-circle" size={16} color={Colors.secondary} style={{ marginTop: 4 }} />
                       )}
@@ -612,22 +623,22 @@ const s = StyleSheet.create({
   gymName:   { fontSize: 13, color: Colors.textSoft, marginBottom: 20 },
   stepLabel: { fontSize: 12, fontWeight: '700', color: Colors.secondary, textTransform: 'uppercase', letterSpacing: 0.8, marginTop: 20, marginBottom: 12 },
   stepRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 20, marginBottom: 12 },
-  editBtn:   { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: Colors.secondary + '60', backgroundColor: 'rgba(0,217,255,0.08)' },
+  editBtn:   { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: Colors.secondary, backgroundColor: '#1C1C1E' },
   editBtnTxt:{ fontSize: 12, fontWeight: '700', color: Colors.secondary },
 
   actCard:        { backgroundColor: Colors.surface, borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1.5, borderColor: Colors.border },
-  actCardSel:     { borderColor: Colors.secondary, backgroundColor: 'rgba(0,217,255,0.07)' },
-  actCardDisabled:{ opacity: 0.45 },
+  actCardSel:     { borderColor: Colors.secondary, backgroundColor: '#1C1C1E' },
+  actCardDisabled:{},
   actRow:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   actInfo:        { flex: 1, marginRight: 12 },
   actName:        { fontSize: 16, fontWeight: '700', color: Colors.text, marginBottom: 2 },
   actNameSel:     { color: Colors.secondary },
   actDesc:        { fontSize: 12, color: Colors.textSoft },
   actNoSched:     { fontSize: 11, color: '#EF4444', marginTop: 5, fontWeight: '600' },
-  badgeFree:      { fontSize: 10, fontWeight: '700', color: '#FF5E00', backgroundColor: 'rgba(255,94,0,0.12)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' },
-  badgeSched:     { fontSize: 10, fontWeight: '700', color: Colors.secondary, backgroundColor: 'rgba(0,217,255,0.1)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' },
+  badgeFree:      { fontSize: 10, fontWeight: '700', color: '#FF5E00', backgroundColor: '#1C1C1E', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' },
+  badgeSched:     { fontSize: 10, fontWeight: '700', color: Colors.secondary, backgroundColor: '#1C1C1E', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' },
   durBadge:   { backgroundColor: Colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
-  durBadgeSel:{ backgroundColor: 'rgba(0,217,255,0.2)' },
+  durBadgeSel:{ backgroundColor: '#1C1C1E' },
   durTxt:     { fontSize: 12, fontWeight: '600', color: Colors.textSoft },
   durTxtSel:  { color: Colors.secondary },
   checkIcon:  { alignSelf: 'flex-end', marginTop: 8 },
@@ -644,17 +655,17 @@ const s = StyleSheet.create({
   summaryName:{ fontSize: 15, fontWeight: '700', color: Colors.text },
   summarySub: { fontSize: 12, color: Colors.textSoft },
   confirmBtn: { backgroundColor: Colors.primary, borderRadius: 14, paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
-  confirmBtnDisabled: { opacity: 0.35 },
+  confirmBtnDisabled: {},
   confirmTxt: { color: '#fff', fontSize: 17, fontWeight: '700', letterSpacing: 0.3 },
 
   // ── Grilla bloques programados ───────────────────────────────────────────────
   schedGrid:     { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
   schedBlock:    { flex: 1, minWidth: '45%', backgroundColor: Colors.surface, borderRadius: 14, padding: 14, borderWidth: 1.5, borderColor: Colors.border, alignItems: 'center', gap: 4 },
-  schedBlockSel: { borderColor: Colors.secondary, backgroundColor: 'rgba(0,217,255,0.07)' },
+  schedBlockSel: { borderColor: Colors.secondary, backgroundColor: '#1C1C1E' },
   schedTime:     { fontSize: 15, fontWeight: '700', color: Colors.text },
   schedTimeSel:  { color: Colors.secondary },
   schedCap:      { fontSize: 11, color: Colors.textSoft },
-  schedCapSel:   { color: Colors.secondary + 'AA' },
+  schedCapSel:   { color: Colors.secondary },
 
   overlay:      { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center' },
   successCard:  { backgroundColor: Colors.surface, borderRadius: 24, paddingVertical: 40, paddingHorizontal: 48, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.4, shadowRadius: 20, elevation: 20, gap: 16 },

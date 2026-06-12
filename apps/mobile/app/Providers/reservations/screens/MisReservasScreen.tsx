@@ -96,7 +96,7 @@ const DynamicQRCode = ({
       {(isLoading || isFetching) && (
         <View style={{
           position: 'absolute',
-          backgroundColor: 'rgba(255,255,255,0.55)',
+          backgroundColor: '#1C1C1E',
           width: QR_SIZE,
           height: QR_SIZE,
           alignItems: 'center',
@@ -127,7 +127,7 @@ export const MisReservasScreen = () => {
       const updated = reservations.find(r => r.id === qrReservation.id);
       if (updated && (updated.status === 'COMPLETADA' || updated.status === 'USADA' || updated.status === 'USED')) {
         setQrReservation(null);
-        Alert.alert('✅ Ingreso Confirmado', 'Tu código ha sido escaneado exitosamente. ¡Buen entrenamiento!');
+        Alert.alert('Ingreso Confirmado', 'Tu código ha sido escaneado exitosamente. ¡Buen entrenamiento!');
       }
     }
   }, [reservations, qrReservation]);
@@ -283,7 +283,7 @@ export const MisReservasScreen = () => {
             </Text>
             <Text style={s.qrDate}>
               {qrReservation?.reservationDate ?? '—'}
-              {'  ·  '}
+              {'  Â·  '}
               {fmt5(qrReservation?.startTime)} – {fmt5(qrReservation?.endTime)}
             </Text>
 
@@ -387,9 +387,14 @@ const ReservationCard = ({
         <View style={s.cardMain}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
             <Text style={s.actName} numberOfLines={1}>{r?.activityName ?? '—'}</Text>
-            <View style={isFree ? s.tagFree : s.tagSched}>
+            <View style={[isFree ? s.tagFree : s.tagSched, { flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+              <MaterialCommunityIcons
+                name={isFree ? 'lock-open-variant-outline' : 'calendar-check-outline'}
+                size={11}
+                color={isFree ? '#00E5A3' : '#38BDF8'}
+              />
               <Text style={isFree ? s.tagFreeTxt : s.tagSchedTxt}>
-                {isFree ? '🔓 Libre' : '📅 Clase'}
+                {isFree ? 'Libre' : 'Clase'}
               </Text>
             </View>
           </View>
@@ -398,10 +403,10 @@ const ReservationCard = ({
           )}
         </View>
         <View style={s.badges}>
-          <View style={[s.badge, { borderColor: pColor, backgroundColor: pColor + '22' }]}>
+          <View style={[s.badge, { borderColor: pColor, backgroundColor: '#1C1C1E' }]}>
             <Text style={[s.badgeTxt, { color: pColor }]}>{payLabel(r)}</Text>
           </View>
-          <View style={[s.badge, { borderColor: statusColor, backgroundColor: statusColor + '18' }]}>
+          <View style={[s.badge, { borderColor: statusColor, backgroundColor: '#1C1C1E' }]}>
             <Text style={[s.badgeTxt, { color: statusColor }]}>
               {STATUS_LABEL[status] ?? status ?? '—'}
             </Text>
@@ -436,7 +441,7 @@ const ReservationCard = ({
               <Text style={s.detailTxt}>
                 <Text style={s.detailLabel}>Horario: </Text>
                 {fmt5(r?.startTime)} – {fmt5(r?.endTime)}
-                {!!r?.dayOfWeek && <Text style={{ color: Colors.textSoft }}> · {r.dayOfWeek}</Text>}
+                {!!r?.dayOfWeek && <Text style={{ color: Colors.textSoft }}> Â· {r.dayOfWeek}</Text>}
               </Text>
             </View>
             {!!r?.instructorName && (
@@ -507,8 +512,8 @@ const s = StyleSheet.create({
   chipTxtActive:{ color: '#fff' },
 
   topBar:          { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4 },
-  cancelAllBtn:    { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-end', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: Colors.danger, backgroundColor: 'rgba(239,68,68,0.07)' },
-  disabledOpacity: { opacity: 0.5 },
+  cancelAllBtn:    { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-end', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: Colors.danger, backgroundColor: '#1C1C1E' },
+  disabledOpacity: {},
   cancelAllTxt:    { color: Colors.danger, fontWeight: '700', fontSize: 13 },
 
   card:    { backgroundColor: Colors.surface, borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: Colors.border },
@@ -526,18 +531,18 @@ const s = StyleSheet.create({
   metaTxt:  { color: Colors.textSoft, fontSize: 12 },
 
   // ── Tags tipo actividad ──────────────────────────────────────────────────────
-  tagFree:     { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: 'rgba(255,94,0,0.15)', borderWidth: 1, borderColor: 'rgba(255,94,0,0.3)' },
+  tagFree:     { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: '#FF5E00' },
   tagFreeTxt:  { fontSize: 10, fontWeight: '700', color: '#FF5E00' },
-  tagSched:    { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: 'rgba(0,217,255,0.1)', borderWidth: 1, borderColor: 'rgba(0,217,255,0.25)' },
-  tagSchedTxt: { fontSize: 10, fontWeight: '700', color: '#00D9FF' },
+  tagSched:    { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: '#38BDF8' },
+  tagSchedTxt: { fontSize: 10, fontWeight: '700', color: '#38BDF8' },
 
   // ── Bloque de detalle condicional ────────────────────────────────────────────
-  detailBox:   { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: 10, gap: 6, marginBottom: 12 },
+  detailBox:   { backgroundColor: '#1C1C1E', borderRadius: 10, padding: 10, gap: 6, marginBottom: 12 },
   detailRow:   { flexDirection: 'row', alignItems: 'flex-start', gap: 7 },
   detailTxt:   { fontSize: 12, color: Colors.text, flex: 1, lineHeight: 18 },
   detailLabel: { fontWeight: '700', color: Colors.textSoft },
 
-  cancelBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', backgroundColor: 'rgba(239,68,68,0.05)' },
+  cancelBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#FF453A', backgroundColor: '#1C1C1E' },
   cancelTxt: { color: Colors.danger, fontWeight: '600', fontSize: 13 },
 
   // ── Botón Pase de Acceso (en la card) ───────────────────────────────────────
@@ -546,13 +551,14 @@ const s = StyleSheet.create({
 
   // ── Modal QR ────────────────────────────────────────────────────────────────
   qrBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-  qrSheet:    { width: '100%', maxWidth: 360, backgroundColor: '#1A1A1C', borderRadius: 20, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  qrSheet:    { width: '100%', maxWidth: 360, backgroundColor: '#1C1C1E', borderRadius: 20, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#3A3A3C' },
   qrHeader:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 14 },
   qrTitle:    { color: Colors.text, fontSize: 17, fontWeight: '700', flex: 1, textAlign: 'center' },
   qrActName:  { color: Colors.text, fontSize: 15, fontWeight: '600', marginBottom: 4, textAlign: 'center' },
   qrDate:     { color: Colors.textSoft, fontSize: 12, marginBottom: 20, textAlign: 'center' },
   qrBox:      { padding: 14, backgroundColor: '#FFFFFF', borderRadius: 14, marginBottom: 18 },
   qrHint:     { color: Colors.textSoft, fontSize: 12, textAlign: 'center', marginBottom: 20, lineHeight: 17 },
-  qrCloseBtn: { width: '100%', paddingVertical: 13, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', alignItems: 'center' },
+  qrCloseBtn: { width: '100%', paddingVertical: 13, borderRadius: 10, borderWidth: 1, borderColor: '#3A3A3C', alignItems: 'center' },
   qrCloseTxt: { color: Colors.text, fontWeight: '600', fontSize: 14 },
 });
+

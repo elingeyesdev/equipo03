@@ -1,6 +1,6 @@
 export const Colors = {
   primary: '#FF5E00',    // Naranja Acción
-  secondary: '#00D9FF',  // Cyan
+  secondary: '#38BDF8',  // Celeste
   background: '#0A0A0A', // Fondo oscuro profundo
   surface: '#1C1C1E',    // Tarjetas oscuras
   accent: '#00E5A3',     // Verde Evolución (Disponibilidad / Éxito)

@@ -10,17 +10,16 @@ export const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.65)',
   },
   modalContainer: {
-    backgroundColor: '#1C1C1E', // Superficie SyncPro
+    backgroundColor: '#1C1C1E',
     borderTopLeftRadius: 40,
     borderTopRightRadius: 40,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: '#3A3A3C',
     maxHeight: '80%',
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
     paddingHorizontal: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 24,
   },
   handle: {
     width: 48,
@@ -37,7 +36,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    borderBottomColor: '#3A3A3C',
     marginBottom: 16,
   },
   title: {
@@ -73,17 +72,12 @@ export const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: '#3A3A3C',
     backgroundColor: '#0A0A0A',
   },
   chipActive: {
-    backgroundColor: 'rgba(255, 94, 0, 0.15)', // Naranja con opacidad
+    backgroundColor: '#1C1C1E',
     borderColor: '#FF5E00', // Naranja Acción
-    shadowColor: '#FF5E00',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
-    elevation: 4,
   },
   chipText: {
     color: '#888888',
@@ -100,11 +94,6 @@ export const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     marginTop: 20,
-    shadowColor: '#FF5E00',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
   },
   applyButtonText: {
     color: '#FFFFFF',

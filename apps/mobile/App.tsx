@@ -10,14 +10,18 @@ import { useGymVisitTracker } from './app/Providers/geolocation/services/useGymV
 import { usePushNotificationListeners } from './app/Providers/notifications/usePushNotifications';
 import { useGymEventsSocket } from './app/Providers/notifications/useGymEventsSocket';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+} catch {
+  // expo-notifications not available in Expo Go SDK 53+
+}
 
 const queryClient = new QueryClient();
 

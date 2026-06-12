@@ -65,8 +65,6 @@ const statusLabel = (s: string): string => {
   return s;
 };
 
-// CONFIRMADA → naranja (pendiente de ingreso)
-// COMPLETADA → verde (ya ingresó)
 const statusColor = (s: string): string => {
   if (CONFIRMED.has(s)) return '#F97316'; // naranja
   if (COMPLETED.has(s)) return '#22C55E'; // verde
@@ -155,13 +153,13 @@ const DetailModal = ({ item, onClose }: { item: AuditReservation | null; onClose
             <Text style={dm.section}>ESTADO</Text>
             <View style={dm.row}>
               <Text style={dm.label}>Reserva</Text>
-              <View style={[dm.badge, { borderColor: sColor, backgroundColor: sColor + '22' }]}>
+              <View style={[dm.badge, { borderColor: sColor, backgroundColor: '#1C1C1E' }]}>
                 <Text style={[dm.badgeTxt, { color: sColor }]}>{statusLabel(item.status ?? '')}</Text>
               </View>
             </View>
             <View style={dm.row}>
               <Text style={dm.label}>Pago</Text>
-              <View style={[dm.badge, { borderColor: isPaid ? '#22C55E' : '#6B7280', backgroundColor: isPaid ? '#22C55E22' : '#6B728022' }]}>
+              <View style={[dm.badge, { borderColor: isPaid ? '#22C55E' : '#6B7280', backgroundColor: '#1C1C1E' }]}>
                 <Text style={[dm.badgeTxt, { color: isPaid ? '#22C55E' : '#6B7280' }]}>{isPaid ? 'Pagado' : 'Por pagar'}</Text>
               </View>
             </View>
@@ -204,7 +202,6 @@ export const AuditoriaSucursalScreen = () => {
   const { data: reservations = [], isLoading, isRefetching, refetch, error } = useQuery({
     queryKey: makeQK(filterDate),
     queryFn:  () => reservationApi.getGymReservationsByGymId(gymId!, filterDate),
-    // No disparar hasta tener un gymId numérico válido
     enabled:  !!gymId && !isNaN(gymId),
     staleTime: 30_000,
   });
@@ -415,7 +412,7 @@ export const AuditoriaSucursalScreen = () => {
 
               {/* Indicador de estado top */}
               {(isConfirmed || isCompleted) && (
-                <View style={[s.statusBar, { backgroundColor: sColor + '22', borderBottomColor: sColor + '44' }]}>
+                <View style={[s.statusBar, { backgroundColor: '#1C1C1E', borderBottomColor: '#3A3A3C' }]}>
                   <MaterialCommunityIcons
                     name={isCompleted ? 'check-circle' : 'clock-alert-outline'}
                     size={13}
@@ -437,7 +434,7 @@ export const AuditoriaSucursalScreen = () => {
                   </Text>
                 </View>
                 <View style={s.cardRight}>
-                  <View style={[s.badge, { borderColor: sColor, backgroundColor: sColor + '22' }]}>
+                  <View style={[s.badge, { borderColor: sColor, backgroundColor: '#1C1C1E' }]}>
                     <Text style={[s.badgeTxt, { color: sColor }]}>{statusLabel(item.status ?? '')}</Text>
                   </View>
                   <TouchableOpacity
@@ -527,7 +524,7 @@ const s = StyleSheet.create({
 
   topBar:     { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#111' },
   topTitle:   { flex: 1, color: '#fff', fontSize: 16, fontWeight: '800' },
-  countBadge: { backgroundColor: 'rgba(240,91,34,0.15)', borderRadius: 20, paddingHorizontal: 9, paddingVertical: 3, borderWidth: 1, borderColor: 'rgba(240,91,34,0.3)' },
+  countBadge: { backgroundColor: '#1C1C1E', borderRadius: 20, paddingHorizontal: 9, paddingVertical: 3, borderWidth: 1, borderColor: '#FF5E00' },
   countTxt:   { color: '#f05b22', fontSize: 12, fontWeight: '700' },
 
   stripWrap:      { flexGrow: 0, borderBottomWidth: 1, borderBottomColor: '#111' },
@@ -564,7 +561,7 @@ const s = StyleSheet.create({
   actionBtn:  { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 10, borderRadius: 10 },
   btnConfirm: { backgroundColor: '#16A34A' },
   btnReject:  { backgroundColor: '#DC2626' },
-  disabledBtn:{ opacity: 0.4 },
+  disabledBtn:{},
   actionTxt:  { color: '#fff', fontWeight: '700', fontSize: 12 },
 
   // Chips de estado

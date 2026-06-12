@@ -60,7 +60,7 @@ export const AlertasConfigScreen = () => {
         {/* Tarjeta estado médico */}
         {medicalConditions ? (
           <View style={styles.alertCard}>
-            <MaterialCommunityIcons name="alert-triangle" size={32} color="#ff3333" />
+            <MaterialCommunityIcons name="alert" size={32} color="#ff3333" />
             <Text style={styles.alertTitle}>Atención Médica Requerida</Text>
             <Text style={styles.alertText}>{medicalConditions}</Text>
             <Text style={styles.alertHint}>Esta información se compartirá con tu instructor por seguridad.</Text>
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
   freqOptionActive: {
     borderWidth: 1,
     borderColor: '#f05b22',
-    backgroundColor: '#f05b2210',
+    backgroundColor: '#1C1C1E',
   },
   freqRadio: {
     width: 22,
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
   previewBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#c62828DD',
+    backgroundColor: '#c62828',
     borderRadius: 12,
     padding: 12,
   },
@@ -368,7 +368,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   previewSub: {
-    color: 'rgba(255,255,255,0.8)',
+    color: '#FFFFFF',
     fontSize: 11,
     marginTop: 2,
   },

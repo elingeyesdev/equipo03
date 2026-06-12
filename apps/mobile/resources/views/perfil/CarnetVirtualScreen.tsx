@@ -4,8 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
+import authAxios from '../../../app/Providers/auth/authAxios';
 import { AuthService } from '../../../app/Providers/auth/AuthService';
-import { Env } from '../../../app/Providers/geolocation/config/environment';
 
 type Tab = 'CARNET' | 'USUARIO';
 
@@ -25,7 +25,7 @@ export const CarnetVirtualScreen = () => {
 
   // Obtener email y nombre real de sucursal desde el perfil completo
   useEffect(() => {
-    AuthService.fetchUserProfile().then(async data => {
+    AuthService.fetchUserProfile().then(async (data: any) => {
       // Email
       const mail = data?.email ?? null;
       if (mail) setUserEmail(mail);
@@ -41,13 +41,8 @@ export const CarnetVirtualScreen = () => {
       // Fallback: usar gymId del contexto si el perfil no trae userRoles
       const rawGymId = user?.gymId;
       if (!rawGymId) return;
-      const token = await AuthService.getToken();
-      if (!token) return;
-      fetch(`${Env.API_BASE_URL}/api/gyms/${rawGymId}`, {
-        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-      })
-        .then(r => r.json())
-        .then(body => { const g = body?.data ?? body; if (g?.name) setGymName(g.name); })
+      authAxios.get(`/api/gyms/${rawGymId}`)
+        .then(r => { const g = r.data?.data ?? r.data; if (g?.name) setGymName(g.name); })
         .catch(() => {});
     }).catch(() => {});
   }, [user?.gymId]); // eslint-disable-line react-hooks/exhaustive-deps

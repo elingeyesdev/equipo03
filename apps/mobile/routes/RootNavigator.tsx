@@ -1,7 +1,8 @@
-import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { ActivityIndicator, View, Text } from 'react-native';
+import { ActivityIndicator, View, Text, TouchableOpacity } from 'react-native';
+
+const backBtnStyle = { width: 40, height: 40, marginLeft: 4, backgroundColor: '#1C1C1E', borderRadius: 12, borderWidth: 1, borderColor: '#3A3A3C', justifyContent: 'center' as const, alignItems: 'center' as const };
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { useAuth } from '../app/Shared/hooks/useAuth';
@@ -25,6 +26,9 @@ import { EscanerScreen }          from '../resources/views/audit/EscanerScreen';
 import { ManagerDashboard }       from '../resources/views/inicio/ManagerDashboard';
 import { ClaseDetalleScreen }      from '../resources/views/inicio/ClaseDetalleScreen';
 import { AsignarRutinaScreen }     from '../resources/views/inicio/AsignarRutinaScreen';
+
+// ── Cuadro de Mando (solo CLIENTE) ───────────────────────────────────────────
+import { CuadroDeMandoClienteScreen } from '../resources/views/inicio/CuadroDeMandoClienteScreen';
 
 // ── Workout (solo CLIENTE) ────────────────────────────────────────────────────
 import { WorkoutModeScreen }    from '../resources/views/workout/WorkoutModeScreen';
@@ -63,11 +67,6 @@ const tabScreenOptions = ({ route }: { route: { name: string } }) => ({
     height:          65,
     paddingBottom:   10,
     paddingTop:      10,
-    shadowColor:     '#000',
-    shadowOffset:    { width: 0, height: -4 },
-    shadowOpacity:   0.3,
-    shadowRadius:    10,
-    elevation:       10,
   },
   tabBarIcon: ({ color }: { color: string }) => (
     <MaterialCommunityIcons
@@ -78,9 +77,9 @@ const tabScreenOptions = ({ route }: { route: { name: string } }) => ({
   ),
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // AUTH STACK — sin acceso a pantallas autenticadas
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 const AuthNav = createNativeStackNavigator();
 const AuthStack = () => (
   <AuthNav.Navigator screenOptions={{ headerShown: false, animation: 'none' }}>
@@ -91,9 +90,9 @@ const AuthStack = () => (
   </AuthNav.Navigator>
 );
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // CLIENTE STACK — solo rutas de cliente; Auditoría y Escaner NO existen aquí
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 const ClienteTab = createBottomTabNavigator();
 const ClienteTabs = () => (
   <ClienteTab.Navigator screenOptions={tabScreenOptions}>
@@ -143,12 +142,17 @@ const ClienteStack = () => (
       component={GymHistorialStack}
       options={{ headerShown: false }}
     />
+    <ClienteNav.Screen
+      name="CuadroDeMando"
+      component={CuadroDeMandoClienteScreen}
+      options={{ headerShown: false, gestureEnabled: true }}
+    />
   </ClienteNav.Navigator>
 );
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // GERENTE STACK — solo rutas de gerente; MisReservas y HistorialMetricas NO existen aquí
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 const GerenteTab = createBottomTabNavigator();
 const GerenteTabs = () => (
   <GerenteTab.Navigator screenOptions={tabScreenOptions}>
@@ -189,31 +193,41 @@ const StaffStack = () => (
     <StaffNav.Screen
       name="ClaseDetalle"
       component={ClaseDetalleScreen}
-      options={{
-        headerShown:    true,
-        title:          'Detalle de Clase',
-        headerStyle:    { backgroundColor: '#1E1E1E' },
-        headerTintColor:'#fff',
-        headerBackTitle:'Atrás',
-      }}
+      options={({ navigation }) => ({
+        headerShown:       true,
+        title:             'Detalle de Clase',
+        headerStyle:       { backgroundColor: '#1E1E1E' },
+        headerTintColor:   '#fff',
+        headerBackVisible: false,
+        headerLeft: () => (
+          <TouchableOpacity style={backBtnStyle} onPress={() => navigation.goBack()}>
+            <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
+          </TouchableOpacity>
+        ),
+      })}
     />
     <StaffNav.Screen
       name="AsignarRutina"
       component={AsignarRutinaScreen}
-      options={{
-        headerShown:    true,
-        title:          'Asignar Rutina',
-        headerStyle:    { backgroundColor: '#1E1E1E' },
-        headerTintColor:'#fff',
-        headerBackTitle:'Atrás',
-      }}
+      options={({ navigation }) => ({
+        headerShown:       true,
+        title:             'Asignar Rutina',
+        headerStyle:       { backgroundColor: '#1E1E1E' },
+        headerTintColor:   '#fff',
+        headerBackVisible: false,
+        headerLeft: () => (
+          <TouchableOpacity style={backBtnStyle} onPress={() => navigation.goBack()}>
+            <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
+          </TouchableOpacity>
+        ),
+      })}
     />
   </StaffNav.Navigator>
 );
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // ROL DESCONOCIDO — nunca permite acceso a pantallas autenticadas
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 const UnknownRoleScreen = () => (
   <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
     <MaterialCommunityIcons name="shield-off-outline" size={52} color="#666" />
@@ -224,9 +238,9 @@ const UnknownRoleScreen = () => (
   </View>
 );
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // ROOT NAVIGATOR — switch exhaustivo por rol normalizado
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 export const RootNavigator = () => {
   const { isAuthenticated, isLoading, user } = useAuth();
 

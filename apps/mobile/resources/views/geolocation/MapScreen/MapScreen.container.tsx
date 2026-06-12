@@ -56,6 +56,7 @@ export const MapScreenContainer: React.FC = () => {
       onModalClose={viewModel.cerrarModalSede}
       onNavigate={viewModel.comoLlegar}
       onRetry={viewModel.reintentarCarga}
+      onBack={() => navigation.goBack()}
       onReserve={(sede) => {
         viewModel.cerrarModalSede();
         navigation.navigate('ScheduleSelection', {

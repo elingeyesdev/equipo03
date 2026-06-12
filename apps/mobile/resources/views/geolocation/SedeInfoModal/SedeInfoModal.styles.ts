@@ -19,13 +19,12 @@ export const styles = StyleSheet.create({
     backgroundColor: '#0A0A0A',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: '#3A3A3C',
     maxHeight: '75%',
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 15,
   },
   handle: {
     width: 40,
@@ -86,6 +85,8 @@ export const styles = StyleSheet.create({
     backgroundColor: '#1C1C1E',
     marginHorizontal: 20,
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#3A3A3C',
     padding: 16,
     marginBottom: 16,
   },
@@ -104,7 +105,7 @@ export const styles = StyleSheet.create({
   quickInfoValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#00D9FF',
+    color: '#38BDF8',
   },
   quickInfoDivider: {
     width: 1,
@@ -165,7 +166,7 @@ export const styles = StyleSheet.create({
   },
   telefonoText: {
     fontSize: 15,
-    color: '#00D9FF',
+    color: '#38BDF8',
     fontWeight: '600',
   },
   actionBar: {
@@ -173,15 +174,10 @@ export const styles = StyleSheet.create({
     paddingTop: 16,
   },
   navigateButton: {
-    backgroundColor: '#00D9FF',
+    backgroundColor: '#38BDF8',
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: 'center',
-    shadowColor: '#00D9FF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
   },
   navigateButtonText: {
     fontSize: 16,
@@ -190,3 +186,4 @@ export const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 });
+

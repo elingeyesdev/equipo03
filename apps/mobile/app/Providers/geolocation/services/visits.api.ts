@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { Env } from '../../geolocation/config/environment';
 import { AuthService } from '../../auth/AuthService';
+import { attach401Guard } from '../../auth/axios401Guard';
 
 export interface VisitPayload {
   gymId: number;
@@ -35,6 +36,8 @@ visitsClient.interceptors.request.use(async (config) => {
   config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+
+attach401Guard(visitsClient);
 
 export const visitsApi = {
   postVisit: async (payload: VisitPayload): Promise<VisitRecord> => {

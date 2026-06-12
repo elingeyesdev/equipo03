@@ -8,9 +8,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { NumericInput } from '../../../app/Shared/components/ui/NumericInput';
-import axios from 'axios';
-import { Env } from '../../../app/Providers/geolocation/config/environment';
-import { AuthService } from '../../../app/Providers/auth/AuthService';
+import authAxios from '../../../app/Providers/auth/authAxios';
 
 type ExperienceLevel = 'PRINCIPIANTE' | 'INTERMEDIO' | 'AVANZADO';
 type SavingSection   = 'basic' | 'metrics' | 'medical' | null;
@@ -29,7 +27,7 @@ const AVATARS = [
 
 export const MisDatosPersonalesScreen = () => {
   const navigation                              = useNavigation();
-  const { user, updateProfile }                 = useAuth();
+  const { user, updateProfile, logout }          = useAuth();
   const isGerente                               = user?.role === 'GERENTE';
   const p                                       = (user as any)?.profile;
 
@@ -46,7 +44,7 @@ export const MisDatosPersonalesScreen = () => {
   const [weightKg,           setWeightKg]           = useState<string>(String(pm?.weightKg          ?? ''));
   const [heightCm,           setHeightCm]           = useState<string>(String(pm?.heightCm          ?? ''));
   const [bodyFatPercentage,  setBodyFatPercentage]  = useState<string>(String(pm?.bodyFatPercentage ?? ''));
-  const [muscleMassKg,       setMuscleMassKg]       = useState<string>(String(pm?.muscleMassKg      ?? ''));
+  const [waistCm,            setWaistCm]            = useState<string>(String(pm?.waistCm           ?? ''));
   const [experienceLevel,    setExperienceLevel]    = useState<ExperienceLevel>(
     (pm?.experienceLevel ?? 'PRINCIPIANTE') as ExperienceLevel
   );
@@ -58,6 +56,15 @@ export const MisDatosPersonalesScreen = () => {
   // ── Botón editar en header nativo ────────────────────────────────────────────
   useEffect(() => {
     navigation.setOptions({
+      headerBackVisible: false,
+      headerLeft: () => (
+        <TouchableOpacity
+          style={{ width: 40, height: 40, marginLeft: 4, backgroundColor: '#1C1C1E', borderRadius: 12, borderWidth: 1, borderColor: '#3A3A3C', justifyContent: 'center', alignItems: 'center' }}
+          onPress={() => navigation.goBack()}
+        >
+          <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
+        </TouchableOpacity>
+      ),
       headerRight: () => (
         <TouchableOpacity
           onPress={() => setIsEditing(prev => !prev)}
@@ -67,7 +74,7 @@ export const MisDatosPersonalesScreen = () => {
           <MaterialCommunityIcons
             name={isEditing ? 'close' : 'pencil-outline'}
             size={22}
-            color="#f05b22"
+            color="#FF5E00"
           />
         </TouchableOpacity>
       ),
@@ -96,7 +103,7 @@ export const MisDatosPersonalesScreen = () => {
     setWeightKg(String(metrics.weightKg          ?? ''));
     setHeightCm(String(metrics.heightCm          ?? ''));
     setBodyFatPercentage(String(metrics.bodyFatPercentage ?? ''));
-    setMuscleMassKg(String(metrics.muscleMassKg  ?? ''));
+    setWaistCm(String(metrics.waistCm           ?? ''));
     setExperienceLevel((metrics.experienceLevel  ?? 'PRINCIPIANTE') as ExperienceLevel);
   }, [user]);
 
@@ -105,11 +112,7 @@ export const MisDatosPersonalesScreen = () => {
     let cancelled = false;
     const fetchProfile = async () => {
       try {
-        const token = await AuthService.getToken();
-        const res   = await axios.get(
-          `${Env.API_BASE_URL}/api/auth/me`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const res = await authAxios.get('/api/auth/me');
         if (cancelled) return;
         const data: any    = res.data?.data ?? res.data;
         const prof: any    = data?.profile ?? {};
@@ -124,10 +127,16 @@ export const MisDatosPersonalesScreen = () => {
         setWeightKg(String(metrics.weightKg          ?? ''));
         setHeightCm(String(metrics.heightCm          ?? ''));
         setBodyFatPercentage(String(metrics.bodyFatPercentage ?? ''));
-        setMuscleMassKg(String(metrics.muscleMassKg  ?? ''));
+        setWaistCm(String(metrics.waistCm           ?? ''));
         setExperienceLevel((metrics.experienceLevel  ?? 'PRINCIPIANTE') as ExperienceLevel);
-      } catch {
-        // fallback: contexto ya hidratado
+      } catch (err: any) {
+        const status = err?.response?.status;
+        if (status === 401) return; // manejado por axios401Guard
+        if (status === 404) {
+          Alert.alert('Sesión expirada', 'Tu sesión ya no es válida. Inicia sesión de nuevo.', [
+            { text: 'OK', onPress: () => logout() },
+          ]);
+        }
       } finally {
         if (!cancelled) setIsFetching(false);
       }
@@ -138,13 +147,15 @@ export const MisDatosPersonalesScreen = () => {
 
   // ── PATCH helper ─────────────────────────────────────────────────────────────
   const patchProfile = async (payload: Record<string, unknown>) => {
-    const token = await AuthService.getToken();
-    const res   = await axios.patch(
-      `${Env.API_BASE_URL}/api/users/me/profile`,
-      payload,
-      { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
-    );
+    const res = await authAxios.patch('/api/users/me/profile', payload);
     return res.data?.data ?? res.data;
+  };
+
+  const handleApiError = (err: any) => {
+    const status = err?.response?.status;
+    if (status === 401) return; // manejado por axios401Guard
+    const msg = err?.response?.data?.message ?? 'No se pudo guardar.';
+    Alert.alert('Error', Array.isArray(msg) ? msg.join('\n') : msg);
   };
 
   // ── Guardar info básica ───────────────────────────────────────────────────────
@@ -157,8 +168,7 @@ export const MisDatosPersonalesScreen = () => {
       setIsEditing(false);
       Alert.alert('Guardado', 'Información básica actualizada.');
     } catch (err: any) {
-      const msg = err?.response?.data?.message ?? 'No se pudo guardar.';
-      Alert.alert('Error', Array.isArray(msg) ? msg.join('\n') : msg);
+      handleApiError(err);
     } finally {
       setSavingSection(null);
     }
@@ -172,7 +182,7 @@ export const MisDatosPersonalesScreen = () => {
         weightKg:          Number(weightKg)          || undefined,
         heightCm:          Number(heightCm)          || undefined,
         bodyFatPercentage: Number(bodyFatPercentage) || undefined,
-        muscleMassKg:      Number(muscleMassKg)      || undefined,
+        waistCm:           Number(waistCm)           || undefined,
         experienceLevel,
       });
       updateProfile({
@@ -180,14 +190,13 @@ export const MisDatosPersonalesScreen = () => {
           weightKg:          Number(weightKg)          || undefined,
           heightCm:          Number(heightCm)          || undefined,
           bodyFatPercentage: Number(bodyFatPercentage) || undefined,
-          muscleMassKg:      Number(muscleMassKg)      || undefined,
+          waistCm:           Number(waistCm)           || undefined,
           experienceLevel,
         },
       });
       Alert.alert('Guardado', 'Métricas físicas actualizadas.');
     } catch (err: any) {
-      const msg = err?.response?.data?.message ?? 'No se pudo guardar.';
-      Alert.alert('Error', Array.isArray(msg) ? msg.join('\n') : msg);
+      handleApiError(err);
     } finally {
       setSavingSection(null);
     }
@@ -201,8 +210,7 @@ export const MisDatosPersonalesScreen = () => {
       updateProfile({ medicalConditions });
       Alert.alert('Guardado', 'Condiciones médicas actualizadas.');
     } catch (err: any) {
-      const msg = err?.response?.data?.message ?? 'No se pudo guardar.';
-      Alert.alert('Error', Array.isArray(msg) ? msg.join('\n') : msg);
+      handleApiError(err);
     } finally {
       setSavingSection(null);
     }
@@ -248,7 +256,7 @@ export const MisDatosPersonalesScreen = () => {
                       <MaterialCommunityIcons
                         name={av.icon as any}
                         size={36}
-                        color={selectedAvatar === av.icon ? '#f05b22' : '#ccc'}
+                        color={selectedAvatar === av.icon ? '#FF5E00' : '#B0B0B0'}
                       />
                     </TouchableOpacity>
                   ))}
@@ -257,7 +265,7 @@ export const MisDatosPersonalesScreen = () => {
             ) : (
               <View style={s.avatarReadWrap}>
                 <View style={s.avatarReadBadge}>
-                  <MaterialCommunityIcons name={selectedAvatar as any} size={56} color="#f05b22" />
+                  <MaterialCommunityIcons name={selectedAvatar as any} size={56} color="#FF5E00" />
                 </View>
               </View>
             )}
@@ -266,7 +274,7 @@ export const MisDatosPersonalesScreen = () => {
             <View style={s.field}>
               <Text style={s.label}>Nombre de Usuario</Text>
               {isEditing
-                ? <TextInput style={s.input} value={username} onChangeText={setUsername} placeholder="Tu nombre de usuario" placeholderTextColor="#555" />
+                ? <TextInput style={s.input} value={username} onChangeText={setUsername} placeholder="Tu nombre de usuario" placeholderTextColor="#B0B0B0" />
                 : <Text style={s.readValue}>{username || '—'}</Text>
               }
             </View>
@@ -300,7 +308,7 @@ export const MisDatosPersonalesScreen = () => {
                     value={favoriteSports}
                     onChangeText={setFavoriteSports}
                     placeholder="Ej: Calistenia, Natación, Yoga"
-                    placeholderTextColor="#555"
+                    placeholderTextColor="#B0B0B0"
                     multiline
                     numberOfLines={3}
                   />
@@ -326,28 +334,31 @@ export const MisDatosPersonalesScreen = () => {
           {/* ── Métricas Físicas — solo clientes ── */}
           {!isGerente && (
             <View style={s.section}>
-              <Text style={s.sectionTitle}>📊 Métricas Físicas</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <MaterialCommunityIcons name="chart-bar" size={15} color="#B0B0B0" />
+                <Text style={s.sectionTitle}>Métricas Físicas</Text>
+              </View>
 
               {isEditing ? (
                 <>
                   <View style={s.metricsRow}>
                     <View style={[s.field, s.metricHalf]}>
                       <Text style={s.label}>Peso (kg)</Text>
-                      <NumericInput style={s.input} value={weightKg} onChangeText={setWeightKg} placeholder="0.0" placeholderTextColor="#555" />
+                      <NumericInput style={s.input} value={weightKg} onChangeText={setWeightKg} placeholder="0.0" placeholderTextColor="#B0B0B0" />
                     </View>
                     <View style={[s.field, s.metricHalf]}>
                       <Text style={s.label}>Altura (cm)</Text>
-                      <NumericInput style={s.input} value={heightCm} onChangeText={setHeightCm} placeholder="0" placeholderTextColor="#555" />
+                      <NumericInput style={s.input} value={heightCm} onChangeText={setHeightCm} placeholder="0" placeholderTextColor="#B0B0B0" />
                     </View>
                   </View>
                   <View style={s.metricsRow}>
                     <View style={[s.field, s.metricHalf]}>
                       <Text style={s.label}>Grasa corp. (%)</Text>
-                      <NumericInput style={s.input} value={bodyFatPercentage} onChangeText={setBodyFatPercentage} placeholder="0.0" placeholderTextColor="#555" />
+                      <NumericInput style={s.input} value={bodyFatPercentage} onChangeText={setBodyFatPercentage} placeholder="0.0" placeholderTextColor="#B0B0B0" />
                     </View>
                     <View style={[s.field, s.metricHalf]}>
-                      <Text style={s.label}>Músculo (kg)</Text>
-                      <NumericInput style={s.input} value={muscleMassKg} onChangeText={setMuscleMassKg} placeholder="0.0" placeholderTextColor="#555" />
+                      <Text style={s.label}>Cintura (cm)</Text>
+                      <NumericInput style={s.input} value={waistCm} onChangeText={setWaistCm} placeholder="0" placeholderTextColor="#B0B0B0" />
                     </View>
                   </View>
                   <View style={s.field}>
@@ -383,7 +394,7 @@ export const MisDatosPersonalesScreen = () => {
                       { label: 'Peso',    value: weightKg          ? `${weightKg} kg`         : '—' },
                       { label: 'Altura',  value: heightCm          ? `${heightCm} cm`         : '—' },
                       { label: 'Grasa',   value: bodyFatPercentage ? `${bodyFatPercentage} %` : '—' },
-                      { label: 'Músculo', value: muscleMassKg      ? `${muscleMassKg} kg`     : '—' },
+                      { label: 'Cintura', value: waistCm            ? `${waistCm} cm`          : '—' },
                     ].map(({ label, value }) => (
                       <View key={label} style={s.metricCard}>
                         <Text style={s.metricCardLabel}>{label}</Text>
@@ -411,7 +422,7 @@ export const MisDatosPersonalesScreen = () => {
                     value={medicalConditions}
                     onChangeText={setMedicalConditions}
                     placeholder="Ej: Asma, lesión de rodilla, hipertensión..."
-                    placeholderTextColor="#555"
+                    placeholderTextColor="#B0B0B0"
                     multiline
                     numberOfLines={4}
                   />
@@ -440,58 +451,58 @@ export const MisDatosPersonalesScreen = () => {
 };
 
 const s = StyleSheet.create({
-  container:          { flex: 1, backgroundColor: '#000000' },
+  container:          { flex: 1, backgroundColor: '#0A0A0A' },
   centered:           { justifyContent: 'center', alignItems: 'center' },
-  loadingText:        { color: '#888', marginTop: 12, fontSize: 14 },
+  loadingText:        { color: '#B0B0B0', marginTop: 12, fontSize: 14 },
   scrollContent:      { padding: 20, paddingBottom: 100 },
 
   // ── Secciones
-  section:            { marginBottom: 28, backgroundColor: '#0d0d0d', borderRadius: 16, padding: 20, borderWidth: 1, borderColor: '#1a1a1a' },
+  section:            { marginBottom: 28, backgroundColor: '#1C1C1E', borderRadius: 16, padding: 20, borderWidth: 1, borderColor: '#3A3A3C' },
   sectionHeader:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  sectionTitle:       { color: '#ffffff', fontSize: 18, fontWeight: 'bold', marginBottom: 16 },
+  sectionTitle:       { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', marginBottom: 16 },
 
   // ── Read mode
-  readValue:          { color: '#ffffff', fontSize: 16, paddingVertical: 4 },
+  readValue:          { color: '#FFFFFF', fontSize: 16, paddingVertical: 4 },
   avatarReadWrap:     { alignItems: 'center', marginBottom: 20 },
-  avatarReadBadge:    { width: 88, height: 88, borderRadius: 44, backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#2a2a2a' },
+  avatarReadBadge:    { width: 88, height: 88, borderRadius: 44, backgroundColor: '#0A0A0A', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#3A3A3C' },
   metricsReadGrid:    { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8 },
-  metricCard:         { flex: 1, minWidth: '45%', backgroundColor: '#161618', borderRadius: 12, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: '#222' },
-  metricCardLabel:    { color: '#666', fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 },
-  metricCardValue:    { color: '#f05b22', fontSize: 20, fontWeight: '900' },
+  metricCard:         { flex: 1, minWidth: '45%', backgroundColor: '#0A0A0A', borderRadius: 12, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: '#3A3A3C' },
+  metricCardLabel:    { color: '#B0B0B0', fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 },
+  metricCardValue:    { color: '#FF5E00', fontSize: 20, fontWeight: '900' },
 
   // ── Edit mode — campos
   field:              { marginBottom: 16 },
-  label:              { color: '#888', fontSize: 13, marginBottom: 8, fontWeight: '600' },
-  input:              { backgroundColor: '#161618', borderRadius: 12, padding: 15, color: '#ffffff', fontSize: 16, borderWidth: 1, borderColor: '#222' },
+  label:              { color: '#B0B0B0', fontSize: 13, marginBottom: 8, fontWeight: '600' },
+  input:              { backgroundColor: '#0A0A0A', borderRadius: 12, padding: 15, color: '#FFFFFF', fontSize: 16, borderWidth: 1, borderColor: '#3A3A3C' },
   textArea:           { height: 90, textAlignVertical: 'top' },
 
   // ── Avatar grid
   avatarGrid:         { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 20 },
-  avatarOption:       { width: '30%', aspectRatio: 1, backgroundColor: '#1E1E1E', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 8, borderWidth: 2, borderColor: 'transparent' },
-  avatarSelected:     { borderColor: '#f05b22', backgroundColor: '#2a1a15' },
+  avatarOption:       { width: '30%', aspectRatio: 1, backgroundColor: '#0A0A0A', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 8, borderWidth: 1, borderColor: '#3A3A3C' },
+  avatarSelected:     { borderColor: '#FF5E00', backgroundColor: '#1C1C1E' },
 
   // ── Género
   genderRow:          { flexDirection: 'row', justifyContent: 'space-between' },
-  genderBtn:          { flex: 1, backgroundColor: '#161618', paddingVertical: 12, borderRadius: 12, alignItems: 'center', marginHorizontal: 4, borderWidth: 1, borderColor: '#222' },
-  genderBtnActive:    { backgroundColor: '#f05b22', borderColor: '#f05b22' },
-  genderBtnText:      { color: '#888', fontWeight: '600', fontSize: 13 },
-  genderBtnTextActive:{ color: '#ffffff' },
+  genderBtn:          { flex: 1, backgroundColor: '#0A0A0A', paddingVertical: 12, borderRadius: 12, alignItems: 'center', marginHorizontal: 4, borderWidth: 1, borderColor: '#3A3A3C' },
+  genderBtnActive:    { backgroundColor: '#FF5E00', borderColor: '#FF5E00' },
+  genderBtnText:      { color: '#B0B0B0', fontWeight: '600', fontSize: 13 },
+  genderBtnTextActive:{ color: '#FFFFFF' },
 
   // ── Métricas edit
   metricsRow:         { flexDirection: 'row', gap: 10 },
   metricHalf:         { flex: 1 },
   radioRow:           { flexDirection: 'row', gap: 8 },
-  radioItem:          { flex: 1, backgroundColor: '#222', paddingVertical: 10, borderRadius: 8, alignItems: 'center' },
-  radioItemActive:    { backgroundColor: '#f05b22' },
-  radioText:          { color: '#aaa', fontSize: 11, fontWeight: 'bold' },
-  radioTextActive:    { color: '#fff' },
+  radioItem:          { flex: 1, backgroundColor: '#0A0A0A', paddingVertical: 10, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#3A3A3C' },
+  radioItemActive:    { backgroundColor: '#FF5E00', borderColor: '#FF5E00' },
+  radioText:          { color: '#B0B0B0', fontSize: 11, fontWeight: 'bold' },
+  radioTextActive:    { color: '#FFFFFF' },
 
   // ── Botones de guardar
-  saveBtn:            { alignSelf: 'flex-end', backgroundColor: '#f05b22', paddingVertical: 9, paddingHorizontal: 18, borderRadius: 10, marginTop: 10, minWidth: 44, alignItems: 'center' },
-  saveBtnOff:         { opacity: 0.5 },
-  saveBtnText:        { color: '#ffffff', fontWeight: 'bold', fontSize: 13 },
+  saveBtn:            { alignSelf: 'flex-end', backgroundColor: '#FF5E00', paddingVertical: 9, paddingHorizontal: 18, borderRadius: 10, marginTop: 10, minWidth: 44, alignItems: 'center' },
+  saveBtnOff:         {},
+  saveBtnText:        { color: '#FFFFFF', fontWeight: 'bold', fontSize: 13 },
 
   // ── Keyboard dismiss (iOS)
-  dismissBtn:         { backgroundColor: '#1c1c1e', paddingHorizontal: 14, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: '#333' },
-  dismissBtnText:     { color: '#f05b22', fontSize: 12, fontWeight: 'bold' },
+  dismissBtn:         { backgroundColor: '#1C1C1E', paddingHorizontal: 14, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: '#3A3A3C' },
+  dismissBtnText:     { color: '#FF5E00', fontSize: 12, fontWeight: 'bold' },
 });

@@ -9,9 +9,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { PerfilStackParamList } from '../../../routes/PerfilStack';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
-import axios from 'axios';
-import { Env } from '../../../app/Providers/geolocation/config/environment';
-import { AuthService } from '../../../app/Providers/auth/AuthService';
+import authAxios from '../../../app/Providers/auth/authAxios';
 
 type NavigationProp = NativeStackNavigationProp<PerfilStackParamList, 'Menu'>;
 
@@ -65,12 +63,7 @@ export const PerfilMenuScreen = () => {
     setLocalAvatar(icon);
     setSavingAvatar(true);
     try {
-      const token = await AuthService.getToken();
-      await axios.patch(
-        `${Env.API_BASE_URL}/api/users/me/profile`,
-        { avatarUrl: icon },
-        { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
-      );
+      await authAxios.patch('/api/users/me/profile', { avatarUrl: icon });
       updateProfile({ avatarUrl: icon });
       setPickerVisible(false);
     } catch {
@@ -83,7 +76,7 @@ export const PerfilMenuScreen = () => {
 
   const userMenuItems: MenuItem[] = [
     { icon: 'account',     label: 'Mis datos personales', action: () => navigation.navigate('DatosPersonales') },
-    { icon: 'chart-line',  label: 'Mi historial físico',  action: () => navigation.navigate('HistorialMetricas' as any) },
+    { icon: 'chart-line',  label: 'Mi historial físico',  action: () => navigation.navigate('CuadroDeMando' as any) },
     { icon: 'trophy',      label: 'Mis objetivos',        action: () => navigation.navigate('MisObjetivos' as any) },
     { icon: 'bell-ring',   label: 'Alertas de salud',     action: () => navigation.navigate('AlertasConfig') },
     ...(isStaffOperativo ? [{ icon: 'card-account-details-outline', label: 'Mi Carnet Digital', action: () => navigation.navigate('CarnetDigital' as any), premium: true }] : []),
@@ -211,7 +204,7 @@ const styles = StyleSheet.create({
   // ── Menú ──
   menuContainer:        { paddingHorizontal: 20, marginTop: 10 },
   menuItem:             { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 20, borderBottomWidth: 1, borderBottomColor: '#161618' },
-  menuItemPremium:      { backgroundColor: 'rgba(240,91,34,0.06)', marginHorizontal: -20, paddingHorizontal: 20, borderRadius: 12, borderBottomColor: 'transparent', borderWidth: 1, borderColor: 'rgba(240,91,34,0.2)', marginVertical: 6 },
+  menuItemPremium:      { backgroundColor: '#1C1C1E', marginHorizontal: -20, paddingHorizontal: 20, borderRadius: 12, borderBottomColor: 'transparent', borderWidth: 1, borderColor: '#FF5E00', marginVertical: 6 },
   menuItemLeft:         { flexDirection: 'row', alignItems: 'center' },
   menuIcon:             { marginRight: 20 },
   menuLabel:            { color: '#ffffff', fontSize: 16, fontWeight: '500' },
@@ -219,7 +212,7 @@ const styles = StyleSheet.create({
 
   // ── Modal ──
   modalBackdrop:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' },
-  modalSheet:           { backgroundColor: '#111', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
+  modalSheet:           { backgroundColor: '#111', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#3A3A3C', padding: 24, paddingBottom: 40 },
   modalHandle:          { width: 40, height: 4, backgroundColor: '#333', borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
   modalTitle:           { color: '#fff', fontSize: 18, fontWeight: 'bold', marginBottom: 20 },
   modalLoading:         { alignItems: 'center', paddingVertical: 40, gap: 12 },
