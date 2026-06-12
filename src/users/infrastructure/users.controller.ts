@@ -34,9 +34,14 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'GERENTE')
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Crear usuario con perfil completo' })
   @ApiBody({ type: CreateUserDto })
   @ApiResponse({ status: 201, description: 'Usuario creado' })
+  @ApiResponse({ status: 401, description: 'Token inválido o ausente' })
+  @ApiResponse({ status: 403, description: 'Solo SUPER_ADMIN o GERENTE' })
   create(@Body() body: CreateUserDto) {
     return this.usersService.create(body);
   }

@@ -3,6 +3,7 @@ import {
 } from 'typeorm';
 import { WorkoutSession } from './workout-session.entity';
 import { RoutineExercise } from '../../routines/domain/routine-exercise.entity';
+import { ExerciseCatalog } from '../../exercises/domain/exercise-catalog.entity';
 
 @Entity('workout_sets')
 export class WorkoutSet {
@@ -14,6 +15,9 @@ export class WorkoutSet {
 
   @Column({ type: 'integer', name: 'routine_exercise_id', nullable: true })
   routineExerciseId: number | null;
+
+  @Column({ type: 'integer', name: 'exercise_id', nullable: true })
+  exerciseId: number | null;
 
   @Column({ type: 'integer', name: 'set_number' })
   setNumber: number;
@@ -50,4 +54,8 @@ export class WorkoutSet {
   @ManyToOne(() => RoutineExercise, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'routine_exercise_id' })
   routineExercise: RoutineExercise | null;
+
+  @ManyToOne(() => ExerciseCatalog, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'exercise_id' })
+  exercise: ExerciseCatalog | null;
 }

@@ -14,6 +14,8 @@ import type { RequestWithUser } from '../../common/security/gym-scope';
 
 @ApiTags('Gyms')
 @Controller('gyms')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth('access-token')
 export class GymsController {
   constructor(private readonly svc: GymsService) {}
 

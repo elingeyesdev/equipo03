@@ -90,8 +90,6 @@ export class ReservationsController {
     const raw = req.user?.userId ?? req.user?.id ?? req.user?.sub;
     const userId = raw !== undefined && raw !== null ? Number(raw) : NaN;
 
-    console.log('GET /me -> Extraído ID:', userId, 'desde req.user:', req.user);
-
     if (!userId || isNaN(userId)) {
       throw new UnauthorizedException('No se pudo extraer el ID del token. Vuelve a iniciar sesión.');
     }

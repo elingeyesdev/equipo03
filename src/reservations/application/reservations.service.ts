@@ -1041,13 +1041,11 @@ export class ReservationsService {
   private async notifyGymManagers(gymId: number, reservationId?: number): Promise<void> {
     try {
       const tokens = await this.usersService.getManagerPushTokens(gymId);
-      tokens.forEach((token) => {
-        this.pushService
-          .sendPushMessage(token, 'Nueva Reserva', 'Tienes una nueva reserva confirmada en tu sucursal.')
-          .catch(() => {});
-      });
       if (tokens.length > 0) {
-        this.logger.log(`[PUSH] ${tokens.length} gerente(s) notificado(s) en gym=${gymId}`);
+        this.pushService
+          .sendPushBatch(tokens, 'Nueva Reserva', 'Tienes una nueva reserva confirmada en tu sucursal.')
+          .catch(() => {});
+        this.logger.log(`[PUSH] batch de ${tokens.length} gerente(s) en gym=${gymId}`);
       }
 
       // Emisión en tiempo real para la Web

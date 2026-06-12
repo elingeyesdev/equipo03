@@ -66,15 +66,8 @@ export class AuthService {
       order: { id: 'ASC' },
     });
 
-    console.log(
-      '[JWT] userId=%d email=%s roles encontrados en BD: [%s]',
-      user.id,
-      user.email,
-      userRoles.map((r) => `${r.role?.name ?? '?'}(gymId=${r.gymId ?? 'null'})`).join(', '),
-    );
-
     if (userRoles.length === 0) {
-      console.warn('[JWT] userId=%d SIN roles en user_roles → payload role=null', user.id);
+      this.logger.warn('JWT generado sin roles asignados');
       return { sub: user.id, email: user.email, role: null, gymId: null };
     }
 
@@ -87,13 +80,10 @@ export class AuthService {
     const topAssignment = sorted[0];
     const topRoleName = topAssignment.role?.name?.toUpperCase() ?? null;
 
-    console.log('[JWT] userId=%d rol elegido (mayor prioridad): %s', user.id, topRoleName);
-
     // ── SUPER_ADMIN — sin sede ────────────────────────────────────────────────
     if (topRoleName === 'SUPER_ADMIN') {
-      const payload = { sub: user.id, email: user.email, role: 'SUPER_ADMIN', gymId: null };
-      console.log('Generando JWT para:', user.email, 'con ROL:', payload.role);
-      return payload;
+      this.logger.debug('JWT emitido para SUPER_ADMIN');
+      return { sub: user.id, email: user.email, role: 'SUPER_ADMIN', gymId: null };
     }
 
     // ── GERENTE — emite brandId si se asignó a una Marca, gymId si es Sucursal ──
@@ -113,29 +103,24 @@ export class AuthService {
 
         if (assignedGym && assignedGym.parentId === null) {
           // Es una Marca → emitir brandId directamente (no buscar sucursal hija)
-          console.log('[JWT] GERENTE userId=%d: Marca %d → brandId=%d', user.id, resolvedGymId, resolvedGymId);
-          const payload = { sub: user.id, email: user.email, role: 'GERENTE', gymId: null, brandId: resolvedGymId };
-          console.log('Generando JWT para:', user.email, 'con ROL:', payload.role, '| BRAND ID:', payload.brandId);
-          return payload;
+          this.logger.debug('JWT emitido para GERENTE de Marca');
+          return { sub: user.id, email: user.email, role: 'GERENTE', gymId: null, brandId: resolvedGymId };
         }
 
-        console.log('[JWT] GERENTE userId=%d: Sucursal directa id=%d', user.id, resolvedGymId);
+        this.logger.debug('JWT emitido para GERENTE de Sucursal');
       }
 
-      const payload = { sub: user.id, email: user.email, role: 'GERENTE', gymId: resolvedGymId, brandId: null };
-      console.log('Generando JWT para:', user.email, 'con ROL:', payload.role, '| SUCURSAL ID:', payload.gymId);
-      return payload;
+      return { sub: user.id, email: user.email, role: 'GERENTE', gymId: resolvedGymId, brandId: null };
     }
 
     // ── Fallback (INSTRUCTOR, ENTRENADOR, USER/CLIENTE, etc.) ─────────────────
-    const payload = {
+    this.logger.debug('JWT emitido');
+    return {
       sub:   user.id,
       email: user.email,
       role:  topRoleName,
       gymId: topAssignment.gymId ?? null,
     };
-    console.log('Generando JWT para:', user.email, 'con ROL:', payload.role);
-    return payload;
   }
 
   async register(data: { email: string; password: string; firstName: string; lastName: string }) {
@@ -144,19 +129,12 @@ export class AuthService {
 
     // Buscar ID del rol CLIENTE usando query directa
     const rolesResult = await this.userRolesRepo.manager.query("SELECT id, name FROM roles WHERE name = 'CLIENTE' OR name = 'USER' LIMIT 1");
-    console.log('[AuthService] Búsqueda de rol CLIENTE:', rolesResult);
-    
-    const roleId = rolesResult?.length ? rolesResult[0].id : 2; // Fallback al ID 2 si por alguna razón falla la query
+    const roleId = rolesResult?.length ? rolesResult[0].id : 2;
 
-    console.log('[AuthService] Creando usuario con roleId:', roleId);
-
-    // Crear el usuario incluyendo el roleId
     const user = await this.usersService.create({
       ...data,
       roleId: roleId,
     });
-
-    console.log('[AuthService] Usuario creado con ID:', user.id, 'Verificando roles asignados:', user.userRoles);
 
     const payload = await this.buildJwtPayload({ id: user.id, email: user.email });
     const gymName = this.extractGymName(user.userRoles, payload.gymId);

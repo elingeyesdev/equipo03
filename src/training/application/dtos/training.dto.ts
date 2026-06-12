@@ -1,4 +1,5 @@
-import { IsString, IsOptional, IsInt, IsBoolean, IsNumber, IsArray, IsObject } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsBoolean, IsNumber, IsArray, IsObject, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 // ── Training Profile ─────────────────────────────────────
@@ -163,7 +164,10 @@ export class SaveCompletedSessionDto {
   notes?: string;
 
   @ApiPropertyOptional({ description: 'Series completadas durante el entrenamiento', type: () => [AddSetDto] })
-  @IsOptional() @IsArray()
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AddSetDto)
   sets?: AddSetDto[];
 }
 
@@ -171,6 +175,14 @@ export class AddSetDto {
   @ApiPropertyOptional({ example: 1, description: 'ID del routine_exercise. Omitir en entrenamientos libres.' })
   @IsOptional() @IsInt()
   routineExerciseId?: number;
+
+  @ApiPropertyOptional({ example: 5, description: 'ID del ejercicio del catálogo. Usar en entrenamientos libres.' })
+  @IsOptional() @IsInt()
+  exerciseId?: number;
+
+  @ApiPropertyOptional({ example: 'Press de Banca', description: 'Nombre del ejercicio (solo para compatibilidad con el frontend móvil, no se persiste explícitamente en la BD).' })
+  @IsOptional() @IsString()
+  exerciseName?: string;
 
   @ApiProperty({ example: 1 })
   @IsInt()

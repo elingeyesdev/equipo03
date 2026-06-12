@@ -258,8 +258,18 @@ export class UsersService {
       throw new BadRequestException('Los gerentes no pueden registrar métricas físicas.');
     }
 
-    const profile = await this.profilesRepo.findOne({ where: { userId } });
-    if (!profile) throw new NotFoundException(`Perfil del usuario ${userId} no encontrado`);
+    let profile = await this.profilesRepo.findOne({ where: { userId } });
+    if (!profile) {
+      const owner = await this.usersRepo.findOne({ where: { id: userId }, select: ['id', 'email'] });
+      if (!owner) throw new NotFoundException(`Usuario ${userId} no encontrado. Por favor vuelve a iniciar sesión.`);
+      profile = await this.profilesRepo.save(
+        this.profilesRepo.create({
+          userId: owner.id,
+          firstName: owner.email.split('@')[0],
+          lastName: '',
+        }),
+      );
+    }
 
     Object.assign(profile, profileData);
     if (dateOfBirth !== undefined) profile.dateOfBirth = new Date(dateOfBirth);
@@ -300,8 +310,18 @@ export class UsersService {
 
   async saveAvatar(userId: number, filename: string, baseUrl: string): Promise<string> {
     const avatarUrl = `${baseUrl}/uploads/avatars/${filename}`;
-    const profile = await this.profilesRepo.findOne({ where: { userId } });
-    if (!profile) throw new NotFoundException(`Perfil del usuario ${userId} no encontrado`);
+    let profile = await this.profilesRepo.findOne({ where: { userId } });
+    if (!profile) {
+      const owner = await this.usersRepo.findOne({ where: { id: userId }, select: ['id', 'email'] });
+      if (!owner) throw new NotFoundException(`Usuario ${userId} no encontrado. Por favor vuelve a iniciar sesión.`);
+      profile = await this.profilesRepo.save(
+        this.profilesRepo.create({
+          userId: owner.id,
+          firstName: owner.email.split('@')[0],
+          lastName: '',
+        }),
+      );
+    }
     profile.avatarUrl = avatarUrl;
     await this.profilesRepo.save(profile);
     return avatarUrl;

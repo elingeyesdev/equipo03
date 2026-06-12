@@ -1,4 +1,4 @@
-import { Inject, Injectable, ForbiddenException, NotFoundException, Scope } from '@nestjs/common';
+import { Inject, Injectable, ForbiddenException, NotFoundException, BadRequestException, Scope } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DeepPartial } from 'typeorm';
@@ -30,6 +30,95 @@ export class TrainingService {
     return getManagerGymId(this.request);
   }
 
+  /** Mapea una WorkoutSession a un objeto plano seguro para serialización HTTP. */
+  private mapSession(s: WorkoutSession) {
+    return {
+      id: s.id,
+      userId: s.userId,
+      gymId: s.gymId,
+      gymName: s.gym?.name ?? null,
+      brandName: s.gym?.parent?.name ?? null,
+      gym: s.gym
+        ? {
+            id: s.gym.id,
+            name: s.gym.name,
+            parentId: s.gym.parentId ?? null,
+            brand: s.gym.parent
+              ? { id: s.gym.parent.id, name: s.gym.parent.name }
+              : null,
+          }
+        : null,
+      routineId: s.routineId,
+      routine: s.routine
+        ? {
+            id: s.routine.id,
+            name: s.routine.name,                 // Routine.name existe como string
+            description: s.routine.description ?? null,
+            difficultyLevel: s.routine.difficultyLevel ?? null,
+            // Ejercicios del catálogo definidos en la rutina
+            exercises: (s.routine.exercises ?? []).map((re) => ({
+              id: re.id,
+              orderPosition: re.orderPosition,
+              setsRecommended: re.setsRecommended,
+              repsRecommended: re.repsRecommended,
+              weightRecommendedKg: re.weightRecommendedKg ?? null,
+              exercise: re.exercise
+                ? {
+                    id: re.exercise.id,
+                    name: re.exercise.name,
+                    muscleGroup: re.exercise.muscleGroup,
+                    equipmentRequired: re.exercise.equipmentRequired ?? null,
+                  }
+                : null,
+            })),
+          }
+        : null,
+      sportType: s.sportType,
+      status: s.status,
+      startedAt: s.startedAt,
+      finishedAt: s.finishedAt,
+      durationSeconds: s.durationSeconds,
+      caloriesBurned: s.caloriesBurned,
+      notes: s.notes,
+      // Series ejecutadas en la sesión (con nombre del ejercicio real)
+      sets: (s.sets ?? []).map((ws) => {
+        // Uniformizar el ejercicio: puede venir de entrenamiento libre o de una rutina
+        const catalogExercise = ws.exercise ?? ws.routineExercise?.exercise ?? null;
+
+        return {
+          id: ws.id,
+          setNumber: ws.setNumber,
+          repsCompleted: ws.repsCompleted,
+          weightUsedKg: ws.weightUsedKg !== null ? Number(ws.weightUsedKg) : null,
+          durationSeconds: ws.durationSeconds,
+          distanceMeters: ws.distanceMeters,
+          restTakenSeconds: ws.restTakenSeconds,
+          ratingPerceivedExertion: ws.ratingPerceivedExertion,
+          completedAt: ws.completedAt,
+          // Exponer el ejercicio uniformemente para el frontend
+          exercise: catalogExercise
+            ? {
+                id: catalogExercise.id,
+                name: catalogExercise.name,
+                muscleGroup: catalogExercise.muscleGroup,
+                equipmentRequired: catalogExercise.equipmentRequired ?? null,
+              }
+            : null,
+          // Mantener routineExercise para info de repeticiones recomendadas si es de rutina
+          routineExercise: ws.routineExercise
+            ? {
+                id: ws.routineExercise.id,
+                orderPosition: ws.routineExercise.orderPosition,
+                setsRecommended: ws.routineExercise.setsRecommended,
+                repsRecommended: ws.routineExercise.repsRecommended,
+                weightRecommendedKg: ws.routineExercise.weightRecommendedKg ?? null,
+              }
+            : null,
+        };
+      }),
+    };
+  }
+
   // ── User Training Profile ────────────────────────
   async createTrainingProfile(userId: number, goals?: any, prefs?: any) {
     const ut = await this.utRepo.save(this.utRepo.create({ userId }));
@@ -54,6 +143,10 @@ export class TrainingService {
 
   // ── Workout Sessions ─────────────────────────────
   async saveCompletedSession(userId: number, data: any) {
+    if ((!data.sets || data.sets.length === 0) && data.durationSeconds < 60) {
+      throw new BadRequestException('No se puede guardar una sesión de menos de 1 minuto sin series registradas.');
+    }
+
     const mg = this.managerGymId();
 
     let gymId: number | null;
@@ -86,8 +179,42 @@ export class TrainingService {
     );
 
     if (data.sets?.length) {
+      // Validate exerciseIds against exercise_catalog to prevent FK violations
+      // when the catalog has been modified since the app loaded its exercise list.
+      const requestedExerciseIds = [...new Set(
+        (data.sets as any[])
+          .map((s) => s.exerciseId)
+          .filter((id): id is number => typeof id === 'number' && id > 0),
+      )];
+
+      const validExerciseIds = new Set<number>();
+      if (requestedExerciseIds.length > 0) {
+        const rows: { id: number }[] = await this.setsRepo.manager.query(
+          `SELECT id FROM exercise_catalog WHERE id = ANY($1::int[])`,
+          [requestedExerciseIds],
+        );
+        rows.forEach((r) => validExerciseIds.add(r.id));
+
+        const invalid = requestedExerciseIds.filter((id) => !validExerciseIds.has(id));
+        if (invalid.length > 0) {
+          console.warn(`[TrainingService] exerciseId(s) not found in catalog, saved as null: ${invalid.join(', ')}`);
+        }
+      }
+
       const items = (data.sets as any[]).map((s) =>
-        this.setsRepo.create({ ...s, sessionId: session.id } as DeepPartial<WorkoutSet>),
+        this.setsRepo.create({
+          sessionId: session.id,
+          setNumber: s.setNumber,
+          routineExerciseId: s.routineExerciseId ?? null,
+          exerciseId: (s.exerciseId && validExerciseIds.has(s.exerciseId)) ? s.exerciseId : null,
+          weightUsedKg: s.weightUsedKg ?? null,
+          repsCompleted: s.repsCompleted ?? null,
+          durationSeconds: s.durationSeconds ?? null,
+          distanceMeters: s.distanceMeters ?? null,
+          restTakenSeconds: s.restTakenSeconds ?? null,
+          ratingPerceivedExertion: s.ratingPerceivedExertion ?? null,
+          metadata: s.metadata ?? null,
+        } as DeepPartial<WorkoutSet>),
       );
       await this.setsRepo.save(items);
     }
@@ -98,6 +225,11 @@ export class TrainingService {
   async createSession(data: any) {
     const mg = this.managerGymId();
     const { sets, ...sData } = data;
+
+    if ((!sets || sets.length === 0) && sData.durationSeconds < 60) {
+      throw new BadRequestException('No se puede guardar una sesión de menos de 1 minuto sin series registradas.');
+    }
+
     const sessionData: DeepPartial<WorkoutSession> = { ...sData };
 
     if (mg !== null) {
@@ -109,20 +241,39 @@ export class TrainingService {
 
     const session = await this.sessionsRepo.save(this.sessionsRepo.create(sessionData));
     if (sets?.length) {
-      const items = sets.map((s: any) => this.setsRepo.create({ ...s, sessionId: session.id } as DeepPartial<WorkoutSet>));
+      const items = sets.map((s: any) =>
+        this.setsRepo.create({
+          sessionId: session.id,
+          setNumber: s.setNumber,
+          routineExerciseId: s.routineExerciseId ?? null,
+          exerciseId: s.exerciseId ?? null,
+          weightUsedKg: s.weightUsedKg ?? null,
+          repsCompleted: s.repsCompleted ?? null,
+          durationSeconds: s.durationSeconds ?? null,
+          distanceMeters: s.distanceMeters ?? null,
+          restTakenSeconds: s.restTakenSeconds ?? null,
+          ratingPerceivedExertion: s.ratingPerceivedExertion ?? null,
+          metadata: s.metadata ?? null,
+        } as DeepPartial<WorkoutSet>),
+      );
       await this.setsRepo.save(items);
     }
     return this.findOneSession(session.id);
   }
 
-  findAllSessions(userId: number, take = 50, skip = 0) {
+  async findAllSessions(userId: number, take = 50, skip = 0) {
     const mg = this.managerGymId();
     const qb = this.sessionsRepo.createQueryBuilder('session')
       .leftJoinAndSelect('session.routine', 'routine')
+      .leftJoinAndSelect('routine.exercises', 'routineExercises')
+      .leftJoinAndSelect('routineExercises.exercise', 'catalogExercise')
       .leftJoinAndSelect('session.user', 'user')
       .leftJoinAndSelect('session.gym', 'gym')
+      .leftJoinAndSelect('gym.parent', 'brand')
       .leftJoinAndSelect('session.sets', 'sets')
+      .leftJoinAndSelect('sets.exercise', 'freeExercise')
       .leftJoinAndSelect('sets.routineExercise', 'routineExercise')
+      .leftJoinAndSelect('routineExercise.exercise', 'exercise')
       .where('session.user_id = :userId', { userId })
       .orderBy('session.startedAt', 'DESC')
       .take(take)
@@ -132,15 +283,22 @@ export class TrainingService {
       qb.andWhere('session.gym_id = :gymId', { gymId: mg });
     }
 
-    return qb.getMany();
+    const sessions = await qb.getMany();
+    return sessions.map((s) => this.mapSession(s));
   }
 
-  findSessionsByUser(userId: number) {
+  async findSessionsByUser(userId: number) {
     const mg = this.managerGymId();
     const qb = this.sessionsRepo.createQueryBuilder('session')
       .leftJoinAndSelect('session.routine', 'routine')
+      .leftJoinAndSelect('routine.exercises', 'routineExercises')
+      .leftJoinAndSelect('routineExercises.exercise', 'catalogExercise')
       .leftJoinAndSelect('session.gym', 'gym')
+      .leftJoinAndSelect('gym.parent', 'brand')
       .leftJoinAndSelect('session.sets', 'sets')
+      .leftJoinAndSelect('sets.exercise', 'freeExercise')
+      .leftJoinAndSelect('sets.routineExercise', 'routineExercise')
+      .leftJoinAndSelect('routineExercise.exercise', 'exercise')
       .where('session.user_id = :userId', { userId })
       .orderBy('session.started_at', 'DESC');
 
@@ -148,17 +306,14 @@ export class TrainingService {
       qb.andWhere('session.gym_id = :gymId', { gymId: mg });
     }
 
-    return qb.getMany();
+    const sessions = await qb.getMany();
+    return sessions.map((s) => this.mapSession(s));
   }
 
-  async findOneSession(id: number) {
+  /** Carga la entidad pura WorkoutSession para operaciones de escritura (save/delete). */
+  private async findRawSession(id: number): Promise<WorkoutSession> {
     const mg = this.managerGymId();
     const qb = this.sessionsRepo.createQueryBuilder('session')
-      .leftJoinAndSelect('session.routine', 'routine')
-      .leftJoinAndSelect('session.user', 'user')
-      .leftJoinAndSelect('session.gym', 'gym')
-      .leftJoinAndSelect('session.sets', 'sets')
-      .leftJoinAndSelect('sets.routineExercise', 'routineExercise')
       .where('session.id = :id', { id });
 
     if (mg !== null) {
@@ -176,8 +331,39 @@ export class TrainingService {
     throw new NotFoundException(`Sesión ${id} no encontrada`);
   }
 
+  async findOneSession(id: number) {
+    const mg = this.managerGymId();
+    const qb = this.sessionsRepo.createQueryBuilder('session')
+      .leftJoinAndSelect('session.routine', 'routine')
+      .leftJoinAndSelect('routine.exercises', 'routineExercises')
+      .leftJoinAndSelect('routineExercises.exercise', 'catalogExercise')
+      .leftJoinAndSelect('session.user', 'user')
+      .leftJoinAndSelect('session.gym', 'gym')
+      .leftJoinAndSelect('gym.parent', 'brand')
+      .leftJoinAndSelect('session.sets', 'sets')
+      .leftJoinAndSelect('sets.exercise', 'freeExercise')
+      .leftJoinAndSelect('sets.routineExercise', 'routineExercise')
+      .leftJoinAndSelect('routineExercise.exercise', 'exercise')
+      .where('session.id = :id', { id });
+
+    if (mg !== null) {
+      qb.andWhere('session.gym_id = :gymId', { gymId: mg });
+    }
+
+    const s = await qb.getOne();
+    if (s) return this.mapSession(s);
+
+    if (mg !== null) {
+      const exists = await this.sessionsRepo.exist({ where: { id } });
+      if (exists) throw new ForbiddenException('No tiene permisos para acceder a esta sesión');
+    }
+
+    throw new NotFoundException(`Sesión ${id} no encontrada`);
+  }
+
   async updateSession(id: number, data: any) {
-    const s = await this.findOneSession(id);
+    // Usa la entidad pura para poder hacer save() sin propiedades extra
+    const s = await this.findRawSession(id);
     const mg = this.managerGymId();
 
     if (mg !== null && data.gymId !== undefined && data.gymId !== null && Number(data.gymId) !== mg) {
@@ -186,17 +372,99 @@ export class TrainingService {
 
     if (data.status === 'COMPLETED' && !s.finishedAt) s.finishedAt = new Date();
     Object.assign(s, data);
-    return this.sessionsRepo.save(s);
+    await this.sessionsRepo.save(s);
+    // Retorna la sesión mapeada (con gymName, brandName, etc.) despues de guardar
+    return this.findOneSession(id);
   }
 
   async addSet(sessionId: number, data: any) {
-    await this.findOneSession(sessionId);
+    await this.findRawSession(sessionId); // solo verifica permisos, no necesita joins
     return this.setsRepo.save(this.setsRepo.create({ ...data, sessionId }));
   }
 
   async removeSession(id: number) {
-    await this.findOneSession(id);
+    await this.findRawSession(id); // solo verifica permisos
     return this.sessionsRepo.delete(id);
+  }
+
+  // ── Strength Records (para gráfico de hipertrofia) ──────────────────────────
+  /**
+   * Devuelve los récords de fuerza del usuario agrupados por ejercicio.
+   * Formato de respuesta:
+   * [
+   *   {
+   *     exerciseId: number,
+   *     exerciseName: string,
+   *     muscleGroup: string,
+   *     history: [{ date: 'YYYY-MM-DD', maxWeightKg: number, totalSets: number }]
+   *   }
+   * ]
+   */
+  async getStrengthRecords(userId: number) {
+    const sessions = await this.sessionsRepo
+      .createQueryBuilder('session')
+      .leftJoinAndSelect('session.sets', 'sets')
+      .leftJoinAndSelect('sets.exercise', 'freeExercise')
+      .leftJoinAndSelect('sets.routineExercise', 'routineExercise')
+      .leftJoinAndSelect('routineExercise.exercise', 'exercise')
+      .where('session.user_id = :userId', { userId })
+      .andWhere('sets.weight_used_kg IS NOT NULL')
+      .orderBy('session.startedAt', 'ASC')
+      .getMany();
+
+    // Agrupar por ejercicio
+    const byExercise = new Map<number, {
+      exerciseId: number;
+      exerciseName: string;
+      muscleGroup: string;
+      history: { date: string; maxWeightKg: number; totalSets: number }[];
+    }>();
+
+    for (const session of sessions) {
+      if (!session.sets?.length) continue;
+
+      // Agrupar series de esta sesión por ejercicio
+      const perExerciseInSession = new Map<number, { maxWeight: number; count: number }>();
+
+      for (const set of session.sets) {
+        const exercise = set.exercise ?? set.routineExercise?.exercise;
+        if (!exercise || set.weightUsedKg == null) continue;
+
+        const weight = Number(set.weightUsedKg);
+        const existing = perExerciseInSession.get(exercise.id);
+        if (!existing) {
+          perExerciseInSession.set(exercise.id, { maxWeight: weight, count: 1 });
+        } else {
+          existing.maxWeight = Math.max(existing.maxWeight, weight);
+          existing.count++;
+        }
+
+        // Inicializar entrada global del ejercicio si no existe
+        if (!byExercise.has(exercise.id)) {
+          byExercise.set(exercise.id, {
+            exerciseId: exercise.id,
+            exerciseName: exercise.name,
+            muscleGroup: exercise.muscleGroup,
+            history: [],
+          });
+        }
+      }
+
+      // Añadir punto de datos por sesión a cada ejercicio
+      const sessionDate = (session.startedAt ?? session.finishedAt ?? new Date())
+        .toISOString()
+        .slice(0, 10); // 'YYYY-MM-DD'
+
+      for (const [exerciseId, stats] of perExerciseInSession) {
+        byExercise.get(exerciseId)!.history.push({
+          date: sessionDate,
+          maxWeightKg: stats.maxWeight,
+          totalSets: stats.count,
+        });
+      }
+    }
+
+    return Array.from(byExercise.values());
   }
 }
 

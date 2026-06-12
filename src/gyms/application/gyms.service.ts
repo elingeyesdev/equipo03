@@ -17,14 +17,10 @@ import { Reservation } from '../../reservations/domain/reservation.entity';
 import { CheckIn } from '../../checkins/domain/check-in.entity';
 import { getManagerGymId, getStaffGymId, type RequestWithUser } from '../../common/security/gym-scope';
 
-// Códigos de día usados en gym_schedules.day_of_week
+
 const DAY_CODES = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'] as const;
 
-/**
- * Calcula si un gimnasio está abierto AHORA según sus horarios registrados.
- * Usa la zona horaria configurada en APP_TIMEZONE (defecto: America/La_Paz).
- * Retorna false si no hay horario para el día actual o está fuera del rango.
- */
+
 function isGymOpenNow(schedules: GymSchedule[]): boolean {
   if (!schedules || schedules.length === 0) return false;
 
@@ -131,7 +127,6 @@ export class GymsService {
       return brandGyms.map((gym) => this.mapGymToDto(gym));
     }
 
-    // ── Path CLIENTE / SUPER_ADMIN: todas las sedes cercanas ─────────────────
     const qb = this.gymsRepo
       .createQueryBuilder('gym')
       .leftJoinAndSelect('gym.location', 'location')
