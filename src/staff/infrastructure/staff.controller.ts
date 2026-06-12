@@ -104,6 +104,59 @@ export class StaffController {
     return this.svc.updateAppointmentStatus(id, body.status);
   }
 
+  @Get('me/stats/attendance')
+  @Roles('INSTRUCTOR')
+  @ApiOperation({ summary: 'Historial de asistencias reales (COMPLETADA) del instructor — últimos 30 días, agrupado por clase/horario' })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: [
+        { scheduleId: 3, time: '08:00', className: 'Musculación Pro', totalCompleted: 45 },
+        { scheduleId: 7, time: '18:00', className: 'Zumba',           totalCompleted: 82 },
+      ],
+    },
+  })
+  @ApiResponse({ status: 403, description: 'Rol no permitido' })
+  getAttendanceStats() {
+    return this.svc.getAttendanceStats();
+  }
+
+  @Get('me/students')
+  @Roles('INSTRUCTOR')
+  @ApiOperation({ summary: 'Alumnos inscritos en las clases del instructor autenticado' })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: [{
+        reservationId: 101, clientName: 'Aaron Sendoya', className: 'Zumba',
+        startTime: '08:00', endTime: '09:00', reservationDate: '2026-06-12T00:00:00.000Z',
+      }],
+    },
+  })
+  @ApiResponse({ status: 403, description: 'Rol no permitido' })
+  getMyStudents() {
+    return this.svc.getMyStudents();
+  }
+
+  @Get('me/schedules')
+  @Roles('INSTRUCTOR')
+  @ApiOperation({ summary: 'Clases de HOY del instructor autenticado con inscritos y lista de alumnos' })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: [{
+        id: 1, className: 'Zumba', gymName: 'Corpus Centro',
+        dayOfWeek: 'LUNES', startTime: '08:00', endTime: '09:00',
+        maxCapacity: 20, enrolledCount: 15,
+        attendees: [{ id: 7, fullName: 'Ana García' }],
+      }],
+    },
+  })
+  @ApiResponse({ status: 403, description: 'Rol no permitido' })
+  getMySchedules() {
+    return this.svc.getMySchedules();
+  }
+
   @Post(':userId/schedules')
   @Roles('GERENTE', 'SUPER_ADMIN')
   @ApiOperation({ summary: 'Asignar horario laboral a un empleado (reemplaza el existente)' })
