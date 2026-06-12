@@ -24,8 +24,9 @@ import { useFilterStore } from '../../../app/Providers/geolocation/stores/Filter
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { useMyReservationsQuery } from '../../../app/Providers/reservations/hooks/useMyReservationsQuery';
 import { UserReservation } from '../../../app/Providers/reservations/api/reservation.types';
-import { ManagerDashboard } from './ManagerDashboard';
-import { TrainerDashboard } from './TrainerDashboard';
+import { ManagerDashboard }    from './ManagerDashboard';
+import { TrainerDashboard }    from './TrainerDashboard';
+import { InstructorDashboard } from './InstructorDashboard';
 import { NutritionistDashboard } from './NutritionistDashboard';
 
 const { width } = Dimensions.get('window');
@@ -361,7 +362,7 @@ const ClientDashboard = () => {
                     <MaterialCommunityIcons name="star" size={14} color="#f05b22" />
                     <Text style={styles.ratingText}>{item.sede.rating || '4.5'}</Text>
                     <Text style={styles.capacityText}>
-                      • {item.sede.aforoActual ?? 0}/{item.sede.aforoMax ?? 0}
+                      • {(item.sede as any).aforoActual ?? 0}/{(item.sede as any).aforoMax ?? 0}
                     </Text>
                   </View>
                 </View>
@@ -424,6 +425,24 @@ const ClientDashboard = () => {
           <MaterialCommunityIcons name="chevron-right" size={22} color="#444" />
         </TouchableOpacity>
 
+        {/* ── Cuadro de Mando ── */}
+        <TouchableOpacity
+          style={[styles.historialBtn, { borderColor: '#FF5E0033', borderWidth: 1 }]}
+          activeOpacity={0.8}
+          onPress={() => (navigation as any).navigate('CuadroDeMando')}
+        >
+          <View style={styles.historialBtnLeft}>
+            <View style={[styles.historialBtnIcon, { backgroundColor: '#FF5E0022' }]}>
+              <MaterialCommunityIcons name="chart-timeline-variant" size={20} color="#f05b22" />
+            </View>
+            <View>
+              <Text style={styles.historialBtnTitle}>Cuadro de Mando</Text>
+              <Text style={styles.historialBtnSub}>Evolución y línea de tiempo</Text>
+            </View>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={22} color="#444" />
+        </TouchableOpacity>
+
         {/* ── Explora Disciplinas ── */}
         <View style={styles.onboardSection}>
           <View style={styles.sectionIconRow}>
@@ -471,10 +490,11 @@ export const InicioScreen = () => {
   const { user } = useAuth();
   const role = user?.role ?? '';
 
-  if (role === 'GERENTE' || role === 'COORDINADOR') return <ManagerDashboard />;
-  if (role === 'INSTRUCTOR' || role === 'ENTRENADOR') return <TrainerDashboard />;
+  if (role === 'GERENTE' || (role as string) === 'COORDINADOR') return <ManagerDashboard />;
+  if ((role as string) === 'INSTRUCTOR') return <InstructorDashboard />;
+  if (role === 'ENTRENADOR') return <TrainerDashboard />;
   if (role === 'NUTRICIONISTA') return <NutritionistDashboard />;
-  if (role === 'PERSONAL_DE_LIMPIEZA') return (
+  if ((role as string) === 'PERSONAL_DE_LIMPIEZA') return (
     <SafeAreaView style={ph.safe} edges={['top']}>
       <View style={ph.center}>
         <MaterialCommunityIcons name="broom" size={56} color="#666" />
@@ -668,7 +688,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 10,
-    backgroundColor: 'rgba(240,91,34,0.12)',
+    backgroundColor: '#1C1C1E',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -695,7 +715,7 @@ const styles = StyleSheet.create({
   galleryItem: {
     width: (width - 40 - 30) / 4,
     height: 80,
-    backgroundColor: '#161618',
+    backgroundColor: '#1C1C1E',
     borderRadius: 15,
     justifyContent: 'center',
     alignItems: 'center',
@@ -709,7 +729,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   infoCard: {
-    backgroundColor: '#161618',
+    backgroundColor: '#1C1C1E',
     borderRadius: 20,
     padding: 20,
     marginTop: 20,
@@ -766,7 +786,7 @@ const nb = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(240,91,34,0.12)',
+    backgroundColor: '#1C1C1E',
     borderRadius: 20,
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -777,12 +797,12 @@ const nb = StyleSheet.create({
     fontWeight: '700',
   },
   statusBadge: {
-    backgroundColor: '#22C55E22',
+    backgroundColor: '#1C1C1E',
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderWidth: 1,
-    borderColor: '#22C55E55',
+    borderColor: '#00E5A3',
   },
   statusText: {
     color: '#22C55E',

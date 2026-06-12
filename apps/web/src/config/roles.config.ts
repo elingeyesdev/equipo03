@@ -24,15 +24,15 @@ export interface NavRoute {
  */
 export const NAV_ROUTES: NavRoute[] = [
   { path: 'resumen',     label: 'Resumen',              allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'ENTRENADOR', 'NUTRICIONISTA', 'CLIENTE', 'USER'] },
-  { path: 'auditoria',   label: 'Registros del Personal', allowedRoles: ['SUPER_ADMIN', 'GERENTE'] },
-  { path: 'usuarios',    label: 'Usuarios',              allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'ENTRENADOR', 'NUTRICIONISTA'] },
+  { path: 'auditoria',   label: 'Registros del Personal', allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA'] },
+  { path: 'usuarios',    label: 'Usuarios',              allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'ENTRENADOR', 'NUTRICIONISTA', 'RECEPCIONISTA'] },
   { path: 'sedes',       label: 'Marcas',                  allowedRoles: ['SUPER_ADMIN'] },
   { path: 'sucursales',  label: 'Sucursales',             allowedRoles: ['SUPER_ADMIN'] },
   { path: 'roles',       label: 'Roles',                  allowedRoles: ['SUPER_ADMIN'] },
-  { path: 'mapa',        label: 'Mapa de Red',            allowedRoles: ['SUPER_ADMIN', 'GERENTE'] },
+  { path: 'mapa',        label: 'Mapa de Red',            allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA'] },
   { path: 'rutinas',     label: 'Rutinas',                allowedRoles: ['SUPER_ADMIN', 'ENTRENADOR', 'NUTRICIONISTA', 'CLIENTE'] },
-  { path: 'actividades', label: 'Catálogo de Servicios',  allowedRoles: ['SUPER_ADMIN', 'GERENTE'] },
-  { path: 'reservas',    label: 'Gestion de Reservas',    allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'CLIENTE'] },
+  { path: 'actividades', label: 'Catálogo de Servicios',  allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA'] },
+  { path: 'reservas',    label: 'Gestion de Reservas',    allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'CLIENTE', 'RECEPCIONISTA'] },
   { path: 'medidas',     label: 'Medidas',                allowedRoles: ['CLIENTE'] },
 ];
 

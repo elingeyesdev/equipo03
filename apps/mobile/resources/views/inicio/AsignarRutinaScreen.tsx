@@ -146,7 +146,7 @@ export const AsignarRutinaScreen = () => {
                 activeOpacity={0.85}
               >
                 <View style={s.cardLeft}>
-                  <View style={[s.iconWrap, isAdded && { backgroundColor: 'rgba(34,197,94,0.15)', borderColor: 'rgba(34,197,94,0.4)' }]}>
+                  <View style={[s.iconWrap, isAdded && { backgroundColor: '#1C1C1E', borderColor: '#00E5A3' }]}>
                     <MaterialCommunityIcons
                       name={isAdded ? 'check' : 'dumbbell'}
                       size={20}
@@ -272,25 +272,25 @@ const s = StyleSheet.create({
   safe:   { flex: 1, backgroundColor: '#000' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, gap: 10 },
 
-  subHeader:    { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#1a1a1a' },
+  subHeader:    { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#3A3A3C' },
   subHeaderTxt: { color: '#ccc', fontSize: 13, fontWeight: '600', flex: 1 },
-  badge:        { backgroundColor: 'rgba(240,91,34,0.15)', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 3, borderWidth: 1, borderColor: 'rgba(240,91,34,0.4)' },
+  badge:        { backgroundColor: '#1C1C1E', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 3, borderWidth: 1, borderColor: '#FF5E00' },
   badgeTxt:     { color: '#f05b22', fontSize: 11, fontWeight: '700' },
 
   list: { paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 100 },
 
-  card:     { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0e0e0e', borderRadius: 14, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: '#1a1a1a', gap: 12 },
-  cardAdded:{ borderColor: 'rgba(34,197,94,0.35)', backgroundColor: '#071a0e' },
+  card:     { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0e0e0e', borderRadius: 14, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: '#3A3A3C', gap: 12 },
+  cardAdded:{ borderColor: '#00E5A3', backgroundColor: '#1C1C1E' },
   cardLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
-  iconWrap: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(240,91,34,0.1)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(240,91,34,0.25)' },
+  iconWrap: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#1C1C1E', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#FF5E00' },
   exName:   { color: '#fff', fontSize: 14, fontWeight: '700' },
   exMuscle: { color: '#555', fontSize: 11, marginTop: 2 },
   exConf:   { color: '#22C55E', fontSize: 11, marginTop: 3, fontWeight: '600' },
   removeBtn:{ padding: 2 },
 
-  footer:     { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, backgroundColor: '#000', borderTopWidth: 1, borderTopColor: '#1a1a1a' },
+  footer:     { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, backgroundColor: '#000', borderTopWidth: 1, borderTopColor: '#3A3A3C' },
   saveBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#f05b22', borderRadius: 14, paddingVertical: 14 },
-  saveBtnOff: { opacity: 0.4 },
+  saveBtnOff: {},
   saveBtnTxt: { color: '#fff', fontWeight: '900', fontSize: 15 },
 
   soft:     { color: '#444', fontSize: 13, textAlign: 'center' },
@@ -306,7 +306,7 @@ const s = StyleSheet.create({
   cfgRow:   { flexDirection: 'row', gap: 12, marginBottom: 16 },
   cfgField: { flex: 1, marginBottom: 16 },
   cfgLabel: { color: '#888', fontSize: 12, fontWeight: '600', marginBottom: 8 },
-  cfgInput: { backgroundColor: '#1c1c1e', borderRadius: 12, padding: 14, color: '#fff', fontSize: 16, borderWidth: 1, borderColor: '#2a2a2a' },
+  cfgInput: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 14, color: '#fff', fontSize: 16, borderWidth: 1, borderColor: '#3A3A3C' },
 
   confirmBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#f05b22', borderRadius: 14, paddingVertical: 14, marginTop: 8 },
   confirmBtnTxt: { color: '#fff', fontWeight: '900', fontSize: 15 },

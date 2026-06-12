@@ -121,22 +121,22 @@ const s = StyleSheet.create({
   saludo:     { color: '#555', fontSize: 14 },
   nombre:     { color: '#fff', fontSize: 26, fontWeight: '900', marginTop: 2 },
   sub:        { color: '#444', fontSize: 13, marginTop: 4 },
-  avatar:     { width: 50, height: 50, borderRadius: 25, backgroundColor: '#1c1c1e', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(240,91,34,0.3)' },
+  avatar:     { width: 50, height: 50, borderRadius: 25, backgroundColor: '#1C1C1E', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#FF5E00' },
 
   list:       { paddingHorizontal: 16, paddingBottom: 100 },
 
-  summaryCard: { backgroundColor: '#0e0e0e', borderRadius: 12, padding: 16, alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: '#1a1a1a' },
+  summaryCard: { backgroundColor: '#0e0e0e', borderRadius: 12, padding: 16, alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: '#3A3A3C' },
   summaryNum:  { color: '#fff', fontSize: 28, fontWeight: '900' },
   summaryLabel:{ color: '#444', fontSize: 12, marginTop: 2 },
 
-  card:     { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0e0e0e', borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: '#1a1a1a', gap: 12 },
+  card:     { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0e0e0e', borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: '#3A3A3C', gap: 12 },
   cardLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 },
-  iconBadge:{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(240,91,34,0.1)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(240,91,34,0.2)' },
+  iconBadge:{ width: 42, height: 42, borderRadius: 21, backgroundColor: '#1C1C1E', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#FF5E00' },
   cardInfo: { flex: 1 },
   cardName: { color: '#fff', fontSize: 14, fontWeight: '700' },
   cardEmail:{ color: '#555', fontSize: 11, marginTop: 2 },
 
-  expBtn:   { backgroundColor: '#1a1a1a', paddingVertical: 7, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: '#2a2a2a' },
+  expBtn:   { backgroundColor: '#1C1C1E', paddingVertical: 7, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: '#3A3A3C' },
   expBtnTxt:{ color: '#f05b22', fontSize: 12, fontWeight: '700' },
 
   emptyTitle:{ color: '#555', fontSize: 14, fontWeight: '600', textAlign: 'center', marginTop: 8 },

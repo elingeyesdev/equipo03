@@ -18,7 +18,7 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+delete (L.Icon.Default.prototype as typeof L.Icon.Default.prototype & { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconUrl: markerIcon,
   iconRetinaUrl: markerIcon2x,
@@ -29,9 +29,9 @@ L.Icon.Default.mergeOptions({
 type EstadoFiltro = 'abierta' | 'cerrada' | 'inactiva';
 
 const ESTADO_CONFIG: Record<EstadoFiltro, { label: string; color: string; emoji: string }> = {
-  abierta:  { label: 'Abierta',  color: '#38BDF8', emoji: '🔵' },
-  cerrada:  { label: 'Cerrada',  color: '#00E5A3', emoji: '🟢' },
-  inactiva: { label: 'Inactiva', color: '#FF5E00', emoji: '🔴' },
+  abierta:  { label: 'Abierta',  color: '#2ecc71', emoji: '🟢' },
+  cerrada:  { label: 'Cerrada',  color: '#e74c3c', emoji: '🔴' },
+  inactiva: { label: 'Inactiva', color: '#FF5E00', emoji: '🟠' },
 };
 
 
@@ -117,8 +117,8 @@ const createCustomIcon = (color: string) =>
     popupAnchor: [0, -32],
   });
 
-const iconActiva   = createCustomIcon('#38BDF8');
-const iconCerrada  = createCustomIcon('#00E5A3');
+const iconActiva   = createCustomIcon('#2ecc71');
+const iconCerrada  = createCustomIcon('#e74c3c');
 const iconInactiva = createCustomIcon('#FF5E00');
 
 // ── Paleta por Sede Principal ─────────────────────────────────────────────────
@@ -128,10 +128,6 @@ const SEDE_PALETTE = [
 ];
 const getSedeColor = (id: number | null): string =>
   id === null ? '#8E8E93' : SEDE_PALETTE[id % SEDE_PALETTE.length];
-
-// ── Ocupación determinista (mock) cuando aforoActual=0 ────────────────────────
-const mockAforo = (id: number, max: number): number =>
-  max > 0 ? Math.round(((id * 37) % 100) / 100 * max) : 0;
 
 // ── Auto-fit bounds ───────────────────────────────────────────────────────────
 const AutoFitBounds = ({ sucursales }: { sucursales: SucursalMapaDTO[] }) => {
@@ -151,8 +147,8 @@ const PopupCard = ({ s, computedStatus, role }: { s: SucursalMapaDTO; computedSt
   const navigate   = useNavigate();
   const sedeColor  = getSedeColor(s.sedePrincipalId);
   const cfg        = ESTADO_CONFIG[computedStatus];
-  const aforo      = s.aforoActual > 0 ? s.aforoActual : mockAforo(s.id, s.maxCapacity);
-  const pct        = s.maxCapacity > 0 ? Math.round((aforo / s.maxCapacity) * 100) : 0;
+  const currentOccupancy = s.currentOccupancy ?? s.aforoActual ?? 0;
+  const pct              = s.maxCapacity > 0 ? Math.round((currentOccupancy / s.maxCapacity) * 100) : 0;
   const barColor   = pct >= 80 ? '#FF5E00' : pct >= 50 ? '#38BDF8' : '#00E5A3';
 
   return (
@@ -205,12 +201,17 @@ const PopupCard = ({ s, computedStatus, role }: { s: SucursalMapaDTO; computedSt
       {/* Aforo */}
       <div style={{ marginBottom: '10px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', marginBottom: '4px' }}>
-          <span style={{ color: '#8E8E93' }}>Ocupación</span>
-          <span style={{ color: '#E5E5EA', fontWeight: 600 }}>{aforo} / {s.maxCapacity} ({pct}%)</span>
+          <span style={{ color: '#8E8E93' }}>Aforo hoy</span>
+          <span style={{ color: '#E5E5EA', fontWeight: 600 }}>{currentOccupancy} / {s.maxCapacity} ({pct}%)</span>
         </div>
         <div style={{ height: '5px', background: '#3A3A3C', borderRadius: '3px', overflow: 'hidden' }}>
           <div style={{ height: '100%', width: `${pct}%`, background: barColor, borderRadius: '3px', transition: 'width 0.4s' }} />
         </div>
+        {s.machineCapacity > 0 && (
+          <div className="text-xs text-gray-400 mt-1">
+            <span className="font-bold">Máquinas:</span> {s.machineCapacity} aforo total
+          </div>
+        )}
       </div>
 
       {/* Coords + botón */}
@@ -218,7 +219,7 @@ const PopupCard = ({ s, computedStatus, role }: { s: SucursalMapaDTO; computedSt
         <span style={{ fontSize: '0.68rem', color: '#555', fontFamily: 'monospace' }}>
           {s.latitude.toFixed(4)}, {s.longitude.toFixed(4)}
         </span>
-        {role === 'GERENTE' ? (
+        {(role === 'GERENTE' || role === 'RECEPCIONISTA') ? (
           <button
             onClick={e => { e.stopPropagation(); navigate('/dashboard/reservas'); }}
             style={{
@@ -456,8 +457,8 @@ export const MapaView: React.FC = () => {
   const [searchQuery,   setSearchQuery]   = useState('');
   const [filtroEstados, setFiltroEstados] = useState<Set<EstadoFiltro>>(new Set());
 
-  // Guard — solo SUPER_ADMIN y GERENTE
-  if (!user || (user.role !== 'SUPER_ADMIN' && user.role !== 'GERENTE')) {
+  // Guard — SUPER_ADMIN, GERENTE y RECEPCIONISTA
+  if (!user || (user.role !== 'SUPER_ADMIN' && user.role !== 'GERENTE' && user.role !== 'RECEPCIONISTA')) {
     return <Navigate to="/dashboard/resumen" replace />;
   }
 
@@ -561,12 +562,6 @@ export const MapaView: React.FC = () => {
               </div>
             </>
           )}
-          <div style={s.statCard}>
-            <span style={s.statLabel}>Cap. total</span>
-            <span style={{ ...s.statValue, color: '#FF5E00' }}>
-              {loading ? '—' : sucursalesFiltradas.reduce((a, sc) => a + sc.maxCapacity, 0).toLocaleString()}
-            </span>
-          </div>
         </div>
       </div>
 

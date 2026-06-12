@@ -16,10 +16,8 @@ import MapView, { Marker, Callout, UrlTile } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import axios from 'axios';
 import { useAuth } from '../../../../app/Shared/hooks/useAuth';
-import { AuthService } from '../../../../app/Providers/auth/AuthService';
-import { Env } from '../../../../app/Providers/geolocation/config/environment';
+import authAxios from '../../../../app/Providers/auth/authAxios';
 import { OSMConfig } from '../../../../app/Providers/geolocation/config/osm.config';
 
 // ─── Tipos internos ────────────────────────────────────────────────────────────
@@ -72,12 +70,8 @@ export const StaffMapScreen: React.FC = () => {
         return;
       }
 
-      const token   = await AuthService.getToken();
-      const headers = { Authorization: `Bearer ${token}` };
-      const baseUrl = Env.API_BASE_URL;
-
       // Paso 1 — Obtener la sucursal propia para extraer parentId (marca)
-      const ownRes  = await axios.get(`${baseUrl}/api/gyms/${gymId}`, { headers, timeout: 10000 });
+      const ownRes  = await authAxios.get(`/api/gyms/${gymId}`, { timeout: 10000 });
       const ownGym  = unwrap(ownRes) as StaffGym & { parent?: { name?: string } };
       const brandId = ownGym?.parentId ?? null;
       const brand   = ownGym?.parentName ?? (ownGym as any)?.parent?.name ?? 'Mi Marca';
@@ -90,7 +84,7 @@ export const StaffMapScreen: React.FC = () => {
       }
 
       // Paso 2 — Obtener TODAS las sedes (backend filtra por marca si JWT es de staff)
-      const allRes  = await axios.get(`${baseUrl}/api/gyms`, { headers, timeout: 10000 });
+      const allRes  = await authAxios.get('/api/gyms', { timeout: 10000 });
       const allList = unwrap(allRes);
       const all: StaffGym[] = Array.isArray(allList) ? allList : [];
 
@@ -134,12 +128,12 @@ export const StaffMapScreen: React.FC = () => {
   const Header = (
     <View style={s.header}>
       <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
-        <MaterialCommunityIcons name="arrow-left" size={20} color="#f05b22" />
+        <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
       </TouchableOpacity>
       <View style={s.headerMid}>
         <Text style={s.headerBrand} numberOfLines={1}>{brandName}</Text>
         <Text style={s.headerSub}>
-          {loading ? 'Cargando…' : `${gyms.length} sucursal${gyms.length !== 1 ? 'es' : ''}`}
+          {loading ? 'Cargando...' : `${gyms.length} sucursal${gyms.length !== 1 ? 'es' : ''}`}
         </Text>
       </View>
       <TouchableOpacity style={s.reloadBtn} onPress={loadBrandGyms} disabled={loading}>
@@ -158,7 +152,7 @@ export const StaffMapScreen: React.FC = () => {
         {Header}
         <View style={s.center}>
           <ActivityIndicator size="large" color="#f05b22" />
-          <Text style={s.centerTxt}>Cargando sucursales de tu marca…</Text>
+          <Text style={s.centerTxt}>Cargando sucursales de tu marca...</Text>
         </View>
       </SafeAreaView>
     );
@@ -255,9 +249,10 @@ export const StaffMapScreen: React.FC = () => {
                     </View>
                     <Text style={s.calloutName} numberOfLines={2}>{gym.name}</Text>
                     {!!gym.location?.address && (
-                      <Text style={s.calloutAddr} numberOfLines={1}>
-                        📍 {gym.location.address}
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <MaterialCommunityIcons name="map-marker-outline" size={11} color="#888" />
+                        <Text style={s.calloutAddr} numberOfLines={1}>{gym.location.address}</Text>
+                      </View>
                     )}
                     {!isClosed && (
                       <>
@@ -325,12 +320,12 @@ const s = StyleSheet.create({
   },
   backBtn: {
     width: 40, height: 40, borderRadius: 12,
-    backgroundColor: '#161618', borderWidth: 1, borderColor: '#222',
+    backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: '#222',
     justifyContent: 'center', alignItems: 'center',
   },
   reloadBtn: {
     width: 40, height: 40, borderRadius: 12,
-    backgroundColor: '#161618', borderWidth: 1, borderColor: '#222',
+    backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: '#222',
     justifyContent: 'center', alignItems: 'center',
   },
   headerMid:   { flex: 1 },
@@ -363,7 +358,7 @@ const s = StyleSheet.create({
 
   legend: {
     position: 'absolute', top: 12, right: 12,
-    backgroundColor: 'rgba(10,10,10,0.88)',
+    backgroundColor: '#0A0A0A',
     borderRadius: 12, padding: 10, gap: 6,
     borderWidth: 1, borderColor: '#222',
   },
@@ -375,21 +370,19 @@ const s = StyleSheet.create({
     backgroundColor: '#111', borderRadius: 12, padding: 12,
     minWidth: 190, maxWidth: 240,
     borderWidth: 1, borderColor: '#2a2a2a',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4, shadowRadius: 6, elevation: 6,
     gap: 4,
   },
   calloutBadgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   myGymBadge: {
-    backgroundColor: 'rgba(240,91,34,0.15)', borderRadius: 6,
+    backgroundColor: '#1C1C1E', borderRadius: 6,
     paddingHorizontal: 8, paddingVertical: 2,
-    borderWidth: 1, borderColor: '#f05b22',
+    borderWidth: 1, borderColor: '#FF5E00',
     alignSelf: 'flex-start',
   },
   myGymBadgeTxt: { color: '#f05b22', fontSize: 10, fontWeight: '700' },
   closedBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: 'rgba(142,142,147,0.15)', borderRadius: 6,
+    backgroundColor: '#1C1C1E', borderRadius: 6,
     paddingHorizontal: 8, paddingVertical: 2,
     borderWidth: 1, borderColor: '#8e8e93',
     alignSelf: 'flex-start',

@@ -46,6 +46,8 @@ function buildSucursalDTO(gym: IGymRaw, sedesMap: Map<number, string>): Sucursal
     city: gym.location?.city ?? 'Sin ciudad',
     maxCapacity: gym.maxCapacity ?? 0,
     aforoActual: gym.aforoActual ?? 0,
+    currentOccupancy: gym.currentOccupancy ?? gym.aforoActual ?? 0,
+    machineCapacity: gym.infrastructure?.machineCapacity || 0,
     isActive: gym.isActive ?? true,
     isOpen: gym.isOpen ?? true,
     schedules: gym.schedules ?? [],
@@ -92,6 +94,16 @@ export function useMapaSucursales(user: WebUser | null): MapaSucursalesState {
           setSucursales(all);
           setSinGeo(sinGeoCount);
           setMarcaNombre(null);
+          return;
+        }
+
+        // RECEPCIONISTA: ve únicamente su sucursal asignada
+        if (user.role === 'RECEPCIONISTA' && user.gymId) {
+          const receptGymId = Number(user.gymId);
+          const sola = all.filter(s => s.id === receptGymId);
+          setSucursales(sola);
+          setSinGeo(sinGeoCount);
+          setMarcaNombre(sola[0]?.sedePrincipalNombre ?? null);
           return;
         }
 

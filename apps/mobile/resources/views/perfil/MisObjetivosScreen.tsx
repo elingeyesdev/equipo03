@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { NumericInput } from '../../../app/Shared/components/ui/NumericInput';
@@ -247,6 +248,7 @@ const RecommendationsPanel = ({ goalType, color }: { goalType: GoalType; color: 
 
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 export const MisObjetivosScreen = () => {
+  const navigation = useNavigation();
   const { user } = useAuth();
   const pm = (user as any)?.profile?.physicalMetrics;
 
@@ -316,6 +318,9 @@ export const MisObjetivosScreen = () => {
 
     return (
       <SafeAreaView style={s.container}>
+        <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.7}>
+          <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
+        </TouchableOpacity>
         <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
           {/* ── Cabecera del objetivo ── */}
@@ -383,6 +388,9 @@ export const MisObjetivosScreen = () => {
 
   return (
     <SafeAreaView style={s.container}>
+      <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.7}>
+        <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
+      </TouchableOpacity>
       <ScrollView contentContainerStyle={s.scrollContent}>
 
         <Text style={s.heading}>¿Cuál es tu objetivo?</Text>
@@ -483,7 +491,7 @@ const s = StyleSheet.create({
   previewLabel:    { color: '#444', fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.8 },
 
   saveBtn:         { backgroundColor: '#f05b22', paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginTop: 16 },
-  saveBtnOff:      { opacity: 0.5 },
+  saveBtnOff:      {},
   saveBtnText:     { color: '#fff', fontWeight: 'bold', fontSize: 15 },
 
   activeCard:      { borderRadius: 16, borderWidth: 1.5, padding: 20, alignItems: 'center', marginBottom: 16, backgroundColor: '#111' },
@@ -505,6 +513,7 @@ const s = StyleSheet.create({
   warnText:        { color: '#f5a623', fontSize: 12, flex: 1 },
   clearBtn:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: '#2a0a0a', backgroundColor: '#110000', marginTop: 8 },
   clearBtnText:    { color: '#ff4444', fontWeight: '700', fontSize: 14 },
+  backBtn:         { width: 40, height: 40, margin: 12, backgroundColor: '#1C1C1E', borderRadius: 12, borderWidth: 1, borderColor: '#3A3A3C', justifyContent: 'center', alignItems: 'center' },
 });
 
 // ─── Estilos del panel de recomendaciones ─────────────────────────────────────

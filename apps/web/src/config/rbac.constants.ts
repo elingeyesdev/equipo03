@@ -34,4 +34,5 @@ export const VALID_ROLES = [
   'NUTRICIONISTA',
   'CLIENTE',
   'USER',
+  'RECEPCIONISTA',
 ] as const;

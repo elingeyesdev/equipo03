@@ -1,8 +1,3 @@
-/**
- * EscanerScreen — Escáner QR para GERENTE.
- * Lee el JSON { reservationId } del QR del cliente
- * y dispara PUT /api/reservations/{id}/confirm.
- */
 import { useRef, useState, useEffect } from 'react';
 import {
   View,
@@ -176,15 +171,17 @@ export const EscanerScreen = ({ navigation }: any) => {
           )}
 
           <TouchableOpacity style={s.backBtn} onPress={() => navigation?.goBack()} activeOpacity={0.8}>
-            <MaterialCommunityIcons name="arrow-left" size={18} color="#fff" />
-            <Text style={s.backTxt}>Cancelar</Text>
+            <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Cabecera flotante */}
       <SafeAreaView style={s.header} pointerEvents="none">
-        <Text style={s.headerTxt}>📷 Escanear Ingreso</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <MaterialCommunityIcons name="camera-outline" size={16} color="#fff" />
+          <Text style={s.headerTxt}>Escanear Ingreso</Text>
+        </View>
       </SafeAreaView>
     </View>
   );
@@ -230,6 +227,5 @@ const s = StyleSheet.create({
   permBtn: { marginTop: 4, paddingHorizontal: 24, paddingVertical: 11, borderRadius: 10, borderWidth: 1, borderColor: '#f05b22' },
   permTxt: { color: '#f05b22', fontWeight: '600', fontSize: 14 },
 
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 20, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', backgroundColor: 'rgba(0,0,0,0.4)' },
-  backTxt: { color: '#fff', fontWeight: '600', fontSize: 13 },
+  backBtn: { width: 40, height: 40, backgroundColor: '#1C1C1E', borderRadius: 12, borderWidth: 1, borderColor: '#3A3A3C', justifyContent: 'center', alignItems: 'center' },
 });

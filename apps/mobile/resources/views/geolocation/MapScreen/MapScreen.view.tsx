@@ -7,6 +7,7 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Marker, UrlTile } from 'react-native-maps';
 import MapView from 'react-native-maps';
@@ -40,6 +41,7 @@ type MapScreenViewProps = {
   onNavigate: (sede: Sede) => void;
   onReserve: (sede: Sede) => void;
   onRetry: () => void;
+  onBack: () => void;
 };
 
 export const MapScreenView: React.FC<MapScreenViewProps> = ({
@@ -55,8 +57,10 @@ export const MapScreenView: React.FC<MapScreenViewProps> = ({
   onNavigate,
   onReserve,
   onRetry,
+  onBack,
 }) => {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const isGerente = user?.role === 'GERENTE';
 
   const mapRef = useRef<MapView>(null);
@@ -146,10 +150,13 @@ export const MapScreenView: React.FC<MapScreenViewProps> = ({
       <View style={StyleSheet.absoluteFillObject}>
         {/* Floating Header with Semi-Transparent Glass Effect */}
         <View style={styles.headerContainer} pointerEvents="box-none">
-          <View style={styles.headerBlur}>
+          <View style={[styles.headerBlur, { paddingTop: insets.top + 10 }]}>
             <View style={styles.headerRow}>
+              <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.8}>
+                <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
+              </TouchableOpacity>
               <View style={styles.headerTextCol}>
-                <Text style={styles.headerTitle}>Marcas Cercanas</Text>
+                <Text style={styles.headerTitle}>Sedes Cercanas</Text>
                 <Text style={styles.headerSubtitle}>
                   {sedes.length} {sedes.length === 1 ? 'resultado encontrado' : 'resultados encontrados'}
                 </Text>
@@ -239,7 +246,7 @@ export const MapScreenView: React.FC<MapScreenViewProps> = ({
 
         {/* Filter FAB */}
         <TouchableOpacity style={styles.filterFab} onPress={() => setFilterVisible(true)}>
-          <MaterialCommunityIcons name="filter-variant" size={24} color="#00D9FF" />
+          <MaterialCommunityIcons name="filter-variant" size={24} color="#38BDF8" />
         </TouchableOpacity>
 
         {/* GPS FAB */}
@@ -287,3 +294,4 @@ export const MapScreenView: React.FC<MapScreenViewProps> = ({
     </View>
   );
 };
+

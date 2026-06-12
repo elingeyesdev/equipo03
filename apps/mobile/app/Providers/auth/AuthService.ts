@@ -44,8 +44,6 @@ export class AuthService {
     error?: string;
   }> {
     try {
-      console.log('[AuthService] Iniciando login para:', email);
-      
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
@@ -53,23 +51,18 @@ export class AuthService {
           'Accept': 'application/json',
         },
         body: JSON.stringify({ email, password }),
-        timeout: 10000,
-      });
-
-      console.log('[AuthService] Response status:', response.status);
+      } as any);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.log('[AuthService] Error del servidor:', JSON.stringify(errorData, null, 2));
         const errorMsg = errorData?.message || `HTTP ${response.status}`;
         return { success: false, error: errorMsg };
       }
 
       const body: LoginResponse = await response.json();
-      console.log('[AuthService] Response body:', body);
 
       // Extraer el token (múltiples formatos soportados)
-      const tokenData = body.data || body;
+      const tokenData = (body.data ?? body) as any;
       const jwtToken = tokenData.accessToken || tokenData.access_token || tokenData.token;
       const userData = tokenData.user || {};
 
@@ -83,7 +76,7 @@ export class AuthService {
         ? (String(userData.role).toUpperCase() as UserRole)
         : (() => { throw new Error('El servidor no devolvió el rol del usuario.'); })();
 
-      const extractedGymId: string | null = userData?.gymId ?? null;
+      const extractedGymId: string | undefined = userData?.gymId ?? undefined;
 
       // userId del objeto user del backend
       const userId = userData?.id;
@@ -97,12 +90,9 @@ export class AuthService {
       await SecureStore.setItemAsync(AUTH_STORAGE_KEY, JSON.stringify(autenticacionContext));
       await SecureStore.setItemAsync(TOKEN_STORAGE_KEY, jwtToken);
 
-      console.log('[AuthService] Login exitoso:', autenticacionContext);
       return { success: true, user: autenticacionContext };
     } catch (error: any) {
-      const errorMsg = error?.message || 'Error de conexión con el servidor';
-      console.log('[AuthService] Error:', errorMsg);
-      return { success: false, error: errorMsg };
+      return { success: false, error: error?.message || 'Error de conexión con el servidor' };
     }
   }
 
@@ -114,7 +104,6 @@ export class AuthService {
     error?: string;
   }> {
     try {
-      console.log('[AuthService] Iniciando registro para:', email);
 
       // Mapear 'name' a 'firstName' y 'lastName', y omitir 'phone' según el contrato exacto del backend NestJS
       const parts = String(name || '').trim().split(' ');
@@ -137,11 +126,8 @@ export class AuthService {
         body: JSON.stringify(payload),
       });
 
-      console.log('[AuthService] Register response status:', response.status);
-
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.log('[AuthService] Error de registro del servidor:', JSON.stringify(errorData, null, 2));
         
         // Mapear los errores 400 (HttpExceptionFilter de NestJS)
         if (response.status === 400 && errorData && errorData.message) {
@@ -246,7 +232,6 @@ export class AuthService {
     try {
       await SecureStore.deleteItemAsync(AUTH_STORAGE_KEY);
       await SecureStore.deleteItemAsync(TOKEN_STORAGE_KEY);
-      console.log('[AuthService] Logout completado');
     } catch (e) {
       console.error('[AuthService] Error en logout:', e);
     }
@@ -265,6 +250,8 @@ export class AuthService {
    * GET /api/users/:userId — trae firstName, lastName, email, gender, role del backend.
    */
   static async fetchUserProfile(): Promise<Record<string, any> | null> {
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 5000);
     try {
       const token = await this.getToken();
       const user  = await this.getCurrentUser();
@@ -272,17 +259,20 @@ export class AuthService {
 
       const res = await fetch(`${API_BASE_URL}/api/users/${user.userId}`, {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+        signal: controller.signal,
       });
+      clearTimeout(tid);
       if (!res.ok) {
         console.warn('[AuthService] fetchUserProfile status:', res.status);
         return null;
       }
       const body = await res.json();
-      const data = body?.data ?? body ?? null;
-      console.log('[AuthService] Perfil obtenido:', JSON.stringify(data));
-      return data;
-    } catch (e) {
-      console.error('[AuthService] Error en fetchUserProfile:', e);
+      return body?.data ?? body ?? null;
+    } catch (e: any) {
+      clearTimeout(tid);
+      if (e?.name !== 'AbortError') {
+        console.warn('[AuthService] fetchUserProfile error:', e?.message ?? e);
+      }
       return null;
     }
   }

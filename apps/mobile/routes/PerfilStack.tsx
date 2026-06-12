@@ -6,17 +6,8 @@ import { AlertasConfigScreen }       from '../resources/views/alertas/AlertasCon
 import { AjustesScreen }             from '../resources/views/perfil/AjustesScreen';
 import { MisDatosPersonalesScreen }  from '../resources/views/perfil/MisDatosPersonalesScreen';
 import { AuditoriaSucursalScreen }   from '../resources/views/perfil/AuditoriaSucursalScreen';
-import { HistorialMetricasScreen }   from '../resources/views/perfil/HistorialMetricasScreen';
 import { MisObjetivosScreen }        from '../resources/views/perfil/MisObjetivosScreen';
 import { CarnetVirtualScreen }       from '../resources/views/perfil/CarnetVirtualScreen';
-
-// ── Opciones de header compartidas ──────────────────────────────────────────
-const hdr = (title: string) => ({
-  headerShown: true,
-  title,
-  headerStyle: { backgroundColor: '#1E1E1E' },
-  headerTintColor: '#fff',
-} as const);
 
 // ── Param lists ──────────────────────────────────────────────────────────────
 export type ClientePerfilParamList = {
@@ -25,7 +16,6 @@ export type ClientePerfilParamList = {
   Manager: undefined;
   AlertasConfig: undefined;
   Ajustes: undefined;
-  HistorialMetricas: undefined;
   MisObjetivos: undefined;
   CarnetDigital: undefined;
 };
@@ -52,13 +42,12 @@ const screenOptions = {
 export const ClientePerfilStack = () => (
   <ClienteStack.Navigator screenOptions={screenOptions}>
     <ClienteStack.Screen name="Menu"             component={PerfilMenuScreen} />
-    <ClienteStack.Screen name="DatosPersonales"  component={MisDatosPersonalesScreen}  options={hdr('Mis Datos Personales')} />
-    <ClienteStack.Screen name="Manager"          component={PerfilManagerScreen}        options={hdr('Mi Perfil')} />
-    <ClienteStack.Screen name="AlertasConfig"    component={AlertasConfigScreen}        options={hdr('Alertas de Salud')} />
-    <ClienteStack.Screen name="Ajustes"          component={AjustesScreen}              options={hdr('Ajustes')} />
-    <ClienteStack.Screen name="HistorialMetricas" component={HistorialMetricasScreen}   options={hdr('Historial Físico')} />
-    <ClienteStack.Screen name="MisObjetivos"      component={MisObjetivosScreen}         options={hdr('Mis Objetivos')} />
-    <ClienteStack.Screen name="CarnetDigital"     component={CarnetVirtualScreen}        options={hdr('Mi Carnet Digital')} />
+    <ClienteStack.Screen name="DatosPersonales"  component={MisDatosPersonalesScreen}  options={{ headerShown: false }} />
+    <ClienteStack.Screen name="Manager"          component={PerfilManagerScreen}        options={{ headerShown: false }} />
+    <ClienteStack.Screen name="AlertasConfig"    component={AlertasConfigScreen}        options={{ headerShown: false }} />
+    <ClienteStack.Screen name="Ajustes"          component={AjustesScreen}              options={{ headerShown: false }} />
+    <ClienteStack.Screen name="MisObjetivos"      component={MisObjetivosScreen}         options={{ headerShown: false }} />
+    <ClienteStack.Screen name="CarnetDigital"     component={CarnetVirtualScreen}        options={{ headerShown: false }} />
   </ClienteStack.Navigator>
 );
 
@@ -67,11 +56,11 @@ export const ClientePerfilStack = () => (
 export const GerentePerfilStack = () => (
   <GerenteStack.Navigator screenOptions={screenOptions}>
     <GerenteStack.Screen name="Menu"             component={PerfilMenuScreen} />
-    <GerenteStack.Screen name="DatosPersonales"  component={MisDatosPersonalesScreen}  options={hdr('Mis Datos Personales')} />
-    <GerenteStack.Screen name="Manager"          component={PerfilManagerScreen}        options={hdr('Mi Perfil')} />
-    <GerenteStack.Screen name="AlertasConfig"    component={AlertasConfigScreen}        options={hdr('Alertas de Salud')} />
-    <GerenteStack.Screen name="Ajustes"          component={AjustesScreen}              options={hdr('Ajustes')} />
-    <GerenteStack.Screen name="AuditoriaSucursal" component={AuditoriaSucursalScreen}   options={hdr('Auditoría de Sucursal')} />
+    <GerenteStack.Screen name="DatosPersonales"  component={MisDatosPersonalesScreen}  options={{ headerShown: false }} />
+    <GerenteStack.Screen name="Manager"          component={PerfilManagerScreen}        options={{ headerShown: false }} />
+    <GerenteStack.Screen name="AlertasConfig"    component={AlertasConfigScreen}        options={{ headerShown: false }} />
+    <GerenteStack.Screen name="Ajustes"          component={AjustesScreen}              options={{ headerShown: false }} />
+    <GerenteStack.Screen name="AuditoriaSucursal" component={AuditoriaSucursalScreen}   options={{ headerShown: false }} />
   </GerenteStack.Navigator>
 );
 

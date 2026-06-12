@@ -2,7 +2,7 @@ import type { IAccessApiService, AccesoQueryParams } from '../output/IAccessApiS
 import type { Acceso } from '../../../domain/entities/Acceso.entity';
 import { Either, left } from '../../../shared/kernel/Either';
 
-export type UserRole = 'SUPER_ADMIN' | 'GERENTE' | 'ENTRENADOR' | 'NUTRICIONISTA' | 'CLIENTE' | 'USER';
+export type UserRole = 'SUPER_ADMIN' | 'GERENTE' | 'ENTRENADOR' | 'NUTRICIONISTA' | 'CLIENTE' | 'USER' | 'RECEPCIONISTA';
 
 export interface AutenticacionContext {
   userId: string;
@@ -21,11 +21,10 @@ export class ConsultarHistorialAccesosUseCase {
     // RBAC: Verificación de permisos según la tabla roles y user_roles
     let gymIdFilter = params.gymId;
 
-    if (authContext.role === 'GERENTE') {
+    if (authContext.role === 'GERENTE' || authContext.role === 'RECEPCIONISTA') {
       if (!authContext.gymId) {
-        return left(new Error('ACCESO_DENEGADO: El gerente no tiene un gym_id asignado en user_roles.'));
+        return left(new Error('ACCESO_DENEGADO: No tienes un gym_id asignado en user_roles.'));
       }
-      // Un gerente SOLO puede ver su propia sede, forzamos el filtro.
       gymIdFilter = authContext.gymId;
     } else if (authContext.role !== 'SUPER_ADMIN') {
       return left(new Error('ACCESO_DENEGADO: Rol no autorizado para visualizar auditoría.'));

@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { styles } from './GPSReCenterButton.styles';
@@ -14,6 +14,7 @@ export const GPSReCenterButton: React.FC<Props> = ({ onPress, style }) => (
     activeOpacity={0.8}
     onPress={onPress}
   >
-    <MaterialCommunityIcons name="crosshairs-gps" size={24} color="#00D9FF" />
+    <MaterialCommunityIcons name="crosshairs-gps" size={24} color="#38BDF8" />
   </TouchableOpacity>
 );
+

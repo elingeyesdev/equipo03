@@ -46,15 +46,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    */
   useEffect(() => {
     const restoreSession = async () => {
-      try {
+      const doRestore = async () => {
         const currentUser = await AuthService.getCurrentUser();
         if (currentUser) {
           const userData = await AuthService.fetchUserProfile();
-          setUser({ ...currentUser, profile: userData?.profile ?? (currentUser as any).profile ?? undefined });
+          setUser({ ...currentUser, ...(({ profile: userData?.profile ?? (currentUser as any).profile ?? undefined }) as any) });
           if (ALLOWED_PUSH_ROLES.includes(currentUser.role)) {
-            await registerToken();
+            await Promise.race([
+              registerToken(),
+              new Promise<void>((resolve) => setTimeout(resolve, 4000)),
+            ]);
           }
         }
+      };
+
+      try {
+        // 8-second global safety net: setIsLoading(false) is guaranteed regardless of any hanging fetch/token call
+        await Promise.race([
+          doRestore(),
+          new Promise<void>((resolve) => setTimeout(resolve, 8000)),
+        ]);
       } catch (e) {
         console.error('[AuthContext] Error restaurando sesión:', e);
       } finally {
@@ -80,10 +91,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (result.success && result.user) {
         const userData = await AuthService.fetchUserProfile();
-        setUser({ ...result.user, profile: userData?.profile ?? undefined });
+        setUser({ ...result.user, ...(({ profile: userData?.profile ?? undefined }) as any) });
 
         if (ALLOWED_PUSH_ROLES.includes(result.user.role)) {
-          await registerToken();
+          await Promise.race([
+            registerToken(),
+            new Promise<void>((resolve) => setTimeout(resolve, 4000)),
+          ]);
         }
 
         return true;
@@ -118,10 +132,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (user) {
       setUser({
         ...user,
-        profile: {
-          ...(user.profile || {}),
-          ...data
-        }
+        ...(({ profile: { ...((user as any).profile || {}), ...data } }) as any),
       });
     }
   };

@@ -134,7 +134,7 @@ export const HistorialScreen = () => {
   const header = (
     <View style={s.topBar}>
       <TouchableOpacity style={s.topBackBtn} onPress={() => navigation.goBack()}>
-        <MaterialCommunityIcons name="arrow-left" size={20} color="#f05b22" />
+        <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
       </TouchableOpacity>
       <Text style={s.topTitle}>Historial de Gimnasios</Text>
       <View style={s.topRight} />
@@ -310,11 +310,11 @@ const s = StyleSheet.create({
   topBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 14,
-    borderBottomWidth: 1, borderBottomColor: '#1a1a1a',
+    borderBottomWidth: 1, borderBottomColor: '#3A3A3C',
   },
   topBackBtn: {
     width: 40, height: 40, borderRadius: 12,
-    backgroundColor: '#161618', borderWidth: 1, borderColor: '#222',
+    backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: '#3A3A3C',
     justifyContent: 'center', alignItems: 'center',
   },
   topTitle: { color: '#fff', fontSize: 17, fontWeight: '800' },
@@ -332,8 +332,8 @@ const s = StyleSheet.create({
 
   // Filtros
   filtersRow:       { gap: 8, paddingBottom: 12 },
-  filterChip:       { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#1a1a1a', borderWidth: 1, borderColor: '#2a2a2a' },
-  filterChipActive: { backgroundColor: 'rgba(240,91,34,0.15)', borderColor: '#f05b22' },
+  filterChip:       { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: '#3A3A3C' },
+  filterChipActive: { backgroundColor: '#1C1C1E', borderColor: '#FF5E00' },
   filterChipText:   { color: '#666', fontSize: 13, fontWeight: '600' },
   filterChipTextActive: { color: '#f05b22' },
   filterCount:      { color: '#444', fontSize: 12, marginBottom: 10 },
@@ -348,10 +348,10 @@ const s = StyleSheet.create({
   nameRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   cardName:   { color: '#fff', fontSize: 15, fontWeight: '700', flex: 1 },
   cardAddress:{ color: '#555', fontSize: 11, marginBottom: 2 },
-  activeBadge:{ backgroundColor: 'rgba(240,91,34,0.15)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: '#f05b22' },
+  activeBadge:{ backgroundColor: '#1C1C1E', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: '#FF5E00' },
   activeBadgeText: { color: '#f05b22', fontSize: 10, fontWeight: '700' },
   row:        { flexDirection: 'row', alignItems: 'center', gap: 4 },
   meta:       { color: '#666', fontSize: 11 },
-  mapHint:    { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6, paddingTop: 6, borderTopWidth: 1, borderTopColor: '#1a1a1a' },
+  mapHint:    { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6, paddingTop: 6, borderTopWidth: 1, borderTopColor: '#3A3A3C' },
   mapHintTxt: { color: '#f05b22', fontSize: 11, fontWeight: '600' },
 });

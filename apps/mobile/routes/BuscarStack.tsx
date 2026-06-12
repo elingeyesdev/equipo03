@@ -1,5 +1,9 @@
 import React from 'react';
+import { TouchableOpacity } from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
+const backBtnStyle = { width: 40, height: 40, marginLeft: 4, backgroundColor: '#1C1C1E', borderRadius: 12, borderWidth: 1, borderColor: '#3A3A3C', justifyContent: 'center' as const, alignItems: 'center' as const };
 import { BuscarScreen } from '../resources/views/buscar/BuscarScreen';
 import { MapScreenContainer } from '../resources/views/geolocation/MapScreen/MapScreen.container';
 import { StaffMapScreen }    from '../resources/views/geolocation/StaffMapScreen/StaffMapScreen';
@@ -32,13 +36,7 @@ export const BuscarStack = () => {
       <Stack.Screen
         name="Mapa"
         component={MapScreenContainer}
-        options={{
-          headerShown: true,
-          title: 'Sedes Cercanas',
-          headerBackTitle: 'Regresar',
-          headerStyle: { backgroundColor: '#1E1E1E' },
-          headerTintColor: '#fff',
-        }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="StaffMapa"
@@ -53,22 +51,34 @@ export const BuscarStack = () => {
       <Stack.Screen
         name="ScheduleSelection"
         component={ScheduleSelectionScreen}
-        options={{
-          headerShown: true,
-          title: 'Reservar Horario',
-          headerStyle: { backgroundColor: '#1E1E1E' },
-          headerTintColor: '#fff',
-        }}
+        options={({ navigation }) => ({
+          headerShown:       true,
+          title:             'Reservar Horario',
+          headerStyle:       { backgroundColor: '#1E1E1E' },
+          headerTintColor:   '#fff',
+          headerBackVisible: false,
+          headerLeft: () => (
+            <TouchableOpacity style={backBtnStyle} onPress={() => navigation.goBack()}>
+              <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
+            </TouchableOpacity>
+          ),
+        })}
       />
       <Stack.Screen
         name="MisReservas"
         component={MisReservasScreen}
-        options={{
-          headerShown: true,
-          title: 'Mis Reservas',
-          headerStyle: { backgroundColor: '#1E1E1E' },
-          headerTintColor: '#fff',
-        }}
+        options={({ navigation }) => ({
+          headerShown:       true,
+          title:             'Mis Reservas',
+          headerStyle:       { backgroundColor: '#1E1E1E' },
+          headerTintColor:   '#fff',
+          headerBackVisible: false,
+          headerLeft: () => (
+            <TouchableOpacity style={backBtnStyle} onPress={() => navigation.goBack()}>
+              <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
+            </TouchableOpacity>
+          ),
+        })}
       />
       <Stack.Screen
         name="VisitedGymMap"

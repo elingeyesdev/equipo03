@@ -7,9 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { OSMConfig } from '../../../app/Providers/geolocation/config/osm.config';
-import { AuthService } from '../../../app/Providers/auth/AuthService';
-import { Env } from '../../../app/Providers/geolocation/config/environment';
-import axios from 'axios';
+import authAxios from '../../../app/Providers/auth/authAxios';
 
 const DELTA = 0.008;
 
@@ -29,11 +27,7 @@ export const VisitedGymMapScreen: React.FC = () => {
     if (paramLat && paramLng) return;
     (async () => {
       try {
-        const token = await AuthService.getToken();
-        const res = await axios.get(`${Env.API_BASE_URL}/api/gyms/${gymId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-          timeout: 8000,
-        });
+        const res = await authAxios.get(`/api/gyms/${gymId}`, { timeout: 8000 });
         const g = res.data?.data ?? res.data;
         const fetchedLat = g?.location?.latitude ?? g?.coordenadas?.latitude;
         const fetchedLng = g?.location?.longitude ?? g?.coordenadas?.longitude;
@@ -69,7 +63,7 @@ export const VisitedGymMapScreen: React.FC = () => {
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
-          <MaterialCommunityIcons name="arrow-left" size={20} color="#f05b22" />
+          <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={s.headerMid}>
           <Text style={s.headerTitle} numberOfLines={1}>{name}</Text>
@@ -169,7 +163,7 @@ const s = StyleSheet.create({
   },
   backBtn: {
     width: 40, height: 40, borderRadius: 12,
-    backgroundColor: '#161618', borderWidth: 1, borderColor: '#222',
+    backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: '#222',
     justifyContent: 'center', alignItems: 'center',
   },
   headerMid:   { flex: 1 },
@@ -196,7 +190,7 @@ const s = StyleSheet.create({
   legend: {
     position: 'absolute', top: 12, left: 12,
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: 'rgba(10,10,10,0.85)',
+    backgroundColor: '#0A0A0A',
     borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8,
     borderWidth: 1, borderColor: '#f05b22',
   },
@@ -205,9 +199,7 @@ const s = StyleSheet.create({
 
   callout: {
     backgroundColor: '#111', borderRadius: 12, padding: 12,
-    minWidth: 180, borderWidth: 1, borderColor: '#f05b2244',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4, shadowRadius: 6, elevation: 6,
+    minWidth: 180, borderWidth: 1, borderColor: '#FF5E00',
   },
   calloutBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 5,

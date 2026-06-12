@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  SafeAreaView, KeyboardAvoidingView, Platform, StatusBar,
+  SafeAreaView, KeyboardAvoidingView, Platform, ScrollView, StatusBar,
   ActivityIndicator, Animated, Alert, Keyboard,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -68,12 +68,22 @@ export const ResetPasswordScreen = () => {
   return (
     <SafeAreaView style={s.container}>
       <StatusBar barStyle="light-content" />
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1 }}
+          bounces={false}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
         <Animated.View style={[s.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
 
           {/* Back */}
           <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
-            <MaterialCommunityIcons name="arrow-left" size={22} color="#f05b22" />
+            <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
           </TouchableOpacity>
 
           {/* Icon */}
@@ -189,6 +199,7 @@ export const ResetPasswordScreen = () => {
           </TouchableOpacity>
 
         </Animated.View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -198,14 +209,12 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0a0a0a' },
   content:   { flex: 1, paddingHorizontal: 35, justifyContent: 'center' },
 
-  backBtn:   { position: 'absolute', top: 20, left: 0, padding: 8 },
+  backBtn:   { position: 'absolute', top: 52, left: 16, width: 40, height: 40, backgroundColor: '#1C1C1E', borderRadius: 12, borderWidth: 1, borderColor: '#3A3A3C', justifyContent: 'center', alignItems: 'center' },
 
   iconBadge: {
     width: 72, height: 72, borderRadius: 18, backgroundColor: '#f05b22',
     justifyContent: 'center', alignItems: 'center',
     marginBottom: 24, transform: [{ rotate: '45deg' }],
-    shadowColor: '#f05b22', shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
   },
   iconInner: { transform: [{ rotate: '-45deg' }] },
 
@@ -215,14 +224,14 @@ const s = StyleSheet.create({
 
   errorBox: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: 'rgba(255,68,68,0.1)', borderRadius: 12, padding: 14,
-    marginBottom: 20, borderWidth: 1, borderColor: 'rgba(255,68,68,0.3)',
+    backgroundColor: '#1C1C1E', borderRadius: 12, padding: 14,
+    marginBottom: 20, borderWidth: 1, borderColor: '#FF453A',
   },
   errorTxt: { color: '#ff4444', fontSize: 13, flex: 1 },
 
   inputWrapper:   { marginBottom: 20 },
   label:          { fontSize: 12, color: '#aaa', marginBottom: 8, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
-  inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#161618', borderRadius: 16, borderWidth: 1, borderColor: '#222', paddingHorizontal: 15, height: 58 },
+  inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1C1C1E', borderRadius: 16, borderWidth: 1, borderColor: '#222', paddingHorizontal: 15, height: 58 },
   inputFocused:   { borderColor: '#f05b22', backgroundColor: '#1a1a1c' },
   inputIcon:      { marginRight: 12 },
   input:          { flex: 1, color: '#fff', fontSize: 16, fontWeight: '500' },

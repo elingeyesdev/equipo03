@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import * as Location from 'expo-location';
 import {
   View,
   Text,
@@ -13,7 +14,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BuscarStackParamList } from '../../../routes/BuscarStack';
-import MapView, { UrlTile } from 'react-native-maps';
+import MapView, { UrlTile, Region } from 'react-native-maps';
 import { OSMConfig } from '../../../app/Providers/geolocation/config/osm.config';
 import { useFilterStore } from '../../../app/Providers/geolocation/stores/FilterStore';
 import { useMapScreenStore } from '../../../app/Http/Controllers/geolocation/MapScreen.Controller';
@@ -36,9 +37,25 @@ const CATEGORIAS = [
 ];
 
 export const BuscarScreen = () => {
-  const [query, setQuery] = useState('');
-  const navigation = useNavigation<NavigationProp>();
-  const { user }   = useAuth();
+  const [query, setQuery]         = useState('');
+  const [mapRegion, setMapRegion] = useState<Region>(OSMConfig.defaults.initialRegion);
+  const mapRef                    = useRef<MapView>(null);
+  const navigation                = useNavigation<NavigationProp>();
+  const { user }                  = useAuth();
+
+  // Centrar el preview en la ubicación real del usuario (silencioso si falla)
+  useEffect(() => {
+    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+      .then(pos => {
+        setMapRegion({
+          latitude:      pos.coords.latitude,
+          longitude:     pos.coords.longitude,
+          latitudeDelta:  0.04,
+          longitudeDelta: 0.04,
+        });
+      })
+      .catch(() => {}); // fallback al centro por defecto (Santa Cruz)
+  }, []);
 
   const resetFiltros = useFilterStore(state => state.resetFiltros);
   const setFiltros = useFilterStore(state => state.setFiltros);
@@ -61,7 +78,11 @@ export const BuscarScreen = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        removeClippedSubviews={false}
+      >
         {/* Header */}
         <View style={styles.headerRow}>
           <Text style={styles.title}>Buscar</Text>
@@ -93,17 +114,19 @@ export const BuscarScreen = () => {
           <Text style={styles.sectionTitle}>Encuentra marcas aquí</Text>
         </View>
 
-        {/* La preview del mapa usa altura fija para evitar el bug de MapView
-            dentro de ScrollView en iOS con overflow:hidden + borderRadius grande */}
+        {/* Preview del mapa — altura fija, sin overflow:hidden para evitar bug iOS */}
         <View style={styles.mapPlaceholderWrapper}>
           <MapView
+            ref={mapRef}
             style={StyleSheet.absoluteFillObject}
-            initialRegion={OSMConfig.defaults.initialRegion}
+            region={mapRegion}
             zoomEnabled={false}
             pitchEnabled={false}
             scrollEnabled={false}
             rotateEnabled={false}
             showsCompass={false}
+            showsUserLocation
+            showsMyLocationButton={false}
             pointerEvents="none"
           >
             <UrlTile
@@ -114,20 +137,23 @@ export const BuscarScreen = () => {
             />
           </MapView>
 
-          {/* Overlay táctil encima del mapa */}
+          {/* Toque transparente sobre todo el mapa */}
           <TouchableOpacity
-            style={styles.mapOverlay}
-            activeOpacity={0.85}
+            style={StyleSheet.absoluteFillObject}
+            activeOpacity={0.9}
             onPress={() => {
               if (!isStaff) useMapScreenStore.setState({ isListView: false });
               navigation.navigate(mapaRoute);
             }}
-          >
+          />
+
+          {/* Franja inferior con el CTA — fondo semitransparente solo en la base */}
+          <View style={styles.mapBottomBar} pointerEvents="none">
             <View style={styles.mapOverlayPill}>
               <MaterialCommunityIcons name="map-search-outline" size={16} color="#fff" />
               <Text style={styles.mapOverlayText}>Toca para ver el mapa interactivo</Text>
             </View>
-          </TouchableOpacity>
+          </View>
         </View>
 
         {/* ¿Qué quieres entrenar hoy? */}
@@ -141,7 +167,7 @@ export const BuscarScreen = () => {
               activeOpacity={0.8}
               onPress={() => handleCategoryPress(cat.query)}
             >
-              <View style={[styles.categoryIconBg, { backgroundColor: cat.color + '22' }]}>
+              <View style={[styles.categoryIconBg, { backgroundColor: '#1C1C1E' }]}>
                 <MaterialCommunityIcons name={cat.icon as any} size={28} color={cat.color} />
               </View>
               <Text style={styles.categoryLabel}>{cat.label}</Text>
@@ -225,13 +251,17 @@ const styles = StyleSheet.create({
     borderColor: '#333',
     backgroundColor: '#1c1c1e',
   },
-  mapOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.18)',
-    justifyContent: 'flex-end',
+  mapBottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 58,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingBottom: 14,
-    borderRadius: 16,
   },
   mapOverlayPill: {
     flexDirection: 'row',

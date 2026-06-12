@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { AlertasController, AlertaFrequencia } from '../../../app/Http/Controllers/alertas/AlertasController';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 
@@ -30,6 +31,7 @@ const FRECUENCIA_OPTIONS: { value: AlertaFrequencia; label: string; desc: string
 ];
 
 export const AlertasConfigScreen = () => {
+  const navigation          = useNavigation();
   const { user }            = useAuth();
   const medicalConditions   = (user as any)?.profile?.medicalConditions as string | undefined;
   const vm                  = AlertasController(medicalConditions);
@@ -50,8 +52,13 @@ export const AlertasConfigScreen = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.topBarTitle}>Alertas de Salud</Text>
+      </View>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Header */}
         <Text style={styles.title}>Alertas de Salud</Text>
         <Text style={styles.subtitle}>
           Configura notificaciones automáticas basadas en tus restricciones médicas registradas.
@@ -60,7 +67,7 @@ export const AlertasConfigScreen = () => {
         {/* Tarjeta estado médico */}
         {medicalConditions ? (
           <View style={styles.alertCard}>
-            <MaterialCommunityIcons name="alert-triangle" size={32} color="#ff3333" />
+            <MaterialCommunityIcons name="alert" size={32} color="#ff3333" />
             <Text style={styles.alertTitle}>Atención Médica Requerida</Text>
             <Text style={styles.alertText}>{medicalConditions}</Text>
             <Text style={styles.alertHint}>Esta información se compartirá con tu instructor por seguridad.</Text>
@@ -210,6 +217,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000000',
   },
+  topBar:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
+  backBtn:     { width: 40, height: 40, backgroundColor: '#1C1C1E', borderRadius: 12, borderWidth: 1, borderColor: '#3A3A3C', justifyContent: 'center', alignItems: 'center' },
+  topBarTitle: { flex: 1, color: '#fff', fontSize: 18, fontWeight: '700' },
   centered: {
     justifyContent: 'center',
     alignItems: 'center',
@@ -275,7 +285,7 @@ const styles = StyleSheet.create({
   freqOptionActive: {
     borderWidth: 1,
     borderColor: '#f05b22',
-    backgroundColor: '#f05b2210',
+    backgroundColor: '#1C1C1E',
   },
   freqRadio: {
     width: 22,
@@ -358,7 +368,7 @@ const styles = StyleSheet.create({
   previewBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#c62828DD',
+    backgroundColor: '#c62828',
     borderRadius: 12,
     padding: 12,
   },
@@ -368,7 +378,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   previewSub: {
-    color: 'rgba(255,255,255,0.8)',
+    color: '#FFFFFF',
     fontSize: 11,
     marginTop: 2,
   },

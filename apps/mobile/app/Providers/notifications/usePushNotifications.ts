@@ -2,8 +2,16 @@ import { useEffect } from 'react';
 import { AppState, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { useQueryClient } from '@tanstack/react-query';
 import { userApi } from '../users/api/user.api';
+
+// getExpoPushTokenAsync hangs in Expo Go (SDK 53+) — skip all remote push logic there.
+// Check both the current and deprecated APIs for maximum compatibility.
+const IS_EXPO_GO =
+  (Constants as any).executionEnvironment === 'storeClient' ||
+  (Constants as any).appOwnership === 'expo' ||
+  (Constants as any).expoVersion != null; // set only in Expo Go, undefined in standalone/bare
 
 const PROJECT_ID = '05dedde2-39f5-4da2-9bbb-a805f06fa281';
 
@@ -12,6 +20,7 @@ const MANAGER_PUSH_TYPES = new Set(['NEW_RESERVATION', 'CANCEL_RESERVATION']);
 export function usePushNotifications() {
   const registerToken = async (): Promise<void> => {
     try {
+      if (IS_EXPO_GO) return; // push tokens not supported in Expo Go SDK 53+
       if (!Device.isDevice) return;
 
       if (Platform.OS === 'android') {
@@ -31,9 +40,12 @@ export function usePushNotifications() {
       });
       if (status !== 'granted') return;
 
-      const { data: token } = await Notifications.getExpoPushTokenAsync({
-        projectId: PROJECT_ID,
-      });
+      const { data: token } = await Promise.race([
+        Notifications.getExpoPushTokenAsync({ projectId: PROJECT_ID }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('getExpoPushTokenAsync timeout')), 5000),
+        ),
+      ]);
 
       const result = await userApi.updatePushToken(token);
       if (!result?.registered) {
@@ -65,6 +77,8 @@ export function usePushNotificationListeners(): void {
   const queryClient = useQueryClient();
 
   useEffect(() => {
+    if (IS_EXPO_GO) return; // listeners not supported in Expo Go SDK 53+
+
     const received = Notifications.addNotificationReceivedListener(async (notification) => {
       const content = notification.request.content;
       const data = content.data as Record<string, unknown>;

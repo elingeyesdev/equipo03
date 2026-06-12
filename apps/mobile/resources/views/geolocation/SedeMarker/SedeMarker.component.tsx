@@ -1,6 +1,6 @@
 /**
  * SedeMarker — Marcador personalizado de sede en el mapa.
- * 
+ *
  * Muestra un marcador con color según disponibilidad de aforo
  * y un callout con nombre, distancia e info de aforo.
  */
@@ -8,6 +8,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Marker, Callout } from 'react-native-maps';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SedeMarkerProps } from './SedeMarker.props';
 import { AforoBadge } from '../UI/AforoBadge/AforoBadge.component';
 
@@ -38,13 +39,28 @@ export const SedeMarker: React.FC<SedeMarkerProps> = ({ sede, distancia, onPress
             {sede.nombre}
           </Text>
           <View style={styles.calloutInfo}>
-            <Text style={styles.calloutDistance}>📍 {distancia.kmCorta}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <MaterialCommunityIcons name="map-marker-distance" size={12} color="#a0a0b8" />
+              <Text style={styles.calloutDistance}>{distancia.kmCorta}</Text>
+            </View>
             <AforoBadge aforo={sede.aforo} size="small" />
           </View>
-          <Text style={[styles.calloutStatus, { color: pinColor }]}>
-            ● {statusLabel}
-          </Text>
-          <Text style={styles.calloutHint}>Toca para más info →</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+            <MaterialCommunityIcons name="account-group-outline" size={12} color="#a0a0b8" />
+            <Text style={styles.calloutAforo}>
+              Aforo hoy: {sede.aforo.actual} / {sede.aforo.maximo}
+            </Text>
+          </View>
+          {sede.capacidadMaquinas > 0 && (
+            <Text style={{ fontSize: 12, color: '#aaa', marginTop: 2 }}>
+              Aforo Máquinas: {sede.capacidadMaquinas}
+            </Text>
+          )}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <MaterialCommunityIcons name="circle-small" size={14} color={pinColor} />
+            <Text style={[styles.calloutStatus, { color: pinColor }]}>{statusLabel}</Text>
+          </View>
+          <Text style={styles.calloutHint}>Toca para más info</Text>
         </View>
       </Callout>
     </Marker>
@@ -58,11 +74,6 @@ const styles = StyleSheet.create({
     padding: 12,
     minWidth: 180,
     maxWidth: 240,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
     borderWidth: 1,
     borderColor: '#2a2a4a',
   },
@@ -80,6 +91,11 @@ const styles = StyleSheet.create({
   },
   calloutDistance: {
     fontSize: 12,
+    color: '#a0a0b8',
+    fontWeight: '600',
+  },
+  calloutAforo: {
+    fontSize: 11,
     color: '#a0a0b8',
     fontWeight: '600',
   },

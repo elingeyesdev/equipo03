@@ -30,6 +30,8 @@ export interface IGymRaw {
   isActive?: boolean;
   isOpen?: boolean;
   aforoActual?: number;
+  currentOccupancy?: number;
+  infrastructure?: { id: number; machineCapacity: number } | null;
   parentId?: number | null;
   parent?: { id: number; name: string } | null;
   location?: IGymLocationRaw | null;
@@ -51,6 +53,8 @@ export interface SucursalMapaDTO {
   city: string;
   maxCapacity: number;
   aforoActual: number;
+  currentOccupancy: number;
+  machineCapacity: number;
   isActive: boolean;
   isOpen: boolean;
   schedules: IScheduleRaw[];
@@ -137,6 +141,8 @@ export class ObtenerSedesMapaUseCase {
         city: gym.location?.city ?? 'Sin ciudad',
         maxCapacity: gym.maxCapacity ?? 0,
         aforoActual: gym.aforoActual ?? 0,
+        currentOccupancy: gym.currentOccupancy ?? gym.aforoActual ?? 0,
+        machineCapacity: gym.infrastructure?.machineCapacity || 0,
         isActive: gym.isActive ?? true,
         isOpen: gym.isOpen ?? true,
         schedules: gym.schedules ?? [],

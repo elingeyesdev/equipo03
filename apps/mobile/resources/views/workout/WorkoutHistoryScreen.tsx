@@ -52,6 +52,29 @@ const SPORT_CATEGORY: Record<string, FilterKey> = {
   OTRO:        'HIIT',
 };
 
+// ── Extracción defensiva de sede y ejercicio ──────────────────────────────────
+const getLocationText = (session: WorkoutSession): string => {
+  const s       = session as any;
+  const gymObj  = s.gym ?? {};
+  const gymName = gymObj.name ?? s.gym_name ?? s.gymName;
+  const brandName = gymObj.parent?.name ?? s.brand_name ?? s.brandName;
+  if (!gymName) return 'Sede no registrada';
+  return brandName && brandName !== gymName ? `${brandName} - ${gymName}` : gymName;
+};
+
+const getActivityText = (session: WorkoutSession): string => {
+  const s         = session as any;
+  const firstSet  = (session.sets?.[0] ?? {}) as any;
+  const exerciseName =
+    firstSet.exercise?.name ??
+    firstSet.routineExercise?.exercise?.name ??
+    firstSet.exerciseName ??
+    s.exercise_name ??
+    s.exerciseName;
+  const routineName = session.routine?.name ?? s.routine_name;
+  return exerciseName ?? routineName ?? s.sport_type ?? s.sportType ?? 'Actividad Desconocida';
+};
+
 const formatDate = (iso: string): string => {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '—';
@@ -80,28 +103,59 @@ const SessionCard = ({
 }) => {
   const sport       = String(item.sportType ?? 'DEFAULT').toUpperCase();
   const label       = SPORT_LABEL[sport]  ?? SPORT_LABEL.DEFAULT;
-  const accent      = SPORT_COLOR[sport]  ?? SPORT_COLOR.DEFAULT;
-  const icon        = SPORT_ICON[sport]   ?? SPORT_ICON.DEFAULT;
+  let accent        = SPORT_COLOR[sport]  ?? SPORT_COLOR.DEFAULT;
+  let icon          = SPORT_ICON[sport]   ?? SPORT_ICON.DEFAULT;
   const minutes     = Math.floor((item.durationSeconds ?? 0) / 60);
   const setsCount   = item.sets?.length ?? 0;
   const volume      = (item.sets ?? []).reduce(
-    (acc, s) => acc + (s.weightUsedKg ?? 0) * s.repsCompleted, 0,
+    (acc, s) => acc + (s.weightUsedKg ?? 0) * (s.repsCompleted ?? 0), 0,
   );
   const isStrength  = sport === 'MUSCULACION';
+
+  // ── Título dinámico ──────────────────────────────────────────────────────
+  let displayTitle = '';
+  let subtitleText = '';
+
+  if (setsCount === 0 && !item.routine) {
+    displayTitle = 'Sesión Vacía';
+    subtitleText = 'Entrenamiento finalizado sin registrar series';
+    icon = 'alert-circle-outline';
+    accent = '#666';
+  } else {
+    displayTitle = getActivityText(item) || label || 'Entrenamiento Libre';
+
+    // ── Subtítulo: lista de ejercicios únicos
+    const setNames = (item.sets ?? [])
+      .map(
+        s =>
+          s.routineExercise?.exercise?.name ||
+          (s as any).exercise?.name ||
+          (s as any).exerciseName
+      )
+      .filter(Boolean);
+    const uniqueSetNames = [...new Set(setNames)];
+
+    subtitleText =
+      uniqueSetNames.length > 0
+        ? uniqueSetNames.join(', ')
+        : item.routine
+          ? 'Rutina predefinida'
+          : '0 Ejercicios registrados';
+  }
 
   return (
     <TouchableOpacity activeOpacity={0.75} onPress={onPress}>
       <View style={[card.container, { borderLeftColor: accent }]}>
         {/* Fila superior */}
         <View style={card.topRow}>
-          <View style={[card.iconBox, { backgroundColor: accent + '20' }]}>
+          <View style={[card.iconBox, { backgroundColor: '#1C1C1E' }]}>
             <MaterialCommunityIcons name={icon as any} size={18} color={accent} />
           </View>
           <View style={{ flex: 1, marginLeft: 10 }}>
-            <Text style={card.label}>{label}</Text>
+            <Text style={card.label} numberOfLines={1}>{displayTitle}</Text>
             <Text style={card.date}>{formatDate(item.startedAt)}</Text>
           </View>
-          <View style={[card.badge, { backgroundColor: accent + '22' }]}>
+          <View style={[card.badge, { backgroundColor: '#1C1C1E' }]}>
             <Text style={[card.badgeTxt, { color: accent }]}>{label}</Text>
           </View>
         </View>
@@ -139,9 +193,7 @@ const SessionCard = ({
 
         {/* Pie */}
         <View style={card.footer}>
-          <Text style={card.footerTxt}>
-            {item.routine ? `Rutina: ${item.routine.name}` : 'Entrenamiento libre'}
-          </Text>
+          <Text style={card.footerTxt} numberOfLines={1}>{subtitleText}</Text>
           <MaterialCommunityIcons name="chevron-right" size={16} color="#333" />
         </View>
       </View>
@@ -178,14 +230,56 @@ const DetailSheet = ({
 
   const sport      = String(session.sportType ?? 'DEFAULT').toUpperCase();
   const label      = SPORT_LABEL[sport]  ?? SPORT_LABEL.DEFAULT;
-  const accent     = SPORT_COLOR[sport]  ?? SPORT_COLOR.DEFAULT;
-  const icon       = SPORT_ICON[sport]   ?? SPORT_ICON.DEFAULT;
+  let accent       = SPORT_COLOR[sport]  ?? SPORT_COLOR.DEFAULT;
+  let icon         = SPORT_ICON[sport]   ?? SPORT_ICON.DEFAULT;
   const isStrength = sport === 'MUSCULACION';
   const sets       = session.sets ?? [];
-  const volume     = sets.reduce((acc, s) => acc + (s.weightUsedKg ?? 0) * s.repsCompleted, 0);
-  const bestSet    = sets.reduce<WorkoutSet | null>(
+
+  // ── Título dinámico para el detail sheet ────────────────────────────────
+  let sheetTitle = '';
+
+  if (sets.length === 0 && !session.routine) {
+    sheetTitle = 'Sesión Vacía';
+    icon = 'alert-circle-outline';
+    accent = '#666';
+  } else {
+    sheetTitle = getActivityText(session) || label || 'Entrenamiento Libre';
+  }
+
+  // ── Métricas agregadas ───────────────────────────────────────────────────
+  const volume = sets.reduce((acc, s) => acc + (s.weightUsedKg ?? 0) * (s.repsCompleted ?? 0), 0);
+  const bestSet = sets.reduce<WorkoutSet | null>(
     (best, s) => (!best || (s.weightUsedKg ?? 0) > (best.weightUsedKg ?? 0) ? s : best),
     null,
+  );
+
+  // ── Agrupación de ejercicios por nombre ──────────────────────────────────
+  type ExerciseGroup = {
+    name: string;
+    setsCount: number;
+    maxWeightKg: number | null;
+    totalReps: number;
+  };
+  const exerciseGroups: ExerciseGroup[] = Object.values(
+    sets.reduce<Record<string, ExerciseGroup>>((acc, s) => {
+      const name =
+        s.routineExercise?.exercise?.name ||
+        (s as any).exercise?.name ||
+        (s as any).exerciseName ||
+        'Ejercicio libre';
+      if (!acc[name]) {
+        acc[name] = { name, setsCount: 0, maxWeightKg: null, totalReps: 0 };
+      }
+      acc[name].setsCount += 1;
+      acc[name].totalReps += (s.repsCompleted ?? 0);
+      if (s.weightUsedKg != null) {
+        acc[name].maxWeightKg =
+          acc[name].maxWeightKg == null
+            ? s.weightUsedKg
+            : Math.max(acc[name].maxWeightKg, s.weightUsedKg);
+      }
+      return acc;
+    }, {}),
   );
 
   return (
@@ -198,18 +292,16 @@ const DetailSheet = ({
         <View style={sheet.handle} />
 
         {/* Header */}
-        <View style={[sheet.header, { backgroundColor: accent + '18' }]}>
-          <View style={[sheet.headerIcon, { backgroundColor: accent + '30' }]}>
+        <View style={[sheet.header, { backgroundColor: '#1C1C1E' }]}>
+          <View style={[sheet.headerIcon, { backgroundColor: '#1C1C1E' }]}>
             <MaterialCommunityIcons name={icon as any} size={28} color={accent} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={sheet.headerTitle}>{label}</Text>
+            <Text style={sheet.headerTitle}>{sheetTitle}</Text>
             <Text style={sheet.headerSub}>{formatDate(session.startedAt)}</Text>
-            {session.gym && (
-              <Text style={sheet.headerGym}>
-                <MaterialCommunityIcons name="map-marker-outline" size={12} color="#555" /> {session.gym.name}
-              </Text>
-            )}
+            <Text style={sheet.headerGym}>
+              <MaterialCommunityIcons name="map-marker-outline" size={12} color="#555" /> {getLocationText(session)}
+            </Text>
           </View>
           <TouchableOpacity onPress={close} style={sheet.closeBtn}>
             <MaterialCommunityIcons name="close" size={20} color="#555" />
@@ -230,14 +322,14 @@ const DetailSheet = ({
               <Text style={sheet.statVal}>{session.caloriesBurned ?? 0}</Text>
               <Text style={sheet.statLbl}>kcal</Text>
             </View>
-            {isStrength && (
+            {sets.length > 0 && (
               <View style={sheet.statCard}>
                 <MaterialCommunityIcons name="format-list-numbered" size={20} color="#9b5de5" />
                 <Text style={sheet.statVal}>{sets.length}</Text>
                 <Text style={sheet.statLbl}>Series</Text>
               </View>
             )}
-            {isStrength && volume > 0 && (
+            {volume > 0 && (
               <View style={sheet.statCard}>
                 <MaterialCommunityIcons name="weight-lifter" size={20} color="#9b5de5" />
                 <Text style={sheet.statVal}>{volume.toFixed(0)} kg</Text>
@@ -246,26 +338,58 @@ const DetailSheet = ({
             )}
           </View>
 
-          {/* Mejor serie */}
-          {isStrength && bestSet && (bestSet.weightUsedKg ?? 0) > 0 && (
+          {/* Ejercicios realizados */}
+          {exerciseGroups.length > 0 && (
+            <View style={sheet.section}>
+              <Text style={sheet.sectionTitle}>Ejercicios realizados</Text>
+              {exerciseGroups.map((eg, i) => (
+                <View key={eg.name + i} style={sheet.exerciseRow}>
+                  <View style={[sheet.exerciseDot, { backgroundColor: accent }]} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={sheet.exerciseName}>{eg.name}</Text>
+                    <Text style={sheet.exerciseMeta}>
+                      {eg.setsCount} {eg.setsCount === 1 ? 'serie' : 'series'}
+                      {eg.totalReps > 0 ? ` · ${eg.totalReps} reps` : ''}
+                    </Text>
+                  </View>
+                  {eg.maxWeightKg != null && eg.maxWeightKg > 0 && (
+                    <View style={sheet.exercisePR}>
+                      <Text style={[sheet.exercisePRVal, { color: accent }]}>
+                        {eg.maxWeightKg} kg
+                      </Text>
+                      <Text style={sheet.exercisePRLbl}>máx</Text>
+                    </View>
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Mejor serie (cuando hay peso registrado) */}
+          {bestSet != null && (bestSet.weightUsedKg ?? 0) > 0 && (
             <View style={sheet.section}>
               <Text style={sheet.sectionTitle}>Mejor serie</Text>
               <View style={[sheet.bestCard, { borderColor: accent }]}>
                 <MaterialCommunityIcons name="trophy-outline" size={22} color={accent} />
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <Text style={sheet.bestMain}>
-                    {bestSet.weightUsedKg} kg × {bestSet.repsCompleted} reps
+                    {bestSet.weightUsedKg} kg × {bestSet.repsCompleted ?? 0} reps
                   </Text>
+                  {(bestSet.routineExercise?.exercise?.name || (bestSet as any).exercise?.name || (bestSet as any).exerciseName) && (
+                    <Text style={sheet.bestSub}>
+                      {bestSet.routineExercise?.exercise?.name || (bestSet as any).exercise?.name || (bestSet as any).exerciseName}
+                    </Text>
+                  )}
                   <Text style={sheet.bestSub}>
-                    {((bestSet.weightUsedKg ?? 0) * bestSet.repsCompleted).toFixed(0)} kg de volumen
+                    {((bestSet.weightUsedKg ?? 0) * (bestSet.repsCompleted ?? 0)).toFixed(0)} kg de volumen
                   </Text>
                 </View>
               </View>
             </View>
           )}
 
-          {/* Lista de series */}
-          {isStrength && sets.length > 0 && (
+          {/* Todas las series */}
+          {sets.length > 0 && (
             <View style={sheet.section}>
               <Text style={sheet.sectionTitle}>Todas las series</Text>
               {sets.map((s, i) => (
@@ -274,18 +398,35 @@ const DetailSheet = ({
                     <Text style={sheet.setBadgeTxt}>{s.setNumber ?? i + 1}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
+                    {(s.routineExercise?.exercise?.name || (s as any).exercise?.name || (s as any).exerciseName) && (
+                      <Text style={sheet.setExercise}>
+                        {s.routineExercise?.exercise?.name || (s as any).exercise?.name || (s as any).exerciseName}
+                      </Text>
+                    )}
                     <Text style={sheet.setMain}>
-                      {s.weightUsedKg != null ? `${s.weightUsedKg} kg` : '—'} × {s.repsCompleted} reps
+                      {s.distanceMeters != null
+                        ? `${s.distanceMeters} m${s.durationSeconds != null ? ` · ${Math.round(s.durationSeconds / 60)} min` : ''}`
+                        : s.durationSeconds != null
+                          ? `${s.durationSeconds} s`
+                          : `${s.weightUsedKg != null ? `${s.weightUsedKg} kg` : '—'} × ${s.repsCompleted ?? 0} reps`}
                     </Text>
                     {s.restTakenSeconds != null && (
                       <Text style={sheet.setSub}>Descanso: {s.restTakenSeconds} s</Text>
                     )}
                   </View>
                   <Text style={sheet.setVol}>
-                    {((s.weightUsedKg ?? 0) * s.repsCompleted).toFixed(0)} kg
+                    {((s.weightUsedKg ?? 0) * (s.repsCompleted ?? 0)).toFixed(0)} kg
                   </Text>
                 </View>
               ))}
+            </View>
+          )}
+
+          {/* Estado vacío cuando no hay sets */}
+          {sets.length === 0 && (
+            <View style={sheet.emptySection}>
+              <MaterialCommunityIcons name="dumbbell" size={32} color="#2a2a2a" />
+              <Text style={sheet.emptySectionTxt}>Sin series registradas</Text>
             </View>
           )}
 
@@ -359,7 +500,7 @@ export const WorkoutHistoryScreen = () => {
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
-          <MaterialCommunityIcons name="arrow-left" size={22} color="#f05b22" />
+          <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Mi Historial</Text>
         <View style={s.headerRight} />
@@ -443,7 +584,7 @@ const s = StyleSheet.create({
   },
   backBtn: {
     width: 40, height: 40, borderRadius: 12,
-    backgroundColor: '#161618',
+    backgroundColor: '#1C1C1E',
     justifyContent: 'center', alignItems: 'center',
     borderWidth: 1, borderColor: '#222',
   },
@@ -541,7 +682,7 @@ const sheet = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 4 },
   statCard: {
     flex: 1, minWidth: '44%',
-    backgroundColor: '#161618', borderRadius: 16,
+    backgroundColor: '#1C1C1E', borderRadius: 16,
     borderWidth: 1, borderColor: '#222',
     paddingVertical: 18, paddingHorizontal: 14,
     alignItems: 'center', gap: 6,
@@ -554,7 +695,7 @@ const sheet = StyleSheet.create({
 
   bestCard: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#161618', borderRadius: 16,
+    backgroundColor: '#1C1C1E', borderRadius: 16,
     borderWidth: 1, padding: 16, gap: 0,
   },
   bestMain: { color: '#fff', fontSize: 17, fontWeight: '800' },
@@ -562,19 +703,42 @@ const sheet = StyleSheet.create({
 
   setRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#161618', borderRadius: 14,
+    backgroundColor: '#1C1C1E', borderRadius: 14,
     borderWidth: 1, borderColor: '#1c1c1e',
     paddingVertical: 12, paddingHorizontal: 14,
   },
   setBadge: {
     width: 30, height: 30, borderRadius: 8,
-    backgroundColor: '#f05b2220',
+    backgroundColor: '#1C1C1E',
     justifyContent: 'center', alignItems: 'center',
   },
-  setBadgeTxt: { color: '#f05b22', fontSize: 13, fontWeight: '800' },
-  setMain:     { color: '#fff', fontSize: 15, fontWeight: '700' },
-  setSub:      { color: '#555', fontSize: 11, marginTop: 2 },
-  setVol:      { color: '#444', fontSize: 12 },
+  setBadgeTxt:  { color: '#f05b22', fontSize: 13, fontWeight: '800' },
+  setExercise:  { color: '#888', fontSize: 11, fontWeight: '600', marginBottom: 2 },
+  setMain:      { color: '#fff', fontSize: 15, fontWeight: '700' },
+  setSub:       { color: '#555', fontSize: 11, marginTop: 2 },
+  setVol:       { color: '#444', fontSize: 12 },
+
+  // Ejercicios realizados
+  exerciseRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#1C1C1E', borderRadius: 14,
+    borderWidth: 1, borderColor: '#222',
+    paddingVertical: 14, paddingHorizontal: 16,
+  },
+  exerciseDot:    { width: 8, height: 8, borderRadius: 4 },
+  exerciseName:   { color: '#fff', fontSize: 14, fontWeight: '700' },
+  exerciseMeta:   { color: '#555', fontSize: 12, marginTop: 3 },
+  exercisePR:     { alignItems: 'flex-end' },
+  exercisePRVal:  { fontSize: 16, fontWeight: '900' },
+  exercisePRLbl:  { color: '#555', fontSize: 10, marginTop: 1 },
+
+  // Estado vacío
+  emptySection: {
+    alignItems: 'center', gap: 10,
+    paddingVertical: 32, backgroundColor: '#1C1C1E',
+    borderRadius: 16, borderWidth: 1, borderColor: '#222',
+  },
+  emptySectionTxt: { color: '#333', fontSize: 13 },
 
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   infoTxt: { color: '#aaa', fontSize: 14 },

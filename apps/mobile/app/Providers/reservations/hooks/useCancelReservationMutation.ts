@@ -7,7 +7,7 @@ import { useAuth } from '../../../Shared/hooks/useAuth';
 export const useCancelReservationMutation = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const queryKey = ['my-reservations', user?.id] as const;
+  const queryKey = ['my-reservations', user?.userId] as const;
 
   return useMutation({
     mutationFn: (reservationId: number) => reservationApi.cancelReservation(reservationId),

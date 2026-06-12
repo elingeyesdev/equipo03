@@ -38,7 +38,7 @@ export const WorkoutSummaryScreen = () => {
 
         {/* Header */}
         <View style={s.header}>
-          <View style={[s.iconCircle, { backgroundColor: '#f05b2222' }]}>
+          <View style={[s.iconCircle, { backgroundColor: '#1C1C1E' }]}>
             <MaterialCommunityIcons name="trophy-outline" size={36} color="#f05b22" />
           </View>
           <Text style={s.title}>Sesión completada</Text>
@@ -135,7 +135,7 @@ const s = StyleSheet.create({
     paddingVertical: 14, paddingHorizontal: 16,
   },
   serieBadge: {
-    width: 28, height: 28, borderRadius: 8, backgroundColor: '#f05b2222',
+    width: 28, height: 28, borderRadius: 8, backgroundColor: '#1C1C1E',
     justifyContent: 'center', alignItems: 'center',
   },
   serieBadgeTxt: { color: '#f05b22', fontSize: 12, fontWeight: '800' },
@@ -147,8 +147,6 @@ const s = StyleSheet.create({
   homeBtn: {
     backgroundColor: '#f05b22', borderRadius: 18, height: 60,
     justifyContent: 'center', alignItems: 'center',
-    shadowColor: '#f05b22', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 10, elevation: 6,
   },
   homeBtnTxt: { color: '#fff', fontSize: 17, fontWeight: '800' },
 });

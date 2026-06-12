@@ -70,7 +70,7 @@ export interface ReservationResponse {
 
 export interface UserReservation {
   id: number;
-  status: 'CONFIRMADA' | 'CANCELADA' | 'USADA' | 'CONFIRMED' | 'COMPLETADA' | 'CANCELLED' | 'PENDIENTE';
+  status: 'CONFIRMADA' | 'CANCELADA' | 'USADA' | 'USED' | 'CONFIRMED' | 'COMPLETADA' | 'CANCELLED' | 'PENDIENTE';
   reservationDate: string;
   qrToken?: string;
   cancelledAt?: string | null;
