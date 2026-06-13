@@ -341,6 +341,20 @@ export class StaffController {
     return this.svc.rejectAdvisorship(id, Number(req.user!.userId));
   }
 
+  @Patch('advisors/:id/cancel')
+  @Roles('USER', 'CLIENTE', 'ENTRENADOR', 'NUTRICIONISTA')
+  @ApiOperation({ summary: 'Cancelar una asesoría activa (cliente o asesor)' })
+  @ApiParam({ name: 'id', example: 1 })
+  @ApiResponse({ status: 200, description: 'Asesoría cancelada, plan y rutinas reiniciados' })
+  @ApiResponse({ status: 403, description: 'No participas en esta asesoría' })
+  @ApiResponse({ status: 400, description: 'La asesoría no está activa' })
+  cancelAdvisorship(
+    @Req() req: RequestWithUser,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.svc.cancelAdvisorship(id, Number(req.user!.userId));
+  }
+
   @Get('advisors/active-clients')
   @Roles('ENTRENADOR', 'NUTRICIONISTA')
   @ApiOperation({ summary: 'Clientes con relación ACTIVE para el asesor autenticado' })
@@ -371,6 +385,7 @@ export class StaffController {
         carbsG:    { type: 'number',  example: 250  },
         fatG:      { type: 'number',  example: 70   },
         planNotes: { type: 'string',  example: 'Evitar azúcares simples después de las 6pm.' },
+        mealPlan:  { type: 'object',  example: { LUNES: { desayuno: 'Avena con frutas', almuerzo: 'Pollo con arroz', cena: 'Ensalada', merienda: 'Yogur' } } },
       },
     },
   })

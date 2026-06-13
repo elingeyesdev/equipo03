@@ -707,17 +707,39 @@ export class StaffService {
     const advisor = await this.userRepo.findOne({ where: { id: advisorId } });
     if (!advisor) throw new NotFoundException(`Asesor ${advisorId} no encontrado.`);
 
-    const existing = await this.advisorRepo.findOne({
-      where: { clientId, advisorId },
-    });
+    const existing = await this.advisorRepo.findOne({ where: { clientId, advisorId } });
+
+    if (existing && (existing.status === 'PENDING' || existing.status === 'ACTIVE')) {
+      throw new ConflictException(
+        `Ya tienes una solicitud ${existing.status === 'PENDING' ? 'pendiente' : 'activa'} con este asesor.`,
+      );
+    }
+
+    // Determine advisor role and enforce 1-per-role limit
+    const roleRows = await this.advisorRepo.manager.query<{ role_name: string }[]>(
+      `SELECT UPPER(r.name) as role_name FROM user_roles ur
+       JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = $1 LIMIT 1`,
+      [advisorId],
+    );
+    const roleName = roleRows?.[0]?.role_name ?? '';
+
+    const limitRows = await this.advisorRepo.manager.query<{ cnt: string }[]>(
+      `SELECT COUNT(*) as cnt FROM client_advisors ca
+       JOIN user_roles ur ON ur.user_id = ca.advisor_id
+       JOIN roles r ON r.id = ur.role_id
+       WHERE ca.client_id = $1 AND UPPER(r.name) = $2 AND ca.status IN ('PENDING', 'ACTIVE')`,
+      [clientId, roleName],
+    );
+
+    if (parseInt(limitRows?.[0]?.cnt ?? '0') >= 1) {
+      const label = roleName === 'ENTRENADOR' ? 'entrenador' : 'nutricionista';
+      throw new ConflictException(
+        `Ya tienes un ${label} activo o con solicitud pendiente. Cancela la asesoría actual antes de solicitar una nueva.`,
+      );
+    }
 
     if (existing) {
-      if (existing.status === 'PENDING' || existing.status === 'ACTIVE') {
-        throw new ConflictException(
-          `Ya tienes una solicitud ${existing.status === 'PENDING' ? 'pendiente' : 'activa'} con este asesor.`,
-        );
-      }
-      // Si fue REJECTED, permite volver a solicitar reutilizando el registro
+      // REJECTED or CANCELLED — allow re-request
       existing.status = 'PENDING';
       return this.advisorRepo.save(existing);
     }
@@ -725,6 +747,39 @@ export class StaffService {
     return this.advisorRepo.save(
       this.advisorRepo.create({ clientId, advisorId, status: 'PENDING' }),
     );
+  }
+
+  async cancelAdvisorship(id: number, requesterId: number): Promise<ClientAdvisor> {
+    const relation = await this.advisorRepo.findOne({ where: { id } });
+    if (!relation) throw new NotFoundException(`Asesoría ${id} no encontrada.`);
+
+    if (relation.clientId !== requesterId && relation.advisorId !== requesterId) {
+      throw new ForbiddenException('No tienes permiso para cancelar esta asesoría.');
+    }
+
+    if (relation.status !== 'ACTIVE') {
+      throw new BadRequestException('Solo se pueden cancelar asesorías activas.');
+    }
+
+    relation.status = 'CANCELLED';
+    await this.advisorRepo.save(relation);
+
+    // Reset meal plan
+    const plan = await this.trainerPlanRepo.findOne({
+      where: { trainerId: relation.advisorId, clientId: relation.clientId },
+    });
+    if (plan) {
+      plan.mealPlan = null;
+      await this.trainerPlanRepo.save(plan);
+    }
+
+    // Deactivate assigned routines
+    await this.advisorRepo.manager.query(
+      `UPDATE routines SET is_active = false WHERE trainer_id = $1 AND assigned_user_id = $2`,
+      [relation.advisorId, relation.clientId],
+    );
+
+    return relation;
   }
 
   async getMyPlan(): Promise<TrainerPlan | null> {
@@ -785,13 +840,14 @@ export class StaffService {
   }
 
   async getActiveAdvisees(): Promise<
-    { clientId: number; clientName: string; phone: string | null }[]
+    { id: number; clientId: number; clientName: string; phone: string | null }[]
   > {
     const userId = this.getAuthUserId();
 
     const rows = await this.advisorRepo
       .createQueryBuilder('ca')
-      .select('ca.clientId', 'clientId')
+      .select('ca.id', 'id')
+      .addSelect('ca.clientId', 'clientId')
       .addSelect(
         `TRIM(CONCAT(COALESCE(prof.first_name, ''), ' ', COALESCE(prof.last_name, '')))`,
         'clientName',
@@ -806,6 +862,7 @@ export class StaffService {
       .getRawMany();
 
     return rows.map((r) => ({
+      id: Number(r.id),
       clientId: Number(r.clientId),
       clientName: (r.clientName as string)?.trim() || (r.clientEmail as string) || '—',
       phone: (r.phone as string) || null,
@@ -883,13 +940,13 @@ export class StaffService {
     }
 
     let plan = await this.trainerPlanRepo.findOne({ where: { trainerId: userId, clientId } });
-    if (plan) {
-      Object.assign(plan, dto);
-      return this.trainerPlanRepo.save(plan);
+    if (!plan) {
+      plan = this.trainerPlanRepo.create({ trainerId: userId, clientId });
     }
-    return this.trainerPlanRepo.save(
-      this.trainerPlanRepo.create({ trainerId: userId, clientId, ...dto }),
-    );
+    const { mealPlan, ...rest } = dto as any;
+    Object.assign(plan, rest);
+    if (mealPlan !== undefined) plan.mealPlan = mealPlan;
+    return this.trainerPlanRepo.save(plan);
   }
 
   async getTrainerPlan(clientId: number): Promise<TrainerPlan | null> {

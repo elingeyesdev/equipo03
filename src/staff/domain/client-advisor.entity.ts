@@ -9,7 +9,7 @@ import {
 } from 'typeorm';
 import { User } from '../../users/domain/user.entity';
 
-export type AdvisorStatus = 'PENDING' | 'ACTIVE' | 'REJECTED';
+export type AdvisorStatus = 'PENDING' | 'ACTIVE' | 'REJECTED' | 'CANCELLED';
 
 @Entity('client_advisors')
 @Unique('uq_client_advisor', ['clientId', 'advisorId'])

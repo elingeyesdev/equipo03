@@ -34,6 +34,9 @@ export class TrainerPlan {
   @Column({ type: 'text', name: 'plan_notes', nullable: true })
   planNotes?: string;
 
+  @Column({ type: 'jsonb', name: 'meal_plan', nullable: true })
+  mealPlan?: Record<string, Record<string, string>> | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 
