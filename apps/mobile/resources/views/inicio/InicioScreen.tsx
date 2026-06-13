@@ -44,7 +44,6 @@ const GALLERY_ICONS: Array<{ icon: string; color: string; label: string }> = [
   { icon: 'gymnastics', color: '#06d6a0', label: 'Gimnasia' },
 ];
 
-// ─── Placeholders para roles no-cliente ──────────────────────────────────────
 
 const ph = StyleSheet.create({
   safe:   { flex: 1, backgroundColor: '#000' },
@@ -53,7 +52,6 @@ const ph = StyleSheet.create({
   sub:    { color: '#555', fontSize: 14, textAlign: 'center', lineHeight: 20 },
 });
 
-// ─── Próxima reserva activa (reemplaza botón estático) ───────────────────────
 
 const ACTIVE_STATUS = new Set(['CONFIRMADA', 'CONFIRMED', 'PENDIENTE']);
 
@@ -88,7 +86,6 @@ const NextReservationBanner = ({ onBuscar }: { onBuscar: () => void }) => {
     Linking.openURL(url).catch(() => {});
   };
 
-  // Calcula tiempo restante en texto
   const timeLabel = useMemo(() => {
     if (!next?.startTime) return '';
     const [h, m] = next.startTime.split(':').map(Number);
@@ -171,7 +168,7 @@ const NextReservationBanner = ({ onBuscar }: { onBuscar: () => void }) => {
   );
 };
 
-// ─── Dashboard del cliente (lógica intacta) ───────────────────────────────────
+// ─── Dashboard del cliente
 
 const ClientDashboard = () => {
   const navigation = useNavigation<any>();
@@ -242,7 +239,6 @@ const ClientDashboard = () => {
 
     const sedeEncontrada = sedes.find(item => {
       if (!item.sede.servicios) return false;
-      // Verificamos si algún servicio del gimnasio coincide con alguna de nuestras palabras clave
       return item.sede.servicios.some(servicio =>
         searchTerms.some(term => servicio.toLowerCase().includes(term))
       );
@@ -444,6 +440,24 @@ const ClientDashboard = () => {
           <MaterialCommunityIcons name="chevron-right" size={22} color="#444" />
         </TouchableOpacity>
 
+        {/* ── Catálogo de Asesores ── */}
+        <TouchableOpacity
+          style={[styles.historialBtn, { borderColor: '#38BDF833', borderWidth: 1 }]}
+          activeOpacity={0.8}
+          onPress={() => (navigation as any).navigate('StaffCatalog')}
+        >
+          <View style={styles.historialBtnLeft}>
+            <View style={[styles.historialBtnIcon, { backgroundColor: '#38BDF81A' }]}>
+              <MaterialCommunityIcons name="account-search-outline" size={20} color="#38BDF8" />
+            </View>
+            <View>
+              <Text style={styles.historialBtnTitle}>Catálogo de Asesores</Text>
+              <Text style={styles.historialBtnSub}>Solicita asesoría personalizada</Text>
+            </View>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={22} color="#444" />
+        </TouchableOpacity>
+
         {/* ── Explora Disciplinas ── */}
         <View style={styles.onboardSection}>
           <View style={styles.sectionIconRow}>
@@ -485,17 +499,36 @@ const ClientDashboard = () => {
   );
 };
 
-// ─── Enrutador por rol ────────────────────────────────────────────────────────
+// ─── Enrutador exclusivo Staff (ENTRENADOR / INSTRUCTOR / NUTRICIONISTA) ─────
+
+export const StaffInicioScreen = () => {
+  const { user } = useAuth();
+  const role = (user?.role ?? '').toUpperCase();
+
+  switch (role) {
+    case 'INSTRUCTOR':    return <InstructorDashboard />;
+    case 'ENTRENADOR':    return <TrainerDashboard />;
+    case 'NUTRICIONISTA': return <NutritionistDashboard />;
+    default:
+      return (
+        <SafeAreaView style={ph.safe} edges={['top']}>
+          <View style={ph.center}>
+            <MaterialCommunityIcons name="shield-off-outline" size={48} color="#444" />
+            <Text style={ph.title}>Dashboard no disponible</Text>
+          </View>
+        </SafeAreaView>
+      );
+  }
+};
+
+// ─── Enrutador general (Gerente + Cliente) ────────────────────────────────────
 
 export const InicioScreen = () => {
   const { user } = useAuth();
-  const role = user?.role ?? '';
+  const role = (user?.role ?? '').toUpperCase();
 
-  if (role === 'GERENTE' || (role as string) === 'COORDINADOR') return <ManagerDashboard />;
-  if ((role as string) === 'INSTRUCTOR') return <InstructorDashboard />;
-  if (role === 'ENTRENADOR') return <TrainerDashboard />;
-  if (role === 'NUTRICIONISTA') return <NutritionistDashboard />;
-  if ((role as string) === 'PERSONAL_DE_LIMPIEZA') return (
+  if (role === 'GERENTE' || role === 'COORDINADOR') return <ManagerDashboard />;
+  if (role === 'PERSONAL_DE_LIMPIEZA') return (
     <SafeAreaView style={ph.safe} edges={['top']}>
       <View style={ph.center}>
         <MaterialCommunityIcons name="broom" size={56} color="#666" />

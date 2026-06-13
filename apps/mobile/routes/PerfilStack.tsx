@@ -8,6 +8,9 @@ import { MisDatosPersonalesScreen }  from '../resources/views/perfil/MisDatosPer
 import { AuditoriaSucursalScreen }   from '../resources/views/perfil/AuditoriaSucursalScreen';
 import { MisObjetivosScreen }        from '../resources/views/perfil/MisObjetivosScreen';
 import { CarnetVirtualScreen }       from '../resources/views/perfil/CarnetVirtualScreen';
+import { StaffCatalogScreen }        from '../resources/views/perfil/StaffCatalogScreen';
+import { MiPlanScreen }             from '../resources/views/perfil/MiPlanScreen';
+import { MiRutinaScreen }           from '../resources/views/perfil/MiRutinaScreen';
 
 // ── Param lists ──────────────────────────────────────────────────────────────
 export type ClientePerfilParamList = {
@@ -18,6 +21,9 @@ export type ClientePerfilParamList = {
   Ajustes: undefined;
   MisObjetivos: undefined;
   CarnetDigital: undefined;
+  StaffCatalog: undefined;
+  MiPlan: undefined;
+  MiRutina: undefined;
 };
 
 export type GerentePerfilParamList = {
@@ -48,6 +54,9 @@ export const ClientePerfilStack = () => (
     <ClienteStack.Screen name="Ajustes"          component={AjustesScreen}              options={{ headerShown: false }} />
     <ClienteStack.Screen name="MisObjetivos"      component={MisObjetivosScreen}         options={{ headerShown: false }} />
     <ClienteStack.Screen name="CarnetDigital"     component={CarnetVirtualScreen}        options={{ headerShown: false }} />
+    <ClienteStack.Screen name="StaffCatalog"      component={StaffCatalogScreen}         options={{ headerShown: false }} />
+    <ClienteStack.Screen name="MiPlan"            component={MiPlanScreen}               options={{ headerShown: false }} />
+    <ClienteStack.Screen name="MiRutina"          component={MiRutinaScreen}             options={{ headerShown: false }} />
   </ClienteStack.Navigator>
 );
 

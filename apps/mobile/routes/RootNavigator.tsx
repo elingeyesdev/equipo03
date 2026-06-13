@@ -14,7 +14,7 @@ import { ForgotPasswordScreen } from '../resources/views/auth/ForgotPasswordScre
 import { ResetPasswordScreen }  from '../resources/views/auth/ResetPasswordScreen';
 
 // ── Pantallas comunes ─────────────────────────────────────────────────────────
-import { InicioScreen }         from '../resources/views/inicio/InicioScreen';
+import { InicioScreen, StaffInicioScreen } from '../resources/views/inicio/InicioScreen';
 import { BuscarStack }          from './BuscarStack';
 
 // ── Pantallas exclusivas por rol ──────────────────────────────────────────────
@@ -39,6 +39,9 @@ import { WorkoutHistoryScreen } from '../resources/views/workout/WorkoutHistoryS
 // ── Historial de Gimnasios (acceso desde Inicio, fuera del tab Buscar) ────────
 import { HistorialScreen }     from '../resources/views/buscar/HistorialScreen';
 import { VisitedGymMapScreen } from '../resources/views/buscar/VisitedGymMapScreen';
+import { StaffCatalogScreen }  from '../resources/views/perfil/StaffCatalogScreen';
+import { PerfilAlumnoScreen }  from '../resources/views/inicio/PerfilAlumnoScreen';
+import { TrainerPlanScreen }   from '../resources/views/inicio/TrainerPlanScreen';
 
 // ── Stacks de Perfil segregados ───────────────────────────────────────────────
 import { ClientePerfilStack, GerentePerfilStack } from './PerfilStack';
@@ -147,6 +150,11 @@ const ClienteStack = () => (
       component={CuadroDeMandoClienteScreen}
       options={{ headerShown: false, gestureEnabled: true }}
     />
+    <ClienteNav.Screen
+      name="StaffCatalog"
+      component={StaffCatalogScreen}
+      options={{ headerShown: false }}
+    />
   </ClienteNav.Navigator>
 );
 
@@ -180,7 +188,7 @@ const GerenteStack = () => (
 const StaffTab = createBottomTabNavigator();
 const StaffTabs = () => (
   <StaffTab.Navigator screenOptions={tabScreenOptions}>
-    <StaffTab.Screen name="Inicio"  component={InicioScreen} />
+    <StaffTab.Screen name="Inicio"  component={StaffInicioScreen} />
     <StaffTab.Screen name="Buscar"  component={BuscarStack} />
     <StaffTab.Screen name="Perfil"  component={ClientePerfilStack} />
   </StaffTab.Navigator>
@@ -210,6 +218,16 @@ const StaffStack = () => (
           </TouchableOpacity>
         ),
       })}
+    />
+    <StaffNav.Screen
+      name="PerfilAlumno"
+      component={PerfilAlumnoScreen}
+      options={{ headerShown: false }}
+    />
+    <StaffNav.Screen
+      name="TrainerPlan"
+      component={TrainerPlanScreen}
+      options={{ headerShown: false }}
     />
   </StaffNav.Navigator>
 );
