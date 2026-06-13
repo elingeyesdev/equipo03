@@ -13,7 +13,11 @@ const backdropStyle: CSSProperties = {
   padding: '1rem',
 };
 
-export const ModalOverlay = ({ children, onClose }: { children: React.ReactNode; onClose: () => void }) => {
+export const ModalOverlay = ({ children, onClose, maxWidth }: {
+  children: React.ReactNode;
+  onClose: () => void;
+  maxWidth?: string;
+}) => {
   React.useEffect(() => {
     document.body.setAttribute('data-modal-open', 'true');
     return () => document.body.removeAttribute('data-modal-open');
@@ -26,8 +30,8 @@ export const ModalOverlay = ({ children, onClose }: { children: React.ReactNode;
   return createPortal(
     <div style={backdropStyle} onClick={handleBackdropClick}>
       <div
-        className="bg-white dark:bg-bg-surface w-full max-w-md md:max-w-lg rounded-2xl border border-slate-200 dark:border-bg-deep p-6 relative flex flex-col overflow-hidden"
-        style={{ maxHeight: '90vh' }}
+        className="bg-white dark:bg-bg-surface w-full rounded-2xl border border-slate-200 dark:border-bg-deep p-6 relative flex flex-col"
+        style={{ maxHeight: '90vh', overflowY: 'auto', maxWidth: maxWidth ?? '32rem' }}
         onClick={e => e.stopPropagation()}
       >
         {children}
