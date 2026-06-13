@@ -235,15 +235,25 @@ const StaffStack = () => (
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // ROL DESCONOCIDO — nunca permite acceso a pantallas autenticadas
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-const UnknownRoleScreen = () => (
-  <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
-    <MaterialCommunityIcons name="shield-off-outline" size={52} color="#666" />
-    <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700', marginTop: 16 }}>Rol no reconocido</Text>
-    <Text style={{ color: '#555', fontSize: 13, marginTop: 8, textAlign: 'center', paddingHorizontal: 32 }}>
-      Contacta al administrador.
-    </Text>
-  </View>
-);
+const UnknownRoleScreen = () => {
+  const { logout } = useAuth();
+  return (
+    <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
+      <MaterialCommunityIcons name="shield-off-outline" size={52} color="#666" />
+      <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700', marginTop: 16 }}>Rol no reconocido</Text>
+      <Text style={{ color: '#555', fontSize: 13, marginTop: 8, textAlign: 'center', paddingHorizontal: 32 }}>
+        Contacta al administrador.
+      </Text>
+      <TouchableOpacity
+        onPress={logout}
+        style={{ marginTop: 32, backgroundColor: '#1C1C1E', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 28, borderWidth: 1, borderColor: '#3A3A3C' }}
+        activeOpacity={0.8}
+      >
+        <Text style={{ color: '#f05b22', fontSize: 14, fontWeight: '700' }}>Cerrar sesión</Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // ROOT NAVIGATOR — switch exhaustivo por rol normalizado

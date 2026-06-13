@@ -209,7 +209,11 @@ export const StaffCatalogScreen = () => {
 
   // IDs of advisors with active/pending requests (to disable the button)
   const requestedAdvisorIds = useMemo(
-    () => new Set(myRequests.filter(r => r.status !== 'REJECTED').map(r => r.advisorId)),
+    () => new Set(
+      myRequests
+        .filter(r => r.status !== 'REJECTED' && r.status !== 'CANCELLED')
+        .map(r => r.advisorId),
+    ),
     [myRequests],
   );
 

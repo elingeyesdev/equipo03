@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { staffApi, ClientProfile } from '../../../app/Providers/staff/api/staff.api';
 
 type RouteParams = { clientId: number; clientName: string };
@@ -51,9 +52,11 @@ const InfoRow = ({ icon, label, value }: {
 );
 
 export const PerfilAlumnoScreen = () => {
-  const navigation = useNavigation<any>();
-  const route = useRoute<RouteProp<Record<string, RouteParams>, string>>();
+  const { user }    = useAuth();
+  const navigation  = useNavigation<any>();
+  const route       = useRoute<RouteProp<Record<string, RouteParams>, string>>();
   const { clientId, clientName } = route.params;
+  const isNutritionist = (user as any)?.role?.toUpperCase() === 'NUTRICIONISTA';
 
   const { data: profile, isLoading, isError, refetch } = useQuery<ClientProfile>({
     queryKey: ['client-profile', clientId],
@@ -182,18 +185,20 @@ export const PerfilAlumnoScreen = () => {
 
           {/* Acciones */}
           <View style={s.actionsRow}>
-            <TouchableOpacity
-              style={s.actionBtn}
-              activeOpacity={0.8}
-              onPress={() => {
-                try {
-                  navigation.navigate('AsignarRutina', { studentId: clientId, studentName: clientName });
-                } catch {}
-              }}
-            >
-              <MaterialCommunityIcons name="dumbbell" size={18} color="#fff" />
-              <Text style={s.actionTxt}>Asignar Rutina</Text>
-            </TouchableOpacity>
+            {!isNutritionist && (
+              <TouchableOpacity
+                style={s.actionBtn}
+                activeOpacity={0.8}
+                onPress={() => {
+                  try {
+                    navigation.navigate('AsignarRutina', { studentId: clientId, studentName: clientName });
+                  } catch {}
+                }}
+              >
+                <MaterialCommunityIcons name="dumbbell" size={18} color="#fff" />
+                <Text style={s.actionTxt}>Asignar Rutina</Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               style={[s.actionBtn, s.planBtn]}
