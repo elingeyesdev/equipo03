@@ -149,7 +149,7 @@ export class StaffController {
   }
 
   @Get('me/stats/attendance')
-  @Roles('INSTRUCTOR')
+  @Roles('ENTRENADOR', 'INSTRUCTOR', 'TRAINER')
   @ApiOperation({
     summary:
       'Historial de asistencias reales (COMPLETADA) del instructor — últimos 30 días, agrupado por clase/horario',
@@ -179,7 +179,7 @@ export class StaffController {
   }
 
   @Get('me/students')
-  @Roles('INSTRUCTOR')
+  @Roles('ENTRENADOR', 'INSTRUCTOR', 'TRAINER')
   @ApiOperation({
     summary: 'Alumnos inscritos en las clases del instructor autenticado',
   })
@@ -204,7 +204,7 @@ export class StaffController {
   }
 
   @Get('me/schedules')
-  @Roles('INSTRUCTOR')
+  @Roles('ENTRENADOR', 'INSTRUCTOR', 'TRAINER')
   @ApiOperation({
     summary:
       'Clases de HOY del instructor autenticado con inscritos y lista de alumnos',
@@ -230,6 +230,163 @@ export class StaffController {
   @ApiResponse({ status: 403, description: 'Rol no permitido' })
   getMySchedules() {
     return this.svc.getMySchedules();
+  }
+
+  @Get('me/weekly-schedules')
+  @Roles('ENTRENADOR', 'INSTRUCTOR', 'TRAINER')
+  @ApiOperation({
+    summary:
+      'Todos los horarios semanales del instructor (sin filtro de día) con aforo de hoy',
+  })
+  @ApiResponse({ status: 200 })
+  @ApiResponse({ status: 403, description: 'Rol no permitido' })
+  getMyWeeklySchedules() {
+    return this.svc.getMyWeeklySchedules();
+  }
+
+  @Get('catalog')
+  @Roles('USER', 'CLIENTE')
+  @ApiOperation({
+    summary: 'Catálogo público de Entrenadores y Nutricionistas disponibles',
+    description:
+      'Devuelve nombre completo, rol, especialidad, avatar, enlace de contacto y sede. No expone datos sensibles.',
+  })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: [
+        {
+          id: 12,
+          fullName: 'Luis Mamani',
+          role: 'ENTRENADOR',
+          branchName: 'Corpus - Sede Norte',
+          brandName: 'Corpus Gym',
+          specialty: 'AVANZADO',
+        },
+      ],
+    },
+  })
+  @ApiResponse({ status: 403, description: 'Solo clientes autenticados' })
+  getCatalog() {
+    return this.svc.getCatalog();
+  }
+
+  @Get('advisors/my-requests')
+  @Roles('USER', 'CLIENTE')
+  @ApiOperation({ summary: 'Solicitudes de asesoría enviadas por el cliente autenticado' })
+  @ApiResponse({ status: 200 })
+  getMyAdvisorRequests() {
+    return this.svc.getMyAdvisorRequests();
+  }
+
+  @Post('advisors/request')
+  @Roles('USER', 'CLIENTE')
+  @ApiOperation({ summary: 'Solicitar un asesor (Entrenador o Nutricionista)' })
+  @ApiBody({
+    schema: {
+      example: { advisorId: 12 },
+      properties: { advisorId: { type: 'integer' } },
+      required: ['advisorId'],
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Solicitud creada con estado PENDING' })
+  @ApiResponse({ status: 400, description: 'Solicitud inválida o duplicada activa' })
+  @ApiResponse({ status: 409, description: 'Ya existe una solicitud pendiente o activa' })
+  requestAdvisor(
+    @Req() req: RequestWithUser,
+    @Body('advisorId', ParseIntPipe) advisorId: number,
+  ) {
+    return this.svc.requestAdvisor(Number(req.user!.userId), advisorId);
+  }
+
+  @Get('advisors/requests')
+  @Roles('ENTRENADOR', 'NUTRICIONISTA')
+  @ApiOperation({ summary: 'Solicitudes de asesoría PENDIENTES recibidas por el asesor autenticado' })
+  @ApiResponse({ status: 200 })
+  getPendingAdvisorRequests() {
+    return this.svc.getPendingAdvisorRequests();
+  }
+
+  @Patch('advisors/:id/accept')
+  @Roles('ENTRENADOR', 'NUTRICIONISTA')
+  @ApiOperation({ summary: 'Aceptar una solicitud de asesoría (solo el asesor destinatario)' })
+  @ApiParam({ name: 'id', example: 1, description: 'ID de la relación client_advisors' })
+  @ApiResponse({ status: 200, description: 'Relación cambiada a ACTIVE' })
+  @ApiResponse({ status: 403, description: 'No eres el asesor destinatario' })
+  @ApiResponse({ status: 404, description: 'Solicitud no encontrada' })
+  acceptAdvisorship(
+    @Req() req: RequestWithUser,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.svc.acceptAdvisorship(id, Number(req.user!.userId));
+  }
+
+  @Patch('advisors/:id/reject')
+  @Roles('ENTRENADOR', 'NUTRICIONISTA')
+  @ApiOperation({ summary: 'Rechazar una solicitud de asesoría' })
+  @ApiParam({ name: 'id', example: 1 })
+  @ApiResponse({ status: 200, description: 'Relación cambiada a REJECTED' })
+  rejectAdvisorship(
+    @Req() req: RequestWithUser,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.svc.rejectAdvisorship(id, Number(req.user!.userId));
+  }
+
+  @Get('advisors/active-clients')
+  @Roles('ENTRENADOR', 'NUTRICIONISTA')
+  @ApiOperation({ summary: 'Clientes con relación ACTIVE para el asesor autenticado' })
+  @ApiResponse({ status: 200 })
+  getActiveAdvisees() {
+    return this.svc.getActiveAdvisees();
+  }
+
+  @Get('clients/:clientId')
+  @Roles('ENTRENADOR', 'NUTRICIONISTA')
+  @ApiOperation({ summary: 'Perfil + últimas métricas de un cliente (requiere relación ACTIVE)' })
+  @ApiParam({ name: 'clientId', example: 5 })
+  @ApiResponse({ status: 200 })
+  @ApiResponse({ status: 403, description: 'Sin relación activa con este cliente' })
+  getClientProfile(@Param('clientId', ParseIntPipe) clientId: number) {
+    return this.svc.getClientProfile(clientId);
+  }
+
+  @Post('clients/:clientId/plan')
+  @Roles('ENTRENADOR', 'NUTRICIONISTA')
+  @ApiOperation({ summary: 'Crear o actualizar plan nutricional del entrenador para un cliente' })
+  @ApiParam({ name: 'clientId', example: 5 })
+  @ApiBody({
+    schema: {
+      properties: {
+        dailyKcal: { type: 'integer', example: 2200 },
+        proteinG:  { type: 'number',  example: 150  },
+        carbsG:    { type: 'number',  example: 250  },
+        fatG:      { type: 'number',  example: 70   },
+        planNotes: { type: 'string',  example: 'Evitar azúcares simples después de las 6pm.' },
+      },
+    },
+  })
+  @ApiResponse({ status: 201 })
+  upsertTrainerPlan(
+    @Param('clientId', ParseIntPipe) clientId: number,
+    @Body() body: {
+      dailyKcal?: number;
+      proteinG?:  number;
+      carbsG?:    number;
+      fatG?:      number;
+      planNotes?: string;
+    },
+  ) {
+    return this.svc.upsertTrainerPlan(clientId, body);
+  }
+
+  @Get('clients/:clientId/plan')
+  @Roles('ENTRENADOR', 'NUTRICIONISTA')
+  @ApiOperation({ summary: 'Obtener el plan nutricional guardado para un cliente' })
+  @ApiParam({ name: 'clientId', example: 5 })
+  @ApiResponse({ status: 200 })
+  getTrainerPlan(@Param('clientId', ParseIntPipe) clientId: number) {
+    return this.svc.getTrainerPlan(clientId);
   }
 
   @Post(':userId/schedules')

@@ -2,6 +2,7 @@ import {
   Inject,
   Injectable,
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
   Logger,
@@ -16,6 +17,12 @@ import { Reservation } from '../../reservations/domain/reservation.entity';
 import { StaffSchedule } from '../domain/staff-schedule.entity';
 import { Gym } from '../../gyms/domain/gym.entity';
 import { GymSchedule } from '../../gyms/domain/gym-schedule.entity';
+import { User } from '../../users/domain/user.entity';
+import { UserRole } from '../../roles/domain/user-role.entity';
+import { ClientAdvisor } from '../domain/client-advisor.entity';
+import { UserProfile } from '../../users/domain/user-profile.entity';
+import { PhysicalMetricsHistory } from '../../metrics/domain/physical-metrics-history.entity';
+import { TrainerPlan } from '../domain/trainer-plan.entity';
 import { type RequestWithUser } from '../../common/security/gym-scope';
 import {
   DayOfWeek,
@@ -50,6 +57,18 @@ export class StaffService {
     private gymRepo: Repository<Gym>,
     @InjectRepository(GymSchedule)
     private gymScheduleRepo: Repository<GymSchedule>,
+    @InjectRepository(User)
+    private userRepo: Repository<User>,
+    @InjectRepository(UserRole)
+    private userRoleRepo: Repository<UserRole>,
+    @InjectRepository(ClientAdvisor)
+    private advisorRepo: Repository<ClientAdvisor>,
+    @InjectRepository(UserProfile)
+    private profileRepo: Repository<UserProfile>,
+    @InjectRepository(PhysicalMetricsHistory)
+    private metricsRepo: Repository<PhysicalMetricsHistory>,
+    @InjectRepository(TrainerPlan)
+    private trainerPlanRepo: Repository<TrainerPlan>,
     @Inject(REQUEST) private readonly request: RequestWithUser,
   ) {}
 
@@ -250,6 +269,91 @@ export class StaffService {
     });
   }
 
+  async getMyWeeklySchedules(): Promise<
+    {
+      id: number;
+      activityName: string;
+      gymName: string;
+      dayOfWeek: string;
+      startTime: string;
+      endTime: string;
+      maxCapacity: number;
+      enrolledCount: number;
+      attendees: { id: number | null; fullName: string }[];
+    }[]
+  > {
+    const userId = this.getAuthUserId();
+
+    const rows = await this.scheduleRepo
+      .createQueryBuilder('sched')
+      .select('sched.id', 'id')
+      .addSelect('act.name', 'activityName')
+      .addSelect('gym.name', 'gymName')
+      .addSelect('sched.dayOfWeek', 'dayOfWeek')
+      .addSelect('sched.startTime', 'startTime')
+      .addSelect('sched.endTime', 'endTime')
+      .addSelect('sched.maxAttendees', 'maxCapacity')
+      .addSelect(
+        `(SELECT COUNT(*) FROM reservations r
+            WHERE r.gym_activity_schedule_id = sched.id
+              AND r.reservation_date = CURRENT_DATE
+              AND r.status IN ('PENDIENTE', 'CONFIRMADA', 'COMPLETADA'))`,
+        'enrolledCount',
+      )
+      .innerJoin('sched.gymActivity', 'act')
+      .innerJoin('act.gym', 'gym')
+      .where('sched.instructorId = :userId', { userId })
+      .groupBy('sched.id')
+      .addGroupBy('act.name')
+      .addGroupBy('gym.name')
+      .addGroupBy('sched.dayOfWeek')
+      .addGroupBy('sched.startTime')
+      .addGroupBy('sched.endTime')
+      .addGroupBy('sched.maxAttendees')
+      .orderBy('sched.dayOfWeek', 'ASC')
+      .addOrderBy('sched.startTime', 'ASC')
+      .getRawMany();
+
+    if (rows.length === 0) return [];
+
+    const scheduleIds = rows.map((r) => Number(r.id));
+
+    const reservations = await this.reservationRepo
+      .createQueryBuilder('res')
+      .leftJoinAndSelect('res.user', 'user')
+      .leftJoinAndSelect('user.profile', 'profile')
+      .where('res.gymActivityScheduleId IN (:...scheduleIds)', { scheduleIds })
+      .andWhere('res.reservationDate = CURRENT_DATE')
+      .andWhere("res.status IN ('PENDIENTE', 'CONFIRMADA', 'COMPLETADA')")
+      .getMany();
+
+    const bySchedule = new Map<number, typeof reservations>();
+    for (const res of reservations) {
+      const sid = res.gymActivityScheduleId!;
+      if (!bySchedule.has(sid)) bySchedule.set(sid, []);
+      bySchedule.get(sid)!.push(res);
+    }
+
+    return rows.map((r) => ({
+      id: Number(r.id),
+      activityName: r.activityName as string,
+      gymName: r.gymName as string,
+      dayOfWeek: r.dayOfWeek as string,
+      startTime: String(r.startTime).slice(0, 5),
+      endTime: String(r.endTime).slice(0, 5),
+      maxCapacity: Number(r.maxCapacity),
+      enrolledCount: Number(r.enrolledCount),
+      attendees: (bySchedule.get(Number(r.id)) ?? []).map((res) => ({
+        id: res.user?.id ?? null,
+        fullName:
+          [res.user?.profile?.firstName, res.user?.profile?.lastName]
+            .filter(Boolean)
+            .join(' ') ||
+          (res.user?.email ?? ''),
+      })),
+    }));
+  }
+
   async getAttendanceStats(): Promise<
     {
       scheduleId: number;
@@ -304,6 +408,7 @@ export class StaffService {
       .addSelect(`COALESCE(res.start_time, sched.start_time)`, 'startTime')
       .addSelect(`COALESCE(res.end_time, sched.end_time)`, 'endTime')
       .addSelect('act.name', 'className')
+      .addSelect('client.id', 'clientId')
       .addSelect(
         `TRIM(CONCAT(COALESCE(prof.first_name, ''), ' ', COALESCE(prof.last_name, '')))`,
         'clientName',
@@ -321,6 +426,7 @@ export class StaffService {
 
     return rows.map((r) => ({
       reservationId: Number(r.reservationId),
+      clientId: Number(r.clientId),
       clientName:
         (r.clientName as string).trim() || ((r.clientEmail as string) ?? ''),
       className: r.className as string,
@@ -328,6 +434,71 @@ export class StaffService {
       endTime: r.endTime ? String(r.endTime).slice(0, 5) : '',
       reservationDate: new Date(r.reservationDate as string).toISOString(),
     }));
+  }
+
+  async getMyAdvisorRequests(): Promise<
+    {
+      id: number;
+      advisorId: number;
+      advisorName: string;
+      advisorRole: string;
+      branchName: string;
+      status: string;
+      createdAt: string;
+    }[]
+  > {
+    const userId = this.getAuthUserId();
+
+    const rows = await this.advisorRepo
+      .createQueryBuilder('ca')
+      .select('ca.id', 'id')
+      .addSelect('ca.advisorId', 'advisorId')
+      .addSelect('ca.status', 'status')
+      .addSelect('ca.createdAt', 'createdAt')
+      .addSelect(
+        `TRIM(CONCAT(COALESCE(prof.first_name, ''), ' ', COALESCE(prof.last_name, '')))`,
+        'advisorName',
+      )
+      .addSelect('adv.email', 'advisorEmail')
+      .addSelect('ro.name', 'advisorRole')
+      .addSelect('gym.name', 'branchName')
+      .innerJoin('ca.advisor', 'adv')
+      .leftJoin('adv.profile', 'prof')
+      .leftJoin('adv.userRoles', 'ur')
+      .leftJoin('ur.role', 'ro')
+      .leftJoin('ur.gym', 'gym')
+      .where('ca.clientId = :userId', { userId })
+      .orderBy('ca.createdAt', 'DESC')
+      .getRawMany();
+
+    // De-duplicate: one row per request ID (multiple roles on advisor cause repeated rows)
+    const seen = new Set<number>();
+    const result: {
+      id: number;
+      advisorId: number;
+      advisorName: string;
+      advisorRole: string;
+      branchName: string;
+      status: string;
+      createdAt: string;
+    }[] = [];
+
+    for (const r of rows) {
+      const id = Number(r.id);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      result.push({
+        id,
+        advisorId:   Number(r.advisorId),
+        advisorName: (r.advisorName as string)?.trim() || (r.advisorEmail as string) || '—',
+        advisorRole: (r.advisorRole as string) || '—',
+        branchName:  (r.branchName as string)  || '—',
+        status:      r.status as string,
+        createdAt:   new Date(r.createdAt as string).toISOString(),
+      });
+    }
+
+    return result;
   }
 
   private getAuthUserId(): number {
@@ -350,7 +521,7 @@ export class StaffService {
       .select('sched.id', 'id')
       .addSelect('sched.startTime', 'startTime')
       .addSelect('sched.endTime', 'endTime')
-      .addSelect('act.name', 'className')
+      .addSelect('act.name', 'activityName')
       .addSelect('sched.maxAttendees', 'maxAttendees')
       .addSelect(
         `(SELECT COUNT(*) FROM reservations r
@@ -389,7 +560,7 @@ export class StaffService {
       id: Number(r.id),
       startTime: String(r.startTime).slice(0, 5),
       endTime: String(r.endTime).slice(0, 5),
-      className: r.className as string,
+      activityName: r.activityName as string,
       maxAttendees: Number(r.maxAttendees),
       enrolledCount: Number(r.enrolledCount),
       reservations: (bySchedule.get(Number(r.id)) ?? []).map((res) => ({
@@ -489,5 +660,249 @@ export class StaffService {
       status: r.status as string,
       patientName: r.patientName as string,
     }));
+  }
+
+  async getCatalog(): Promise<
+    {
+      id: number;
+      fullName: string;
+      role: string;
+      branchName: string;
+      brandName: string;
+      specialty: string;
+    }[]
+  > {
+    const users = await this.userRepo
+      .createQueryBuilder('u')
+      .innerJoinAndSelect('u.userRoles', 'ur')
+      .innerJoinAndSelect('ur.role', 'ro')
+      .leftJoinAndSelect('u.profile', 'prof')
+      .leftJoinAndSelect('ur.gym', 'branch')
+      .leftJoinAndSelect('branch.parent', 'brand')
+      .where("UPPER(ro.name) IN ('ENTRENADOR', 'NUTRICIONISTA')")
+      .andWhere('u.isActive = :active', { active: true })
+      .orderBy('ro.name', 'ASC')
+      .getMany();
+
+    return users.map((user) => {
+      const ur = user.userRoles[0];
+      return {
+        id: user.id,
+        fullName: user.profile
+          ? `${user.profile.firstName} ${user.profile.lastName}`.trim()
+          : 'Asesor Sin Nombre',
+        role: ur?.role?.name ?? '-',
+        branchName: ur?.gym?.name ?? '-',
+        brandName: ur?.gym?.parent?.name ?? '-',
+        specialty: user.profile?.experienceLevel ?? 'Profesional',
+      };
+    });
+  }
+
+  async requestAdvisor(clientId: number, advisorId: number): Promise<ClientAdvisor> {
+    if (clientId === advisorId) {
+      throw new BadRequestException('No puedes solicitarte a ti mismo como asesor.');
+    }
+
+    const advisor = await this.userRepo.findOne({ where: { id: advisorId } });
+    if (!advisor) throw new NotFoundException(`Asesor ${advisorId} no encontrado.`);
+
+    const existing = await this.advisorRepo.findOne({
+      where: { clientId, advisorId },
+    });
+
+    if (existing) {
+      if (existing.status === 'PENDING' || existing.status === 'ACTIVE') {
+        throw new ConflictException(
+          `Ya tienes una solicitud ${existing.status === 'PENDING' ? 'pendiente' : 'activa'} con este asesor.`,
+        );
+      }
+      // Si fue REJECTED, permite volver a solicitar reutilizando el registro
+      existing.status = 'PENDING';
+      return this.advisorRepo.save(existing);
+    }
+
+    return this.advisorRepo.save(
+      this.advisorRepo.create({ clientId, advisorId, status: 'PENDING' }),
+    );
+  }
+
+  async getPendingAdvisorRequests(): Promise<
+    { id: number; clientId: number; clientName: string; phone: string | null; createdAt: string }[]
+  > {
+    const userId = this.getAuthUserId();
+
+    const rows = await this.advisorRepo
+      .createQueryBuilder('ca')
+      .select('ca.id', 'id')
+      .addSelect('ca.clientId', 'clientId')
+      .addSelect('ca.createdAt', 'createdAt')
+      .addSelect(
+        `TRIM(CONCAT(COALESCE(prof.first_name, ''), ' ', COALESCE(prof.last_name, '')))`,
+        'clientName',
+      )
+      .addSelect('client.email', 'clientEmail')
+      .addSelect('prof.phone', 'phone')
+      .innerJoin('ca.client', 'client')
+      .leftJoin('client.profile', 'prof')
+      .where('ca.advisorId = :userId', { userId })
+      .andWhere("ca.status = 'PENDING'")
+      .orderBy('ca.createdAt', 'DESC')
+      .getRawMany();
+
+    return rows.map((r) => ({
+      id: Number(r.id),
+      clientId: Number(r.clientId),
+      clientName: (r.clientName as string)?.trim() || (r.clientEmail as string) || '—',
+      phone: (r.phone as string) || null,
+      createdAt: new Date(r.createdAt as string).toISOString(),
+    }));
+  }
+
+  async rejectAdvisorship(id: number, advisorUserId: number): Promise<ClientAdvisor> {
+    const relation = await this.advisorRepo.findOne({ where: { id } });
+    if (!relation) throw new NotFoundException(`Solicitud ${id} no encontrada.`);
+    if (relation.advisorId !== advisorUserId) {
+      throw new ForbiddenException('No tienes permiso para rechazar esta solicitud.');
+    }
+    if (relation.status !== 'PENDING') {
+      throw new BadRequestException(`La solicitud ya está en estado ${relation.status}.`);
+    }
+    relation.status = 'REJECTED';
+    return this.advisorRepo.save(relation);
+  }
+
+  async getActiveAdvisees(): Promise<
+    { clientId: number; clientName: string; phone: string | null }[]
+  > {
+    const userId = this.getAuthUserId();
+
+    const rows = await this.advisorRepo
+      .createQueryBuilder('ca')
+      .select('ca.clientId', 'clientId')
+      .addSelect(
+        `TRIM(CONCAT(COALESCE(prof.first_name, ''), ' ', COALESCE(prof.last_name, '')))`,
+        'clientName',
+      )
+      .addSelect('client.email', 'clientEmail')
+      .addSelect('prof.phone', 'phone')
+      .innerJoin('ca.client', 'client')
+      .leftJoin('client.profile', 'prof')
+      .where('ca.advisorId = :userId', { userId })
+      .andWhere("ca.status = 'ACTIVE'")
+      .orderBy('ca.createdAt', 'ASC')
+      .getRawMany();
+
+    return rows.map((r) => ({
+      clientId: Number(r.clientId),
+      clientName: (r.clientName as string)?.trim() || (r.clientEmail as string) || '—',
+      phone: (r.phone as string) || null,
+    }));
+  }
+
+  async getClientProfile(clientId: number): Promise<{
+    clientId: number;
+    firstName: string;
+    lastName: string;
+    phone: string | null;
+    ci: string | null;
+    gender: string | null;
+    heightCm: number | null;
+    medicalConditions: string | null;
+    latestMetrics: {
+      recordedAt: string;
+      weightKg: number | null;
+      bodyFatPercentage: number | null;
+      muscleMassKg: number | null;
+      waistCm: number | null;
+      chestCm: number | null;
+    } | null;
+  }> {
+    const userId = this.getAuthUserId();
+
+    const relation = await this.advisorRepo.findOne({
+      where: { advisorId: userId, clientId, status: 'ACTIVE' },
+    });
+    if (!relation) {
+      throw new ForbiddenException('No tienes una relación activa con este cliente.');
+    }
+
+    const [profile, latestMetrics] = await Promise.all([
+      this.profileRepo.findOne({ where: { userId: clientId } }),
+      this.metricsRepo.findOne({
+        where: { userId: clientId },
+        order: { recordedAt: 'DESC' },
+      }),
+    ]);
+
+    return {
+      clientId,
+      firstName: profile?.firstName ?? '',
+      lastName: profile?.lastName ?? '',
+      phone: profile?.phone ?? null,
+      ci: profile?.ci ?? null,
+      gender: profile?.gender ?? null,
+      heightCm: profile?.heightCm != null ? Number(profile.heightCm) : null,
+      medicalConditions: profile?.medicalConditions ?? null,
+      latestMetrics: latestMetrics
+        ? {
+            recordedAt: latestMetrics.recordedAt.toISOString(),
+            weightKg: latestMetrics.weightKg != null ? Number(latestMetrics.weightKg) : null,
+            bodyFatPercentage: latestMetrics.bodyFatPercentage != null ? Number(latestMetrics.bodyFatPercentage) : null,
+            muscleMassKg: latestMetrics.muscleMassKg != null ? Number(latestMetrics.muscleMassKg) : null,
+            waistCm: latestMetrics.waistCm != null ? Number(latestMetrics.waistCm) : null,
+            chestCm: latestMetrics.chestCm != null ? Number(latestMetrics.chestCm) : null,
+          }
+        : null,
+    };
+  }
+
+  async upsertTrainerPlan(
+    clientId: number,
+    dto: { dailyKcal?: number; proteinG?: number; carbsG?: number; fatG?: number; planNotes?: string },
+  ): Promise<TrainerPlan> {
+    const userId = this.getAuthUserId();
+
+    const relation = await this.advisorRepo.findOne({
+      where: { advisorId: userId, clientId, status: 'ACTIVE' },
+    });
+    if (!relation) {
+      throw new ForbiddenException('No tienes una relación activa con este cliente.');
+    }
+
+    let plan = await this.trainerPlanRepo.findOne({ where: { trainerId: userId, clientId } });
+    if (plan) {
+      Object.assign(plan, dto);
+      return this.trainerPlanRepo.save(plan);
+    }
+    return this.trainerPlanRepo.save(
+      this.trainerPlanRepo.create({ trainerId: userId, clientId, ...dto }),
+    );
+  }
+
+  async getTrainerPlan(clientId: number): Promise<TrainerPlan | null> {
+    const userId = this.getAuthUserId();
+
+    const relation = await this.advisorRepo.findOne({
+      where: { advisorId: userId, clientId, status: 'ACTIVE' },
+    });
+    if (!relation) {
+      throw new ForbiddenException('No tienes una relación activa con este cliente.');
+    }
+
+    return this.trainerPlanRepo.findOne({ where: { trainerId: userId, clientId } });
+  }
+
+  async acceptAdvisorship(id: number, advisorUserId: number): Promise<ClientAdvisor> {
+    const relation = await this.advisorRepo.findOne({ where: { id } });
+    if (!relation) throw new NotFoundException(`Solicitud ${id} no encontrada.`);
+    if (relation.advisorId !== advisorUserId) {
+      throw new ForbiddenException('Solo el asesor destinatario puede aceptar esta solicitud.');
+    }
+    if (relation.status !== 'PENDING') {
+      throw new BadRequestException(`La solicitud ya está en estado ${relation.status}.`);
+    }
+    relation.status = 'ACTIVE';
+    return this.advisorRepo.save(relation);
   }
 }
