@@ -110,9 +110,6 @@ export class ReservationsService {
       qb.andWhere('reservation.user_id = :uid', { uid: Number(userId) });
     } else if (roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA') {
       const gymId = this.managerGymId();
-      this.logger.debug(
-        `[applyListScope] ${roleUp} gymId=${gymId} userId=${userId}`,
-      );
       const auditStatuses = ['CONFIRMADA', 'COMPLETADA'];
       qb.andWhere('(activity.gym_id = :gymId OR reservation.gym_id = :gymId)', {
         gymId,

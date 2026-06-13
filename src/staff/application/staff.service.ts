@@ -170,10 +170,6 @@ export class StaffService {
     const todayDay = DAY_UTC[new Date().getUTCDay()];
     const aliases = aliasesForCanonicalDay(todayDay);
 
-    this.logger.debug(
-      `[getMySchedules] userId=${userId} día=${todayDay} aliases=${aliases.join(',')}`,
-    );
-
     const rows = await this.scheduleRepo
       .createQueryBuilder('sched')
       .select('sched.id', 'id')
@@ -204,13 +200,6 @@ export class StaffService {
       .orderBy('sched.startTime', 'ASC')
       .getRawMany();
 
-    this.logger.debug(
-      `[getMySchedules] schedules encontrados: ${rows.length}` +
-        (rows.length
-          ? ` | ids=[${rows.map((r) => r.id).join(',')}]`
-          : ' → ¿instructor_id coincide con el userId del token?'),
-    );
-
     if (rows.length === 0) return [];
 
     const scheduleIds = rows.map((r) => Number(r.id));
@@ -223,13 +212,6 @@ export class StaffService {
       .andWhere('res.reservationDate = CURRENT_DATE')
       .andWhere("res.status IN ('PENDIENTE', 'CONFIRMADA', 'COMPLETADA')")
       .getMany();
-
-    this.logger.debug(
-      `[getMySchedules] reservas hoy para scheduleIds=[${scheduleIds.join(',')}]: ${reservations.length}` +
-        (reservations.length === 0
-          ? ' → BD vacía para hoy o status no coincide'
-          : ''),
-    );
 
     const bySchedule = new Map<number, typeof reservations>();
     for (const res of reservations) {

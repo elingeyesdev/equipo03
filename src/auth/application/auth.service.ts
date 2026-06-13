@@ -91,7 +91,6 @@ export class AuthService {
 
     // ── SUPER_ADMIN — sin sede ────────────────────────────────────────────────
     if (topRoleName === 'SUPER_ADMIN') {
-      this.logger.debug('JWT emitido para SUPER_ADMIN');
       return {
         sub: user.id,
         email: user.email,
@@ -118,7 +117,6 @@ export class AuthService {
 
         if (assignedGym && assignedGym.parentId === null) {
           // Es una Marca → emitir brandId directamente (no buscar sucursal hija)
-          this.logger.debug('JWT emitido para GERENTE de Marca');
           return {
             sub: user.id,
             email: user.email,
@@ -128,7 +126,6 @@ export class AuthService {
           };
         }
 
-        this.logger.debug('JWT emitido para GERENTE de Sucursal');
       }
 
       return {
@@ -141,7 +138,6 @@ export class AuthService {
     }
 
     // ── Fallback (INSTRUCTOR, ENTRENADOR, USER/CLIENTE, etc.) ─────────────────
-    this.logger.debug('JWT emitido');
     return {
       sub: user.id,
       email: user.email,
