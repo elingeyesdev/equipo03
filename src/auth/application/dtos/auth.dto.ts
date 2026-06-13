@@ -2,6 +2,7 @@ import {
   IsEmail,
   IsString,
   IsNotEmpty,
+  IsOptional,
   Length,
   Matches,
 } from 'class-validator';
@@ -37,6 +38,16 @@ export class RegisterDto {
   @IsString()
   @IsNotEmpty()
   lastName: string;
+
+  @ApiProperty({ example: '71234567', description: 'Número de teléfono', required: false })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiProperty({ example: '1234567', description: 'Carnet de identidad', required: false })
+  @IsOptional()
+  @IsString()
+  ci?: string;
 }
 
 export class LoginDto {

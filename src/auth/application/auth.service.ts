@@ -155,6 +155,8 @@ export class AuthService {
     password: string;
     firstName: string;
     lastName: string;
+    phone?: string;
+    ci?: string;
   }) {
     const existing = await this.usersService.findByEmail(data.email);
     if (existing)
@@ -171,6 +173,8 @@ export class AuthService {
     const user = await this.usersService.create({
       ...data,
       roleId: roleId,
+      phone: data.phone,
+      ci: data.ci,
     });
 
     const payload = await this.buildJwtPayload({
