@@ -32,6 +32,23 @@ const DAY_LABELS: Record<string, string> = {
   JUE: 'Jueves', VIE: 'Viernes', SAB: 'Sábado', DOM: 'Domingo',
 };
 
+const DAY_ORDER: Record<string, number> = {
+  LUN: 0, LUNES: 0,
+  MAR: 1, MARTES: 1,
+  MIE: 2, MIERCOLES: 2,
+  JUE: 3, JUEVES: 3,
+  VIE: 4, VIERNES: 4,
+  SAB: 5, SABADO: 5,
+  DOM: 6, DOMINGO: 6,
+};
+
+const sortSchedules = <T extends { dayOfWeek: string; startTime: string }>(arr: T[]): T[] =>
+  [...arr].sort((a, b) => {
+    const da = DAY_ORDER[a.dayOfWeek] ?? 99;
+    const db = DAY_ORDER[b.dayOfWeek] ?? 99;
+    return da !== db ? da - db : a.startTime.localeCompare(b.startTime);
+  });
+
 const HOURS_24   = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const MINUTES_15 = ['00', '15', '30', '45'];
 
@@ -118,7 +135,7 @@ const ActivityDetailModal = ({
       apiClient.get('/users').catch(() => []),
     ]).then(([schedRes, usersRes]: any[]) => {
       const rawSched: any[] = Array.isArray(schedRes) ? schedRes : (schedRes?.data ?? []);
-      setSchedules(rawSched.filter(Boolean));
+      setSchedules(sortSchedules(rawSched.filter(Boolean)));
 
       const rawUsers: any[] = Array.isArray(usersRes) ? usersRes : (usersRes?.data ?? []);
       const map = new Map<number, string>();
@@ -264,7 +281,7 @@ const ActivityFormModal = ({
     apiClient.get(`/activities/${initial.id}/schedules`)
       .then((data: any) => {
         const raw = Array.isArray(data) ? data : (data as any)?.data ?? [];
-        setSchedules(raw.filter(Boolean));
+        setSchedules(sortSchedules(raw.filter(Boolean)));
       })
       .catch(() => {})
       .finally(() => setSchedulesLoading(false));
@@ -322,7 +339,7 @@ const ActivityFormModal = ({
           isRecurring:  true,
         }) as any;
         const created: ActivitySchedule = res?.data ?? res;
-        setSchedules(prev => [...prev, created]);
+        setSchedules(prev => sortSchedules([...prev, created]));
         toast.success('Horario agregado');
       } catch {
         // interceptor toasts
@@ -331,14 +348,14 @@ const ActivityFormModal = ({
       }
     } else {
       // Modo creación: guardar en estado local; se enviarán al crear el servicio
-      setSchedules(prev => [...prev, {
-        id:           -(Date.now()),   // ID temporal negativo
+      setSchedules(prev => sortSchedules([...prev, {
+        id:           -(Date.now()),
         dayOfWeek:    newDay,
         startTime:    newStart,
         endTime:      newEnd,
         instructorId: Number(newInstructorId),
         maxAttendees: maxAtt,
-      } as any]);
+      } as any]));
     }
   };
 
