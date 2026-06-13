@@ -5,7 +5,7 @@ import { apiClient } from '../../infrastructure/api.config';
 import { DB_ROLES, ROLE_ID_TO_NAME } from '../../config/rbac.constants';
 import { ModalOverlay, ConfirmModal, panelStyle, RecordDetailModal, DetailField } from './Shared/DashboardShared';
 import type { GymDto, UserDto } from './Shared/DashboardTypes';
-import { Eye, Edit, Trash2, Plus, Clock } from 'lucide-react';
+import { Eye, Edit, Trash2, Plus, Clock, Building2 } from 'lucide-react';
 
 // ─── Roles que requieren asignación de sede (por nombre, no ID hardcodeado) ───
 const SEDE_ROLE_NAMES = new Set([
@@ -786,15 +786,24 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
                       ? <p className="text-sm text-red-500 p-2 bg-red-50 dark:bg-bg-surface rounded-lg mt-1">Esta marca no tiene sucursales registradas.</p>
                       : (
                         <div className="flex flex-col gap-1 max-h-48 overflow-y-auto p-3 bg-slate-50 dark:bg-bg-deep rounded-lg border border-slate-200 dark:border-bg-deep">
-                          {checkboxSucursales.map(g => (
-                            <label key={g.id} className="flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded-md"
-                              style={{ background: formData.gymIds.includes(Number(g.id)) ? '#e7f7fb' : 'transparent' }}>
-                              <input type="checkbox" checked={formData.gymIds.includes(Number(g.id))}
-                                onChange={() => toggleGym(Number(g.id))}
-                                style={{ width: '15px', height: '15px', cursor: 'pointer', accentColor: '#38BDF8' }} />
-                              <span className="text-sm text-slate-700 dark:text-gray-300">{g.name}</span>
-                            </label>
-                          ))}
+                          {checkboxSucursales.map(g => {
+                            const isChecked = formData.gymIds.includes(Number(g.id));
+                            return (
+                              <label key={g.id}
+                                className={`flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded-md transition-colors ${
+                                  isChecked
+                                    ? 'bg-sky-100 dark:bg-[#0d2d3d] border border-sky-300 dark:border-[#38BDF8]/40'
+                                    : 'border border-transparent hover:bg-slate-100 dark:hover:bg-bg-surface'
+                                }`}>
+                                <input type="checkbox" checked={isChecked}
+                                  onChange={() => toggleGym(Number(g.id))}
+                                  style={{ width: '15px', height: '15px', cursor: 'pointer', accentColor: '#38BDF8' }} />
+                                <span className={`text-sm font-medium ${isChecked ? 'text-sky-700 dark:text-sky-300' : 'text-slate-700 dark:text-gray-300'}`}>
+                                  {g.name}
+                                </span>
+                              </label>
+                            );
+                          })}
                         </div>
                       )
                   }
@@ -1369,7 +1378,7 @@ export const UsuariosView = () => {
             return (
               <>
                 <DetailField
-                  label="🏢 Sede (Marca)"
+                  label={<span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Building2 size={12} />Sede (Marca)</span>}
                   value={<span style={{ color: '#FF5E00', fontWeight: 600 }}>{sedeName}</span>}
                 />
                 <DetailField

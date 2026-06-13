@@ -1,4 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   View,
   Text,
@@ -17,7 +19,8 @@ import { reservationApi } from '../../../app/Providers/reservations/api/reservat
 const WIN = Dimensions.get('window');
 const BOX = WIN.width * 0.65;
 
-export const EscanerScreen = ({ navigation }: any) => {
+export const EscanerScreen = () => {
+  const navigation = useNavigation<NativeStackNavigationProp<Record<string, object | undefined>>>();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanning, setScanning]   = useState(true);   // false = pausado
   const [processing, setProcessing] = useState(false);

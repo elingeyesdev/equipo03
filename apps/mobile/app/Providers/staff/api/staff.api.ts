@@ -84,6 +84,149 @@ export type UserSearchResult = {
   fullName: string;
 };
 
+export type AdvisorRequest = {
+  id:          number;
+  clientName?: string;
+  fullName?:   string;
+  status?:     string;
+  createdAt?:  string;
+  user?: { profile?: { firstName?: string; lastName?: string } };
+};
+
+export type StaffCatalogEntry = {
+  id:          number;
+  branchId?:   number;
+  gymId?:      number;
+  fullName?:   string;
+  name?:       string;
+  firstName?:  string;
+  lastName?:   string;
+  role?:       string;
+  branchName?: string;
+  gymName?:    string;
+  brandName?:  string;
+  profile?: {
+    firstName?: string;
+    lastName?:  string;
+    avatarUrl?: string;
+  };
+  gym?: { name?: string; parent?: { name?: string } };
+};
+
+export type ClassStudent = {
+  clientId:   number;
+  clientName: string;
+  classCount: number;
+};
+
+export type AdvisorRequestStatus = {
+  id:          number;
+  advisorId:   number;
+  advisorName: string;
+  advisorRole: string;
+  branchName:  string;
+  status:      'PENDING' | 'ACTIVE' | 'REJECTED' | 'CANCELLED';
+  createdAt:   string;
+};
+
+export type InstructorWeeklySchedule = {
+  id:            number;
+  activityName:  string;
+  gymName:       string;
+  dayOfWeek:     string;
+  startTime:     string;
+  endTime:       string;
+  maxCapacity:   number;
+  enrolledCount: number;
+  attendees:     { id: number | null; fullName: string }[];
+};
+
+export type AttendanceStat = {
+  label: string;
+  value: number;
+};
+
+export type PendingTrainerRequest = {
+  id:         number;
+  clientId:   number;
+  clientName: string;
+  phone:      string | null;
+  createdAt:  string;
+};
+
+export type ActiveAdvisee = {
+  id:         number;
+  clientId:   number;
+  clientName: string;
+  phone:      string | null;
+};
+
+export type ClientProfile = {
+  clientId:          number;
+  firstName:         string;
+  lastName:          string;
+  phone:             string | null;
+  ci:                string | null;
+  gender:            string | null;
+  heightCm:          number | null;
+  medicalConditions: string | null;
+  latestMetrics: {
+    recordedAt:        string;
+    weightKg:          number | null;
+    bodyFatPercentage: number | null;
+    muscleMassKg:      number | null;
+    waistCm:           number | null;
+    chestCm:           number | null;
+  } | null;
+};
+
+export type ClientRoutineExercise = {
+  id:                  number;
+  orderPosition:       number;
+  setsRecommended:     number;
+  repsRecommended:     string;
+  weightRecommendedKg?: number;
+  notes?:              string;
+  exercise: {
+    id:          number;
+    name:        string;
+    muscleGroup?: string;
+    category?:   string;
+  };
+};
+
+export type ClientRoutine = {
+  id:               number;
+  name:             string;
+  difficultyLevel:  string;
+  durationWeeks?:   number;
+  createdAt?:       string;
+  exercises:        ClientRoutineExercise[];
+};
+
+export type MealDay = {
+  desayuno?: string;
+  almuerzo?: string;
+  cena?:     string;
+  merienda?: string;
+};
+
+export type MealPlan = Partial<Record<
+  'LUNES' | 'MARTES' | 'MIERCOLES' | 'JUEVES' | 'VIERNES' | 'SABADO' | 'DOMINGO',
+  MealDay
+>>;
+
+export type TrainerPlanData = {
+  id?:        number;
+  dailyKcal?: number;
+  proteinG?:  number;
+  carbsG?:    number;
+  fatG?:      number;
+  planNotes?: string;
+  mealPlan?:  MealPlan | null;
+  updatedAt?: string;
+};
+
 export type Exercise = {
   id:           number;
   name:         string;
@@ -179,8 +322,192 @@ export const staffApi = {
     trainerId:      string;
     assignedUserId: number;
     exercises:      SelectedExercise[];
+    routineName?:   string;
   }): Promise<void> => {
-    await staffClient.post('/api/routines', payload);
+    await staffClient.post('/api/routines', {
+      name:            payload.routineName?.trim() || 'Rutina personalizada',
+      difficultyLevel: 'INTERMEDIO',
+      trainerId:       parseInt(payload.trainerId, 10),
+      assignedUserId:  payload.assignedUserId,
+      exercises:       payload.exercises.map((ex, i) => ({
+        exerciseId:          ex.exerciseId,
+        orderPosition:       i,
+        setsRecommended:     ex.sets,
+        repsRecommended:     String(ex.reps),
+        weightRecommendedKg: ex.weightRecommendedKg || undefined,
+      })),
+    });
+  },
+
+  /**
+   * GET /api/staff/me/students (deduplicated by client)
+   * Alumnos únicos de las clases del entrenador/instructor autenticado.
+   */
+  getClassStudents: async (): Promise<ClassStudent[]> => {
+    const response = await staffClient.get('/api/staff/me/students');
+    const raw = response.data?.data ?? response.data;
+    const arr = Array.isArray(raw) ? raw : [];
+    const map = new Map<number, { clientName: string; classCount: number }>();
+    for (const r of arr) {
+      const id = Number(r.clientId ?? 0);
+      if (!id) continue;
+      const existing = map.get(id);
+      if (existing) { existing.classCount++; }
+      else { map.set(id, { clientName: String(r.clientName ?? '—'), classCount: 1 }); }
+    }
+    return [...map.entries()].map(([clientId, { clientName, classCount }]) => ({
+      clientId, clientName, classCount,
+    }));
+  },
+
+  /**
+   * GET /api/staff/advisors/my-requests
+   * Solicitudes de asesoría enviadas por el cliente autenticado.
+   */
+  getMyAdvisorRequests: async (): Promise<AdvisorRequestStatus[]> => {
+    const response = await staffClient.get('/api/staff/advisors/my-requests');
+    const data = response.data?.data ?? response.data;
+    return Array.isArray(data) ? data : [];
+  },
+
+  /**
+   * GET /api/staff/me/weekly-schedules
+   * Todos los horarios del instructor en la semana (sin filtro por día).
+   */
+  getMyWeeklySchedules: async (): Promise<InstructorWeeklySchedule[]> => {
+    const response = await staffClient.get('/api/staff/me/weekly-schedules');
+    const data = response.data?.data ?? response.data;
+    return Array.isArray(data) ? data : [];
+  },
+
+  /**
+   * GET /api/staff/me/stats/attendance
+   * Historial de completadas por horario, últimos 30 días.
+   */
+  getMyAttendanceStats: async (): Promise<AttendanceStat[]> => {
+    const response = await staffClient.get('/api/staff/me/stats/attendance');
+    const raw = response.data?.data ?? response.data;
+    if (!Array.isArray(raw)) return [];
+    return raw.map((item: any) => ({
+      label: String(item.time ?? item.label ?? '—').slice(0, 5),
+      value: Number(item.totalCompleted ?? item.value ?? 0),
+    }));
+  },
+
+  /**
+   * GET /api/staff/advisors/requests
+   * Solicitudes PENDIENTES recibidas por el asesor (entrenador/nutricionista) autenticado.
+   */
+  getPendingTrainerRequests: async (): Promise<PendingTrainerRequest[]> => {
+    const response = await staffClient.get('/api/staff/advisors/requests');
+    const data = response.data?.data ?? response.data;
+    return Array.isArray(data) ? data : [];
+  },
+
+  /** @deprecated use getPendingTrainerRequests */
+  getPendingRequests: async (): Promise<AdvisorRequest[]> => {
+    const response = await staffClient.get('/api/staff/advisors/requests');
+    const data = response.data?.data ?? response.data;
+    return Array.isArray(data) ? data : [];
+  },
+
+  acceptAdvisorRequest: async (requestId: number): Promise<void> => {
+    await staffClient.patch(`/api/staff/advisors/${requestId}/accept`);
+  },
+
+  rejectAdvisorRequest: async (requestId: number): Promise<void> => {
+    await staffClient.patch(`/api/staff/advisors/${requestId}/reject`);
+  },
+
+  cancelAdvisorship: async (requestId: number): Promise<void> => {
+    await staffClient.patch(`/api/staff/advisors/${requestId}/cancel`);
+  },
+
+  /**
+   * GET /api/staff/advisors/active-clients
+   * Clientes con relación ACTIVE con el asesor autenticado.
+   */
+  getActiveAdvisees: async (): Promise<ActiveAdvisee[]> => {
+    const response = await staffClient.get('/api/staff/advisors/active-clients');
+    const data = response.data?.data ?? response.data;
+    return Array.isArray(data) ? data : [];
+  },
+
+  /**
+   * GET /api/staff/clients/:clientId
+   * Perfil completo + últimas métricas del cliente (requiere relación ACTIVE).
+   */
+  getClientProfile: async (clientId: number): Promise<ClientProfile> => {
+    const response = await staffClient.get(`/api/staff/clients/${clientId}`);
+    return response.data?.data ?? response.data;
+  },
+
+  /**
+   * POST /api/staff/clients/:clientId/plan
+   * Crea o actualiza el plan nutricional del entrenador para el cliente.
+   */
+  upsertTrainerPlan: async (
+    clientId: number,
+    dto: { dailyKcal?: number; proteinG?: number; carbsG?: number; fatG?: number; planNotes?: string },
+  ): Promise<TrainerPlanData> => {
+    const response = await staffClient.post(`/api/staff/clients/${clientId}/plan`, dto);
+    return response.data?.data ?? response.data;
+  },
+
+  /**
+   * GET /api/staff/clients/:clientId/plan
+   * Obtiene el plan nutricional guardado para el cliente.
+   */
+  getTrainerPlan: async (clientId: number): Promise<TrainerPlanData | null> => {
+    try {
+      const response = await staffClient.get(`/api/staff/clients/${clientId}/plan`);
+      const data = response.data?.data ?? response.data;
+      return data ?? null;
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * GET /api/staff/advisors/my-plan
+   * Plan nutricional asignado por el asesor activo del cliente autenticado.
+   */
+  getMyPlan: async (): Promise<TrainerPlanData | null> => {
+    try {
+      const response = await staffClient.get('/api/staff/advisors/my-plan');
+      const data = response.data?.data ?? response.data;
+      return data ?? null;
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * GET /api/routines/user/:userId
+   * Rutinas asignadas al usuario (cliente).
+   */
+  getMyRoutines: async (userId: number): Promise<ClientRoutine[]> => {
+    try {
+      const response = await staffClient.get(`/api/routines/user/${userId}`);
+      const data = response.data?.data ?? response.data;
+      return Array.isArray(data) ? data : [];
+    } catch {
+      return [];
+    }
+  },
+
+  getCatalog: async (): Promise<StaffCatalogEntry[]> => {
+    const response = await staffClient.get('/api/staff/catalog');
+    const data = response.data?.data ?? response.data;
+    return Array.isArray(data) ? data : [];
+  },
+
+  /**
+   * POST /api/staff/advisors/request
+   * Solicita asesoría a un miembro del staff.
+   */
+  requestAdvisor: async (staffId: number): Promise<void> => {
+    await staffClient.post('/api/staff/advisors/request', { advisorId: Number(staffId) });
   },
 
   searchUsers: async (query: string): Promise<UserSearchResult[]> => {

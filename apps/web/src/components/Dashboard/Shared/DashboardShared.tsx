@@ -72,7 +72,7 @@ export const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message }: {
 export const DetailField = ({
   label, value, isFullWidth = false,
 }: {
-  label: string;
+  label: React.ReactNode;
   value: React.ReactNode;
   isFullWidth?: boolean;
 }) => (
@@ -102,7 +102,7 @@ export const RecordDetailModal = ({
         {/* Header */}
         <div className="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-gray-700 flex-shrink-0 mb-0">
           <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            👁️ {title}
+            {title}
           </h2>
           <button
             onClick={onClose}

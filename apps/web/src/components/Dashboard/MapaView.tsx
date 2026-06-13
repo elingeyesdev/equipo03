@@ -695,8 +695,8 @@ export const MapaView: React.FC = () => {
 
           {/* ── Leyenda ─────────────────────────────────────────────────────── */}
           <div style={s.legend}>
-            <div style={s.legendItem}><div style={s.legendDot('#38BDF8')} /><span>Activa y Abierta</span></div>
-            <div style={s.legendItem}><div style={s.legendDot('#00E5A3')} /><span>Activa y Cerrada</span></div>
+            <div style={s.legendItem}><div style={s.legendDot('#2ecc71')} /><span>Abierta</span></div>
+            <div style={s.legendItem}><div style={s.legendDot('#e74c3c')} /><span>Cerrada</span></div>
             <div style={s.legendItem}><div style={s.legendDot('#FF5E00')} /><span>Inactiva</span></div>
             {isSuperAdmin && (
               <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>

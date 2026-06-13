@@ -30,6 +30,7 @@ export const AsignarRutinaScreen = () => {
   const [selected,    setSelected]    = useState<Record<number, SelectedExercise>>({});
   const [configModal, setConfigModal] = useState<Exercise | null>(null);
   const [cfg,         setCfg]         = useState<ExerciseConfig>({ sets: '3', reps: '10', weight: '' });
+  const [activeFilter, setActiveFilter] = useState<string>('Todos');
 
   const { data: exercises = [], isLoading, isError, refetch } = useQuery({
     queryKey:  ['exercises-catalog'],
@@ -37,6 +38,15 @@ export const AsignarRutinaScreen = () => {
     staleTime: 5 * 60_000,
     retry: 1,
   });
+
+  // Derive unique muscle groups from the catalog
+  const filters = ['Todos', ...Array.from(
+    new Set(exercises.map(e => e.muscleGroup).filter(Boolean) as string[])
+  ).sort()];
+
+  const filteredExercises = activeFilter === 'Todos'
+    ? exercises
+    : exercises.filter(e => e.muscleGroup === activeFilter);
 
   const saveMutation = useMutation({
     mutationFn: () => {
@@ -52,7 +62,7 @@ export const AsignarRutinaScreen = () => {
       navigation.goBack();
     },
     onError: (e: any) => {
-      Alert.alert('Error', e?.message ?? 'No se pudo guardar la rutina');
+      Alert.alert('Error', e?.response?.data?.message ?? e?.message ?? 'No se pudo guardar la rutina');
     },
   });
 
@@ -108,6 +118,28 @@ export const AsignarRutinaScreen = () => {
         )}
       </View>
 
+      {/* Filter chips */}
+      {!isLoading && !isError && exercises.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={s.filterBar}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
+        >
+          {filters.map(f => (
+            <TouchableOpacity
+              key={f}
+              style={[s.chip, activeFilter === f && s.chipActive]}
+              onPress={() => setActiveFilter(f)}
+              activeOpacity={0.7}
+            >
+              <Text style={[s.chipTxt, activeFilter === f && s.chipTxtActive]}>{f}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
+
       {isLoading && (
         <View style={s.center}>
           <ActivityIndicator color="#f05b22" size="large" />
@@ -127,13 +159,18 @@ export const AsignarRutinaScreen = () => {
 
       {!isLoading && !isError && (
         <FlatList
-          data={exercises}
+          data={filteredExercises}
           keyExtractor={item => String(item.id)}
           contentContainerStyle={s.list}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={s.center}>
-              <Text style={s.soft}>Sin ejercicios disponibles.</Text>
+              <MaterialCommunityIcons name="filter-remove-outline" size={36} color="#333" />
+              <Text style={s.soft}>
+                {activeFilter === 'Todos'
+                  ? 'Sin ejercicios disponibles.'
+                  : `Sin ejercicios en "${activeFilter}".`}
+              </Text>
             </View>
           }
           renderItem={({ item }) => {
@@ -292,6 +329,12 @@ const s = StyleSheet.create({
   saveBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#f05b22', borderRadius: 14, paddingVertical: 14 },
   saveBtnOff: {},
   saveBtnTxt: { color: '#fff', fontWeight: '900', fontSize: 15 },
+
+  filterBar:    { paddingHorizontal: 16, paddingVertical: 10, alignItems: 'center' },
+  chip:         { height: 36, minWidth: 76, paddingHorizontal: 18, borderRadius: 18, backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: '#3A3A3C', marginRight: 10, justifyContent: 'center', alignItems: 'center' },
+  chipActive:   { backgroundColor: '#f05b22', borderColor: '#f05b22' },
+  chipTxt:      { color: '#ccc', fontSize: 13, fontWeight: '600' },
+  chipTxtActive:{ color: '#fff', fontSize: 13, fontWeight: '700' },
 
   soft:     { color: '#444', fontSize: 13, textAlign: 'center' },
   retryBtn: { marginTop: 8, paddingHorizontal: 20, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: '#f05b22' },

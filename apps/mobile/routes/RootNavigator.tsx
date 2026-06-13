@@ -2,7 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { ActivityIndicator, View, Text, TouchableOpacity } from 'react-native';
 
-const backBtnStyle = { width: 40, height: 40, marginLeft: 4, backgroundColor: '#1C1C1E', borderRadius: 12, borderWidth: 1, borderColor: '#3A3A3C', justifyContent: 'center' as const, alignItems: 'center' as const };
+const backBtnStyle = { width: 40, height: 40, marginLeft: 4, justifyContent: 'center' as const, alignItems: 'center' as const };
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { useAuth } from '../app/Shared/hooks/useAuth';
@@ -14,7 +14,7 @@ import { ForgotPasswordScreen } from '../resources/views/auth/ForgotPasswordScre
 import { ResetPasswordScreen }  from '../resources/views/auth/ResetPasswordScreen';
 
 // ── Pantallas comunes ─────────────────────────────────────────────────────────
-import { InicioScreen }         from '../resources/views/inicio/InicioScreen';
+import { InicioScreen, StaffInicioScreen } from '../resources/views/inicio/InicioScreen';
 import { BuscarStack }          from './BuscarStack';
 
 // ── Pantallas exclusivas por rol ──────────────────────────────────────────────
@@ -39,6 +39,9 @@ import { WorkoutHistoryScreen } from '../resources/views/workout/WorkoutHistoryS
 // ── Historial de Gimnasios (acceso desde Inicio, fuera del tab Buscar) ────────
 import { HistorialScreen }     from '../resources/views/buscar/HistorialScreen';
 import { VisitedGymMapScreen } from '../resources/views/buscar/VisitedGymMapScreen';
+import { StaffCatalogScreen }  from '../resources/views/perfil/StaffCatalogScreen';
+import { PerfilAlumnoScreen }  from '../resources/views/inicio/PerfilAlumnoScreen';
+import { TrainerPlanScreen }   from '../resources/views/inicio/TrainerPlanScreen';
 
 // ── Stacks de Perfil segregados ───────────────────────────────────────────────
 import { ClientePerfilStack, GerentePerfilStack } from './PerfilStack';
@@ -147,6 +150,11 @@ const ClienteStack = () => (
       component={CuadroDeMandoClienteScreen}
       options={{ headerShown: false, gestureEnabled: true }}
     />
+    <ClienteNav.Screen
+      name="StaffCatalog"
+      component={StaffCatalogScreen}
+      options={{ headerShown: false }}
+    />
   </ClienteNav.Navigator>
 );
 
@@ -180,7 +188,7 @@ const GerenteStack = () => (
 const StaffTab = createBottomTabNavigator();
 const StaffTabs = () => (
   <StaffTab.Navigator screenOptions={tabScreenOptions}>
-    <StaffTab.Screen name="Inicio"  component={InicioScreen} />
+    <StaffTab.Screen name="Inicio"  component={StaffInicioScreen} />
     <StaffTab.Screen name="Buscar"  component={BuscarStack} />
     <StaffTab.Screen name="Perfil"  component={ClientePerfilStack} />
   </StaffTab.Navigator>
@@ -211,21 +219,41 @@ const StaffStack = () => (
         ),
       })}
     />
+    <StaffNav.Screen
+      name="PerfilAlumno"
+      component={PerfilAlumnoScreen}
+      options={{ headerShown: false }}
+    />
+    <StaffNav.Screen
+      name="TrainerPlan"
+      component={TrainerPlanScreen}
+      options={{ headerShown: false }}
+    />
   </StaffNav.Navigator>
 );
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // ROL DESCONOCIDO — nunca permite acceso a pantallas autenticadas
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-const UnknownRoleScreen = () => (
-  <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
-    <MaterialCommunityIcons name="shield-off-outline" size={52} color="#666" />
-    <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700', marginTop: 16 }}>Rol no reconocido</Text>
-    <Text style={{ color: '#555', fontSize: 13, marginTop: 8, textAlign: 'center', paddingHorizontal: 32 }}>
-      Contacta al administrador.
-    </Text>
-  </View>
-);
+const UnknownRoleScreen = () => {
+  const { logout } = useAuth();
+  return (
+    <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
+      <MaterialCommunityIcons name="shield-off-outline" size={52} color="#666" />
+      <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700', marginTop: 16 }}>Rol no reconocido</Text>
+      <Text style={{ color: '#555', fontSize: 13, marginTop: 8, textAlign: 'center', paddingHorizontal: 32 }}>
+        Contacta al administrador.
+      </Text>
+      <TouchableOpacity
+        onPress={logout}
+        style={{ marginTop: 32, backgroundColor: '#1C1C1E', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 28, borderWidth: 1, borderColor: '#3A3A3C' }}
+        activeOpacity={0.8}
+      >
+        <Text style={{ color: '#f05b22', fontSize: 14, fontWeight: '700' }}>Cerrar sesión</Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // ROOT NAVIGATOR — switch exhaustivo por rol normalizado
@@ -247,6 +275,7 @@ export const RootNavigator = () => {
     case 'SUPER_ADMIN':
     case 'GERENTE':
     case 'COORDINADOR':
+    case 'RECEPCIONISTA':
       return <GerenteStack />;
 
     case 'ENTRENADOR':
@@ -258,8 +287,14 @@ export const RootNavigator = () => {
     case 'CLIENTE':
       return <ClienteStack />;
 
-    default:
+    default: {
+      // Fallback por nivel jerárquico para roles nuevos/desconocidos (requiere token renovado)
+      const level: number = (user as any)?.level ?? 0;
+      if (level >= 4) return <GerenteStack />;
+      if (level >= 3) return <StaffStack />;
+      if (level >= 1) return <ClienteStack />;
       return <UnknownRoleScreen />;
+    }
   }
 };
 

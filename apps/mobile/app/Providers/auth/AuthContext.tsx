@@ -90,6 +90,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const result = await AuthService.login(email, password);
 
       if (result.success && result.user) {
+        try {
+          const role  = (result.user as any)?.role?.toUpperCase() ?? '';
+          const level = (result.user as any)?.level ?? 0;
+          if (role === 'SUPER_ADMIN' || level >= 10) {
+            setError('Esta cuenta es exclusiva del panel web administrativo. Accede desde el navegador en tu computadora.');
+            return false;
+          }
+        } catch {}
+
         const userData = await AuthService.fetchUserProfile();
         setUser({ ...result.user, ...(({ profile: userData?.profile ?? undefined }) as any) });
 

@@ -918,14 +918,38 @@ export const SucursalesView = () => {
             </span>
           } 
         />
-        <DetailField 
-          label="Estado de Puertas" 
+        <DetailField
+          label="Estado de Puertas"
           value={
             <span style={{ color: viewingSucursal?.isOpen ? '#38BDF8' : '#8E8E93', fontWeight: 700 }}>
               {viewingSucursal?.isOpen ? 'ABIERTA AL PÚBLICO' : 'CERRADA'}
             </span>
-          } 
+          }
         />
+
+        <DetailField
+          label="Aforo en Vivo"
+          value={(() => {
+            const occ = viewingSucursal?.currentOccupancy ?? viewingSucursal?.aforoActual ?? 0;
+            const max = viewingSucursal?.maxCapacity ?? 0;
+            const pct = max > 0 ? Math.round((occ / max) * 100) : 0;
+            return (
+              <span style={{ fontWeight: 700, color: pct >= 80 ? '#FF5E00' : pct >= 50 ? '#38BDF8' : '#00E5A3' }}>
+                {occ} / {max} ({pct}%)
+              </span>
+            );
+          })()}
+        />
+        {(viewingSucursal?.infrastructure?.machineCapacity ?? 0) > 0 && (
+          <DetailField
+            label="Aforo Máquinas"
+            value={
+              <span style={{ fontWeight: 700, color: '#38BDF8' }}>
+                {viewingSucursal!.infrastructure!.machineCapacity} aforo total
+              </span>
+            }
+          />
+        )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', gridColumn: 'span 2', marginTop: '0.5rem', background: '#1C1C1E', padding: '0.75rem', borderRadius: '8px', border: '1px solid #1C1C1E' }}>
           <span style={{ fontSize: '0.7rem', color: '#8E8E93', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Horarios de Atención</span>

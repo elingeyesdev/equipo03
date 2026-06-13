@@ -1,0 +1,454 @@
+import { useState, useMemo } from 'react';
+import {
+  View, Text, StyleSheet, FlatList, TouchableOpacity,
+  ActivityIndicator, Alert, ScrollView,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  staffApi,
+  StaffCatalogEntry,
+  AdvisorRequestStatus,
+} from '../../../app/Providers/staff/api/staff.api';
+import { ClientePerfilParamList } from '../../../routes/PerfilStack';
+
+type Nav = NativeStackNavigationProp<ClientePerfilParamList, 'StaffCatalog'>;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+const ROLE_LABELS: Record<string, string> = {
+  ENTRENADOR:    'Entrenador',
+  NUTRICIONISTA: 'Nutricionista',
+  INSTRUCTOR:    'Instructor',
+};
+
+const STATUS_META: Record<string, { label: string; color: string; icon: string }> = {
+  PENDING:   { label: 'Pendiente',  color: '#FF5E00', icon: 'clock-outline' },
+  ACTIVE:    { label: 'Activa',     color: '#22C55E', icon: 'check-circle-outline' },
+  REJECTED:  { label: 'Rechazada',  color: '#EF4444', icon: 'close-circle-outline' },
+  CANCELLED: { label: 'Cancelada',  color: '#6B7280', icon: 'cancel' },
+};
+
+const resolveDisplayName = (entry: StaffCatalogEntry): string => {
+  if (entry.fullName) return entry.fullName;
+  if (entry.name)     return entry.name;
+  const first = entry.profile?.firstName ?? entry.firstName ?? '';
+  const last  = entry.profile?.lastName  ?? entry.lastName  ?? '';
+  return [first, last].filter(Boolean).join(' ') || '—';
+};
+
+const resolveBranchName = (e: StaffCatalogEntry) =>
+  e.branchName ?? e.gymName ?? e.gym?.name ?? '—';
+const resolveBrandName = (e: StaffCatalogEntry) =>
+  e.brandName ?? e.gym?.parent?.name ?? '—';
+const resolveRole = (e: StaffCatalogEntry) =>
+  ROLE_LABELS[(e.role ?? '').toUpperCase()] ?? e.role ?? '—';
+
+const fmtDate = (iso: string) => {
+  try {
+    const d = new Date(iso);
+    return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+  } catch { return '—'; }
+};
+
+// ── Tarjeta catálogo ──────────────────────────────────────────────────────────
+const StaffCard = ({
+  entry,
+  alreadyRequested,
+  onRequest,
+}: {
+  entry:            StaffCatalogEntry;
+  alreadyRequested: boolean;
+  onRequest:        (id: number) => void;
+}) => {
+  const [loading, setLoading] = useState(false);
+
+  const handlePress = async () => {
+    if (alreadyRequested || loading) return;
+    setLoading(true);
+    try {
+      await staffApi.requestAdvisor(entry.id);
+      onRequest(entry.id);
+    } catch (err: unknown) {
+      const msg = (err as any)?.response?.data?.message
+        ?? (err instanceof Error ? err.message : null)
+        ?? 'No se pudo enviar la solicitud.';
+      Alert.alert('Error', msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <View style={s.card}>
+      <View style={s.avatar}>
+        <MaterialCommunityIcons name="account-tie" size={32} color="#f05b22" />
+      </View>
+
+      <View style={s.info}>
+        <Text style={s.name} numberOfLines={1}>{resolveDisplayName(entry)}</Text>
+        <View style={s.metaRow}>
+          <MaterialCommunityIcons name="shield-star-outline" size={12} color="#38BDF8" />
+          <Text style={s.metaText}>{resolveRole(entry)}</Text>
+        </View>
+        <View style={s.metaRow}>
+          <MaterialCommunityIcons name="dumbbell" size={12} color="#888" />
+          <Text style={s.metaText} numberOfLines={1}>{resolveBranchName(entry)}</Text>
+        </View>
+        <View style={s.metaRow}>
+          <MaterialCommunityIcons name="office-building-outline" size={12} color="#888" />
+          <Text style={s.metaText} numberOfLines={1}>{resolveBrandName(entry)}</Text>
+        </View>
+      </View>
+
+      <TouchableOpacity
+        style={[s.btn, alreadyRequested && s.btnSent]}
+        onPress={handlePress}
+        disabled={alreadyRequested || loading}
+        activeOpacity={0.8}
+      >
+        {loading ? (
+          <ActivityIndicator size="small" color="#fff" />
+        ) : alreadyRequested ? (
+          <>
+            <MaterialCommunityIcons name="check-circle-outline" size={14} color="#22C55E" />
+            <Text style={[s.btnTxt, s.btnTxtSent]}>Enviada</Text>
+          </>
+        ) : (
+          <Text style={s.btnTxt}>Solicitar{'\n'}Asesoría</Text>
+        )}
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+// ── Tarjeta solicitud ─────────────────────────────────────────────────────────
+const RequestCard = ({
+  item,
+  onCancel,
+}: {
+  item: AdvisorRequestStatus;
+  onCancel: (id: number) => void;
+}) => {
+  const meta = STATUS_META[item.status] ?? { label: item.status, color: '#888', icon: 'help-circle-outline' };
+
+  return (
+    <View style={[s.reqCard, { borderLeftColor: meta.color }]}>
+      <View style={s.reqTop}>
+        <View style={s.reqAvatar}>
+          <MaterialCommunityIcons name="account-tie" size={26} color={meta.color} />
+        </View>
+        <View style={s.reqInfo}>
+          <Text style={s.reqName} numberOfLines={1}>{item.advisorName}</Text>
+          <View style={s.metaRow}>
+            <MaterialCommunityIcons name="shield-star-outline" size={12} color="#38BDF8" />
+            <Text style={s.metaText}>
+              {ROLE_LABELS[(item.advisorRole ?? '').toUpperCase()] ?? item.advisorRole}
+            </Text>
+          </View>
+          <View style={s.metaRow}>
+            <MaterialCommunityIcons name="dumbbell" size={12} color="#888" />
+            <Text style={s.metaText} numberOfLines={1}>{item.branchName}</Text>
+          </View>
+        </View>
+
+        {/* Badge de estado */}
+        <View style={[s.statusBadge, { backgroundColor: `${meta.color}22`, borderColor: `${meta.color}66` }]}>
+          <MaterialCommunityIcons name={meta.icon as any} size={12} color={meta.color} />
+          <Text style={[s.statusTxt, { color: meta.color }]}>{meta.label}</Text>
+        </View>
+      </View>
+
+      <View style={s.reqFooter}>
+        <MaterialCommunityIcons name="calendar-outline" size={12} color="#444" />
+        <Text style={s.reqDate}>Enviada el {fmtDate(item.createdAt)}</Text>
+        {item.status === 'ACTIVE' && (
+          <TouchableOpacity
+            style={s.cancelBtn}
+            activeOpacity={0.8}
+            onPress={() => onCancel(item.id)}
+          >
+            <MaterialCommunityIcons name="cancel" size={12} color="#EF4444" />
+            <Text style={s.cancelBtnTxt}>Cancelar asesoría</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+};
+
+// ── Pantalla principal ────────────────────────────────────────────────────────
+export const StaffCatalogScreen = () => {
+  const navigation  = useNavigation<Nav>();
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<'catalog' | 'requests'>('catalog');
+
+  const {
+    data: catalog = [],
+    isLoading: loadingCatalog,
+    isError: errorCatalog,
+    refetch: refetchCatalog,
+  } = useQuery({
+    queryKey:  ['staff-catalog'],
+    queryFn:   staffApi.getCatalog,
+    staleTime: 2 * 60_000,
+  });
+
+  const {
+    data: myRequests = [],
+    isLoading: loadingReqs,
+    refetch: refetchReqs,
+  } = useQuery({
+    queryKey:  ['my-advisor-requests'],
+    queryFn:   staffApi.getMyAdvisorRequests,
+    staleTime: 30_000,
+  });
+
+  // IDs of advisors with active/pending requests (to disable the button)
+  const requestedAdvisorIds = useMemo(
+    () => new Set(
+      myRequests
+        .filter(r => r.status !== 'REJECTED' && r.status !== 'CANCELLED')
+        .map(r => r.advisorId),
+    ),
+    [myRequests],
+  );
+
+  const handleRequest = () => {
+    refetchReqs();
+    queryClient.invalidateQueries({ queryKey: ['my-advisor-requests'] });
+  };
+
+  const handleCancel = (id: number) => {
+    Alert.alert(
+      'Cancelar asesoría',
+      '¿Estás seguro de que deseas cancelar esta asesoría? Se eliminarán tu plan nutricional y rutina asignada.',
+      [
+        { text: 'No cancelar', style: 'cancel' },
+        {
+          text: 'Sí, cancelar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await staffApi.cancelAdvisorship(id);
+              await refetchReqs();
+              queryClient.invalidateQueries({ queryKey: ['my-advisor-requests'] });
+              queryClient.invalidateQueries({ queryKey: ['my-plan'] });
+              queryClient.invalidateQueries({ queryKey: ['my-routines'] });
+              queryClient.invalidateQueries({ queryKey: ['staff-catalog'] });
+            } catch (err: unknown) {
+              const msg = (err as any)?.response?.data?.message
+                ?? (err instanceof Error ? err.message : null)
+                ?? 'No se pudo cancelar la asesoría.';
+              Alert.alert('Error', msg);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const pendingCount = myRequests.filter(r => r.status === 'PENDING').length;
+
+  return (
+    <SafeAreaView style={s.safe} edges={['top']}>
+      {/* Header */}
+      <View style={s.header}>
+        <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.7}>
+          <MaterialCommunityIcons name="chevron-left" size={26} color="#fff" />
+        </TouchableOpacity>
+        <Text style={s.headerTitle}>Catálogo de Asesores</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
+      {/* Tabs */}
+      <View style={s.tabBar}>
+        <TouchableOpacity
+          style={[s.tab, activeTab === 'catalog' && s.tabActive]}
+          onPress={() => setActiveTab('catalog')}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons
+            name="account-search-outline"
+            size={15}
+            color={activeTab === 'catalog' ? '#fff' : '#555'}
+          />
+          <Text style={[s.tabTxt, activeTab === 'catalog' && s.tabTxtActive]}>
+            Catálogo
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[s.tab, activeTab === 'requests' && s.tabActive]}
+          onPress={() => setActiveTab('requests')}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons
+            name="bell-ring-outline"
+            size={15}
+            color={activeTab === 'requests' ? '#fff' : '#555'}
+          />
+          <Text style={[s.tabTxt, activeTab === 'requests' && s.tabTxtActive]}>
+            Mis Solicitudes
+          </Text>
+          {pendingCount > 0 && (
+            <View style={s.badge}>
+              <Text style={s.badgeTxt}>{pendingCount}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      {/* ── Tab: Catálogo ── */}
+      {activeTab === 'catalog' && (
+        <>
+          {loadingCatalog ? (
+            <View style={s.center}>
+              <ActivityIndicator size="large" color="#f05b22" />
+              <Text style={s.soft}>Cargando asesores...</Text>
+            </View>
+          ) : errorCatalog ? (
+            <View style={s.center}>
+              <MaterialCommunityIcons name="alert-circle-outline" size={48} color="#EF4444" />
+              <Text style={[s.soft, { color: '#EF4444' }]}>No se pudo cargar el catálogo.</Text>
+              <TouchableOpacity style={s.retryBtn} onPress={() => refetchCatalog()} activeOpacity={0.8}>
+                <Text style={s.retryTxt}>Reintentar</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <FlatList
+              data={catalog}
+              keyExtractor={(item, index) => `${item.id}-${item.branchId ?? item.gymId ?? index}`}
+              contentContainerStyle={s.list}
+              showsVerticalScrollIndicator={false}
+              ListEmptyComponent={
+                <View style={s.center}>
+                  <MaterialCommunityIcons name="account-search-outline" size={56} color="#3A3A3C" />
+                  <Text style={s.soft}>No hay asesores disponibles.</Text>
+                </View>
+              }
+              renderItem={({ item }) => (
+                <StaffCard
+                  entry={item}
+                  alreadyRequested={requestedAdvisorIds.has(item.id)}
+                  onRequest={handleRequest}
+                />
+              )}
+            />
+          )}
+        </>
+      )}
+
+      {/* ── Tab: Mis Solicitudes ── */}
+      {activeTab === 'requests' && (
+        <>
+          {loadingReqs ? (
+            <View style={s.center}>
+              <ActivityIndicator size="large" color="#f05b22" />
+              <Text style={s.soft}>Cargando solicitudes...</Text>
+            </View>
+          ) : myRequests.length === 0 ? (
+            <View style={s.center}>
+              <MaterialCommunityIcons name="bell-off-outline" size={56} color="#3A3A3C" />
+              <Text style={s.soft}>No has enviado solicitudes aún.</Text>
+              <TouchableOpacity
+                style={[s.retryBtn, { backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: '#f05b22' }]}
+                onPress={() => setActiveTab('catalog')}
+                activeOpacity={0.8}
+              >
+                <Text style={[s.retryTxt, { color: '#f05b22' }]}>Ver catálogo</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={s.list}
+            >
+              {/* Resumen rápido */}
+              <View style={s.summaryRow}>
+                {(['PENDING', 'ACTIVE', 'REJECTED', 'CANCELLED'] as const).map(st => {
+                  const cnt  = myRequests.filter(r => r.status === st).length;
+                  const meta = STATUS_META[st];
+                  return (
+                    <View key={st} style={[s.summaryChip, { borderColor: `${meta.color}44` }]}>
+                      <Text style={[s.summaryNum, { color: meta.color }]}>{cnt}</Text>
+                      <Text style={s.summaryLbl}>{meta.label}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+
+              {myRequests.map(item => (
+                <RequestCard key={item.id} item={item} onCancel={handleCancel} />
+              ))}
+            </ScrollView>
+          )}
+        </>
+      )}
+    </SafeAreaView>
+  );
+};
+
+// ── Estilos ────────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
+  safe:   { flex: 1, backgroundColor: '#000' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, gap: 12 },
+  soft:   { color: '#666', fontSize: 14, textAlign: 'center' },
+
+  // Header
+  header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#111' },
+  backBtn:     { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
+  headerTitle: { color: '#fff', fontSize: 17, fontWeight: '700' },
+
+  // Tabs
+  tabBar:       { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, gap: 8, borderBottomWidth: 1, borderBottomColor: '#111' },
+  tab:          { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: '#2A2A2D' },
+  tabActive:    { backgroundColor: '#f05b22', borderColor: '#f05b22' },
+  tabTxt:       { color: '#555', fontSize: 13, fontWeight: '700' },
+  tabTxtActive: { color: '#fff' },
+  badge:        { backgroundColor: '#fff', borderRadius: 10, minWidth: 18, height: 18, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 },
+  badgeTxt:     { color: '#f05b22', fontSize: 10, fontWeight: '900' },
+
+  // Lista
+  list: { padding: 16, paddingBottom: 100, gap: 0 },
+
+  // Tarjeta asesor
+  card:    { flexDirection: 'row', backgroundColor: '#0e0e0e', borderRadius: 16, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#1C1C1E', alignItems: 'center', gap: 12 },
+  avatar:  { width: 52, height: 52, borderRadius: 26, backgroundColor: '#1C1C1E', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#FF5E00', flexShrink: 0 },
+  info:    { flex: 1, gap: 4 },
+  name:    { color: '#fff', fontSize: 15, fontWeight: '700' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  metaText:{ color: '#888', fontSize: 12 },
+
+  // Botón asesoría
+  btn:        { alignItems: 'center', justifyContent: 'center', backgroundColor: '#f05b22', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, minWidth: 72, gap: 3, flexShrink: 0 },
+  btnSent:    { backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: '#22C55E' },
+  btnTxt:     { color: '#fff', fontSize: 11, fontWeight: '700', textAlign: 'center' },
+  btnTxtSent: { color: '#22C55E', fontSize: 11 },
+
+  // Tarjeta solicitud
+  reqCard:    { backgroundColor: '#0e0e0e', borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#1C1C1E', borderLeftWidth: 3, gap: 10 },
+  reqTop:     { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  reqAvatar:  { width: 44, height: 44, borderRadius: 22, backgroundColor: '#1C1C1E', justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
+  reqInfo:    { flex: 1, gap: 4 },
+  reqName:    { color: '#fff', fontSize: 15, fontWeight: '700' },
+  statusBadge:{ flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 8, paddingVertical: 4, paddingHorizontal: 8, borderWidth: 1 },
+  statusTxt:  { fontSize: 11, fontWeight: '700' },
+  reqFooter:     { flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' },
+  reqDate:       { color: '#444', fontSize: 11, flex: 1 },
+  cancelBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#1C1C1E', borderRadius: 8, borderWidth: 1, borderColor: '#EF444466', paddingVertical: 5, paddingHorizontal: 10 },
+  cancelBtnTxt:  { color: '#EF4444', fontSize: 11, fontWeight: '700' },
+
+  // Resumen chips
+  summaryRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  summaryChip:{ flex: 1, backgroundColor: '#0e0e0e', borderRadius: 10, borderWidth: 1, padding: 10, alignItems: 'center', gap: 2 },
+  summaryNum: { fontSize: 20, fontWeight: '900' },
+  summaryLbl: { color: '#555', fontSize: 10 },
+
+  // Retry
+  retryBtn: { marginTop: 8, backgroundColor: '#f05b22', borderRadius: 10, paddingHorizontal: 20, paddingVertical: 10 },
+  retryTxt: { color: '#fff', fontWeight: '700', fontSize: 14 },
+});

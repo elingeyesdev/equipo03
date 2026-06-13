@@ -48,8 +48,11 @@ export const PerfilMenuScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const { user, updateProfile } = useAuth();
 
-  const isGerente        = user?.role === 'GERENTE';
-  const isStaffOperativo = new Set(['ENTRENADOR', 'INSTRUCTOR', 'NUTRICIONISTA']).has(user?.role?.toUpperCase() ?? '');
+  const userRole         = user?.role?.toUpperCase() ?? '';
+  const userLevel        = (user as any)?.level ?? 0;
+  const isGerente        = userLevel >= 4 || userRole === 'GERENTE' || userRole === 'COORDINADOR' || userRole === 'RECEPCIONISTA';
+  const isStaffOperativo = !isGerente && (userLevel >= 3 || new Set(['ENTRENADOR', 'INSTRUCTOR', 'NUTRICIONISTA']).has(userRole));
+  const isCliente        = !isGerente && !isStaffOperativo;
   const p           = (user as any)?.profile;
   const displayName = p?.username || (user as any)?.email?.split('@')[0] || 'Sin usuario';
 
@@ -75,12 +78,16 @@ export const PerfilMenuScreen = () => {
   };
 
   const userMenuItems: MenuItem[] = [
-    { icon: 'account',     label: 'Mis datos personales', action: () => navigation.navigate('DatosPersonales') },
-    { icon: 'chart-line',  label: 'Mi historial físico',  action: () => navigation.navigate('CuadroDeMando' as any) },
-    { icon: 'trophy',      label: 'Mis objetivos',        action: () => navigation.navigate('MisObjetivos' as any) },
-    { icon: 'bell-ring',   label: 'Alertas de salud',     action: () => navigation.navigate('AlertasConfig') },
+    { icon: 'account',   label: 'Mis datos personales', action: () => navigation.navigate('DatosPersonales') },
+    ...(isCliente ? [
+      { icon: 'chart-line',       label: 'Mi historial físico',   action: () => navigation.navigate('CuadroDeMando' as any) },
+      { icon: 'trophy',           label: 'Mis objetivos',         action: () => navigation.navigate('MisObjetivos' as any) },
+      { icon: 'dumbbell',         label: 'Mi Rutina',             action: () => navigation.navigate('MiRutina' as any) },
+      { icon: 'food-apple-outline', label: 'Mi Plan Nutricional', action: () => navigation.navigate('MiPlan' as any) },
+    ] : []),
+    { icon: 'bell-ring',   label: 'Alertas de salud', action: () => navigation.navigate('AlertasConfig') },
     ...(isStaffOperativo ? [{ icon: 'card-account-details-outline', label: 'Mi Carnet Digital', action: () => navigation.navigate('CarnetDigital' as any), premium: true }] : []),
-    { icon: 'cog-outline', label: 'Ajustes',              action: () => navigation.navigate('Ajustes' as any) },
+    { icon: 'cog-outline', label: 'Ajustes',           action: () => navigation.navigate('Ajustes' as any) },
   ];
 
   const gerenteMenuItems: MenuItem[] = [

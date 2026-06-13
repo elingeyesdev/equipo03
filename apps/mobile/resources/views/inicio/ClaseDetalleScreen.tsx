@@ -12,18 +12,19 @@ import authAxios from '../../../app/Providers/auth/authAxios';
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
 type StudentReservation = {
-  id:              number | string;
-  status?:         string;
+  id?:              number | string;
+  reservationId?:   number | string;
+  status?:          string;
   reservationDate?: string;
-  createdAt?:      string;
-  date?:           string;
-  reservedAt?:     string;
-  startTime?:      string;
-  endTime?:        string;
-  activityName?:   string;
-  className?:      string;
-  fullName?:       string;
-  clientName?:     string;
+  createdAt?:       string;
+  date?:            string;
+  reservedAt?:      string;
+  startTime?:       string;
+  endTime?:         string;
+  activityName?:    string;
+  className?:       string;
+  fullName?:        string;
+  clientName?:      string;
   user?: {
     email?: string;
     profile?: {
@@ -148,15 +149,19 @@ export const ClaseDetalleScreen = () => {
         </TouchableOpacity>
         <View style={s.headerInfo}>
           <Text style={s.headerTitle} numberOfLines={1}>
-            {activityName ?? 'Mis Alumnos'}
+            {activityName ?? 'Registro de Alumnos'}
           </Text>
           <View style={s.headerMeta}>
-            <Feather name="clock" size={12} color="#38BDF8" />
-            <Text style={s.headerTime}>{timeRange !== '—' ? timeRange : 'Todas las clases'}</Text>
-            <Text style={s.headerDot}>·</Text>
+            {timeRange !== '—' ? (
+              <>
+                <Feather name="clock" size={12} color="#38BDF8" />
+                <Text style={s.headerTime}>{timeRange}</Text>
+                <Text style={s.headerDot}>·</Text>
+              </>
+            ) : null}
             <Feather name="users" size={12} color="#555" />
             <Text style={s.headerCount}>
-              {loading ? '…' : filteredReservas.length} reserva(s)
+              {loading ? '…' : filteredReservas.length} alumno(s)
             </Text>
           </View>
         </View>
@@ -199,15 +204,15 @@ export const ClaseDetalleScreen = () => {
       ) : (
         <FlatList
           data={filteredReservas}
-          keyExtractor={item => String(item.id)}
+          keyExtractor={(item, index) => String(item.reservationId ?? item.id ?? index)}
           contentContainerStyle={s.list}
           ListEmptyComponent={
             <View style={s.center}>
               <MaterialCommunityIcons name="account-group-outline" size={56} color="#1a1a1a" />
               <Text style={s.emptyTxt}>
                 {activeFilter === 'Todos'
-                  ? 'Ningún alumno ha reservado tus clases aún.'
-                  : `Sin reservas para el filtro "${activeFilter}".`}
+                  ? 'Aún no hay alumnos con reservas en tus clases.'
+                  : `Sin alumnos para el filtro "${activeFilter}".`}
               </Text>
             </View>
           }
