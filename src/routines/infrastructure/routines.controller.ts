@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   Req,
   UseGuards,
   ParseIntPipe,
@@ -35,8 +36,10 @@ export class RoutinesController {
 
   @Get()
   @ApiOperation({ summary: 'Listar rutinas' })
-  findAll() {
-    return this.svc.findAll();
+  findAll(@Query('isTemplate') isTemplate?: string) {
+    const filter =
+      isTemplate === 'true' ? true : isTemplate === 'false' ? false : undefined;
+    return this.svc.findAll(filter);
   }
 
   @Get('user/:userId')

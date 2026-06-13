@@ -62,7 +62,7 @@ export class RoutinesService {
     return this.findOne(routine.id);
   }
 
-  findAll() {
+  findAll(isTemplate?: boolean) {
     const mg = this.managerGymId();
     const qb = this.routinesRepo
       .createQueryBuilder('routine')
@@ -73,7 +73,12 @@ export class RoutinesService {
       .leftJoinAndSelect('exercises.exercise', 'exercise')
       .where('routine.is_active = :isActive', { isActive: true });
 
-    if (mg !== null) {
+    if (isTemplate !== undefined) {
+      qb.andWhere('routine.is_template = :isTemplate', { isTemplate });
+    }
+
+    // Templates are global — skip gym scope so all gyms can see them
+    if (mg !== null && isTemplate !== true) {
       qb.andWhere('routine.gym_id = :gymId', { gymId: mg });
     }
 
@@ -149,7 +154,11 @@ export class RoutinesService {
       .where('routine.id = :id', { id });
 
     if (mg !== null) {
-      qb.andWhere('routine.gym_id = :gymId', { gymId: mg });
+      // Allow access to global templates (is_template=true) regardless of gym
+      qb.andWhere(
+        '(routine.gym_id = :gymId OR routine.is_template = true)',
+        { gymId: mg },
+      );
     }
 
     const r = await qb.getOne();
