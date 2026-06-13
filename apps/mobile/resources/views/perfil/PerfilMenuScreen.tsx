@@ -49,8 +49,9 @@ export const PerfilMenuScreen = () => {
   const { user, updateProfile } = useAuth();
 
   const userRole         = user?.role?.toUpperCase() ?? '';
-  const isGerente        = userRole === 'GERENTE' || userRole === 'COORDINADOR';
-  const isStaffOperativo = new Set(['ENTRENADOR', 'INSTRUCTOR', 'NUTRICIONISTA']).has(userRole);
+  const userLevel        = (user as any)?.level ?? 0;
+  const isGerente        = userLevel >= 4 || userRole === 'GERENTE' || userRole === 'COORDINADOR' || userRole === 'RECEPCIONISTA';
+  const isStaffOperativo = !isGerente && (userLevel >= 3 || new Set(['ENTRENADOR', 'INSTRUCTOR', 'NUTRICIONISTA']).has(userRole));
   const isCliente        = !isGerente && !isStaffOperativo;
   const p           = (user as any)?.profile;
   const displayName = p?.username || (user as any)?.email?.split('@')[0] || 'Sin usuario';

@@ -275,6 +275,7 @@ export const RootNavigator = () => {
     case 'SUPER_ADMIN':
     case 'GERENTE':
     case 'COORDINADOR':
+    case 'RECEPCIONISTA':
       return <GerenteStack />;
 
     case 'ENTRENADOR':
@@ -286,8 +287,14 @@ export const RootNavigator = () => {
     case 'CLIENTE':
       return <ClienteStack />;
 
-    default:
+    default: {
+      // Fallback por nivel jerárquico para roles nuevos/desconocidos (requiere token renovado)
+      const level: number = (user as any)?.level ?? 0;
+      if (level >= 4) return <GerenteStack />;
+      if (level >= 3) return <StaffStack />;
+      if (level >= 1) return <ClienteStack />;
       return <UnknownRoleScreen />;
+    }
   }
 };
 
