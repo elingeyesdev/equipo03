@@ -75,7 +75,7 @@ export class AuthService {
 
     if (userRoles.length === 0) {
       this.logger.warn('JWT generado sin roles asignados');
-      return { sub: user.id, email: user.email, role: null, gymId: null };
+      return { sub: user.id, email: user.email, role: null, gymId: null, level: 0 };
     }
 
     const sorted = [...userRoles].sort((a, b) => {
@@ -96,6 +96,7 @@ export class AuthService {
         email: user.email,
         role: 'SUPER_ADMIN',
         gymId: null,
+        level: topAssignment.role?.hierarchyLevel ?? 10,
       };
     }
 
@@ -123,6 +124,7 @@ export class AuthService {
             role: 'GERENTE',
             gymId: null,
             brandId: resolvedGymId,
+            level: topAssignment.role?.hierarchyLevel ?? 5,
           };
         }
 
@@ -134,6 +136,7 @@ export class AuthService {
         role: 'GERENTE',
         gymId: resolvedGymId,
         brandId: null,
+        level: topAssignment.role?.hierarchyLevel ?? 5,
       };
     }
 
@@ -143,6 +146,7 @@ export class AuthService {
       email: user.email,
       role: topRoleName,
       gymId: topAssignment.gymId ?? null,
+      level: topAssignment.role?.hierarchyLevel ?? 1,
     };
   }
 
