@@ -125,6 +125,7 @@ export const AsignarRutinaScreen = () => {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={s.filterBar}
           keyboardShouldPersistTaps="handled"
+          bounces={false}
         >
           {filters.map(f => (
             <TouchableOpacity
@@ -329,11 +330,11 @@ const s = StyleSheet.create({
   saveBtnOff: {},
   saveBtnTxt: { color: '#fff', fontWeight: '900', fontSize: 15 },
 
-  filterBar:    { paddingHorizontal: 16, paddingVertical: 10, gap: 8, flexDirection: 'row' },
-  chip:         { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: '#1a1a1a', borderWidth: 1, borderColor: '#2a2a2a' },
+  filterBar:    { paddingHorizontal: 16, paddingVertical: 10, alignItems: 'center' },
+  chip:         { height: 36, minWidth: 76, paddingHorizontal: 18, borderRadius: 18, backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: '#3A3A3C', marginRight: 10, justifyContent: 'center', alignItems: 'center' },
   chipActive:   { backgroundColor: '#f05b22', borderColor: '#f05b22' },
-  chipTxt:      { color: '#555', fontSize: 12, fontWeight: '600' },
-  chipTxtActive:{ color: '#fff', fontSize: 12, fontWeight: '700' },
+  chipTxt:      { color: '#ccc', fontSize: 13, fontWeight: '600' },
+  chipTxtActive:{ color: '#fff', fontSize: 13, fontWeight: '700' },
 
   soft:     { color: '#444', fontSize: 13, textAlign: 'center' },
   retryBtn: { marginTop: 8, paddingHorizontal: 20, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: '#f05b22' },
