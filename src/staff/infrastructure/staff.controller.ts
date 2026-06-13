@@ -279,6 +279,14 @@ export class StaffController {
     return this.svc.getMyAdvisorRequests();
   }
 
+  @Get('advisors/my-plan')
+  @Roles('USER', 'CLIENTE')
+  @ApiOperation({ summary: 'Plan nutricional asignado al cliente por su asesor activo' })
+  @ApiResponse({ status: 200, description: 'Devuelve el plan o null si no existe' })
+  getMyPlan() {
+    return this.svc.getMyPlan();
+  }
+
   @Post('advisors/request')
   @Roles('USER', 'CLIENTE')
   @ApiOperation({ summary: 'Solicitar un asesor (Entrenador o Nutricionista)' })

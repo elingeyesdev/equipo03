@@ -9,20 +9,50 @@ import { REQUEST } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { JwtService } from '@nestjs/jwt';
 import { ReservationsService } from './reservations.service';
 import { Reservation } from '../domain/reservation.entity';
+import { GymActivity } from '../../activities/domain/gym-activity.entity';
 import { GymActivitySchedule } from '../../activities/domain/gym-activity-schedule.entity';
+import { GymSchedule } from '../../gyms/domain/gym-schedule.entity';
 import { User } from '../../users/domain/user.entity';
+import { CheckIn } from '../../checkins/domain/check-in.entity';
+import { PushNotificationsService } from '../../push-notifications/application/push-notifications.service';
+import { UsersService } from '../../users/application/users.service';
+import { GymGateway } from '../../notifications/infrastructure/gym.gateway';
+
+const mockGenericRepo = () => ({
+  find: jest.fn(),
+  findOne: jest.fn(),
+  exist: jest.fn(),
+  exists: jest.fn(),
+  count: jest.fn(),
+  save: jest.fn(),
+  create: jest.fn(),
+  createQueryBuilder: jest.fn(),
+  delete: jest.fn(),
+});
 
 function createQueryBuilderMock() {
-  const qb = {
-    leftJoinAndSelect: jest.fn().mockReturnThis(),
-    where: jest.fn().mockReturnThis(),
-    andWhere: jest.fn().mockReturnThis(),
-    orderBy: jest.fn().mockReturnThis(),
-    getMany: jest.fn().mockResolvedValue([]),
-    getOne: jest.fn().mockResolvedValue(null),
-  };
+  const qb: Record<string, jest.Mock> = {};
+  const self = () => qb;
+  const methods = [
+    'select', 'addSelect', 'from',
+    'innerJoin', 'innerJoinAndSelect',
+    'leftJoin', 'leftJoinAndSelect',
+    'where', 'andWhere', 'orWhere',
+    'orderBy', 'addOrderBy',
+    'groupBy', 'addGroupBy',
+    'offset', 'limit', 'skip', 'take',
+  ];
+  for (const m of methods) {
+    qb[m] = jest.fn().mockReturnValue(qb);
+  }
+  qb.getMany  = jest.fn().mockResolvedValue([]);
+  qb.getOne   = jest.fn().mockResolvedValue(null);
+  qb.getRawMany = jest.fn().mockResolvedValue([]);
+  qb.getRawOne  = jest.fn().mockResolvedValue(null);
+  void self;
   return qb;
 }
 
@@ -74,14 +104,29 @@ describe('ReservationsService — createReservationWithLock', () => {
     const moduleFixture = await Test.createTestingModule({
       providers: [
         ReservationsService,
-        { provide: getRepositoryToken(Reservation), useValue: repo },
-        {
-          provide: getRepositoryToken(GymActivitySchedule),
-          useValue: scheduleRepo,
-        },
-        { provide: getRepositoryToken(User), useValue: usersRepo },
+        // ── Repositorios requeridos por el constructor ──────────────────────
+        { provide: getRepositoryToken(Reservation),         useValue: repo },
+        { provide: getRepositoryToken(GymActivity),         useValue: mockGenericRepo() },
+        { provide: getRepositoryToken(GymActivitySchedule), useValue: scheduleRepo },
+        { provide: getRepositoryToken(GymSchedule),         useValue: mockGenericRepo() },
+        { provide: getRepositoryToken(User),                useValue: usersRepo },
+        { provide: getRepositoryToken(CheckIn),             useValue: mockGenericRepo() },
+        // ── Otros tokens inyectados ─────────────────────────────────────────
         { provide: DataSource, useValue: dataSource },
-        { provide: REQUEST, useValue: { user: undefined } },
+        { provide: REQUEST,    useValue: { user: undefined } },
+        { provide: JwtService, useValue: { sign: jest.fn(), verify: jest.fn() } },
+        {
+          provide: PushNotificationsService,
+          useValue: { sendPushToUser: jest.fn(), sendPushToMany: jest.fn() },
+        },
+        {
+          provide: UsersService,
+          useValue: { findOne: jest.fn(), findByEmail: jest.fn() },
+        },
+        {
+          provide: GymGateway,
+          useValue: { notifyGymManagers: jest.fn(), server: {} },
+        },
       ],
     }).compile();
 
@@ -217,14 +262,29 @@ describe('ReservationsService — RBAC createReservation / findAll', () => {
     const moduleFixture = await Test.createTestingModule({
       providers: [
         ReservationsService,
-        { provide: getRepositoryToken(Reservation), useValue: repo },
-        {
-          provide: getRepositoryToken(GymActivitySchedule),
-          useValue: scheduleRepo,
-        },
-        { provide: getRepositoryToken(User), useValue: usersRepo },
+        // ── Repositorios requeridos por el constructor ──────────────────────
+        { provide: getRepositoryToken(Reservation),         useValue: repo },
+        { provide: getRepositoryToken(GymActivity),         useValue: mockGenericRepo() },
+        { provide: getRepositoryToken(GymActivitySchedule), useValue: scheduleRepo },
+        { provide: getRepositoryToken(GymSchedule),         useValue: mockGenericRepo() },
+        { provide: getRepositoryToken(User),                useValue: usersRepo },
+        { provide: getRepositoryToken(CheckIn),             useValue: mockGenericRepo() },
+        // ── Otros tokens inyectados ─────────────────────────────────────────
         { provide: DataSource, useValue: dataSource },
-        { provide: REQUEST, useValue: requestUser },
+        { provide: REQUEST,    useValue: requestUser },
+        { provide: JwtService, useValue: { sign: jest.fn(), verify: jest.fn() } },
+        {
+          provide: PushNotificationsService,
+          useValue: { sendPushToUser: jest.fn(), sendPushToMany: jest.fn() },
+        },
+        {
+          provide: UsersService,
+          useValue: { findOne: jest.fn(), findByEmail: jest.fn() },
+        },
+        {
+          provide: GymGateway,
+          useValue: { notifyGymManagers: jest.fn(), server: {} },
+        },
       ],
     }).compile();
 
@@ -306,13 +366,15 @@ describe('ReservationsService — RBAC createReservation / findAll', () => {
     });
   });
 
-  it('ENTRENADOR findAll lanza ForbiddenException de asistencia', () => {
+  it('ENTRENADOR findAll lanza ForbiddenException de asistencia', async () => {
     requestUser.user = { userId: 3, role: 'ENTRENADOR' };
+    const qb = createQueryBuilderMock();
+    repo.createQueryBuilder.mockReturnValue(qb);
 
-    expect(() => service.findAll({ page: 1, limit: 10 })).toThrow(
+    await expect(service.findAll({ page: 1, limit: 10 })).rejects.toBeInstanceOf(
       ForbiddenException,
     );
-    expect(() => service.findAll({ page: 1, limit: 10 })).toThrow(
+    await expect(service.findAll({ page: 1, limit: 10 })).rejects.toThrow(
       'Los entrenadores deben usar el endpoint de asistencia por clase.',
     );
   });
@@ -324,7 +386,14 @@ describe('ReservationsService — RBAC createReservation / findAll', () => {
 
     await service.findAll({ page: 1, limit: 10 });
 
-    expect(qb.andWhere).not.toHaveBeenCalled();
+    // SUPER_ADMIN no recibe filtro por userId ni por gymId;
+    // el servicio sí aplica un filtro de status por defecto (ocultar CANCELLED)
+    // pero NO aplica filtro de aislamiento de sede ni usuario.
+    const calls: [string, unknown][] = qb.andWhere.mock.calls;
+    const hasUserFilter = calls.some(([q]) => String(q).includes('user_id'));
+    const hasGymFilter  = calls.some(([q]) => String(q).includes('gym_id'));
+    expect(hasUserFilter).toBe(false);
+    expect(hasGymFilter).toBe(false);
   });
 
   it('GERENTE findAll filtra por gym_id de la actividad', async () => {
@@ -334,17 +403,25 @@ describe('ReservationsService — RBAC createReservation / findAll', () => {
 
     await service.findAll({ page: 1, limit: 10 });
 
-    expect(qb.andWhere).toHaveBeenCalledWith('activity.gym_id = :gymId', {
-      gymId: 3,
-    });
+    expect(qb.andWhere).toHaveBeenCalledWith(
+      '(activity.gym_id = :gymId OR reservation.gym_id = :gymId)',
+      { gymId: 3 },
+    );
   });
 
-  it('CLIENTE findByUser de otro usuario lanza ForbiddenException', () => {
+  it('CLIENTE findByUser de otro usuario no lanza (el servicio sobrescribe el userId)', async () => {
     requestUser.user = { userId: 10, role: 'CLIENTE' };
+    const qb = createQueryBuilderMock();
+    // findByUser para CLIENTE ignora el userId externo y usa el del JWT
+    repo.createQueryBuilder.mockReturnValue(qb);
 
-    expect(() => service.findByUser(99)).toThrow(ForbiddenException);
-    expect(() => service.findByUser(99)).toThrow(
-      'No tiene permisos para ver reservas de otro usuario.',
+    // No debe lanzar; el servicio reemplaza userId=99 por userId=10 (JWT)
+    await expect(service.findByUser(99)).resolves.toBeDefined();
+
+    // Verifica que el filtro aplicado usa el userId del JWT (10), no el parámetro (99)
+    expect(qb.andWhere).toHaveBeenCalledWith(
+      'reservation.userId = :userId',
+      { userId: 10 },
     );
   });
 });

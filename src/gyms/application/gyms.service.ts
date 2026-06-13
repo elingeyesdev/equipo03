@@ -95,18 +95,28 @@ export class GymsService {
     }
 
     const gymEntity = this.gymsRepo.create(gymData as Partial<Gym>);
-    const gym = await this.gymsRepo.save(gymEntity);
-    if (location)
-      await this.locRepo.save(
-        this.locRepo.create({ ...location, gymId: gym.id }),
-      );
-    if (schedules?.length) {
-      const items = schedules.map((s: any) =>
-        this.schedRepo.create({ ...s, gymId: gym.id }),
-      );
-      await this.schedRepo.save(items as any);
+
+    try {
+      const gym = await this.gymsRepo.save(gymEntity);
+      if (location)
+        await this.locRepo.save(
+          this.locRepo.create({ ...location, gymId: gym.id }),
+        );
+      if (schedules?.length) {
+        const items = schedules.map((s: any) =>
+          this.schedRepo.create({ ...s, gymId: gym.id }),
+        );
+        await this.schedRepo.save(items as any);
+      }
+      return this.findOne(gym.id);
+    } catch (error: any) {
+      if (error?.code === '23503') {
+        throw new BadRequestException(
+          'La sucursal matriz (parentId) especificada no existe.',
+        );
+      }
+      throw error;
     }
-    return this.findOne(gym.id);
   }
 
   async findAll(lat?: number, lng?: number, radiusKm = 50) {

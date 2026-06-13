@@ -727,6 +727,18 @@ export class StaffService {
     );
   }
 
+  async getMyPlan(): Promise<TrainerPlan | null> {
+    const userId = this.getAuthUserId();
+    const advisor = await this.advisorRepo.findOne({
+      where: { clientId: userId, status: 'ACTIVE' },
+      order: { createdAt: 'DESC' },
+    });
+    if (!advisor) return null;
+    return this.trainerPlanRepo.findOne({
+      where: { trainerId: advisor.advisorId, clientId: userId },
+    });
+  }
+
   async getPendingAdvisorRequests(): Promise<
     { id: number; clientId: number; clientName: string; phone: string | null; createdAt: string }[]
   > {
