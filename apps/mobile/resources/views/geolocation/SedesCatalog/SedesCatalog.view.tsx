@@ -47,7 +47,8 @@ export const SedesCatalog: React.FC<SedesCatalogProps> = ({
       onPress={() => onSelectSede(item.sede)}
     >
       <ImageBackground 
-        source={{ uri: item.sede.imagenUrl || 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?q=80&w=1000' }} 
+        // TODO: Requerir este dato al backend — endpoint GET /gyms/:id debe devolver imagenUrl real
+        source={item.sede.imagenUrl ? { uri: item.sede.imagenUrl } : require('../../../../assets/icon.png')}
         style={styles.cardImage}
         imageStyle={{ borderRadius: 28 }}
       >
@@ -55,8 +56,9 @@ export const SedesCatalog: React.FC<SedesCatalogProps> = ({
           <View style={styles.topRow}>
             <View style={styles.ratingBadge}>
               <MaterialCommunityIcons name="star" size={14} color="#FFD700" />
-              <Text style={styles.ratingText}>{item.sede.rating?.toFixed(1) || '4.5'}</Text>
-              <Text style={styles.reviewCountText}>({item.sede.resenasCount || 100})</Text>
+              {/* TODO: Requerir rating y resenasCount al backend */}
+              <Text style={styles.ratingText}>{item.sede.rating != null ? item.sede.rating.toFixed(1) : '-'}</Text>
+              <Text style={styles.reviewCountText}>({item.sede.resenasCount ?? 0})</Text>
             </View>
             <View style={styles.distanceBadge}>
               <MaterialCommunityIcons name="map-marker-distance" size={12} color="#38BDF8" />

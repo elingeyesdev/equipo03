@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
 import { ModalOverlay, ConfirmModal, panelStyle } from './Shared/DashboardShared';
 import type { GymDto, GymScheduleDto, UserDto, CheckinDto, ScheduleEntry } from './Shared/DashboardTypes';
-import { Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2, Building2 } from 'lucide-react';
 
 const DESC_MAX = 180;
 
@@ -427,12 +427,12 @@ export const SedesView = () => {
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <span style={{ fontSize: '1.5rem' }}>🏷️</span>
+                <Building2 size={22} color="#38BDF8" strokeWidth={2.2} />
                 <div>
                   <div style={{ fontSize: '0.68rem', color: '#38BDF8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '2px' }}>
                     Marca · #{infoSede.id}
                   </div>
-                  <h2 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 800, color: 'inherit' }}>{infoSede.name}</h2>
+                  <h2 className="text-slate-900 dark:text-white" style={{ margin: 0, fontSize: '1.3rem', fontWeight: 800 }}>{infoSede.name}</h2>
                 </div>
               </div>
               <button
@@ -442,28 +442,19 @@ export const SedesView = () => {
             </div>
 
             {/* Descripción */}
-            <div style={{ background: '#f6f6f8', border: '1px solid #e2e2e8', borderRadius: '10px', padding: '1rem' }}>
+            <div className="bg-slate-100 dark:bg-bg-deep border border-slate-200 dark:border-gray-700" style={{ borderRadius: '10px', padding: '1rem' }}>
               <div style={{ fontSize: '0.68rem', color: '#8E8E93', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>
                 Descripción
               </div>
               {infoSede.description ? (
-                <p style={{ margin: 0, color: 'inherit', fontSize: '0.92rem', lineHeight: '1.6' }}>{infoSede.description}</p>
+                <p className="text-slate-900 dark:text-gray-200" style={{ margin: 0, fontSize: '0.92rem', lineHeight: '1.6' }}>{infoSede.description}</p>
               ) : (
-                <p style={{ margin: 0, color: '#555', fontSize: '0.88rem', fontStyle: 'italic' }}>Sin descripción registrada.</p>
+                <p className="text-slate-400 dark:text-gray-500" style={{ margin: 0, fontSize: '0.88rem', fontStyle: 'italic' }}>Sin descripción registrada.</p>
               )}
             </div>
 
             {/* Footer */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.25rem', paddingTop: '0.75rem', borderTop: '1px solid #1C1C1E' }}>
-              {user.role === 'SUPER_ADMIN' && (
-                <button
-                  onClick={() => { handleEditSede(infoSede); setInfoSede(null); }}
-                  style={{ background: '#38BDF8', border: 'none', color: '#000', borderRadius: '8px', padding: '0.5rem 1rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-                >
-                  <Edit size={14} />
-                  Editar
-                </button>
-              )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.25rem', paddingTop: '0.75rem', borderTop: '1px solid #1C1C1E' }}>
               <button
                 onClick={() => setInfoSede(null)}
                 style={{ background: '#8e8e93', border: 'none', color: '#fff', borderRadius: '8px', padding: '0.5rem 1.1rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}

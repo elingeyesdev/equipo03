@@ -2,7 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { ActivityIndicator, View, Text, TouchableOpacity } from 'react-native';
 
-const backBtnStyle = { width: 40, height: 40, marginLeft: 4, backgroundColor: '#1C1C1E', borderRadius: 12, borderWidth: 1, borderColor: '#3A3A3C', justifyContent: 'center' as const, alignItems: 'center' as const };
+const backBtnStyle = { width: 40, height: 40, marginLeft: 4, justifyContent: 'center' as const, alignItems: 'center' as const };
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { useAuth } from '../app/Shared/hooks/useAuth';

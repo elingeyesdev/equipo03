@@ -19,7 +19,7 @@ export class SedeDTOMapper {
     const lat = location.latitude ?? dto.latitude ?? 0;
     const lng = location.longitude ?? dto.longitude ?? 0;
     const rawMaxCap = dto.maxCapacity ?? dto.capacity ?? dto.aforoMaximo;
-    const maxCap = (typeof rawMaxCap === 'number' && rawMaxCap > 0) ? rawMaxCap : 100;
+    const maxCap = (typeof rawMaxCap === 'number' && rawMaxCap > 0) ? rawMaxCap : 0;
     const rawActual = dto.currentOccupancy ?? dto.aforoActual ?? dto.current_occupancy ?? 0;
     const actualCap = Math.min(Number(rawActual), maxCap);
     const infrastructure = dto.infrastructure as { machineCapacity?: number } | null | undefined;

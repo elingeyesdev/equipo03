@@ -3,7 +3,7 @@ import { TouchableOpacity } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-const backBtnStyle = { width: 40, height: 40, marginLeft: 4, backgroundColor: '#1C1C1E', borderRadius: 12, borderWidth: 1, borderColor: '#3A3A3C', justifyContent: 'center' as const, alignItems: 'center' as const };
+const backBtnStyle = { width: 40, height: 40, marginLeft: 4, justifyContent: 'center' as const, alignItems: 'center' as const };
 import { BuscarScreen } from '../resources/views/buscar/BuscarScreen';
 import { MapScreenContainer } from '../resources/views/geolocation/MapScreen/MapScreen.container';
 import { StaffMapScreen }    from '../resources/views/geolocation/StaffMapScreen/StaffMapScreen';

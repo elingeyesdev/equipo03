@@ -16,6 +16,8 @@ export type GymDto = {
   isActive?: boolean;
   isOpen?: boolean;
   aforoActual?: number;
+  currentOccupancy?: number;
+  infrastructure?: { id?: number; machineCapacity?: number } | null;
   parentId?: number | null;
   parent?: {
     id: number;

@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { gymApi, DashboardStats } from '../../../app/Providers/gyms/api/gym.api';
@@ -21,16 +22,17 @@ const { width } = Dimensions.get('window');
 const aforoColor = (pct: number) =>
   pct > 0.85 ? '#EF4444' : pct > 0.6 ? '#F97316' : '#22C55E';
 
+// TODO: Requerir capacidad real al backend — no asumir un valor por defecto
 const FALLBACK: DashboardStats = {
   occupancy:  0,
-  capacity:   100,
+  capacity:   0,
   totalToday: 0,
   completed:  0,
   pending:    0,
 };
 
 export const ManagerDashboard = () => {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<NativeStackNavigationProp<Record<string, object | undefined>>>();
   const { user }   = useAuth();
 
   const firstName = (user as any)?.profile?.firstName

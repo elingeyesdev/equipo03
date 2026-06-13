@@ -360,7 +360,8 @@ const ClientDashboard = () => {
                   </Text>
                   <View style={styles.ratingRow}>
                     <MaterialCommunityIcons name="star" size={14} color="#f05b22" />
-                    <Text style={styles.ratingText}>{item.sede.rating || '4.5'}</Text>
+                    {/* TODO: Requerir rating al backend */}
+                    <Text style={styles.ratingText}>{item.sede.rating != null ? item.sede.rating : '-'}</Text>
                     <Text style={styles.capacityText}>
                       • {(item.sede as any).aforoActual ?? 0}/{(item.sede as any).aforoMax ?? 0}
                     </Text>
