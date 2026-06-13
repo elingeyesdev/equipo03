@@ -11,6 +11,14 @@ import { staffApi, ClientProfile } from '../../../app/Providers/staff/api/staff.
 
 type RouteParams = { clientId: number; clientName: string };
 
+const fmtDate = (iso: string) => {
+  try {
+    return new Date(iso).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' });
+  } catch {
+    return '—';
+  }
+};
+
 const bmiLabel = (bmi: number): { label: string; color: string } => {
   if (bmi < 18.5) return { label: 'Bajo peso',   color: '#38BDF8' };
   if (bmi < 25)   return { label: 'Normal',       color: '#22c55e' };
@@ -159,9 +167,7 @@ export const PerfilAlumnoScreen = () => {
                 />
               </View>
               <Text style={s.metaDate}>
-                Último registro: {new Date(metrics.recordedAt).toLocaleDateString('es-BO', {
-                  day: '2-digit', month: 'short', year: 'numeric',
-                })}
+                Último registro: {fmtDate(metrics.recordedAt)}
               </Text>
             </>
           )}
@@ -179,10 +185,11 @@ export const PerfilAlumnoScreen = () => {
             <TouchableOpacity
               style={s.actionBtn}
               activeOpacity={0.8}
-              onPress={() => navigation.navigate('AsignarRutina', {
-                studentId:   clientId,
-                studentName: clientName,
-              })}
+              onPress={() => {
+                try {
+                  navigation.navigate('AsignarRutina', { studentId: clientId, studentName: clientName });
+                } catch {}
+              }}
             >
               <MaterialCommunityIcons name="dumbbell" size={18} color="#fff" />
               <Text style={s.actionTxt}>Asignar Rutina</Text>
@@ -191,10 +198,11 @@ export const PerfilAlumnoScreen = () => {
             <TouchableOpacity
               style={[s.actionBtn, s.planBtn]}
               activeOpacity={0.8}
-              onPress={() => navigation.navigate('TrainerPlan', {
-                clientId,
-                clientName,
-              })}
+              onPress={() => {
+                try {
+                  navigation.navigate('TrainerPlan', { clientId, clientName });
+                } catch {}
+              }}
             >
               <MaterialCommunityIcons name="food-apple-outline" size={18} color="#fff" />
               <Text style={s.actionTxt}>Plan Nutricional</Text>

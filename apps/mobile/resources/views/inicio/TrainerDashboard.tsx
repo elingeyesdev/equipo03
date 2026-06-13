@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import {
@@ -13,6 +13,14 @@ import {
   PendingTrainerRequest,
   ActiveAdvisee,
 } from '../../../app/Providers/staff/api/staff.api';
+
+const fmtDate = (iso: string) => {
+  try {
+    return new Date(iso).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' });
+  } catch {
+    return '—';
+  }
+};
 
 // ─── Section ─────────────────────────────────────────────────────────────────
 const Section = ({
@@ -34,9 +42,10 @@ const Section = ({
 );
 
 export const TrainerDashboard = () => {
-  const { user }   = useAuth();
-  const navigation = useNavigation<any>();
-  const firstName  = (user as any)?.profile?.firstName ?? (user as any)?.firstName ?? 'Entrenador';
+  const { user }    = useAuth();
+  const navigation  = useNavigation<any>();
+  const queryClient = useQueryClient();
+  const firstName   = (user as any)?.profile?.firstName ?? (user as any)?.firstName ?? 'Entrenador';
   const hora   = new Date().getHours();
   const saludo = hora < 12 ? 'Buenos días' : hora < 18 ? 'Buenas tardes' : 'Buenas noches';
 
@@ -77,6 +86,32 @@ export const TrainerDashboard = () => {
     } finally {
       setProcessingId(null);
     }
+  };
+
+  const handleCancelAdvisee = (item: ActiveAdvisee) => {
+    Alert.alert(
+      'Cancelar asesoría',
+      `¿Deseas cancelar la asesoría con ${item.clientName}? Se reiniciarán su plan nutricional y rutinas asignadas.`,
+      [
+        { text: 'No cancelar', style: 'cancel' },
+        {
+          text: 'Sí, cancelar',
+          style: 'destructive',
+          onPress: async () => {
+            setProcessingId(item.id);
+            try {
+              await staffApi.cancelAdvisorship(item.id);
+              await refetchAdvisees();
+              queryClient.invalidateQueries({ queryKey: ['trainer-active-advisees'] });
+            } catch (e: any) {
+              Alert.alert('Error', e?.response?.data?.message ?? 'No se pudo cancelar la asesoría.');
+            } finally {
+              setProcessingId(null);
+            }
+          },
+        },
+      ],
+    );
   };
 
   const handleReject = (req: PendingTrainerRequest) => {
@@ -152,9 +187,7 @@ export const TrainerDashboard = () => {
         >
           {(requests as PendingTrainerRequest[]).map((req) => {
             const isProcessing = processingId === req.id;
-            const fecha = new Date(req.createdAt).toLocaleDateString('es-BO', {
-              day: '2-digit', month: 'short', year: 'numeric',
-            });
+            const fecha = fmtDate(req.createdAt);
             return (
               <View key={req.id} style={s.requestCard}>
                 <View style={s.requestIcon}>
@@ -198,31 +231,48 @@ export const TrainerDashboard = () => {
           iconColor="#38BDF8"
           empty={advisees.length === 0}
         >
-          {(advisees as ActiveAdvisee[]).map((item) => (
-            <View key={item.clientId} style={s.studentCard}>
-              <View style={s.studentLeft}>
-                <View style={s.iconBadge}>
-                  <MaterialCommunityIcons name="account-outline" size={20} color="#f05b22" />
+          {(advisees as ActiveAdvisee[]).map((item) => {
+            const isCancelling = processingId === item.id;
+            return (
+              <View key={item.clientId} style={s.studentCard}>
+                <View style={s.studentLeft}>
+                  <View style={s.iconBadge}>
+                    <MaterialCommunityIcons name="account-outline" size={20} color="#f05b22" />
+                  </View>
+                  <View style={s.studentInfo}>
+                    <Text style={s.studentName}>{item.clientName}</Text>
+                    <Text style={s.studentSub} numberOfLines={1}>
+                      {item.phone ?? 'Sin teléfono registrado'}
+                    </Text>
+                  </View>
                 </View>
-                <View style={s.studentInfo}>
-                  <Text style={s.studentName}>{item.clientName}</Text>
-                  <Text style={s.studentSub} numberOfLines={1}>
-                    {item.phone ?? 'Sin teléfono registrado'}
-                  </Text>
-                </View>
+                {isCancelling ? (
+                  <ActivityIndicator size="small" color="#EF4444" style={{ marginLeft: 8 }} />
+                ) : (
+                  <View style={s.studentActions}>
+                    <TouchableOpacity
+                      style={s.profileBtn}
+                      activeOpacity={0.8}
+                      onPress={() => navigation.navigate('PerfilAlumno', {
+                        clientId:   item.clientId,
+                        clientName: item.clientName,
+                      })}
+                    >
+                      <Text style={s.profileBtnTxt}>Ver Perfil</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={s.cancelBtn}
+                      activeOpacity={0.8}
+                      onPress={() => handleCancelAdvisee(item)}
+                    >
+                      <MaterialCommunityIcons name="cancel" size={12} color="#EF4444" />
+                      <Text style={s.cancelBtnTxt}>Cancelar</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
-              <TouchableOpacity
-                style={s.profileBtn}
-                activeOpacity={0.8}
-                onPress={() => navigation.navigate('PerfilAlumno', {
-                  clientId:   item.clientId,
-                  clientName: item.clientName,
-                })}
-              >
-                <Text style={s.profileBtnTxt}>Ver Perfil</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
+            );
+          })}
         </Section>
       </ScrollView>
     </SafeAreaView>
@@ -269,6 +319,9 @@ const s = StyleSheet.create({
   studentName:  { color: '#fff', fontSize: 14, fontWeight: '700' },
   studentSub:   { color: '#555', fontSize: 11, marginTop: 2 },
 
-  profileBtn:    { backgroundColor: '#1C1C1E', paddingVertical: 7, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: '#3A3A3C' },
-  profileBtnTxt: { color: '#f05b22', fontSize: 12, fontWeight: '700' },
+  studentActions: { flexDirection: 'column', gap: 6, alignItems: 'flex-end' },
+  profileBtn:     { backgroundColor: '#1C1C1E', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: '#3A3A3C' },
+  profileBtnTxt:  { color: '#f05b22', fontSize: 12, fontWeight: '700' },
+  cancelBtn:      { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#1C1C1E', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: '#EF444466' },
+  cancelBtnTxt:   { color: '#EF4444', fontSize: 11, fontWeight: '700' },
 });

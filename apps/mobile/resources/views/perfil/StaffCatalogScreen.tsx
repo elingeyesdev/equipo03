@@ -26,9 +26,10 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const STATUS_META: Record<string, { label: string; color: string; icon: string }> = {
-  PENDING:  { label: 'Pendiente', color: '#FF5E00', icon: 'clock-outline' },
-  ACTIVE:   { label: 'Activa',    color: '#22C55E', icon: 'check-circle-outline' },
-  REJECTED: { label: 'Rechazada', color: '#EF4444', icon: 'close-circle-outline' },
+  PENDING:   { label: 'Pendiente',  color: '#FF5E00', icon: 'clock-outline' },
+  ACTIVE:    { label: 'Activa',     color: '#22C55E', icon: 'check-circle-outline' },
+  REJECTED:  { label: 'Rechazada',  color: '#EF4444', icon: 'close-circle-outline' },
+  CANCELLED: { label: 'Cancelada',  color: '#6B7280', icon: 'cancel' },
 };
 
 const resolveDisplayName = (entry: StaffCatalogEntry): string => {
@@ -125,7 +126,13 @@ const StaffCard = ({
 };
 
 // ── Tarjeta solicitud ─────────────────────────────────────────────────────────
-const RequestCard = ({ item }: { item: AdvisorRequestStatus }) => {
+const RequestCard = ({
+  item,
+  onCancel,
+}: {
+  item: AdvisorRequestStatus;
+  onCancel: (id: number) => void;
+}) => {
   const meta = STATUS_META[item.status] ?? { label: item.status, color: '#888', icon: 'help-circle-outline' };
 
   return (
@@ -158,6 +165,16 @@ const RequestCard = ({ item }: { item: AdvisorRequestStatus }) => {
       <View style={s.reqFooter}>
         <MaterialCommunityIcons name="calendar-outline" size={12} color="#444" />
         <Text style={s.reqDate}>Enviada el {fmtDate(item.createdAt)}</Text>
+        {item.status === 'ACTIVE' && (
+          <TouchableOpacity
+            style={s.cancelBtn}
+            activeOpacity={0.8}
+            onPress={() => onCancel(item.id)}
+          >
+            <MaterialCommunityIcons name="cancel" size={12} color="#EF4444" />
+            <Text style={s.cancelBtnTxt}>Cancelar asesoría</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -197,9 +214,37 @@ export const StaffCatalogScreen = () => {
   );
 
   const handleRequest = () => {
-    // Refresh requests list so the new request appears in "Mis Solicitudes"
     refetchReqs();
     queryClient.invalidateQueries({ queryKey: ['my-advisor-requests'] });
+  };
+
+  const handleCancel = (id: number) => {
+    Alert.alert(
+      'Cancelar asesoría',
+      '¿Estás seguro de que deseas cancelar esta asesoría? Se eliminarán tu plan nutricional y rutina asignada.',
+      [
+        { text: 'No cancelar', style: 'cancel' },
+        {
+          text: 'Sí, cancelar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await staffApi.cancelAdvisorship(id);
+              await refetchReqs();
+              queryClient.invalidateQueries({ queryKey: ['my-advisor-requests'] });
+              queryClient.invalidateQueries({ queryKey: ['my-plan'] });
+              queryClient.invalidateQueries({ queryKey: ['my-routines'] });
+              queryClient.invalidateQueries({ queryKey: ['staff-catalog'] });
+            } catch (err: unknown) {
+              const msg = (err as any)?.response?.data?.message
+                ?? (err instanceof Error ? err.message : null)
+                ?? 'No se pudo cancelar la asesoría.';
+              Alert.alert('Error', msg);
+            }
+          },
+        },
+      ],
+    );
   };
 
   const pendingCount = myRequests.filter(r => r.status === 'PENDING').length;
@@ -320,7 +365,7 @@ export const StaffCatalogScreen = () => {
             >
               {/* Resumen rápido */}
               <View style={s.summaryRow}>
-                {(['PENDING', 'ACTIVE', 'REJECTED'] as const).map(st => {
+                {(['PENDING', 'ACTIVE', 'REJECTED', 'CANCELLED'] as const).map(st => {
                   const cnt  = myRequests.filter(r => r.status === st).length;
                   const meta = STATUS_META[st];
                   return (
@@ -333,7 +378,7 @@ export const StaffCatalogScreen = () => {
               </View>
 
               {myRequests.map(item => (
-                <RequestCard key={item.id} item={item} />
+                <RequestCard key={item.id} item={item} onCancel={handleCancel} />
               ))}
             </ScrollView>
           )}
@@ -388,8 +433,10 @@ const s = StyleSheet.create({
   reqName:    { color: '#fff', fontSize: 15, fontWeight: '700' },
   statusBadge:{ flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 8, paddingVertical: 4, paddingHorizontal: 8, borderWidth: 1 },
   statusTxt:  { fontSize: 11, fontWeight: '700' },
-  reqFooter:  { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  reqDate:    { color: '#444', fontSize: 11 },
+  reqFooter:     { flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' },
+  reqDate:       { color: '#444', fontSize: 11, flex: 1 },
+  cancelBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#1C1C1E', borderRadius: 8, borderWidth: 1, borderColor: '#EF444466', paddingVertical: 5, paddingHorizontal: 10 },
+  cancelBtnTxt:  { color: '#EF4444', fontSize: 11, fontWeight: '700' },
 
   // Resumen chips
   summaryRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },

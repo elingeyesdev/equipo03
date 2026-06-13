@@ -125,7 +125,7 @@ export type AdvisorRequestStatus = {
   advisorName: string;
   advisorRole: string;
   branchName:  string;
-  status:      'PENDING' | 'ACTIVE' | 'REJECTED';
+  status:      'PENDING' | 'ACTIVE' | 'REJECTED' | 'CANCELLED';
   createdAt:   string;
 };
 
@@ -155,6 +155,7 @@ export type PendingTrainerRequest = {
 };
 
 export type ActiveAdvisee = {
+  id:         number;
   clientId:   number;
   clientName: string;
   phone:      string | null;
@@ -203,6 +204,18 @@ export type ClientRoutine = {
   exercises:        ClientRoutineExercise[];
 };
 
+export type MealDay = {
+  desayuno?: string;
+  almuerzo?: string;
+  cena?:     string;
+  merienda?: string;
+};
+
+export type MealPlan = Partial<Record<
+  'LUNES' | 'MARTES' | 'MIERCOLES' | 'JUEVES' | 'VIERNES' | 'SABADO' | 'DOMINGO',
+  MealDay
+>>;
+
 export type TrainerPlanData = {
   id?:        number;
   dailyKcal?: number;
@@ -210,6 +223,7 @@ export type TrainerPlanData = {
   carbsG?:    number;
   fatG?:      number;
   planNotes?: string;
+  mealPlan?:  MealPlan | null;
   updatedAt?: string;
 };
 
@@ -403,6 +417,10 @@ export const staffApi = {
 
   rejectAdvisorRequest: async (requestId: number): Promise<void> => {
     await staffClient.patch(`/api/staff/advisors/${requestId}/reject`);
+  },
+
+  cancelAdvisorship: async (requestId: number): Promise<void> => {
+    await staffClient.patch(`/api/staff/advisors/${requestId}/cancel`);
   },
 
   /**

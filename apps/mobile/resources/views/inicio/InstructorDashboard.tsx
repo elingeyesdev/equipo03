@@ -244,10 +244,14 @@ export const InstructorDashboard = () => {
   const upcomingClases = todaySchedules
     .filter(s => {
       if (!s.startTime) return false;
-      const [h, m] = s.startTime.split(':').map(Number);
-      const t = new Date();
-      t.setHours(h, m, 0, 0);
-      return t.getTime() > nowMs;
+      try {
+        const [h, m] = s.startTime.split(':').map(Number);
+        const t = new Date();
+        t.setHours(h, m, 0, 0);
+        return t.getTime() > nowMs;
+      } catch {
+        return false;
+      }
     })
     .sort((a, b) => (a.startTime ?? '').localeCompare(b.startTime ?? ''));
 
