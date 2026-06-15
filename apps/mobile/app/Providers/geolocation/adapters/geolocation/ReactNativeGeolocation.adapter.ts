@@ -38,7 +38,6 @@ export class ReactNativeGeolocationAdapter implements IGeolocationService {
     options: GeolocationOptions = {}
   ): Promise<Either<UbicacionNoDisponibleError, Coordenadas>> {
     try {
-      // Verificar si el servicio de ubicación está habilitado
       const isEnabled = await Location.hasServicesEnabledAsync();
       if (!isEnabled) {
         return left(new UbicacionNoDisponibleError(
@@ -48,20 +47,29 @@ export class ReactNativeGeolocationAdapter implements IGeolocationService {
         ));
       }
 
+      // Usar posición cacheada si tiene menos de 5 minutos (respuesta instantánea)
+      const FIVE_MIN = 5 * 60 * 1000;
+      const lastKnown = await Location.getLastKnownPositionAsync();
+      if (lastKnown && (Date.now() - lastKnown.timestamp) < FIVE_MIN) {
+        return right(Coordenadas.create({
+          latitude:  lastKnown.coords.latitude,
+          longitude: lastKnown.coords.longitude,
+          accuracy:  lastKnown.coords.accuracy ?? undefined,
+          timestamp: new Date(lastKnown.timestamp),
+        }));
+      }
+
+      // Fallback: Balanced usa WiFi + celdas + GPS, mucho más rápido que High
       const location = await Location.getCurrentPositionAsync({
-        accuracy: options.enableHighAccuracy 
-          ? Location.Accuracy.High 
-          : Location.Accuracy.Balanced,
+        accuracy: Location.Accuracy.Balanced,
       });
 
-      const coordenadas = Coordenadas.create({
-        latitude: location.coords.latitude,
+      return right(Coordenadas.create({
+        latitude:  location.coords.latitude,
         longitude: location.coords.longitude,
-        accuracy: location.coords.accuracy ?? undefined,
+        accuracy:  location.coords.accuracy ?? undefined,
         timestamp: new Date(location.timestamp),
-      });
-
-      return right(coordenadas);
+      }));
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Error desconocido de ubicación';
       return left(new UbicacionNoDisponibleError(message, error, 'TIMEOUT'));

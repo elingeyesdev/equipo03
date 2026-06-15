@@ -7,8 +7,8 @@ import { VisitStorageService, GymVisitRecord } from './VisitStorageService';
 import { visitsApi } from './visits.api';
 import { AuthService } from '../../auth/AuthService';
 
-const ENTER_RADIUS_M  = 150;
-const EXIT_RADIUS_M   = 250;
+const ENTER_RADIUS_M  = 100;
+const EXIT_RADIUS_M   = 200;
 const POLL_INTERVAL_S = 30;
 
 interface NearbyGym {

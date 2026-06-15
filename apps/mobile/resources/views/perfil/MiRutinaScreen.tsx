@@ -11,7 +11,7 @@ import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { staffApi, ClientRoutine, ClientRoutineExercise } from '../../../app/Providers/staff/api/staff.api';
 
 // ─── Exercise Row ─────────────────────────────────────────────────────────────
-const ExerciseRow = ({ ex }: { ex: ClientRoutineExercise }) => (
+const ExerciseRow = ({ ex, onEjecutar }: { ex: ClientRoutineExercise; onEjecutar: () => void }) => (
   <View style={s.exRow}>
     <View style={s.exNum}>
       <Text style={s.exNumTxt}>{ex.orderPosition + 1}</Text>
@@ -43,12 +43,19 @@ const ExerciseRow = ({ ex }: { ex: ClientRoutineExercise }) => (
       </View>
       {ex.notes ? <Text style={s.exNotes}>{ex.notes}</Text> : null}
     </View>
+    <TouchableOpacity style={s.exEjecutarBtn} onPress={onEjecutar} activeOpacity={0.85}>
+      <MaterialCommunityIcons name="play-circle" size={14} color="#fff" />
+      <Text style={s.exEjecutarTxt}>Ejecutar</Text>
+    </TouchableOpacity>
   </View>
 );
 
 // ─── Routine Card ─────────────────────────────────────────────────────────────
-const RoutineCard = ({ routine, isExpanded, onToggle }: {
-  routine: ClientRoutine; isExpanded: boolean; onToggle: () => void;
+const RoutineCard = ({ routine, isExpanded, onToggle, onEjecutarExercise }: {
+  routine: ClientRoutine;
+  isExpanded: boolean;
+  onToggle: () => void;
+  onEjecutarExercise: (ex: ClientRoutineExercise) => void;
 }) => (
   <View style={s.routineCard}>
     <TouchableOpacity style={s.routineHeader} onPress={onToggle} activeOpacity={0.8}>
@@ -70,17 +77,19 @@ const RoutineCard = ({ routine, isExpanded, onToggle }: {
       />
     </TouchableOpacity>
 
-    {isExpanded && (
-      <View style={s.exList}>
-        {routine.exercises?.length > 0 ? (
-          routine.exercises.map((ex) => (
-            <ExerciseRow key={ex.id} ex={ex} />
-          ))
-        ) : (
-          <Text style={s.emptyTxt}>Sin ejercicios registrados.</Text>
-        )}
-      </View>
-    )}
+    <View style={s.exList}>
+      {routine.exercises?.length > 0 ? (
+        routine.exercises.map((ex) => (
+          <ExerciseRow
+            key={ex.id}
+            ex={ex}
+            onEjecutar={() => onEjecutarExercise(ex)}
+          />
+        ))
+      ) : (
+        <Text style={s.emptyTxt}>Sin ejercicios registrados.</Text>
+      )}
+    </View>
   </View>
 );
 
@@ -138,6 +147,9 @@ export const MiRutinaScreen = () => {
               routine={item}
               isExpanded={expanded === item.id}
               onToggle={() => setExpanded(expanded === item.id ? null : item.id)}
+              onEjecutarExercise={(ex) =>
+                navigation.navigate('EjecutarRutina', { routine: item, exercise: ex })
+              }
             />
           )}
         />
@@ -155,26 +167,32 @@ const s = StyleSheet.create({
   backBtn:  { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
   topTitle: { flex: 1, color: '#fff', fontSize: 16, fontWeight: '700', textAlign: 'center' },
 
-  routineCard:    { backgroundColor: '#0e0e0e', borderRadius: 14, marginBottom: 12, borderWidth: 1, borderColor: '#1a1a1a', overflow: 'hidden' },
-  routineHeader:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
+  routineCard:       { backgroundColor: '#0e0e0e', borderRadius: 14, marginBottom: 12, borderWidth: 1, borderColor: '#1a1a1a', overflow: 'hidden' },
+  routineHeader:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
   routineHeaderLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  routineName:    { color: '#fff', fontSize: 15, fontWeight: '700' },
-  routineMeta:    { color: '#555', fontSize: 11, marginTop: 3 },
+  routineName:       { color: '#fff', fontSize: 15, fontWeight: '700' },
+  routineMeta:       { color: '#555', fontSize: 11, marginTop: 3 },
 
-  exList: { borderTopWidth: 1, borderTopColor: '#1a1a1a', paddingHorizontal: 16, paddingBottom: 8 },
+  exList: { borderTopWidth: 1, borderTopColor: '#1a1a1a', paddingHorizontal: 16, paddingBottom: 4 },
 
-  exRow:    { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#111', gap: 12 },
-  exNum:    { width: 26, height: 26, borderRadius: 13, backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center', marginTop: 2 },
+  exRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#111', gap: 10 },
+  exNum:    { width: 26, height: 26, borderRadius: 13, backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center' },
   exNumTxt: { color: '#f05b22', fontSize: 11, fontWeight: '700' },
   exInfo:   { flex: 1 },
-  exName:   { color: '#fff', fontSize: 14, fontWeight: '600' },
+  exName:   { color: '#fff', fontSize: 13, fontWeight: '600' },
   exMuscle: { color: '#555', fontSize: 11, marginTop: 2 },
-  exStats:  { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
+  exStats:  { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 5 },
   exStat:   { alignItems: 'center' },
-  exStatVal:   { color: '#f05b22', fontSize: 14, fontWeight: '700' },
+  exStatVal:   { color: '#f05b22', fontSize: 13, fontWeight: '700' },
   exStatLabel: { color: '#444', fontSize: 10 },
-  exStatDot:   { width: 3, height: 3, borderRadius: 2, backgroundColor: '#333', marginTop: -8 },
-  exNotes:  { color: '#444', fontSize: 11, marginTop: 6, fontStyle: 'italic' },
+  exStatDot:   { width: 3, height: 3, borderRadius: 2, backgroundColor: '#333', marginTop: -6 },
+  exNotes:  { color: '#444', fontSize: 11, marginTop: 5, fontStyle: 'italic' },
+
+  exEjecutarBtn: {
+    backgroundColor: '#f05b22', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+  },
+  exEjecutarTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
 
   emptyTitle:  { color: '#555', fontSize: 16, fontWeight: '700', textAlign: 'center' },
   emptySubTxt: { color: '#333', fontSize: 13, textAlign: 'center', lineHeight: 20 },

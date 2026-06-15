@@ -10,8 +10,8 @@ import { trainingApi, WorkoutSession, WorkoutSet } from '../../../app/Providers/
 
 const { height: SCREEN_H } = Dimensions.get('window');
 
-type FilterKey = 'TODOS' | 'FUERZA' | 'CARDIO' | 'HIIT';
-const FILTERS: FilterKey[] = ['TODOS', 'FUERZA', 'CARDIO', 'HIIT'];
+type FilterKey = 'TODOS' | 'FUERZA' | 'CARDIO' | 'HIIT' | 'ENTRENADOR';
+const FILTERS: FilterKey[] = ['TODOS', 'ENTRENADOR', 'FUERZA', 'CARDIO', 'HIIT'];
 
 const SPORT_LABEL: Record<string, string> = {
   MUSCULACION: 'Fuerza',
@@ -101,15 +101,17 @@ const SessionCard = ({
   item: WorkoutSession;
   onPress: () => void;
 }) => {
-  const sport       = String(item.sportType ?? 'DEFAULT').toUpperCase();
-  const label       = SPORT_LABEL[sport]  ?? SPORT_LABEL.DEFAULT;
-  let accent        = SPORT_COLOR[sport]  ?? SPORT_COLOR.DEFAULT;
-  let icon          = SPORT_ICON[sport]   ?? SPORT_ICON.DEFAULT;
-  const minutes     = Math.floor((item.durationSeconds ?? 0) / 60);
-  const setsCount   = item.sets?.length ?? 0;
-  const volume      = (item.sets ?? []).reduce(
-    (acc, s) => acc + (s.weightUsedKg ?? 0) * (s.repsCompleted ?? 0), 0,
-  );
+  const sport         = String(item.sportType ?? 'DEFAULT').toUpperCase();
+  const label         = SPORT_LABEL[sport]  ?? SPORT_LABEL.DEFAULT;
+  let accent          = SPORT_COLOR[sport]  ?? SPORT_COLOR.DEFAULT;
+  let icon            = SPORT_ICON[sport]   ?? SPORT_ICON.DEFAULT;
+  const minutes       = Math.floor((item.durationSeconds ?? 0) / 60);
+  const setsCount     = item.sets?.length ?? 0;
+  const isTrainer     = item.routineId != null;
+  const trainerName   = (item as any).trainerName as string | null | undefined;
+  const maxWeight   = setsCount > 0
+    ? Math.max(0, ...(item.sets ?? []).map(s => s.weightUsedKg ?? 0))
+    : 0;
   const isStrength  = sport === 'MUSCULACION';
 
   // ── Título dinámico ──────────────────────────────────────────────────────
@@ -160,6 +162,16 @@ const SessionCard = ({
           </View>
         </View>
 
+        {/* Badge entrenador */}
+        {isTrainer && (
+          <View style={card.trainerRow}>
+            <MaterialCommunityIcons name="account-tie" size={12} color="#818cf8" />
+            <Text style={card.trainerTxt}>
+              {trainerName ? `Entrenador: ${trainerName}` : 'Rutina del entrenador'}
+            </Text>
+          </View>
+        )}
+
         {/* Métricas principales */}
         <View style={card.metricsRow}>
           <View style={card.metric}>
@@ -180,12 +192,12 @@ const SessionCard = ({
               </View>
             </>
           )}
-          {isStrength && volume > 0 && (
+          {isStrength && maxWeight > 0 && (
             <>
               <View style={card.metricDivider} />
               <View style={card.metric}>
                 <MaterialCommunityIcons name="weight" size={14} color="#9b5de5" />
-                <Text style={card.metricTxt}>{volume.toFixed(0)} kg vol.</Text>
+                <Text style={card.metricTxt}>{maxWeight} kg máx</Text>
               </View>
             </>
           )}
@@ -232,8 +244,7 @@ const DetailSheet = ({
   const label      = SPORT_LABEL[sport]  ?? SPORT_LABEL.DEFAULT;
   let accent       = SPORT_COLOR[sport]  ?? SPORT_COLOR.DEFAULT;
   let icon         = SPORT_ICON[sport]   ?? SPORT_ICON.DEFAULT;
-  const isStrength = sport === 'MUSCULACION';
-  const sets       = session.sets ?? [];
+  const sets = session.sets ?? [];
 
   // ── Título dinámico para el detail sheet ────────────────────────────────
   let sheetTitle = '';
@@ -247,7 +258,9 @@ const DetailSheet = ({
   }
 
   // ── Métricas agregadas ───────────────────────────────────────────────────
-  const volume = sets.reduce((acc, s) => acc + (s.weightUsedKg ?? 0) * (s.repsCompleted ?? 0), 0);
+  const maxWeightSheet = sets.length > 0
+    ? Math.max(0, ...sets.map(s => s.weightUsedKg ?? 0))
+    : 0;
   const bestSet = sets.reduce<WorkoutSet | null>(
     (best, s) => (!best || (s.weightUsedKg ?? 0) > (best.weightUsedKg ?? 0) ? s : best),
     null,
@@ -329,11 +342,11 @@ const DetailSheet = ({
                 <Text style={sheet.statLbl}>Series</Text>
               </View>
             )}
-            {volume > 0 && (
+            {maxWeightSheet > 0 && (
               <View style={sheet.statCard}>
-                <MaterialCommunityIcons name="weight-lifter" size={20} color="#9b5de5" />
-                <Text style={sheet.statVal}>{volume.toFixed(0)} kg</Text>
-                <Text style={sheet.statLbl}>Volumen</Text>
+                <MaterialCommunityIcons name="weight" size={20} color="#9b5de5" />
+                <Text style={sheet.statVal}>{maxWeightSheet} kg</Text>
+                <Text style={sheet.statLbl}>Max peso</Text>
               </View>
             )}
           </View>
@@ -490,9 +503,11 @@ export const WorkoutHistoryScreen = () => {
 
   const filtered = filter === 'TODOS'
     ? sessions
-    : sessions.filter(s =>
-        (SPORT_CATEGORY[String(s.sportType ?? '').toUpperCase()] ?? 'TODOS') === filter,
-      );
+    : filter === 'ENTRENADOR'
+      ? sessions.filter(s => s.routineId != null)
+      : sessions.filter(s =>
+          (SPORT_CATEGORY[String(s.sportType ?? '').toUpperCase()] ?? 'TODOS') === filter,
+        );
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
@@ -553,7 +568,9 @@ export const WorkoutHistoryScreen = () => {
               <Text style={s.emptySub}>
                 {filter === 'TODOS'
                   ? 'Completa tu primer entrenamiento para verlo aquí.'
-                  : `No hay sesiones de ${filter} registradas.`}
+                  : filter === 'ENTRENADOR'
+                    ? 'No tienes sesiones de rutinas asignadas por tu entrenador.'
+                    : `No hay sesiones de ${filter} registradas.`}
               </Text>
               {filter === 'TODOS' && (
                 <TouchableOpacity style={s.startBtn} onPress={() => navigation.navigate('WorkoutMode')}>
@@ -631,6 +648,14 @@ const card = StyleSheet.create({
   date:     { color: '#444', fontSize: 11, marginTop: 2 },
   badge:    { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
   badgeTxt: { fontSize: 11, fontWeight: '800' },
+
+  trainerRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: '#13103a', borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 5,
+    alignSelf: 'flex-start', marginBottom: 4,
+  },
+  trainerTxt: { color: '#818cf8', fontSize: 11, fontWeight: '700' },
 
   metricsRow: { flexDirection: 'row', alignItems: 'center', gap: 0 },
   metric:     { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8 },
