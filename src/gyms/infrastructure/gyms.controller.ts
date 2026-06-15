@@ -72,6 +72,12 @@ export class GymsController {
     );
   }
 
+  @Get('locations')
+  @ApiOperation({ summary: 'Todas las ubicaciones GPS de sucursales (para detección por Haversine)' })
+  findAllLocations() {
+    return this.svc.findAllLocations();
+  }
+
   @Get('brands')
   @ApiOperation({
     summary: 'Listar Marcas corporativas (parentId IS NULL) — panel admin',

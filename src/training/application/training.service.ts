@@ -18,6 +18,8 @@ import { EmergencyContact } from '../domain/emergency-contact.entity';
 import { WorkoutSession } from '../domain/workout-session.entity';
 import { WorkoutSet } from '../domain/workout-set.entity';
 import { UserSubscription } from '../../subscriptions/domain/user-subscription.entity';
+import { Routine } from '../../routines/domain/routine.entity';
+import { GymGateway } from '../../notifications/infrastructure/gym.gateway';
 import {
   getManagerGymId,
   type RequestWithUser,
@@ -42,11 +44,24 @@ export class TrainingService {
     @InjectRepository(WorkoutSet) private setsRepo: Repository<WorkoutSet>,
     @InjectRepository(UserSubscription)
     private subsRepo: Repository<UserSubscription>,
+    @InjectRepository(Routine) private routinesRepo: Repository<Routine>,
+    private readonly gateway: GymGateway,
     @Inject(REQUEST) private readonly request: RequestWithUser,
   ) {}
 
   private managerGymId(): number | null {
     return getManagerGymId(this.request);
+  }
+
+  private async emitSessionUpdateToTrainer(session: ReturnType<typeof this.mapSession>) {
+    if (!session.routineId) return;
+    const routine = await this.routinesRepo.findOne({
+      where: { id: session.routineId },
+      select: ['trainerId'],
+    });
+    if (routine?.trainerId) {
+      this.gateway.emitToUser(routine.trainerId, 'routine_session_update', session);
+    }
   }
 
   /** Mapea una WorkoutSession a un objeto plano seguro para serialización HTTP. */
@@ -129,6 +144,10 @@ export class TrainingService {
           }
         : null,
       routineId: s.routineId,
+      trainerId: s.routine?.trainerId ?? null,
+      trainerName: s.routine?.trainer?.profile
+        ? `${(s.routine.trainer.profile as any).firstName} ${(s.routine.trainer.profile as any).lastName}`.trim()
+        : null,
       routine: s.routine
         ? {
             id: s.routine.id,
@@ -345,7 +364,9 @@ export class TrainingService {
       );
       await this.setsRepo.save(items);
     }
-    return this.findOneSession(session.id);
+    const mapped = await this.findOneSession(session.id);
+    this.emitSessionUpdateToTrainer(mapped as any).catch(() => {});
+    return mapped;
   }
 
   async findAllSessions(userId: number, take = 50, skip = 0) {
@@ -355,6 +376,8 @@ export class TrainingService {
       .leftJoinAndSelect('session.routine', 'routine')
       .leftJoinAndSelect('routine.exercises', 'routineExercises')
       .leftJoinAndSelect('routineExercises.exercise', 'catalogExercise')
+      .leftJoinAndSelect('routine.trainer', 'trainerUser')
+      .leftJoinAndSelect('trainerUser.profile', 'trainerProfile')
       .leftJoinAndSelect('session.user', 'user')
       .leftJoinAndSelect('session.gym', 'gym')
       .leftJoinAndSelect('gym.parent', 'brand')
@@ -376,13 +399,15 @@ export class TrainingService {
     return sessions.map((s) => this.mapSession(s));
   }
 
-  async findSessionsByUser(userId: number) {
+  async findSessionsByUser(userId: number, routineId?: number) {
     const mg = this.managerGymId();
     const qb = this.sessionsRepo
       .createQueryBuilder('session')
       .leftJoinAndSelect('session.routine', 'routine')
       .leftJoinAndSelect('routine.exercises', 'routineExercises')
       .leftJoinAndSelect('routineExercises.exercise', 'catalogExercise')
+      .leftJoinAndSelect('routine.trainer', 'trainerUser')
+      .leftJoinAndSelect('trainerUser.profile', 'trainerProfile')
       .leftJoinAndSelect('session.gym', 'gym')
       .leftJoinAndSelect('gym.parent', 'brand')
       .leftJoinAndSelect('session.sets', 'sets')
@@ -391,6 +416,10 @@ export class TrainingService {
       .leftJoinAndSelect('routineExercise.exercise', 'exercise')
       .where('session.user_id = :userId', { userId })
       .orderBy('session.started_at', 'DESC');
+
+    if (routineId !== undefined) {
+      qb.andWhere('session.routine_id = :routineId', { routineId });
+    }
 
     if (mg !== null) {
       qb.andWhere('session.gym_id = :gymId', { gymId: mg });
@@ -432,6 +461,8 @@ export class TrainingService {
       .leftJoinAndSelect('session.routine', 'routine')
       .leftJoinAndSelect('routine.exercises', 'routineExercises')
       .leftJoinAndSelect('routineExercises.exercise', 'catalogExercise')
+      .leftJoinAndSelect('routine.trainer', 'trainerUser')
+      .leftJoinAndSelect('trainerUser.profile', 'trainerProfile')
       .leftJoinAndSelect('session.user', 'user')
       .leftJoinAndSelect('session.gym', 'gym')
       .leftJoinAndSelect('gym.parent', 'brand')
@@ -473,11 +504,14 @@ export class TrainingService {
       throw new ForbiddenException('No puede mover la sesión a otra sucursal');
     }
 
-    if (data.status === 'COMPLETED' && !s.finishedAt) s.finishedAt = new Date();
+    if ((data.status === 'COMPLETED' || data.status === 'PARTIAL') && !s.finishedAt) {
+      s.finishedAt = new Date();
+    }
     Object.assign(s, data);
     await this.sessionsRepo.save(s);
-    // Retorna la sesión mapeada (con gymName, brandName, etc.) despues de guardar
-    return this.findOneSession(id);
+    const mapped = await this.findOneSession(id);
+    this.emitSessionUpdateToTrainer(mapped as any).catch(() => {});
+    return mapped;
   }
 
   async addSet(sessionId: number, data: any) {

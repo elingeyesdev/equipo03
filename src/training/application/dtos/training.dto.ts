@@ -131,13 +131,15 @@ export class CreateSessionDto {
   @IsInt()
   routineId?: number;
 
-  @ApiProperty({ example: 1, description: 'ID del usuario' })
+  @ApiPropertyOptional({ example: 1, description: 'ID del usuario. Si se omite se toma del JWT.' })
+  @IsOptional()
   @IsInt()
-  userId: number;
+  userId?: number;
 
-  @ApiProperty({ example: 1, description: 'ID del gimnasio' })
+  @ApiPropertyOptional({ example: 1, description: 'ID del gimnasio. Null si fuera de sucursales.' })
+  @IsOptional()
   @IsInt()
-  gymId: number;
+  gymId?: number | null;
 
   @ApiPropertyOptional({
     example: 'MUSCULACION',
@@ -146,6 +148,14 @@ export class CreateSessionDto {
   @IsOptional()
   @IsString()
   sportType?: string;
+
+  @ApiPropertyOptional({
+    example: 'IN_PROGRESS',
+    description: 'Estado inicial: IN_PROGRESS | FINISHED | COMPLETED | PARTIAL | CANCELLED',
+  })
+  @IsOptional()
+  @IsString()
+  status?: string;
 
   @ApiPropertyOptional({ example: 'Sesión de prueba' })
   @IsOptional()

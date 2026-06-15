@@ -91,7 +91,8 @@ export class TrainingController {
   @Post('sessions')
   @ApiOperation({ summary: 'Iniciar sesión de entrenamiento' })
   @ApiBody({ type: CreateSessionDto })
-  createSession(@Body() body: CreateSessionDto) {
+  createSession(@Req() req: RequestWithUser, @Body() body: CreateSessionDto) {
+    body.userId = Number(req.user!.userId);
     return this.svc.createSession(body);
   }
 
@@ -135,15 +136,16 @@ export class TrainingController {
 
   @Get('sessions/user/:userId')
   @ApiOperation({
-    summary: 'Sesiones de usuario (USER solo puede ver las propias)',
+    summary: 'Sesiones de usuario (USER solo puede ver las propias). Soporta ?routineId=X',
   })
+  @ApiQuery({ name: 'routineId', required: false, description: 'Filtrar por rutina asignada' })
   findByUser(
     @Req() req: RequestWithUser,
     @Param('userId', ParseIntPipe) uid: number,
+    @Query('routineId') routineId?: string,
   ) {
     const role = req.user?.role?.toUpperCase();
     const selfId = Number(req.user!.userId);
-    // USER solo puede consultar su propio historial
     if (role === 'USER' || role === 'CLIENTE') {
       if (selfId !== uid) {
         throw new ForbiddenException(
@@ -151,7 +153,8 @@ export class TrainingController {
         );
       }
     }
-    return this.svc.findSessionsByUser(uid);
+    const rid = routineId ? parseInt(routineId, 10) : undefined;
+    return this.svc.findSessionsByUser(uid, rid);
   }
 
   @Get('sessions/strength-records')

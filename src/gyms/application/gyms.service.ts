@@ -441,4 +441,21 @@ export class GymsService {
       completed,
     };
   }
+
+  async findAllLocations() {
+    const locations = await this.locRepo
+      .createQueryBuilder('loc')
+      .innerJoinAndSelect('loc.gym', 'gym')
+      .leftJoinAndSelect('gym.parent', 'brand')
+      .where('gym.isActive = true')
+      .getMany();
+
+    return locations.map((l) => ({
+      gymId: l.gymId,
+      gymName: l.gym.name,
+      brandName: l.gym.parent?.name ?? null,
+      latitude: Number(l.latitude),
+      longitude: Number(l.longitude),
+    }));
+  }
 }
