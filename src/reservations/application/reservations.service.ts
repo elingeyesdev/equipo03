@@ -22,6 +22,7 @@ import {
   SelectQueryBuilder,
 } from 'typeorm';
 import { Reservation } from '../domain/reservation.entity';
+import { Gym } from '../../gyms/domain/gym.entity';
 import { GymActivity } from '../../activities/domain/gym-activity.entity';
 import { GymActivitySchedule } from '../../activities/domain/gym-activity-schedule.entity';
 import { GymSchedule } from '../../gyms/domain/gym-schedule.entity';
@@ -58,6 +59,7 @@ export class ReservationsService {
 
   constructor(
     @InjectRepository(Reservation) private repo: Repository<Reservation>,
+    @InjectRepository(Gym) private gymRepo: Repository<Gym>,
     @InjectRepository(GymActivity)
     private activityRepo: Repository<GymActivity>,
     @InjectRepository(GymActivitySchedule)
@@ -76,6 +78,49 @@ export class ReservationsService {
 
   private managerGymId(): number | null {
     return getManagerGymId(this.request);
+  }
+
+  /**
+   * Verifica si una reserva pertenece al gym/marca del manager autenticado.
+   * Para gerentes de MARCA (brandId en JWT): la reserva debe estar en la marca o en una sucursal hija.
+   * Para gerentes de SUCURSAL (gymId en JWT): comparación directa de IDs.
+   */
+  private async gymBelongsToManager(reservationGymId: number | null): Promise<boolean> {
+    if (!reservationGymId) return false;
+    const { gymId: jwtGymId, brandId: jwtBrandId } = this.getAuthUser();
+
+    if (jwtBrandId) {
+      // Gerente de marca: la reserva debe ser del brand mismo o de una sucursal hija
+      if (reservationGymId === jwtBrandId) return true;
+      const gym = await this.gymRepo.findOne({
+        where: { id: reservationGymId },
+        select: { id: true, parentId: true },
+      });
+      return gym?.parentId === jwtBrandId;
+    }
+    // Gerente de sucursal: comparación directa
+    return Number(reservationGymId) === Number(jwtGymId);
+  }
+
+  /**
+   * Retorna true si la reserva ya expiró (fecha pasada, o misma fecha pero hora fin superada).
+   * Usa UTC para consistencia con checkInByToken.
+   */
+  private isReservationExpired(r: Reservation): boolean {
+    const dateStr =
+      r.reservationDate instanceof Date
+        ? r.reservationDate.toISOString().slice(0, 10)
+        : String(r.reservationDate).slice(0, 10);
+
+    const now = new Date();
+    const todayUtc = now.toISOString().slice(0, 10);
+
+    if (dateStr < todayUtc) return true;
+    if (dateStr > todayUtc) return false;
+
+    if (!r.endTime) return false;
+    const [eh, em] = String(r.endTime).slice(0, 5).split(':').map(Number);
+    return now.getUTCHours() * 60 + now.getUTCMinutes() >= eh * 60 + em;
   }
 
   private getAuthUser(): RequestUser {
@@ -111,9 +156,11 @@ export class ReservationsService {
     } else if (roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA') {
       const gymId = this.managerGymId();
       const auditStatuses = ['CONFIRMADA', 'COMPLETADA'];
-      qb.andWhere('(activity.gym_id = :gymId OR reservation.gym_id = :gymId)', {
-        gymId,
-      });
+      // gym.parent_id = :gymId cubre sucursales hijas cuando gymId es el brandId del gerente de marca
+      qb.andWhere(
+        '(activity.gym_id = :gymId OR reservation.gym_id = :gymId OR gym.parent_id = :gymId)',
+        { gymId },
+      );
       qb.andWhere('reservation.status IN (:...auditStatuses)', {
         auditStatuses,
       });
@@ -578,8 +625,9 @@ export class ReservationsService {
       // Usuario
       .leftJoinAndSelect('reservation.user', 'user')
       .leftJoinAndSelect('user.profile', 'userProfile')
-      // Sede
+      // Sede + marca padre (para mensajes de error cross-brand)
       .leftJoinAndSelect('reservation.gym', 'gym')
+      .leftJoinAndSelect('gym.parent', 'gymBrand')
       // Flujo libre
       .leftJoinAndSelect('reservation.activity', 'freeActivity')
       .addSelect('freeActivity.name')
@@ -646,13 +694,17 @@ export class ReservationsService {
     const lastName = r.user?.profile?.lastName ?? '';
     const fullName = `${firstName} ${lastName}`.trim();
 
+    // Estado computado: CONFIRMADA + expirada → CADUCADA (sin mutación en BD)
+    const effectiveStatus =
+      r.status === 'CONFIRMADA' && this.isReservationExpired(r) ? 'CADUCADA' : r.status;
+
     return {
       id: r.id,
       userId: r.userId ?? r.user?.id,
       reservationDate: reservationDateStr,
       startTime: r.startTime,
       endTime: r.endTime,
-      status: r.status,
+      status: effectiveStatus,
       qrToken: r.qrToken,
       createdAt: r.createdAt,
       cancelledAt: r.cancelledAt,
@@ -672,6 +724,9 @@ export class ReservationsService {
         ? {
             id: r.gym.id,
             name: r.gym.name,
+            brand: r.gym.parent
+              ? { id: r.gym.parent.id, name: r.gym.parent.name }
+              : null,
           }
         : null,
       freeActivity: r.activity
@@ -763,9 +818,10 @@ export class ReservationsService {
 
     if (roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA') {
       const gymId = this.managerGymId();
-      qb.andWhere('(activity.gym_id = :gymId OR reservation.gym_id = :gymId)', {
-        gymId,
-      });
+      qb.andWhere(
+        '(activity.gym_id = :gymId OR reservation.gym_id = :gymId OR gym.parent_id = :gymId)',
+        { gymId },
+      );
     }
 
     const records = await qb.getMany();
@@ -778,8 +834,9 @@ export class ReservationsService {
       // Usuario
       .leftJoinAndSelect('reservation.user', 'user')
       .leftJoinAndSelect('user.profile', 'userProfile')
-      // Sede
+      // Sede + marca padre
       .leftJoinAndSelect('reservation.gym', 'gym')
+      .leftJoinAndSelect('gym.parent', 'gymBrand')
       // Flujo libre
       .leftJoinAndSelect('reservation.activity', 'freeActivity')
       .addSelect('freeActivity.name')
@@ -834,11 +891,10 @@ export class ReservationsService {
     const { role } = this.getAuthUser();
     const roleUp = role?.toUpperCase();
     if (roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA') {
-      const managerGymId = this.managerGymId();
-      const reservationGymId =
-        r.gymId ?? r.gymActivitySchedule?.gymActivity?.gymId;
-      if (Number(reservationGymId) !== Number(managerGymId)) {
-        throw new ForbiddenException('Esta reserva pertenece a otra sucursal.');
+      const reservationGymId = r.gymId ?? r.gymActivitySchedule?.gymActivity?.gymId ?? null;
+      const hasAccess = await this.gymBelongsToManager(reservationGymId);
+      if (!hasAccess) {
+        throw new ForbiddenException('Esta reserva pertenece a una sucursal de otra marca.');
       }
     } else if (roleUp === 'CLIENTE' || roleUp === 'USER') {
       throw new ForbiddenException(
@@ -1042,16 +1098,17 @@ export class ReservationsService {
         );
       }
 
-      // ── 6. Validación de sucursal estricta (anti-fraude cruzado) ──────────
+      // ── 6. Validación de sucursal/marca estricta (anti-fraude cruzado) ──────
       if (roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA') {
-        const managerGymId = this.managerGymId();
         const reservationGymId =
           reservation.gymId ??
           reservation.gymActivitySchedule?.gymActivity?.gymId ??
           null;
-
-        if (Number(reservationGymId) !== Number(managerGymId)) {
-          throw new ForbiddenException('El QR pertenece a otra sucursal.');
+        const hasAccess = await this.gymBelongsToManager(reservationGymId);
+        if (!hasAccess) {
+          throw new ForbiddenException(
+            'El QR pertenece a una sucursal de otra marca.',
+          );
         }
       }
 
@@ -1255,7 +1312,7 @@ export class ReservationsService {
     return this.findOne(saved.id);
   }
   async confirm(id: number) {
-    const { role, gymId } = this.getAuthUser();
+    const { role } = this.getAuthUser();
     const roleUp = role?.toUpperCase();
 
     if (
@@ -1276,11 +1333,11 @@ export class ReservationsService {
     }
 
     if (roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA') {
-      const reservationGymId =
-        r.gymId ?? r.gymActivitySchedule?.gymActivity?.gymId;
-      if (Number(reservationGymId) !== Number(gymId)) {
+      const reservationGymId = r.gymId ?? r.gymActivitySchedule?.gymActivity?.gymId ?? null;
+      const hasAccess = await this.gymBelongsToManager(reservationGymId);
+      if (!hasAccess) {
         throw new ForbiddenException(
-          'Esta reserva pertenece a otra sede corporativa.',
+          'Esta reserva pertenece a una sucursal de otra marca.',
         );
       }
     }
