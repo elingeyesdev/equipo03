@@ -4,6 +4,7 @@ import {
   Users, Dumbbell, UserCheck, MapPin, BarChart2, Activity,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { apiClient } from '../../infrastructure/api.config';
 import { DB_ROLES } from '../../config/rbac.constants';
 import type { GymDto, UserDto } from './Shared/DashboardTypes';
@@ -42,21 +43,31 @@ const KpiCard = ({
   label, value, icon, color,
 }: {
   label: string; value: React.ReactNode; icon: React.ReactNode; color: string;
-}) => (
-  <div className="bg-white dark:bg-bg-surface border border-slate-200 dark:border-gray-800 rounded-xl shadow-sm flex items-center gap-4 p-5">
-    <div className="w-14 h-14 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: color }}>
-      {icon}
+}) => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  return (
+    <div className="bg-white dark:bg-bg-surface border border-slate-200 dark:border-gray-800 rounded-xl flex items-center gap-4 p-5">
+      <div
+        className="w-14 h-14 rounded-lg flex items-center justify-center flex-shrink-0"
+        style={{
+          background: isDark ? color : `${color}22`,
+          border: isDark ? 'none' : `1.5px solid ${color}55`,
+        }}
+      >
+        {React.cloneElement(icon as React.ReactElement, { color: isDark ? '#fff' : color })}
+      </div>
+      <div className="flex flex-col min-w-0">
+        <span className="text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider truncate">
+          {label}
+        </span>
+        <span className="text-2xl font-bold leading-tight text-slate-900 dark:text-white">
+          {value}
+        </span>
+      </div>
     </div>
-    <div className="flex flex-col min-w-0">
-      <span className="text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider truncate">
-        {label}
-      </span>
-      <span className="text-2xl font-bold leading-tight text-slate-900 dark:text-white">
-        {value}
-      </span>
-    </div>
-  </div>
-);
+  );
+};
 
 // ── Stat pill compacto (sin ícono) ────────────────────────────────────────────
 const StatPill = ({
@@ -237,39 +248,49 @@ const ChartCard = ({
 }: {
   bg: string; title: string; subtitle: string; total: number | string;
   totalLabel: string; updatedAt: Date; children: React.ReactNode;
-}) => (
-  <div className="bg-white dark:bg-bg-surface border border-slate-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden flex flex-col">
-    <div style={{ background: bg, padding: '16px 20px 0 20px' }}>
-      <div className="mb-2">
-        <div className="text-white/70 text-xs font-semibold uppercase tracking-wider">{totalLabel}</div>
-        <div className="text-white text-2xl font-bold leading-tight">
-          {typeof total === 'number' ? total.toLocaleString('es-ES') : total}
+}) => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  return (
+    <div className="bg-white dark:bg-bg-surface border border-slate-200 dark:border-gray-800 rounded-xl overflow-hidden flex flex-col">
+      <div style={{ background: bg, padding: '16px 20px 0 20px', position: 'relative' }}>
+        {/* Overlay oscuro en modo claro para reducir saturación y mejorar legibilidad */}
+        {!isDark && (
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.20)', pointerEvents: 'none', zIndex: 0 }} />
+        )}
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <div className="mb-2">
+            <div className="text-white/70 text-xs font-semibold uppercase tracking-wider">{totalLabel}</div>
+            <div className="text-white text-2xl font-bold leading-tight">
+              {typeof total === 'number' ? total.toLocaleString('es-ES') : total}
+            </div>
+          </div>
+          <div style={{ width: '100%', height: '180px' }}>
+            {children}
+          </div>
         </div>
       </div>
-      <div style={{ width: '100%', height: '180px' }}>
-        {children}
+      <div className="px-5 py-4">
+        <h3 className="text-sm font-bold text-slate-900 dark:text-white">{title}</h3>
+        <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">{subtitle}</p>
+        <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-gray-500 mt-3 pt-3 border-t border-slate-100 dark:border-gray-800">
+          <Clock size={11} />
+          <span>actualizado {fmtTimeAgo(updatedAt)}</span>
+        </div>
       </div>
     </div>
-    <div className="px-5 py-4">
-      <h3 className="text-sm font-bold text-slate-900 dark:text-white">{title}</h3>
-      <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">{subtitle}</p>
-      <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-gray-500 mt-3 pt-3 border-t border-slate-100 dark:border-gray-800">
-        <Clock size={11} />
-        <span>actualizado {fmtTimeAgo(updatedAt)}</span>
-      </div>
-    </div>
-  </div>
-);
+  );
+};
 
 // ── Tabla top sucursales ──────────────────────────────────────────────────────
 const TopBranchesCard = ({
-  branches, brands, updatedAt,
-}: { branches: GymDto[]; brands: GymDto[]; updatedAt: Date }) => {
+  branches, updatedAt,
+}: { branches: GymDto[]; updatedAt: Date }) => {
   const sorted = [...branches]
     .sort((a, b) => (b.maxCapacity ?? 0) - (a.maxCapacity ?? 0))
     .slice(0, 7);
   return (
-    <div className="bg-white dark:bg-bg-surface border border-slate-200 dark:border-gray-800 rounded-xl shadow-sm flex flex-col">
+    <div className="bg-white dark:bg-bg-surface border border-slate-200 dark:border-gray-800 rounded-xl flex flex-col">
       <div className="px-5 py-4 border-b border-slate-100 dark:border-gray-800">
         <h3 className="text-sm font-bold text-slate-900 dark:text-white">Top Sucursales</h3>
         <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">Mayor capacidad en la red</p>
@@ -279,33 +300,32 @@ const TopBranchesCard = ({
           <thead>
             <tr className="border-b border-slate-100 dark:border-gray-800">
               <th className="text-left px-5 py-2.5 font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Sucursal</th>
-              <th className="text-left px-2 py-2.5 font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Marca</th>
-              <th className="text-right px-5 py-2.5 font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Cap.</th>
-              <th className="text-right px-5 py-2.5 font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Estado</th>
+              <th className="text-right px-3 py-2.5 font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Cap.</th>
+              <th className="text-center px-3 py-2.5 font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Activa</th>
+              <th className="text-center px-5 py-2.5 font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Abierta</th>
             </tr>
           </thead>
           <tbody>
-            {sorted.map(g => {
-              const brand = brands.find(br => br.id === g.parentId);
-              return (
-                <tr key={g.id} className="border-b border-slate-50 dark:border-gray-800/50 hover:bg-slate-50 dark:hover:bg-gray-800/30 transition-colors">
-                  <td className="px-5 py-2.5 font-medium text-slate-900 dark:text-white max-w-[120px] truncate">{g.name}</td>
-                  <td className="px-2 py-2.5 text-slate-500 dark:text-gray-400">{brand?.name ?? '—'}</td>
-                  <td className="px-5 py-2.5 text-right text-slate-700 dark:text-gray-300 font-medium">
-                    {(g.maxCapacity ?? 0).toLocaleString('es-ES')}
-                  </td>
-                  <td className="px-5 py-2.5 text-right">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                      g.isActive
-                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
-                    }`}>
-                      {g.isActive ? 'Activa' : 'Inactiva'}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
+            {sorted.map(g => (
+              <tr key={g.id} className="border-b border-slate-50 dark:border-gray-800/50 hover:bg-slate-50 dark:hover:bg-gray-800/30 transition-colors">
+                <td className="px-5 py-2.5 font-medium text-slate-900 dark:text-white max-w-[130px] truncate">{g.name}</td>
+                <td className="px-3 py-2.5 text-right text-slate-700 dark:text-gray-300 font-medium">
+                  {(g.maxCapacity ?? 0).toLocaleString('es-ES')}
+                </td>
+                <td className="px-3 py-2.5 text-center">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, background: g.isActive ? 'rgba(0,229,163,0.12)' : 'rgba(99,99,102,0.12)', color: g.isActive ? '#00E5A3' : '#8E8E93', border: `1px solid ${g.isActive ? 'rgba(0,229,163,0.3)' : 'rgba(99,99,102,0.3)'}` }}>
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: g.isActive ? '#00E5A3' : '#8E8E93', flexShrink: 0 }} />
+                    {g.isActive ? 'Sí' : 'No'}
+                  </span>
+                </td>
+                <td className="px-5 py-2.5 text-center">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, background: g.isOpen ? 'rgba(56,189,248,0.12)' : 'rgba(99,99,102,0.12)', color: g.isOpen ? '#38BDF8' : '#8E8E93', border: `1px solid ${g.isOpen ? 'rgba(56,189,248,0.3)' : 'rgba(99,99,102,0.3)'}` }}>
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: g.isOpen ? '#38BDF8' : '#8E8E93', flexShrink: 0 }} />
+                    {g.isOpen ? 'Sí' : 'No'}
+                  </span>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -418,11 +438,11 @@ export const ResumenView = () => {
   const adminPieLabels = ['Clientes', 'Personal', 'Administración'];
   const adminPieColors = ['#38BDF8', '#FF5E00', '#00E5A3'];
 
-  // Sucursales por marca (para gráfico de barras horizontales)
-  const branchesByBrand = brands
-    .map(brand => ({ label: brand.name, value: branches.filter(b => b.parentId === brand.id).length }))
-    .filter(d => d.value > 0)
-    .sort((a, b) => b.value - a.value);
+  // Top sucursales por capacidad instalada (reemplaza branchesByMarca que queda vacío si no hay marcas)
+  const topBranchesByCapacity = [...branches]
+    .sort((a, b) => (b.maxCapacity ?? 0) - (a.maxCapacity ?? 0))
+    .slice(0, 6)
+    .map(b => ({ label: b.name, value: b.maxCapacity ?? 0 }));
 
   // Datos GERENTE
   const userGymId          = user?.gymId ? Number(user.gymId) : null;
@@ -473,7 +493,7 @@ export const ResumenView = () => {
             <KpiCard label="Marcas"          value={brands.length}                             icon={<Building  size={22} color="#fff" />} color="#38BDF8" />
             <KpiCard label="Sucursales"      value={branches.length}                           icon={<MapPin    size={22} color="#fff" />} color="#00E5A3" />
             <KpiCard label="Total Usuarios"  value={totalUsers}                                icon={<Users     size={22} color="#fff" />} color="#FF5E00" />
-            <KpiCard label="Capacidad Total" value={adminMaxCapacity.toLocaleString('es-ES')} icon={<BarChart2 size={22} color="#fff" />} color="#38BDF8" />
+            <KpiCard label="Total Reservas"  value={totalRes}                                  icon={<Activity  size={22} color="#fff" />} color="#FF5E00" />
           </div>
 
           {/* Fila 2: Pills secundarios */}
@@ -535,13 +555,13 @@ export const ResumenView = () => {
 
             <ChartCard
               bg="#38BDF8"
-              title="Ocupación Global"
-              subtitle="Aforo actual vs capacidad máxima"
-              total={adminMaxCapacity}
-              totalLabel="CAPACIDAD MAX"
+              title="Sucursales Activas"
+              subtitle="Porcentaje de sucursales en operación"
+              total={`${activeBranches.length} / ${branches.length}`}
+              totalLabel="ACTIVAS / TOTAL"
               updatedAt={updatedAt}
             >
-              <RingChartCard label="personas" current={adminTotalAforo} max={adminMaxCapacity} color="#ffffff" />
+              <RingChartCard label="sucursales" current={activeBranches.length} max={Math.max(branches.length, 1)} color="#ffffff" />
             </ChartCard>
           </div>
 
@@ -549,16 +569,16 @@ export const ResumenView = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <ChartCard
               bg="#FF5E00"
-              title="Sucursales por Marca"
-              subtitle="Distribución de sedes en la red"
-              total={branches.length}
-              totalLabel="TOTAL SUCURSALES"
+              title="Capacidad por Sucursal"
+              subtitle="Top sucursales con mayor aforo máximo"
+              total={adminMaxCapacity.toLocaleString('es-ES')}
+              totalLabel="CAP. TOTAL INSTALADA"
               updatedAt={updatedAt}
             >
-              <HBarChartCard data={branchesByBrand} />
+              <HBarChartCard data={topBranchesByCapacity} />
             </ChartCard>
 
-            <TopBranchesCard branches={branches} brands={brands} updatedAt={updatedAt} />
+            <TopBranchesCard branches={branches} updatedAt={updatedAt} />
           </div>
         </>
       )}

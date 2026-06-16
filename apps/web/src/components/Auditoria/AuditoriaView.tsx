@@ -402,8 +402,14 @@ const AccesosPanel = () => {
           )}
 
           {hasMore && (
-            <div className="pagination">
-              <button onClick={() => setPage(p => p + 1)} disabled={loading} className="btn-load-more">
+            <div className="flex justify-center px-4 py-6 border-t border-slate-100 dark:border-gray-800">
+              <button
+                onClick={() => setPage(p => p + 1)}
+                disabled={loading}
+                className="bg-transparent text-brand-celeste border border-brand-celeste px-6 py-2 rounded-full font-semibold text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'rgba(56,189,248,0.1)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+              >
                 {loading ? 'Cargando...' : 'Cargar más resultados'}
               </button>
             </div>

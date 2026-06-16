@@ -90,14 +90,15 @@ const tdStyle: CSSProperties = {
 };
 
 const badgeActive: CSSProperties = {
-  display: 'inline-block', padding: '2px 10px', borderRadius: '99px',
-  fontSize: '0.75rem', fontWeight: 700,
-  background: '#00E5A3', color: '#000', border: 'none',
+  display: 'inline-flex', alignItems: 'center', gap: 5,
+  padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700,
+  background: 'rgba(0,229,163,0.12)', color: '#00E5A3', border: '1px solid rgba(0,229,163,0.3)',
 };
 
 const badgeInactive: CSSProperties = {
-  ...badgeActive,
-  background: '#FF5E00', color: '#fff', border: 'none',
+  display: 'inline-flex', alignItems: 'center', gap: 5,
+  padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700,
+  background: 'rgba(255,94,0,0.12)', color: '#FF5E00', border: '1px solid rgba(255,94,0,0.3)',
 };
 
 const btnPrimary: CSSProperties = {
@@ -961,18 +962,33 @@ export const ActividadesView = () => {
                   </td>
                   <td style={tdStyle}>
                     <span style={act.isActive ? badgeActive : badgeInactive}>
+                      <span style={{ width: 5, height: 5, borderRadius: '50%', background: act.isActive ? '#00E5A3' : '#FF5E00', flexShrink: 0 }} />
                       {act.isActive ? 'Activa' : 'Inactiva'}
                     </span>
                   </td>
                   <td style={{ ...tdStyle, textAlign: 'right' }}>
-                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                       <button
                         title="Ver detalle"
                         onClick={() => setDetailTarget(act)}
-                        className="bg-brand-celeste text-black px-2.5 py-1.5 rounded cursor-pointer inline-flex items-center justify-center"
+                        style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(56,189,248,0.12)', color: '#38BDF8', transition: 'background 0.15s' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.26)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.12)'; }}
                       ><Eye size={15} /></button>
-                      <button className={`${btnSecondaryCls} inline-flex items-center gap-1`} onClick={() => setFormTarget(act)}><Edit size={13} />Editar</button>
-                      <button className={btnDangerCls} onClick={() => setDeleteTarget(act)}><Trash2 size={13} />Eliminar</button>
+                      <button
+                        onClick={() => setFormTarget(act)}
+                        title="Editar actividad"
+                        style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(56,189,248,0.12)', color: '#38BDF8', transition: 'background 0.15s' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.26)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.12)'; }}
+                      ><Edit size={15} /></button>
+                      <button
+                        onClick={() => setDeleteTarget(act)}
+                        title="Eliminar actividad"
+                        style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: '#6b7280', transition: 'background 0.15s, color 0.15s' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = '#ef4444'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#6b7280'; }}
+                      ><Trash2 size={15} /></button>
                     </div>
                   </td>
                 </tr>

@@ -489,31 +489,31 @@ const cs = StyleSheet.create({
   safe:   { flex: 1, backgroundColor: '#000' },
   scroll: { padding: 16, paddingBottom: 120 },
 
-  topBar:   { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#111' },
+  topBar:   { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#111' },
   backBtn:  { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-  topTitle: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  topSub:   { color: '#555', fontSize: 11, marginTop: 2 },
+  topTitle: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  topSub:   { color: '#555', fontSize: 13, marginTop: 2 },
 
   summaryRow:  { flexDirection: 'row', gap: 10, marginBottom: 16 },
   summaryCard: { flex: 1, backgroundColor: '#0e0e0e', borderRadius: 14, borderWidth: 1, borderColor: '#1a1a1a', padding: 14, alignItems: 'center' },
   summaryVal:  { color: '#fff', fontSize: 20, fontWeight: '900' },
-  summaryLbl:  { color: '#444', fontSize: 11, marginTop: 4 },
+  summaryLbl:  { color: '#444', fontSize: 12, marginTop: 4 },
 
   filterRow: {
     flexDirection: 'row', gap: 8, marginBottom: 20,
   },
   filterChip: {
-    flex: 1, paddingVertical: 8, borderRadius: 10,
+    flex: 1, paddingVertical: 9, borderRadius: 10,
     backgroundColor: '#0e0e0e', borderWidth: 1, borderColor: '#1a1a1a',
     alignItems: 'center',
   },
   filterChipActive: {
     backgroundColor: '#f05b22', borderColor: '#f05b22',
   },
-  filterChipTxt:    { color: '#555', fontSize: 12, fontWeight: '700' },
+  filterChipTxt:    { color: '#555', fontSize: 13, fontWeight: '700' },
   filterChipTxtActive: { color: '#fff' },
 
-  sectionTitle: { color: '#fff', fontSize: 15, fontWeight: '700', marginBottom: 12 },
+  sectionTitle: { color: '#fff', fontSize: 16, fontWeight: '800', marginBottom: 12 },
   filterLabel:  { color: '#555', fontSize: 13, fontWeight: '400' },
 
   chartSection:   { marginBottom: 24 },
@@ -525,7 +525,7 @@ const cs = StyleSheet.create({
   chartOuter: { alignItems: 'center' },
 
   emptyChart:    { alignItems: 'center', paddingVertical: 32, gap: 10 },
-  emptyChartTxt: { color: '#333', fontSize: 12, textAlign: 'center' },
+  emptyChartTxt: { color: '#333', fontSize: 13, textAlign: 'center' },
 
   // Session card
   card: {
@@ -535,26 +535,26 @@ const cs = StyleSheet.create({
   },
   cardHeader:  { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 },
   statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 20, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4 },
-  statusTxt:   { fontSize: 11, fontWeight: '700' },
-  dateTxt:     { color: '#444', fontSize: 10 },
-  finishedTxt: { color: '#2a2a2a', fontSize: 9, marginTop: 2 },
+  statusTxt:   { fontSize: 12, fontWeight: '700' },
+  dateTxt:     { color: '#555', fontSize: 12 },
+  finishedTxt: { color: '#333', fontSize: 11, marginTop: 2 },
 
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
   statItem:  { backgroundColor: '#111', borderRadius: 10, padding: 10, alignItems: 'center', minWidth: (SW - 80) / 4, flex: 1 },
-  statVal:   { color: '#fff', fontSize: 15, fontWeight: '800', marginVertical: 2 },
-  statLbl:   { color: '#444', fontSize: 10 },
+  statVal:   { color: '#fff', fontSize: 16, fontWeight: '800', marginVertical: 2 },
+  statLbl:   { color: '#444', fontSize: 11 },
 
   locRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 },
-  locTxt: { color: '#333', fontSize: 11 },
+  locTxt: { color: '#444', fontSize: 12 },
 
   setsSection:      { borderTopWidth: 1, borderTopColor: '#111', paddingTop: 10, gap: 6 },
-  setsSectionTitle: { color: '#444', fontSize: 11, fontWeight: '600', marginBottom: 6 },
+  setsSectionTitle: { color: '#555', fontSize: 12, fontWeight: '600', marginBottom: 6 },
   setRow:    { flexDirection: 'row', alignItems: 'center', gap: 8 },
   setBadge:  { width: 22, height: 22, borderRadius: 6, backgroundColor: '#151515', justifyContent: 'center', alignItems: 'center' },
-  setBadgeTxt: { color: '#f05b22', fontSize: 10, fontWeight: '800' },
-  setDetail: { color: '#666', fontSize: 12 },
-  setVol:    { color: '#333', fontSize: 11 },
+  setBadgeTxt: { color: '#f05b22', fontSize: 11, fontWeight: '800' },
+  setDetail: { color: '#666', fontSize: 13 },
+  setVol:    { color: '#444', fontSize: 12 },
 
   emptyBox: { alignItems: 'center', gap: 10, paddingVertical: 32 },
-  emptyTxt: { color: '#333', fontSize: 13, textAlign: 'center' },
+  emptyTxt: { color: '#333', fontSize: 14, textAlign: 'center' },
 });

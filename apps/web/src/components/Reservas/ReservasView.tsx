@@ -393,12 +393,26 @@ export const ReservasView = () => {
 
             {/* ── Pager ── */}
             {totalPages > 1 && (
-              <div className="pager">
-                <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="pager-btn">
+              <div className="flex justify-center items-center gap-5 px-4 py-4 border-t border-slate-100 dark:border-gray-800 bg-white dark:bg-bg-surface">
+                <button
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(p => p - 1)}
+                  className="text-sm bg-white dark:bg-bg-deep border border-gray-200 dark:border-gray-700 text-slate-700 dark:text-white px-4 py-2 rounded-md cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                  onMouseEnter={e => { if (!e.currentTarget.disabled) { e.currentTarget.style.borderColor = '#FF5E00'; e.currentTarget.style.color = '#FF5E00'; } }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = ''; e.currentTarget.style.color = ''; }}
+                >
                   Anterior
                 </button>
-                <span className="pager-info">Página <strong>{currentPage}</strong> de {totalPages}</span>
-                <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="pager-btn">
+                <span className="text-slate-500 dark:text-gray-400 text-sm">
+                  Página <strong className="text-slate-900 dark:text-white">{currentPage}</strong> de {totalPages}
+                </span>
+                <button
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(p => p + 1)}
+                  className="text-sm bg-white dark:bg-bg-deep border border-gray-200 dark:border-gray-700 text-slate-700 dark:text-white px-4 py-2 rounded-md cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                  onMouseEnter={e => { if (!e.currentTarget.disabled) { e.currentTarget.style.borderColor = '#FF5E00'; e.currentTarget.style.color = '#FF5E00'; } }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = ''; e.currentTarget.style.color = ''; }}
+                >
                   Siguiente
                 </button>
               </div>

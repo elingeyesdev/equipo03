@@ -54,6 +54,7 @@ import { ResumenEjercicioScreen } from '../resources/views/perfil/ResumenEjercic
 import { SeguimientoScreen }       from '../resources/views/seguimiento/SeguimientoScreen';
 import { HistorialRutinaScreen }   from '../resources/views/seguimiento/HistorialRutinaScreen';
 import { RegistroEjercicioScreen } from '../resources/views/seguimiento/RegistroEjercicioScreen';
+import { MisAlumnosScreen }        from '../resources/views/inicio/MisAlumnosScreen';
 
 // ── Iconos de tabs ────────────────────────────────────────────────────────────
 const TAB_ICON: Record<string, string> = {
@@ -258,6 +259,11 @@ const StaffStack = () => (
     <StaffNav.Screen
       name="RegistroEjercicio"
       component={RegistroEjercicioScreen}
+      options={{ headerShown: false }}
+    />
+    <StaffNav.Screen
+      name="MisAlumnos"
+      component={MisAlumnosScreen}
       options={{ headerShown: false }}
     />
   </StaffNav.Navigator>

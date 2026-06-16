@@ -374,22 +374,25 @@ export const RolesView = () => {
               </div>
 
               {/* Acciones */}
-              <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                 <button
                   onClick={() => { setRoleToEdit(role); setIsModalOpen(true); }}
-                  className="bg-brand-celeste text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1"
+                  title="Editar rol"
+                  style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(56,189,248,0.12)', color: '#38BDF8', transition: 'background 0.15s' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.26)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.12)'; }}
                 >
-                  <Edit size={13} />
-                  Editar
+                  <Edit size={15} />
                 </button>
                 <button
                   onClick={() => setDeleteConfirm(role)}
                   disabled={role.isSystemRole}
                   title={role.isSystemRole ? 'Los roles de sistema no pueden eliminarse' : 'Eliminar rol'}
-                  className={`bg-transparent border-0 px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1 ${role.isSystemRole ? 'text-gray-300 opacity-50 cursor-not-allowed' : 'text-gray-500 dark:text-text-muted'}`}
+                  style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: role.isSystemRole ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: role.isSystemRole ? '#d1d5db' : '#6b7280', opacity: role.isSystemRole ? 0.4 : 1, transition: 'background 0.15s, color 0.15s' }}
+                  onMouseEnter={e => { if (!role.isSystemRole) { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = '#ef4444'; } }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = role.isSystemRole ? '#d1d5db' : '#6b7280'; }}
                 >
-                  <Trash2 size={13} />
-                  Eliminar
+                  <Trash2 size={15} />
                 </button>
               </div>
             </div>

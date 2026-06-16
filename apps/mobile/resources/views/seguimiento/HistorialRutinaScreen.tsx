@@ -107,11 +107,13 @@ export const HistorialRutinaScreen = () => {
   const { data: routines = [], isLoading: loadingRoutine } = useQuery({
     queryKey: ['client-routines', clientId],
     queryFn:  () => staffApi.getMyRoutines(clientId),
-    staleTime: 5 * 60_000,
+    staleTime: 30_000,
   });
 
-  const routineId  = routines[0]?.id;
-  const exercises: ClientRoutineExercise[] = routines[0]?.exercises ?? [];
+  // Prefer the most recent routine that actually has exercises assigned
+  const activeRoutine = routines.find(r => (r.exercises?.length ?? 0) > 0) ?? routines[0] ?? null;
+  const routineId  = activeRoutine?.id;
+  const exercises: ClientRoutineExercise[] = activeRoutine?.exercises ?? [];
 
   const { data: sessions = [], isLoading: loadingSessions, isError, refetch } = useQuery<WorkoutSession[]>({
     queryKey: ['trainer-client-sessions', clientId, routineId],
@@ -131,7 +133,7 @@ export const HistorialRutinaScreen = () => {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={s.topTitle} numberOfLines={1}>{clientName}</Text>
-          {routines[0] && <Text style={s.topSub} numberOfLines={1}>{routines[0].name}</Text>}
+          {activeRoutine && <Text style={s.topSub} numberOfLines={1}>{activeRoutine.name}</Text>}
         </View>
         <View style={{ width: 40 }} />
       </View>
@@ -190,13 +192,13 @@ const s = StyleSheet.create({
   list:  { padding: 16, paddingBottom: 100 },
   center:{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12, padding: 32 },
 
-  topBar:   { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#111' },
+  topBar:   { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#111' },
   backBtn:  { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-  topTitle: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  topSub:   { color: '#555', fontSize: 11, marginTop: 2 },
+  topTitle: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  topSub:   { color: '#555', fontSize: 13, marginTop: 2 },
 
   summaryBar: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
-  summaryTxt: { color: '#555', fontSize: 12 },
+  summaryTxt: { color: '#555', fontSize: 13 },
 
   exCard: {
     backgroundColor: '#0e0e0e', borderRadius: 14,
@@ -206,26 +208,26 @@ const s = StyleSheet.create({
   },
   exCardLeft:  { flex: 1, flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   exNumCircle: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center', marginTop: 2 },
-  exNumTxt:    { color: '#f05b22', fontSize: 11, fontWeight: '800' },
-  exName:      { color: '#fff', fontSize: 14, fontWeight: '700' },
-  exMuscle:    { color: '#555', fontSize: 11, marginTop: 2 },
+  exNumTxt:    { color: '#f05b22', fontSize: 12, fontWeight: '800' },
+  exName:      { color: '#fff', fontSize: 15, fontWeight: '700' },
+  exMuscle:    { color: '#555', fontSize: 12, marginTop: 2 },
   exMeta:      { marginTop: 4 },
-  exMetaTxt:   { color: '#333', fontSize: 11 },
+  exMetaTxt:   { color: '#444', fontSize: 12 },
   exFooter:    { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
   statusDot:   { width: 6, height: 6, borderRadius: 3 },
-  exDateTxt:   { color: '#444', fontSize: 11 },
-  noSessionTxt:{ color: '#2a2a2a', fontSize: 11, fontStyle: 'italic' },
+  exDateTxt:   { color: '#555', fontSize: 12 },
+  noSessionTxt:{ color: '#333', fontSize: 12, fontStyle: 'italic' },
 
   verRegistroBtn: {
     backgroundColor: '#0a0a0a', borderRadius: 10, borderWidth: 1, borderColor: '#f05b2233',
     paddingVertical: 8, paddingHorizontal: 12,
     flexDirection: 'row', alignItems: 'center', gap: 5, marginLeft: 8,
   },
-  verRegistroTxt: { color: '#f05b22', fontSize: 12, fontWeight: '700' },
+  verRegistroTxt: { color: '#f05b22', fontSize: 13, fontWeight: '700' },
 
   emptyTitle:  { color: '#555', fontSize: 16, fontWeight: '700', textAlign: 'center' },
-  emptySubTxt: { color: '#333', fontSize: 13, textAlign: 'center', lineHeight: 20, maxWidth: 280 },
+  emptySubTxt: { color: '#333', fontSize: 14, textAlign: 'center', lineHeight: 20, maxWidth: 280 },
   errTxt:      { color: '#555', fontSize: 14 },
   retryBtn:    { backgroundColor: '#1C1C1E', paddingVertical: 10, paddingHorizontal: 20, borderRadius: 10 },
-  retryTxt:    { color: '#f05b22', fontWeight: '700' },
+  retryTxt:    { color: '#f05b22', fontWeight: '700', fontSize: 14 },
 });

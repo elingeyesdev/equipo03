@@ -1269,35 +1269,67 @@ export const UsuariosView = () => {
                         <span style={{ color: '#8E8E93', fontSize: '0.82rem' }}>Sin asignar</span>
                       )}
                     </td>
-                    <td style={{ padding: '0.6rem', color: u.isActive ? '#00E5A3' : '#FF5E00' }}>
-                      {u.isActive ? 'ACTIVO' : 'INACTIVO'}
+                    <td style={{ padding: '0.6rem' }}>
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                        padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700,
+                        background: u.isActive ? 'rgba(0,229,163,0.12)' : 'rgba(255,94,0,0.12)',
+                        color: u.isActive ? '#00E5A3' : '#FF5E00',
+                        border: `1px solid ${u.isActive ? 'rgba(0,229,163,0.3)' : 'rgba(255,94,0,0.3)'}`,
+                      }}>
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: u.isActive ? '#00E5A3' : '#FF5E00', flexShrink: 0 }} />
+                        {u.isActive ? 'Activo' : 'Inactivo'}
+                      </span>
                     </td>
                     <td style={{ padding: '0.6rem', textAlign: 'center' }}>
-                      <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
-                        <button onClick={() => setViewingUser(u)}
-                          className="bg-brand-celeste text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1">
-                          <Eye size={13} />
-                          Detalle
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'center', alignItems: 'center' }}>
+                        {/* Ver detalle */}
+                        <button
+                          onClick={() => setViewingUser(u)}
+                          title="Ver detalle"
+                          style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(56,189,248,0.12)', color: '#38BDF8', transition: 'background 0.15s' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.26)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.12)'; }}
+                        >
+                          <Eye size={15} />
                         </button>
+
+                        {/* Horarios (solo personal de sede) */}
                         {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE' || user?.role === 'RECEPCIONISTA') && SEDE_ROLE_NAMES.has(roleNameRaw) && roleNameRaw !== 'GERENTE' && roleNameRaw !== 'RECEPCIONISTA' && (
-                          <button onClick={() => setSchedulingUser(u)}
-                            className="bg-brand-green text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1">
-                            <Clock size={13} />
-                            Horarios
+                          <button
+                            onClick={() => setSchedulingUser(u)}
+                            title="Gestionar horarios"
+                            style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,229,163,0.12)', color: '#00E5A3', transition: 'background 0.15s' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,229,163,0.26)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,229,163,0.12)'; }}
+                          >
+                            <Clock size={15} />
                           </button>
                         )}
+
+                        {/* Editar */}
                         {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE' || user?.role === 'RECEPCIONISTA') && (
-                          <button onClick={() => { setUserToEdit(u); setIsModalOpen(true); }}
-                            className="bg-brand-celeste text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1">
-                            <Edit size={13} />
-                            Editar
+                          <button
+                            onClick={() => { setUserToEdit(u); setIsModalOpen(true); }}
+                            title="Editar usuario"
+                            style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(56,189,248,0.12)', color: '#38BDF8', transition: 'background 0.15s' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.26)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.12)'; }}
+                          >
+                            <Edit size={15} />
                           </button>
                         )}
+
+                        {/* Eliminar */}
                         {user?.role === 'SUPER_ADMIN' && (
-                          <button onClick={() => setDeleteConfirmUser(u)}
-                            className="bg-transparent text-gray-500 dark:text-text-muted px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1">
-                            <Trash2 size={13} />
-                            Eliminar
+                          <button
+                            onClick={() => setDeleteConfirmUser(u)}
+                            title="Eliminar usuario"
+                            style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: '#6b7280', transition: 'background 0.15s, color 0.15s' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = '#ef4444'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#6b7280'; }}
+                          >
+                            <Trash2 size={15} />
                           </button>
                         )}
                       </div>

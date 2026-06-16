@@ -813,13 +813,19 @@ export const SucursalesView = () => {
                   </td>
                   <td style={{ padding: '0.6rem' }}>{g.maxCapacity ?? '-'}</td>
                   <td style={{ padding: '0.6rem' }}>
-                    <span style={{ color: g.isActive ? '#00E5A3' : '#FF5E00' }}>
-                      {g.isActive ? 'ACTIVA' : 'INACTIVA'}
-                    </span>
-                    <span style={{ color: '#8E8E93' }}>{g.isOpen ? ' | ABIERTA' : ' | CERRADA'}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, background: g.isActive ? 'rgba(0,229,163,0.12)' : 'rgba(255,94,0,0.12)', color: g.isActive ? '#00E5A3' : '#FF5E00', border: `1px solid ${g.isActive ? 'rgba(0,229,163,0.3)' : 'rgba(255,94,0,0.3)'}` }}>
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: g.isActive ? '#00E5A3' : '#FF5E00', flexShrink: 0 }} />
+                        {g.isActive ? 'Activa' : 'Inactiva'}
+                      </span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, background: g.isOpen ? 'rgba(56,189,248,0.12)' : 'rgba(99,99,102,0.12)', color: g.isOpen ? '#38BDF8' : '#8E8E93', border: `1px solid ${g.isOpen ? 'rgba(56,189,248,0.3)' : 'rgba(99,99,102,0.3)'}` }}>
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: g.isOpen ? '#38BDF8' : '#8E8E93', flexShrink: 0 }} />
+                        {g.isOpen ? 'Abierta' : 'Cerrada'}
+                      </span>
+                    </div>
                   </td>
                   <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: 6, justifyContent: 'center', alignItems: 'center' }}>
                       <button
                         onClick={async () => {
                           try {
@@ -829,27 +835,32 @@ export const SucursalesView = () => {
                             setViewingSucursal(g);
                           }
                         }}
-                        className="bg-brand-celeste text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1"
                         title="Ver detalles de la sucursal"
+                        style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(56,189,248,0.12)', color: '#38BDF8', transition: 'background 0.15s' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.26)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.12)'; }}
                       >
-                        <Eye size={12} />
-                        Detalle
+                        <Eye size={15} />
                       </button>
                       {user.role === 'SUPER_ADMIN' && (
                         <>
                           <button
                             onClick={() => handleEditSucursal(g)}
-                            className="bg-brand-celeste text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1"
+                            title="Editar sucursal"
+                            style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(56,189,248,0.12)', color: '#38BDF8', transition: 'background 0.15s' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.26)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.12)'; }}
                           >
-                            <Edit size={12} />
-                            Editar
+                            <Edit size={15} />
                           </button>
                           <button
                             onClick={() => handleDeleteSucursal(g)}
-                            className="bg-transparent text-gray-500 dark:text-text-muted px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1"
+                            title="Eliminar sucursal"
+                            style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: '#6b7280', transition: 'background 0.15s, color 0.15s' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = '#ef4444'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#6b7280'; }}
                           >
-                            <Trash2 size={12} />
-                            Eliminar
+                            <Trash2 size={15} />
                           </button>
                         </>
                       )}

@@ -5,13 +5,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import {
   staffApi,
   PendingTrainerRequest,
-  ActiveAdvisee,
 } from '../../../app/Providers/staff/api/staff.api';
 
 const fmtDate = (iso: string) => {
@@ -42,9 +41,8 @@ const Section = ({
 );
 
 export const TrainerDashboard = () => {
-  const { user }    = useAuth();
-  const navigation  = useNavigation<any>();
-  const queryClient = useQueryClient();
+  const { user }   = useAuth();
+  const navigation = useNavigation<any>();
   const firstName   = (user as any)?.profile?.firstName ?? (user as any)?.firstName ?? 'Entrenador';
   const hora   = new Date().getHours();
   const saludo = hora < 12 ? 'Buenos días' : hora < 18 ? 'Buenas tardes' : 'Buenas noches';
@@ -72,6 +70,10 @@ export const TrainerDashboard = () => {
   const isRefreshing = loadingReqs || loadingAdvisees;
   const onRefresh    = () => { refetchReqs(); refetchAdvisees(); };
 
+  const alumnosLabel = loadingAdvisees
+    ? 'Cargando...'
+    : `${advisees.length} alumno${advisees.length !== 1 ? 's' : ''} asignado${advisees.length !== 1 ? 's' : ''}`;
+
   const handleAccept = async (req: PendingTrainerRequest) => {
     setProcessingId(req.id);
     try {
@@ -86,32 +88,6 @@ export const TrainerDashboard = () => {
     } finally {
       setProcessingId(null);
     }
-  };
-
-  const handleCancelAdvisee = (item: ActiveAdvisee) => {
-    Alert.alert(
-      'Cancelar asesoría',
-      `¿Deseas cancelar la asesoría con ${item.clientName}? Se reiniciarán su plan nutricional y rutinas asignadas.`,
-      [
-        { text: 'No cancelar', style: 'cancel' },
-        {
-          text: 'Sí, cancelar',
-          style: 'destructive',
-          onPress: async () => {
-            setProcessingId(item.id);
-            try {
-              await staffApi.cancelAdvisorship(item.id);
-              await refetchAdvisees();
-              queryClient.invalidateQueries({ queryKey: ['trainer-active-advisees'] });
-            } catch (e: any) {
-              Alert.alert('Error', e?.response?.data?.message ?? 'No se pudo cancelar la asesoría.');
-            } finally {
-              setProcessingId(null);
-            }
-          },
-        },
-      ],
-    );
   };
 
   const handleReject = (req: PendingTrainerRequest) => {
@@ -224,56 +200,23 @@ export const TrainerDashboard = () => {
           })}
         </Section>
 
-        {/* Mis Alumnos Activos */}
-        <Section
-          title="Mis Alumnos Activos"
-          icon="account-group-outline"
-          iconColor="#38BDF8"
-          empty={advisees.length === 0}
+        {/* Mis Alumnos Activos → sub-pantalla */}
+        <TouchableOpacity
+          style={s.alumnosCard}
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('MisAlumnos')}
         >
-          {(advisees as ActiveAdvisee[]).map((item) => {
-            const isCancelling = processingId === item.id;
-            return (
-              <View key={item.clientId} style={s.studentCard}>
-                <View style={s.studentLeft}>
-                  <View style={s.iconBadge}>
-                    <MaterialCommunityIcons name="account-outline" size={20} color="#f05b22" />
-                  </View>
-                  <View style={s.studentInfo}>
-                    <Text style={s.studentName}>{item.clientName}</Text>
-                    <Text style={s.studentSub} numberOfLines={1}>
-                      {item.phone ?? 'Sin teléfono registrado'}
-                    </Text>
-                  </View>
-                </View>
-                {isCancelling ? (
-                  <ActivityIndicator size="small" color="#EF4444" style={{ marginLeft: 8 }} />
-                ) : (
-                  <View style={s.studentActions}>
-                    <TouchableOpacity
-                      style={s.profileBtn}
-                      activeOpacity={0.8}
-                      onPress={() => navigation.navigate('PerfilAlumno', {
-                        clientId:   item.clientId,
-                        clientName: item.clientName,
-                      })}
-                    >
-                      <Text style={s.profileBtnTxt}>Ver Perfil</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={s.cancelBtn}
-                      activeOpacity={0.8}
-                      onPress={() => handleCancelAdvisee(item)}
-                    >
-                      <MaterialCommunityIcons name="cancel" size={12} color="#EF4444" />
-                      <Text style={s.cancelBtnTxt}>Cancelar</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
-            );
-          })}
-        </Section>
+          <View style={s.alumnosLeft}>
+            <View style={s.alumnosIconBox}>
+              <MaterialCommunityIcons name="account-group-outline" size={24} color="#38BDF8" />
+            </View>
+            <View>
+              <Text style={s.alumnosTitle}>Mis Alumnos Activos</Text>
+              <Text style={s.alumnosSub}>{alumnosLabel}</Text>
+            </View>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={22} color="#38BDF8" />
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -292,36 +235,38 @@ const s = StyleSheet.create({
   summaryRow:   { flexDirection: 'row', gap: 10, marginBottom: 24 },
   summaryCard:  { flex: 1, backgroundColor: '#0e0e0e', borderRadius: 12, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#1a1a1a' },
   summaryNum:   { color: '#fff', fontSize: 26, fontWeight: '900' },
-  summaryLabel: { color: '#444', fontSize: 11, marginTop: 2 },
+  summaryLabel: { color: '#444', fontSize: 13, marginTop: 2 },
 
   section:       { marginBottom: 24 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 12 },
-  sectionTitle:  { color: '#888', fontSize: 11, fontWeight: '700', letterSpacing: 1.1, textTransform: 'uppercase' },
+  sectionTitle:  { color: '#888', fontSize: 13, fontWeight: '700', letterSpacing: 1.1, textTransform: 'uppercase' },
 
   emptyRow: { backgroundColor: '#0e0e0e', borderRadius: 12, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: '#1a1a1a' },
-  emptyTxt: { color: '#333', fontSize: 13, textAlign: 'center' },
+  emptyTxt: { color: '#333', fontSize: 14, textAlign: 'center' },
 
   requestCard:    { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0e0e0e', borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#FF5E0044', gap: 10 },
   requestIcon:    { width: 38, height: 38, borderRadius: 19, backgroundColor: '#1C1C1E', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#FF5E00' },
   requestInfo:    { flex: 1 },
-  requestName:    { color: '#fff', fontSize: 14, fontWeight: '700' },
-  requestSub:     { color: '#555', fontSize: 11, marginTop: 2 },
+  requestName:    { color: '#fff', fontSize: 16, fontWeight: '700' },
+  requestSub:     { color: '#555', fontSize: 13, marginTop: 2 },
   requestActions: { flexDirection: 'row', gap: 6 },
   acceptBtn:      { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#16a34a', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8 },
-  acceptTxt:      { color: '#fff', fontSize: 11, fontWeight: '700' },
+  acceptTxt:      { color: '#fff', fontSize: 12, fontWeight: '700' },
   rejectBtn:      { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#dc2626', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8 },
-  rejectTxt:      { color: '#fff', fontSize: 11, fontWeight: '700' },
+  rejectTxt:      { color: '#fff', fontSize: 12, fontWeight: '700' },
 
-  studentCard:  { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0e0e0e', borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: '#1a1a1a', gap: 12 },
-  studentLeft:  { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 },
-  iconBadge:    { width: 40, height: 40, borderRadius: 20, backgroundColor: '#1C1C1E', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#FF5E00' },
-  studentInfo:  { flex: 1 },
-  studentName:  { color: '#fff', fontSize: 14, fontWeight: '700' },
-  studentSub:   { color: '#555', fontSize: 11, marginTop: 2 },
-
-  studentActions: { flexDirection: 'column', gap: 6, alignItems: 'flex-end' },
-  profileBtn:     { backgroundColor: '#1C1C1E', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: '#3A3A3C' },
-  profileBtnTxt:  { color: '#f05b22', fontSize: 12, fontWeight: '700' },
-  cancelBtn:      { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#1C1C1E', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: '#EF444466' },
-  cancelBtnTxt:   { color: '#EF4444', fontSize: 11, fontWeight: '700' },
+  alumnosCard:    {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#0e0e0e', borderRadius: 16,
+    padding: 18, marginBottom: 24,
+    borderWidth: 1, borderColor: '#38BDF822', gap: 14,
+  },
+  alumnosLeft:    { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 14 },
+  alumnosIconBox: {
+    width: 48, height: 48, borderRadius: 16,
+    backgroundColor: '#0d2a3d', justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, borderColor: '#38BDF844',
+  },
+  alumnosTitle:   { color: '#fff', fontSize: 16, fontWeight: '800' },
+  alumnosSub:     { color: '#38BDF8', fontSize: 13, marginTop: 3 },
 });

@@ -181,17 +181,21 @@ export type ClientProfile = {
 };
 
 export type ClientRoutineExercise = {
-  id:                  number;
-  orderPosition:       number;
-  setsRecommended:     number;
-  repsRecommended:     string;
-  weightRecommendedKg?: number;
-  notes?:              string;
+  id:                      number;
+  orderPosition:           number;
+  dayOfWeek?:              string | null;
+  setsRecommended?:        number | null;
+  repsRecommended?:        string | null;
+  weightRecommendedKg?:    number;
+  restSecondsBetweenSets?: number;
+  notes?:                  string;
+  params?:                 Record<string, any> | null;
   exercise: {
-    id:          number;
-    name:        string;
-    muscleGroup?: string;
-    category?:   string;
+    id:            number;
+    name:          string;
+    muscleGroup?:  string;
+    category?:     string;
+    exerciseType?: string;
   };
 };
 
@@ -228,18 +232,24 @@ export type TrainerPlanData = {
 };
 
 export type Exercise = {
-  id:           number;
-  name:         string;
-  description?: string;
-  muscleGroup?: string;
-  category?:    string;
+  id:            number;
+  name:          string;
+  description?:  string;
+  muscleGroup?:  string;
+  category?:     string;
+  exerciseType?: string;
 };
 
 export type SelectedExercise = {
-  exerciseId:          number;
-  sets:                number;
-  reps:                number;
-  weightRecommendedKg: number;
+  exerciseId:              number;
+  dayOfWeek?:              string;
+  orderPosition?:          number;
+  setsRecommended?:        number;
+  repsRecommended?:        string;
+  weightRecommendedKg?:    number;
+  restSecondsBetweenSets?: number;
+  notes?:                  string;
+  params?:                 Record<string, any>;
 };
 
 // ─── API ─────────────────────────────────────────────────────────────────────
@@ -330,11 +340,15 @@ export const staffApi = {
       trainerId:       parseInt(payload.trainerId, 10),
       assignedUserId:  payload.assignedUserId,
       exercises:       payload.exercises.map((ex, i) => ({
-        exerciseId:          ex.exerciseId,
-        orderPosition:       i,
-        setsRecommended:     ex.sets,
-        repsRecommended:     String(ex.reps),
-        weightRecommendedKg: ex.weightRecommendedKg || undefined,
+        exerciseId:              ex.exerciseId,
+        orderPosition:           ex.orderPosition ?? i,
+        dayOfWeek:               ex.dayOfWeek || undefined,
+        setsRecommended:         ex.setsRecommended ?? undefined,
+        repsRecommended:         ex.repsRecommended ?? undefined,
+        weightRecommendedKg:     ex.weightRecommendedKg || undefined,
+        restSecondsBetweenSets:  ex.restSecondsBetweenSets || undefined,
+        notes:                   ex.notes || undefined,
+        params:                  ex.params || undefined,
       })),
     });
   },
@@ -480,6 +494,28 @@ export const staffApi = {
     } catch {
       return null;
     }
+  },
+
+  /**
+   * PUT /api/routines/:routineId
+   * Actualiza ejercicios de una rutina existente.
+   */
+  updateRoutine: async (routineId: number, payload: {
+    exercises: SelectedExercise[];
+  }): Promise<void> => {
+    await staffClient.put(`/api/routines/${routineId}`, {
+      exercises: payload.exercises.map((ex, i) => ({
+        exerciseId:             ex.exerciseId,
+        orderPosition:          ex.orderPosition ?? i,
+        dayOfWeek:              ex.dayOfWeek || undefined,
+        setsRecommended:        ex.setsRecommended ?? undefined,
+        repsRecommended:        ex.repsRecommended ?? undefined,
+        weightRecommendedKg:    ex.weightRecommendedKg || undefined,
+        restSecondsBetweenSets: ex.restSecondsBetweenSets || undefined,
+        notes:                  ex.notes || undefined,
+        params:                 ex.params || undefined,
+      })),
+    });
   },
 
   /**

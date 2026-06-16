@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   View, Text, StyleSheet, FlatList,
-  TouchableOpacity, ActivityIndicator,
+  TouchableOpacity, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -9,59 +9,122 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import { staffApi, ActiveAdvisee } from '../../../app/Providers/staff/api/staff.api';
 
-const ClientCard = ({ item, onPress }: { item: ActiveAdvisee; onPress: () => void }) => (
-  <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.8}>
-    <View style={s.avatar}>
-      <Text style={s.avatarTxt}>
-        {(item.clientName ?? '?').charAt(0).toUpperCase()}
-      </Text>
-    </View>
-    <View style={{ flex: 1 }}>
-      <Text style={s.clientName}>{item.clientName}</Text>
-      {item.phone ? (
-        <Text style={s.clientPhone}>{item.phone}</Text>
-      ) : (
-        <Text style={s.clientPhoneEmpty}>Sin teléfono</Text>
-      )}
-    </View>
-    <MaterialCommunityIcons name="chevron-right" size={20} color="#333" />
-  </TouchableOpacity>
-);
+// Paleta rotativa de colores por cliente
+const AVATAR_PALETTE = ['#FF5E00', '#38BDF8', '#00E5A3'];
+const avatarColor = (idx: number) => AVATAR_PALETTE[idx % AVATAR_PALETTE.length];
+const avatarBg    = (idx: number) => [`#3a1800`, `#0d2a3d`, `#003d2a`][idx % 3];
 
+// ─── Card ─────────────────────────────────────────────────────────────────────
+const ClientCard = ({
+  item, index,
+  onHistory, onProfile,
+}: {
+  item: ActiveAdvisee; index: number;
+  onHistory: () => void; onProfile: () => void;
+}) => {
+  const color   = avatarColor(index);
+  const bgColor = avatarBg(index);
+  const initial = (item.clientName ?? '?').charAt(0).toUpperCase();
+
+  return (
+    <View style={[s.card, { borderColor: color + '33' }]}>
+      {/* ── Fila superior ── */}
+      <View style={s.cardTop}>
+        {/* Avatar */}
+        <View style={[s.avatar, { backgroundColor: bgColor, borderColor: color }]}>
+          <Text style={[s.avatarTxt, { color }]}>{initial}</Text>
+        </View>
+
+        {/* Info principal */}
+        <View style={s.infoCol}>
+          <Text style={s.clientName}>{item.clientName}</Text>
+
+          {/* Badge estado */}
+          <View style={s.activeBadge}>
+            <View style={s.activeDot} />
+            <Text style={s.activeTxt}>Asesoría Activa</Text>
+          </View>
+
+          {/* Teléfono */}
+          <View style={s.phoneRow}>
+            <MaterialCommunityIcons
+              name="phone-outline" size={13}
+              color={item.phone ? '#555' : '#2a2a2a'}
+            />
+            <Text style={item.phone ? s.phoneVal : s.phoneEmpty}>
+              {item.phone ?? 'Sin teléfono registrado'}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {/* ── Separador ── */}
+      <View style={s.divider} />
+
+      {/* ── Acciones ── */}
+      <View style={s.actionRow}>
+        <TouchableOpacity style={[s.actionBtn, s.histBtn]} activeOpacity={0.8} onPress={onHistory}>
+          <MaterialCommunityIcons name="chart-line" size={16} color="#38BDF8" />
+          <Text style={s.histBtnTxt}>Historial</Text>
+        </TouchableOpacity>
+
+        <View style={s.actionDivider} />
+
+        <TouchableOpacity style={[s.actionBtn, s.profileBtn]} activeOpacity={0.8} onPress={onProfile}>
+          <MaterialCommunityIcons name="account-details-outline" size={16} color="#FF5E00" />
+          <Text style={s.profileBtnTxt}>Ver Perfil</Text>
+        </TouchableOpacity>
+
+      </View>
+    </View>
+  );
+};
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
 export const SeguimientoScreen = () => {
   const navigation = useNavigation<any>();
 
   const { data: clients = [], isLoading, isError, refetch } = useQuery<ActiveAdvisee[]>({
     queryKey: ['active-advisees'],
     queryFn:  () => staffApi.getActiveAdvisees(),
-    staleTime: 2 * 60_000,
+    staleTime: 60_000,
     retry: 1,
   });
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
+      {/* Header */}
       <View style={s.topBar}>
-        <Text style={s.topTitle}>Seguimiento</Text>
+        <View>
+          <Text style={s.topTitle}>Seguimiento</Text>
+          {!isLoading && clients.length > 0 && (
+            <Text style={s.topSub}>{clients.length} cliente{clients.length !== 1 ? 's' : ''} activo{clients.length !== 1 ? 's' : ''}</Text>
+          )}
+        </View>
+        <View style={s.topBadge}>
+          <MaterialCommunityIcons name="chart-areaspline" size={22} color="#38BDF8" />
+        </View>
       </View>
 
       {isLoading ? (
         <View style={s.center}>
-          <ActivityIndicator size="large" color="#f05b22" />
+          <ActivityIndicator size="large" color="#38BDF8" />
         </View>
       ) : isError ? (
         <View style={s.center}>
-          <MaterialCommunityIcons name="wifi-off" size={40} color="#333" />
-          <Text style={s.errTxt}>No se pudo cargar tus clientes.</Text>
+          <MaterialCommunityIcons name="wifi-off" size={48} color="#222" />
+          <Text style={s.emptyTitle}>Error de conexión</Text>
+          <Text style={s.emptySubTxt}>No se pudo cargar tus clientes.</Text>
           <TouchableOpacity style={s.retryBtn} onPress={() => refetch()}>
             <Text style={s.retryTxt}>Reintentar</Text>
           </TouchableOpacity>
         </View>
       ) : clients.length === 0 ? (
         <View style={s.center}>
-          <MaterialCommunityIcons name="account-group-outline" size={52} color="#1a1a1a" />
+          <MaterialCommunityIcons name="account-group-outline" size={56} color="#1a1a1a" />
           <Text style={s.emptyTitle}>Sin clientes activos</Text>
           <Text style={s.emptySubTxt}>
-            Aquí verás a los clientes que tengan una relación de asesoría activa contigo.
+            Aquí verás a los clientes con asesoría activa contigo. Acepta solicitudes desde tu panel de inicio.
           </Text>
         </View>
       ) : (
@@ -70,14 +133,29 @@ export const SeguimientoScreen = () => {
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={s.list}
           showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
+          refreshControl={
+            <RefreshControl
+              refreshing={isLoading}
+              onRefresh={refetch}
+              tintColor="#38BDF8"
+              colors={['#38BDF8']}
+            />
+          }
+          renderItem={({ item, index }) => (
             <ClientCard
               item={item}
-              onPress={() =>
+              index={index}
+              onHistory={() =>
                 navigation.navigate('HistorialRutina', {
                   clientId:   item.clientId,
                   clientName: item.clientName,
                   phone:      item.phone,
+                })
+              }
+              onProfile={() =>
+                navigation.navigate('PerfilAlumno', {
+                  clientId:   item.clientId,
+                  clientName: item.clientName,
                 })
               }
             />
@@ -88,32 +166,86 @@ export const SeguimientoScreen = () => {
   );
 };
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  safe:  { flex: 1, backgroundColor: '#000' },
-  list:  { padding: 16, paddingBottom: 100 },
-  center:{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12, padding: 32 },
+  safe:   { flex: 1, backgroundColor: '#000' },
+  list:   { padding: 16, paddingBottom: 110 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 14, padding: 32 },
 
-  topBar:   { paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#111' },
-  topTitle: { color: '#fff', fontSize: 20, fontWeight: '800' },
+  topBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingVertical: 16,
+    borderBottomWidth: 1, borderBottomColor: '#111',
+  },
+  topTitle:  { color: '#fff', fontSize: 24, fontWeight: '900' },
+  topSub:    { color: '#444', fontSize: 13, marginTop: 2 },
+  topBadge:  {
+    width: 44, height: 44, borderRadius: 14,
+    backgroundColor: '#0d2a3d', justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, borderColor: '#38BDF844',
+  },
 
+  // ── Card ──
   card: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: '#0e0e0e', borderRadius: 14,
-    borderWidth: 1, borderColor: '#1a1a1a',
-    padding: 16, marginBottom: 10,
+    backgroundColor: '#0c0c0c', borderRadius: 18,
+    borderWidth: 1,
+    marginBottom: 14,
+    overflow: 'hidden',
   },
-  avatar: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center',
+  cardTop: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    padding: 16, gap: 14,
   },
-  avatarTxt:       { color: '#f05b22', fontSize: 18, fontWeight: '800' },
-  clientName:      { color: '#fff', fontSize: 15, fontWeight: '700' },
-  clientPhone:     { color: '#555', fontSize: 12, marginTop: 3 },
-  clientPhoneEmpty:{ color: '#2a2a2a', fontSize: 12, marginTop: 3, fontStyle: 'italic' },
 
-  emptyTitle:  { color: '#555', fontSize: 16, fontWeight: '700', textAlign: 'center' },
-  emptySubTxt: { color: '#333', fontSize: 13, textAlign: 'center', lineHeight: 20, maxWidth: 280 },
-  errTxt:      { color: '#555', fontSize: 14 },
-  retryBtn:    { backgroundColor: '#1C1C1E', paddingVertical: 10, paddingHorizontal: 20, borderRadius: 10 },
-  retryTxt:    { color: '#f05b22', fontWeight: '700' },
+  // ── Avatar ──
+  avatar: {
+    width: 56, height: 56, borderRadius: 28,
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2,
+  },
+  avatarTxt: { fontSize: 22, fontWeight: '900' },
+
+  // ── Info ──
+  infoCol: { flex: 1, gap: 6 },
+  clientName: { color: '#fff', fontSize: 18, fontWeight: '800', letterSpacing: 0.2 },
+
+  activeBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: '#003d2a', borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 4,
+    alignSelf: 'flex-start',
+    borderWidth: 1, borderColor: '#00E5A333',
+  },
+  activeDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#00E5A3' },
+  activeTxt: { color: '#00E5A3', fontSize: 12, fontWeight: '700' },
+
+  phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  phoneVal:   { color: '#555', fontSize: 13 },
+  phoneEmpty: { color: '#2a2a2a', fontSize: 13, fontStyle: 'italic' },
+
+  divider: { height: 1, backgroundColor: '#1a1a1a', marginHorizontal: 0 },
+
+  // ── Actions ──
+  actionRow: {
+    flexDirection: 'row', alignItems: 'center',
+  },
+  actionBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'center', gap: 6,
+    paddingVertical: 14,
+  },
+  actionDivider: { width: 1, height: 24, backgroundColor: '#1a1a1a' },
+
+  histBtn:        {},
+  histBtnTxt:     { color: '#38BDF8', fontSize: 13, fontWeight: '700' },
+  profileBtn:     {},
+  profileBtnTxt:  { color: '#FF5E00', fontSize: 13, fontWeight: '700' },
+  rutinaBtn:      {},
+  rutinaBtnTxt:   { color: '#00E5A3', fontSize: 13, fontWeight: '700' },
+
+  // ── Empty / Error ──
+  emptyTitle:  { color: '#555', fontSize: 17, fontWeight: '700', textAlign: 'center' },
+  emptySubTxt: { color: '#333', fontSize: 14, textAlign: 'center', lineHeight: 22, maxWidth: 280 },
+  retryBtn:    { backgroundColor: '#1C1C1E', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12, borderWidth: 1, borderColor: '#38BDF844' },
+  retryTxt:    { color: '#38BDF8', fontWeight: '700', fontSize: 14 },
 });

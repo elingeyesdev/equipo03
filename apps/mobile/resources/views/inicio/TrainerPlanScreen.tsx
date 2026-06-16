@@ -33,6 +33,9 @@ const MEAL_ICON: Record<MealKey, string> = {
   cena: 'weather-night', merienda: 'cookie-outline',
 };
 
+const MAX_MEAL  = 150;
+const MAX_NOTES = 300;
+
 type MacroForm = { dailyKcal: string; proteinG: string; carbsG: string; fatG: string; planNotes: string };
 type MealForm  = Record<DayKey, MealDay>;
 
@@ -125,23 +128,34 @@ const DayCard = ({ day, meals, onChange, expanded, onToggle }: {
 
       {expanded && (
         <View style={s.dayBody}>
-          {MEALS.map(meal => (
-            <View key={meal} style={s.mealRow}>
-              <MaterialCommunityIcons name={MEAL_ICON[meal] as any} size={14} color="#f05b22" style={{ marginTop: 2 }} />
-              <View style={s.mealInputWrap}>
-                <Text style={s.mealLabel}>{MEAL_LABEL[meal]}</Text>
-                <TextInput
-                  style={s.mealInput}
-                  value={(meals as any)[meal] ?? ''}
-                  onChangeText={v => onChange(meal, v)}
-                  placeholder="Ej: Avena con frutas y leche"
-                  placeholderTextColor="#2a2a2a"
-                  returnKeyType="next"
-                  multiline={false}
-                />
+          {MEALS.map(meal => {
+            const val = (meals as any)[meal] ?? '';
+            return (
+              <View key={meal} style={s.mealRow}>
+                <MaterialCommunityIcons name={MEAL_ICON[meal] as any} size={14} color="#f05b22" style={{ marginTop: 2 }} />
+                <View style={s.mealInputWrap}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <Text style={[s.mealLabel, { marginBottom: 0 }]}>{MEAL_LABEL[meal]}</Text>
+                    {val.length > 0 && (
+                      <Text style={[s.charCount, val.length >= Math.floor(MAX_MEAL * 0.85) && s.charCountWarn]}>
+                        {val.length}/{MAX_MEAL}
+                      </Text>
+                    )}
+                  </View>
+                  <TextInput
+                    style={s.mealInput}
+                    value={val}
+                    onChangeText={v => onChange(meal, v)}
+                    placeholder="Ej: Avena con frutas y leche"
+                    placeholderTextColor="#2a2a2a"
+                    returnKeyType="next"
+                    multiline={false}
+                    maxLength={MAX_MEAL}
+                  />
+                </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
       )}
     </View>
@@ -282,7 +296,11 @@ export const TrainerPlanScreen = () => {
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
+                maxLength={MAX_NOTES}
               />
+              <Text style={[s.charCount, macro.planNotes.length >= Math.floor(MAX_NOTES * 0.85) && s.charCountWarn, { textAlign: 'right', marginTop: 4 }]}>
+                {macro.planNotes.length}/{MAX_NOTES}
+              </Text>
             </View>
 
             {/* ── Planificador Semanal ── */}
@@ -329,42 +347,45 @@ const s = StyleSheet.create({
   scroll: { padding: 16, paddingBottom: 120 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
-  topBar:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#111' },
+  topBar:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#111' },
   backBtn:  { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-  topTitle: { flex: 1, color: '#fff', fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  topTitle: { flex: 1, color: '#fff', fontSize: 18, fontWeight: '800', textAlign: 'center' },
 
-  clientName: { color: '#888', fontSize: 13, marginBottom: 16, textAlign: 'center' },
+  clientName: { color: '#888', fontSize: 15, marginBottom: 16, textAlign: 'center' },
 
   card:      { backgroundColor: '#0e0e0e', borderRadius: 14, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: '#1a1a1a' },
-  cardTitle: { color: '#888', fontSize: 10, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 14 },
+  cardTitle: { color: '#888', fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 14 },
 
   fieldWrap:  { marginBottom: 12 },
-  fieldLabel: { color: '#555', fontSize: 12, marginBottom: 6 },
+  fieldLabel: { color: '#555', fontSize: 13, marginBottom: 6 },
   inputRow:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
   input:      { flex: 1, backgroundColor: '#1a1a1a', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, color: '#fff', fontSize: 15, borderWidth: 1, borderColor: '#2a2a2a' },
   textArea:   { height: 90, paddingTop: 10 },
   unitTxt:    { color: '#555', fontSize: 13, minWidth: 36 },
 
   calcRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#1a1a1a' },
-  calcTxt: { color: '#555', fontSize: 12 },
+  calcTxt: { color: '#555', fontSize: 13 },
   calcNum: { color: '#f05b22', fontWeight: '700' },
 
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12, marginTop: 4 },
-  sectionTitle:  { color: '#888', fontSize: 10, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase' },
+  sectionTitle:  { color: '#888', fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase' },
 
   dayCard:       { backgroundColor: '#0e0e0e', borderRadius: 14, marginBottom: 10, borderWidth: 1, borderColor: '#1a1a1a', overflow: 'hidden' },
   dayHeader:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14 },
   dayHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  dayName:       { color: '#fff', fontSize: 14, fontWeight: '700' },
+  dayName:       { color: '#fff', fontSize: 15, fontWeight: '700' },
   filledBadge:   { backgroundColor: '#1a3320', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2, borderWidth: 1, borderColor: '#22c55e44' },
-  filledBadgeTxt:{ color: '#22c55e', fontSize: 10, fontWeight: '600' },
+  filledBadgeTxt:{ color: '#22c55e', fontSize: 11, fontWeight: '600' },
 
   dayBody:      { borderTopWidth: 1, borderTopColor: '#1a1a1a', padding: 14, gap: 12 },
   mealRow:      { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   mealInputWrap:{ flex: 1 },
-  mealLabel:    { color: '#555', fontSize: 11, fontWeight: '600', marginBottom: 4 },
-  mealInput:    { backgroundColor: '#141414', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9, color: '#ddd', fontSize: 13, borderWidth: 1, borderColor: '#2a2a2a' },
+  mealLabel:    { color: '#555', fontSize: 13, fontWeight: '600', marginBottom: 4 },
+  mealInput:    { backgroundColor: '#141414', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9, color: '#ddd', fontSize: 14, borderWidth: 1, borderColor: '#2a2a2a' },
 
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#f05b22', borderRadius: 12, paddingVertical: 14, marginTop: 8 },
   saveTxt: { color: '#fff', fontSize: 15, fontWeight: '700' },
+
+  charCount:     { color: '#444', fontSize: 11 },
+  charCountWarn: { color: '#f05b22' },
 });
