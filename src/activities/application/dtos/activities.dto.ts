@@ -72,6 +72,11 @@ export class UpdateActivityDto {
   @IsOptional()
   @IsBoolean()
   isFreeAccess?: boolean;
+
+  @ApiPropertyOptional({ example: true, description: 'Activar o desactivar el servicio' })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
 
 export class RegisterAttendanceDto {

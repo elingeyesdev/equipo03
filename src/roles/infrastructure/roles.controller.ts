@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Body,
   Param,
@@ -16,6 +17,7 @@ import { RolesService } from '../application/roles.service';
 import {
   CreatePermissionDto,
   CreateRoleDto,
+  UpdateRoleDto,
   AssignRoleDto,
 } from '../application/dtos/roles.dto';
 
@@ -88,9 +90,25 @@ export class RolesController {
     return this.svc.findUserRoles(userId);
   }
 
+  @Patch(':id')
+  @ApiOperation({ summary: 'Actualizar rol' })
+  @ApiBody({ type: UpdateRoleDto })
+  updateRole(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: UpdateRoleDto,
+  ) {
+    return this.svc.updateRole(id, body);
+  }
+
   @Delete('user-role/:id')
   @ApiOperation({ summary: 'Remover rol de usuario' })
   removeUserRole(@Param('id', ParseIntPipe) id: number) {
     return this.svc.removeUserRole(id);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Eliminar rol (no sistema)' })
+  removeRole(@Param('id', ParseIntPipe) id: number) {
+    return this.svc.removeRole(id);
   }
 }

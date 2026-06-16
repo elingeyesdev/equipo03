@@ -128,4 +128,14 @@ export class RolesService {
   removeUserRole(id: number) {
     return this.urRepo.delete(id);
   }
+
+  // ── Role deletion ───────────────────────────────────
+  async removeRole(id: number) {
+    const role = await this.findOneRole(id);
+    if (role.isSystemRole) {
+      throw new ConflictException('No se pueden eliminar roles de sistema.');
+    }
+    await this.rolesRepo.delete(id);
+    return { deleted: true };
+  }
 }
