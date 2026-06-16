@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   Modal, Pressable, ActivityIndicator, Alert,
@@ -18,6 +18,7 @@ type MenuItem = {
   label: string;
   action: () => void;
   premium?: boolean;
+  personalized?: boolean;
 };
 
 const formatRoleName = (role?: string) => {
@@ -82,8 +83,8 @@ export const PerfilMenuScreen = () => {
     ...(isCliente ? [
       { icon: 'chart-line',       label: 'Mi historial físico',   action: () => navigation.navigate('CuadroDeMando' as any) },
       { icon: 'trophy',           label: 'Mis objetivos',         action: () => navigation.navigate('MisObjetivos' as any) },
-      { icon: 'dumbbell',         label: 'Mi Rutina',             action: () => navigation.navigate('MiRutina' as any) },
-      { icon: 'food-apple-outline', label: 'Mi Plan Nutricional', action: () => navigation.navigate('MiPlan' as any) },
+      { icon: 'dumbbell',           label: 'Mi Rutina',           action: () => navigation.navigate('MiRutina' as any), personalized: true },
+      { icon: 'food-apple-outline', label: 'Mi Plan Nutricional', action: () => navigation.navigate('MiPlan' as any),   personalized: true },
     ] : []),
     { icon: 'bell-ring',   label: 'Alertas de salud', action: () => navigation.navigate('AlertasConfig') },
     ...(isStaffOperativo ? [{ icon: 'card-account-details-outline', label: 'Mi Carnet Digital', action: () => navigation.navigate('CarnetDigital' as any), premium: true }] : []),
@@ -130,19 +131,47 @@ export const PerfilMenuScreen = () => {
 
         {/* ── Menú ── */}
         <View style={styles.menuContainer}>
-          {menuItems.map((item, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[styles.menuItem, item.premium && styles.menuItemPremium]}
-              onPress={item.action}
-            >
-              <View style={styles.menuItemLeft}>
-                <MaterialCommunityIcons name={item.icon as any} size={24} color="#f05b22" style={styles.menuIcon} />
-                <Text style={[styles.menuLabel, item.premium && styles.menuLabelPremium]}>{item.label}</Text>
-              </View>
-              <MaterialCommunityIcons name="chevron-right" size={24} color={item.premium ? '#f05b22' : '#666'} />
-            </TouchableOpacity>
-          ))}
+          {menuItems.map((item, index) => {
+            const isFirstPersonalized = item.personalized && !menuItems[index - 1]?.personalized;
+            const iconColor = item.personalized ? '#60a5fa' : '#f05b22';
+            const chevronColor = item.premium ? '#f05b22' : item.personalized ? '#60a5fa55' : '#666';
+
+            return (
+              <React.Fragment key={index}>
+                {isFirstPersonalized && (
+                  <View style={styles.personalizedSectionHeader}>
+                    <View style={styles.personalizedTag}>
+                      <MaterialCommunityIcons name="account-star-outline" size={13} color="#60a5fa" />
+                      <Text style={styles.personalizedTagTxt}>Servicios Personalizados</Text>
+                    </View>
+                    <Text style={styles.personalizedDesc}>
+                      Disponibles con tu plan de asesoramiento
+                    </Text>
+                  </View>
+                )}
+                <TouchableOpacity
+                  style={[
+                    styles.menuItem,
+                    item.premium      && styles.menuItemPremium,
+                    item.personalized && styles.menuItemPersonalized,
+                  ]}
+                  onPress={item.action}
+                >
+                  <View style={styles.menuItemLeft}>
+                    <MaterialCommunityIcons name={item.icon as any} size={24} color={iconColor} style={styles.menuIcon} />
+                    <Text style={[
+                      styles.menuLabel,
+                      item.premium      && styles.menuLabelPremium,
+                      item.personalized && styles.menuLabelPersonalized,
+                    ]}>
+                      {item.label}
+                    </Text>
+                  </View>
+                  <MaterialCommunityIcons name="chevron-right" size={24} color={chevronColor} />
+                </TouchableOpacity>
+              </React.Fragment>
+            );
+          })}
         </View>
 
       </ScrollView>
@@ -212,10 +241,22 @@ const styles = StyleSheet.create({
   menuContainer:        { paddingHorizontal: 20, marginTop: 10 },
   menuItem:             { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 20, borderBottomWidth: 1, borderBottomColor: '#161618' },
   menuItemPremium:      { backgroundColor: '#1C1C1E', marginHorizontal: -20, paddingHorizontal: 20, borderRadius: 12, borderBottomColor: 'transparent', borderWidth: 1, borderColor: '#FF5E00', marginVertical: 6 },
+  menuItemPersonalized: { borderBottomColor: '#60a5fa18', borderLeftWidth: 3, borderLeftColor: '#60a5fa', marginHorizontal: -20, paddingHorizontal: 20, backgroundColor: '#05111f' },
   menuItemLeft:         { flexDirection: 'row', alignItems: 'center' },
   menuIcon:             { marginRight: 20 },
   menuLabel:            { color: '#ffffff', fontSize: 16, fontWeight: '500' },
   menuLabelPremium:     { color: '#f05b22', fontWeight: '700' },
+  menuLabelPersonalized:{ color: '#e0f2fe' },
+
+  // ── Sección Servicios Personalizados ──
+  personalizedSectionHeader: { marginTop: 14, marginBottom: 2 },
+  personalizedTag: {
+    flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start',
+    backgroundColor: '#60a5fa14', borderWidth: 1, borderColor: '#60a5fa40',
+    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, marginBottom: 5,
+  },
+  personalizedTagTxt: { color: '#60a5fa', fontSize: 11, fontWeight: '700', letterSpacing: 0.3 },
+  personalizedDesc:   { color: '#3a5a75', fontSize: 11, marginBottom: 4, marginLeft: 2 },
 
   // ── Modal ──
   modalBackdrop:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' },

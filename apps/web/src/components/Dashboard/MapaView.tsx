@@ -198,8 +198,8 @@ const PopupCard = ({ s, computedStatus, role }: { s: SucursalMapaDTO; computedSt
         {s.address}
       </div>
 
-      {/* Aforo */}
-      <div style={{ marginBottom: '10px' }}>
+      {/* Aforo personas */}
+      <div style={{ marginBottom: '8px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', marginBottom: '4px' }}>
           <span style={{ color: '#8E8E93' }}>Aforo hoy</span>
           <span style={{ color: '#E5E5EA', fontWeight: 600 }}>{currentOccupancy} / {s.maxCapacity} ({pct}%)</span>
@@ -207,11 +207,14 @@ const PopupCard = ({ s, computedStatus, role }: { s: SucursalMapaDTO; computedSt
         <div style={{ height: '5px', background: '#3A3A3C', borderRadius: '3px', overflow: 'hidden' }}>
           <div style={{ height: '100%', width: `${pct}%`, background: barColor, borderRadius: '3px', transition: 'width 0.4s' }} />
         </div>
-        {s.machineCapacity > 0 && (
-          <div className="text-xs text-gray-400 mt-1">
-            <span className="font-bold">Máquinas:</span> {s.machineCapacity} aforo total
-          </div>
-        )}
+      </div>
+
+      {/* Aforo máquinas */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', marginBottom: '10px' }}>
+        <span style={{ color: '#8E8E93' }}>Aforo máquinas</span>
+        <span style={{ color: '#38BDF8', fontWeight: 600 }}>
+          {(s.machineCapacity ?? 0) > 0 ? `${s.machineCapacity} máq. disponibles` : 'Sin registro'}
+        </span>
       </div>
 
       {/* Coords + botón */}

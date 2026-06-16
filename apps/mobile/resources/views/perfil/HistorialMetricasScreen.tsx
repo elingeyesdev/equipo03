@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, FlatList, StyleSheet, ActivityIndicator,
-  SafeAreaView, TouchableOpacity, Dimensions,
+  TouchableOpacity, Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LineChart } from 'react-native-chart-kit';
 import authAxios from '../../../app/Providers/auth/authAxios';
 

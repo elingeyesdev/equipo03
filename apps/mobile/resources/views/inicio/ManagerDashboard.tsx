@@ -138,14 +138,32 @@ export const ManagerDashboard = () => {
           <MaterialCommunityIcons name="arrow-right" size={20} color="#0A0A0A" />
         </TouchableOpacity>
 
+        {/* Scanner reservas de clientes */}
         <TouchableOpacity
           style={s.secondaryBtn}
-          onPress={() => navigation.navigate('Escaner')}
+          onPress={() => navigation.navigate('Escaner', { mode: 'reservations' })}
           activeOpacity={0.85}
         >
-          <MaterialCommunityIcons name="qrcode-scan" size={22} color="#f05b22" />
-          <Text style={s.secondaryBtnTxt}>Escanear QR de Ingreso</Text>
+          <MaterialCommunityIcons name="ticket-confirmation-outline" size={22} color="#f05b22" />
+          <View style={{ flex: 1 }}>
+            <Text style={s.secondaryBtnTxt}>Escanear Reserva de Cliente</Text>
+            <Text style={s.secondaryBtnSub}>Valida el QR de ingreso de un miembro</Text>
+          </View>
           <MaterialCommunityIcons name="arrow-right" size={18} color="#f05b22" />
+        </TouchableOpacity>
+
+        {/* Scanner ingreso del personal */}
+        <TouchableOpacity
+          style={[s.secondaryBtn, { borderColor: '#7c3aed', marginBottom: 24 }]}
+          onPress={() => navigation.navigate('Escaner', { mode: 'staff' })}
+          activeOpacity={0.85}
+        >
+          <MaterialCommunityIcons name="badge-account-outline" size={22} color="#a78bfa" />
+          <View style={{ flex: 1 }}>
+            <Text style={[s.secondaryBtnTxt, { color: '#a78bfa' }]}>Registrar Ingreso del Personal</Text>
+            <Text style={s.secondaryBtnSub}>Escanea el carnet QR de un empleado</Text>
+          </View>
+          <MaterialCommunityIcons name="arrow-right" size={18} color="#a78bfa" />
         </TouchableOpacity>
 
         {/* ── Stat cards ── */}
@@ -217,8 +235,9 @@ const s = StyleSheet.create({
   primaryBtn:    { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#f05b22', borderRadius: 14, padding: 18, marginBottom: 10 },
   primaryBtnTxt: { flex: 1, color: '#0A0A0A', fontSize: 16, fontWeight: '800' },
 
-  secondaryBtn:    { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#0e0e0e', borderRadius: 14, padding: 18, marginBottom: 24, borderWidth: 1, borderColor: '#FF5E00' },
-  secondaryBtnTxt: { flex: 1, color: '#f05b22', fontSize: 15, fontWeight: '700' },
+  secondaryBtn:    { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#0e0e0e', borderRadius: 14, padding: 18, marginBottom: 10, borderWidth: 1, borderColor: '#FF5E00' },
+  secondaryBtnTxt: { color: '#f05b22', fontSize: 15, fontWeight: '700' },
+  secondaryBtnSub: { color: '#555', fontSize: 11, marginTop: 2 },
 
   statsRow:  { flexDirection: 'row', gap: 10 },
   statCard:  { flex: 1, backgroundColor: '#0e0e0e', borderRadius: 12, padding: 14, alignItems: 'center', gap: 6, borderWidth: 1, borderColor: '#3A3A3C' },

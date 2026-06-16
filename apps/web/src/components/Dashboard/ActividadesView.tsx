@@ -32,6 +32,23 @@ const DAY_LABELS: Record<string, string> = {
   JUE: 'Jueves', VIE: 'Viernes', SAB: 'Sábado', DOM: 'Domingo',
 };
 
+const DAY_ORDER: Record<string, number> = {
+  LUN: 0, LUNES: 0,
+  MAR: 1, MARTES: 1,
+  MIE: 2, MIERCOLES: 2,
+  JUE: 3, JUEVES: 3,
+  VIE: 4, VIERNES: 4,
+  SAB: 5, SABADO: 5,
+  DOM: 6, DOMINGO: 6,
+};
+
+const sortSchedules = <T extends { dayOfWeek: string; startTime: string }>(arr: T[]): T[] =>
+  [...arr].sort((a, b) => {
+    const da = DAY_ORDER[a.dayOfWeek] ?? 99;
+    const db = DAY_ORDER[b.dayOfWeek] ?? 99;
+    return da !== db ? da - db : a.startTime.localeCompare(b.startTime);
+  });
+
 const HOURS_24   = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const MINUTES_15 = ['00', '15', '30', '45'];
 
@@ -118,7 +135,7 @@ const ActivityDetailModal = ({
       apiClient.get('/users').catch(() => []),
     ]).then(([schedRes, usersRes]: any[]) => {
       const rawSched: any[] = Array.isArray(schedRes) ? schedRes : (schedRes?.data ?? []);
-      setSchedules(rawSched.filter(Boolean));
+      setSchedules(sortSchedules(rawSched.filter(Boolean)));
 
       const rawUsers: any[] = Array.isArray(usersRes) ? usersRes : (usersRes?.data ?? []);
       const map = new Map<number, string>();
@@ -236,6 +253,13 @@ const ActivityFormModal = ({
 
   // ── Campos básicos ──
   const [gymId,       setGymId]       = useState<string>(resolveInitialGymId);
+  const [selectedBrandId, setSelectedBrandId] = useState<string>(() => {
+    if (isEdit && initial?.gymId) {
+      const branch = gyms.find(g => g.id === initial!.gymId);
+      return branch?.parentId ? String(branch.parentId) : '';
+    }
+    return '';
+  });
   const [name,        setName]        = useState(initial?.name ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
   const [duration,    setDuration]    = useState(
@@ -256,6 +280,16 @@ const ActivityFormModal = ({
   const [addingSchedule,   setAddingSchedule]   = useState(false);
 
   const needsGymPicker = !userGymId;
+  const brands = gyms.filter(g => g.parentId == null);
+  const filteredBranches = selectedBrandId
+    ? gyms.filter(g => g.parentId === Number(selectedBrandId))
+    : [];
+  const handleBrandChange = (brandId: string) => {
+    setSelectedBrandId(brandId);
+    setGymId('');
+    setInstructors([]);
+    setNewInstructorId('');
+  };
 
   // Cargar horarios del servidor (solo en edición)
   useEffect(() => {
@@ -264,23 +298,28 @@ const ActivityFormModal = ({
     apiClient.get(`/activities/${initial.id}/schedules`)
       .then((data: any) => {
         const raw = Array.isArray(data) ? data : (data as any)?.data ?? [];
-        setSchedules(raw.filter(Boolean));
+        setSchedules(sortSchedules(raw.filter(Boolean)));
       })
       .catch(() => {})
       .finally(() => setSchedulesLoading(false));
   }, [isEdit, initial?.id]);
 
-  // Cargar instructores usando los query params del backend (?role=ENTRENADOR / ?role=INSTRUCTOR)
-  // Se ejecuta una sola vez al montar el modal (los roles no cambian según el gym seleccionado).
+  // Para SUPER_ADMIN: re-carga instructores cuando cambia la sucursal seleccionada.
+  // Para GERENTE: carga al montar (gymId viene fijo del JWT).
   useEffect(() => {
+    if (needsGymPicker && !gymId) {
+      setInstructors([]);
+      setNewInstructorId('');
+      return;
+    }
     const parse = (res: any): any[] => {
       const raw = Array.isArray(res) ? res : (res as any)?.data ?? [];
       return Array.isArray(raw) ? raw : [];
     };
-
+    const gymFilter = needsGymPicker && gymId ? { gymId: Number(gymId) } : {};
     Promise.all([
-      apiClient.get('/users', { params: { role: 'ENTRENADOR' } }).catch(() => []),
-      apiClient.get('/users', { params: { role: 'INSTRUCTOR' } }).catch(() => []),
+      apiClient.get('/users', { params: { role: 'ENTRENADOR', ...gymFilter } }).catch(() => []),
+      apiClient.get('/users', { params: { role: 'INSTRUCTOR', ...gymFilter } }).catch(() => []),
     ]).then(([tRes, iRes]: any[]) => {
       const seen = new Set<number>();
       const list = [...parse(tRes), ...parse(iRes)]
@@ -288,7 +327,7 @@ const ActivityFormModal = ({
           const uid = Number(u?.id);
           if (!uid || seen.has(uid)) return false;
           seen.add(uid);
-          return true; // isActive ya filtrado por el backend
+          return true;
         })
         .map((u: any) => ({
           id: u.id,
@@ -298,9 +337,10 @@ const ActivityFormModal = ({
         }));
       setInstructors(list);
       if (list.length === 1) setNewInstructorId(String(list[0].id));
+      else setNewInstructorId('');
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Se ejecuta una sola vez al abrir el modal
+  }, [gymId, needsGymPicker]);
 
   const handleAddSchedule = async () => {
     if (!newStart || !newEnd)        { toast.error('Completa los horarios'); return; }
@@ -322,7 +362,7 @@ const ActivityFormModal = ({
           isRecurring:  true,
         }) as any;
         const created: ActivitySchedule = res?.data ?? res;
-        setSchedules(prev => [...prev, created]);
+        setSchedules(prev => sortSchedules([...prev, created]));
         toast.success('Horario agregado');
       } catch {
         // interceptor toasts
@@ -331,14 +371,14 @@ const ActivityFormModal = ({
       }
     } else {
       // Modo creación: guardar en estado local; se enviarán al crear el servicio
-      setSchedules(prev => [...prev, {
-        id:           -(Date.now()),   // ID temporal negativo
+      setSchedules(prev => sortSchedules([...prev, {
+        id:           -(Date.now()),
         dayOfWeek:    newDay,
         startTime:    newStart,
         endTime:      newEnd,
         instructorId: Number(newInstructorId),
         maxAttendees: maxAtt,
-      } as any]);
+      } as any]));
     }
   };
 
@@ -432,33 +472,32 @@ const ActivityFormModal = ({
       {/* Contenido scrollable */}
       <div style={{ overflowY: 'auto', flex: 1, paddingRight: '0.2rem' }}>
         <form onSubmit={handleSubmit} id="activity-form" style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-          {/* Selector de sucursal — SUPER_ADMIN */}
+          {/* Selectors marca → sucursal — solo SUPER_ADMIN */}
           {needsGymPicker && (
-            <div style={fieldGap}>
-              <label className={labelCls}>Gimnasio / Sucursal *</label>
-              <div className="relative">
-                <select className={selectCls} value={gymId} onChange={e => setGymId(e.target.value)}>
-                  <option value="">— Selecciona una sucursal —</option>
-                  {(() => {
-                    const brands = gyms.filter(g => g.parentId == null);
-                    const branches = gyms.filter(g => g.parentId != null);
-                    if (brands.length === 0 || branches.length === 0) {
-                      return gyms.map(g => <option key={g.id} value={g.id}>{g.name}</option>);
-                    }
-                    return brands.map(brand => {
-                      const children = branches.filter(b => b.parentId === brand.id);
-                      if (children.length === 0) return null;
-                      return (
-                        <optgroup key={brand.id} label={brand.name}>
-                          {children.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                        </optgroup>
-                      );
-                    });
-                  })()}
-                </select>
-                <span className="absolute right-[0.85rem] top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-gray-500 text-[0.75rem]">▼</span>
+            <>
+              <div style={fieldGap}>
+                <label className={labelCls}>Marca *</label>
+                <div className="relative">
+                  <select className={selectCls} value={selectedBrandId} onChange={e => handleBrandChange(e.target.value)}>
+                    <option value="">— Selecciona una marca —</option>
+                    {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  </select>
+                  <span className="absolute right-[0.85rem] top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-gray-500 text-[0.75rem]">▼</span>
+                </div>
               </div>
-            </div>
+              {selectedBrandId && (
+                <div style={fieldGap}>
+                  <label className={labelCls}>Sucursal *</label>
+                  <div className="relative">
+                    <select className={selectCls} value={gymId} onChange={e => setGymId(e.target.value)}>
+                      <option value="">— Selecciona una sucursal —</option>
+                      {filteredBranches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                    </select>
+                    <span className="absolute right-[0.85rem] top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-gray-500 text-[0.75rem]">▼</span>
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           <div style={fieldGap}>
@@ -712,15 +751,17 @@ export const ActividadesView = () => {
   const fetchGyms = useCallback(async () => {
     if (!isSuperAdmin) return;
     try {
-      const data = await apiClient.get<GymOption[]>('/gyms');
-      const raw: any[] = Array.isArray(data) ? data : (data as any)?.data ?? [];
-      // Dedup por nombre: si hay 2 gyms con igual nombre (IDs distintos), mostrar solo uno
-      const seenNames = new Set<string>();
-      const unique = raw
-        .map(g => ({ id: g.id, name: g.name, parentId: g.parentId ?? g.parent_id ?? null }))
-        .filter(g => { if (seenNames.has(g.name)) return false; seenNames.add(g.name); return true; })
-        .sort((a, b) => a.name.localeCompare(b.name));
-      setGyms(unique);
+      const [branchesRes, brandsRes] = await Promise.all([
+        apiClient.get<GymOption[]>('/gyms').catch(() => []),
+        apiClient.get<GymOption[]>('/gyms/brands').catch(() => []),
+      ]);
+      const rawBranches: any[] = Array.isArray(branchesRes) ? branchesRes : (branchesRes as any)?.data ?? [];
+      const rawBrands: any[] = Array.isArray(brandsRes) ? brandsRes : (brandsRes as any)?.data ?? [];
+      const all: GymOption[] = [
+        ...rawBrands.map((g: any) => ({ id: g.id, name: g.name, parentId: null as null })),
+        ...rawBranches.map((g: any) => ({ id: g.id, name: g.name, parentId: (g.parentId ?? g.parent_id ?? null) as number | null })),
+      ];
+      setGyms(all);
     } catch {
       // ignore
     }
@@ -728,9 +769,9 @@ export const ActividadesView = () => {
 
   useEffect(() => { fetchActivities(); fetchGyms(); }, [fetchActivities, fetchGyms]);
 
-  // ── Gymns únicos en la lista actual (para GERENTE que no carga /gyms) ──
+  // ── Opciones para barra de filtros (solo sucursales, nunca marcas) ──
   const gymOptions = useMemo((): GymOption[] => {
-    if (gyms.length) return gyms;
+    if (gyms.length) return gyms.filter(g => g.parentId != null);
     const seen = new Map<number, string>();
     activities.forEach(a => {
       if (!seen.has(a.gymId)) seen.set(a.gymId, a.gym?.name ?? `Gym #${a.gymId}`);

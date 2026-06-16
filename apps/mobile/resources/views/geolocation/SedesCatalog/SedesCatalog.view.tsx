@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ImageBackground, SafeAreaView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ImageBackground, Platform, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { SedeConDistancia, Sede } from '@gymsync/core';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFilterStore } from '../../../../app/Providers/geolocation/stores/FilterStore';

@@ -132,7 +132,7 @@ export const reservationApi = {
                                  : String(r?.reservationDate ?? '').substring(0, 10),
           qrToken:             r?.qrToken ?? undefined,
           cancelledAt:         r?.cancelledAt ?? null,
-          canCancel:           !r?.cancelledAt && !['CANCELADA','CANCELLED','COMPLETADA','USADA'].includes(r?.status),
+          canCancel:           !r?.cancelledAt && !['CANCELADA','CANCELLED','COMPLETADA','USADA','CADUCADA'].includes(r?.status),
           isFreeAccess,
           activityName:        isFreeAccess ? freeAct?.name : schedAct?.name,
           activityDescription: isFreeAccess ? freeAct?.description : schedAct?.description,
@@ -213,14 +213,38 @@ export const reservationApi = {
   /**
    * GET /api/reservations/:id/qr-token
    * JWT temporal de 3 min para el QR del cliente.
+   * Backend devuelve { qrToken } — normalizamos a { token } para el componente.
    */
   getDynamicQRToken: async (reservationId: number): Promise<{ token: string }> => {
     const response = await reservationClient.get(`/api/reservations/${reservationId}/qr-token`);
+    const raw = response.data?.data ?? response.data;
+    // El backend usa la clave "qrToken"; normalizamos a "token"
+    return { token: raw?.qrToken ?? raw?.token ?? '' };
+  },
+
+  /**
+   * GET /api/reservations/:id
+   * Detalle completo de una reserva (incluye nombre del cliente, fechas, horarios).
+   */
+  getReservationById: async (id: number): Promise<{
+    id: number;
+    status: string;
+    reservationDate: string;
+    startTime?: string;
+    endTime?: string;
+    activityName?: string;
+    user?: { profile?: { fullName?: string } } | null;
+    gymActivitySchedule?: { startTime?: string; endTime?: string; gymActivity?: { name?: string } } | null;
+    freeActivity?: { name?: string } | null;
+    gym?: { name?: string; brand?: { id?: number; name?: string } | null } | null;
+  }> => {
+    const response = await reservationClient.get(`/api/reservations/${id}`);
     return response.data?.data ?? response.data;
   },
 
   /**
    * PUT /api/reservations/{id}/confirm
+   * Marca como COMPLETADA sin validar fecha (para check-in adelantado/manual).
    */
   confirmReservation: async (reservationId: number): Promise<{ success: boolean }> => {
     const response = await reservationClient.put(`/api/reservations/${reservationId}/confirm`);

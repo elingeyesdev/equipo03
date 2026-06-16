@@ -14,7 +14,7 @@ const SEDE_ROLE_NAMES = new Set([
 ]);
 
 // ─── Interfaz para roles cargados dinámicamente ───────────────────────────────
-interface RoleOption { id: number; name: string; label: string; }
+interface RoleOption { id: number; name: string; label: string; level: number; }
 
 // ─── Formatea el nombre DB al label legible ───────────────────────────────────
 const formatRoleName = (name: string): string => {
@@ -520,16 +520,28 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
       }
     }
 
-    if (formData.phoneNumber.trim()) {
-      const digits = formData.phoneNumber.replace(/\s/g, '');
-      if (!/^\d{6,14}$/.test(digits)) {
-        newErrors.phone = 'Solo dígitos, entre 6 y 14 números';
-      }
-    }
+    const roleLevel = roleOptions.find(r => r.id === formData.roleId)?.level ?? 0;
+    const requiresStaffFields = roleLevel >= 3 && roleLevel < 10;
 
-    if (formData.ci.trim()) {
-      if (!/^\d{6,9}(-[a-zA-Z0-9]{1,2})?$/.test(formData.ci.trim())) {
-        newErrors.ci = 'CI inválido (ej: 12345678 o 1234567-1A)';
+    if (requiresStaffFields) {
+      if (!formData.phoneNumber.trim()) {
+        newErrors.phone = 'El teléfono es obligatorio para este rol';
+      } else {
+        const digits = formData.phoneNumber.replace(/\s/g, '');
+        if (!/^\d{6,14}$/.test(digits)) newErrors.phone = 'Solo dígitos, entre 6 y 14 números';
+      }
+      if (!formData.ci.trim()) {
+        newErrors.ci = 'El carnet de identidad es obligatorio para este rol';
+      } else {
+        if (!/^\d{6,9}(-[a-zA-Z0-9]{1,2})?$/.test(formData.ci.trim())) newErrors.ci = 'CI inválido (ej: 12345678 o 1234567-1A)';
+      }
+    } else {
+      if (formData.phoneNumber.trim()) {
+        const digits = formData.phoneNumber.replace(/\s/g, '');
+        if (!/^\d{6,14}$/.test(digits)) newErrors.phone = 'Solo dígitos, entre 6 y 14 números';
+      }
+      if (formData.ci.trim()) {
+        if (!/^\d{6,9}(-[a-zA-Z0-9]{1,2})?$/.test(formData.ci.trim())) newErrors.ci = 'CI inválido (ej: 12345678 o 1234567-1A)';
       }
     }
 
@@ -547,6 +559,8 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
 
   // Determina el nombre del rol seleccionado (usando datos reales de la BD)
   const selectedRoleName   = roleOptions.find(r => r.id === formData.roleId)?.name ?? '';
+  const selectedRoleLevel  = roleOptions.find(r => r.id === formData.roleId)?.level ?? 0;
+  const requiresStaffInfo  = selectedRoleLevel >= 3 && selectedRoleLevel < 10;
   const isGerente          = selectedRoleName === 'GERENTE';
   const isRecepcionista    = selectedRoleName === 'RECEPCIONISTA';
   const needsSede          = SEDE_ROLE_NAMES.has(selectedRoleName);
@@ -577,7 +591,10 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
           placeholder="Ej. Pérez" />
 
         <label className={labelCls}>
-          Teléfono <span className="text-slate-400 dark:text-gray-500 font-normal text-xs">— opcional</span>
+          Teléfono{' '}
+          {requiresStaffInfo
+            ? <span style={{ color: '#EF4444', fontWeight: 700, fontSize: '0.75rem' }}>*</span>
+            : <span className="text-slate-400 dark:text-gray-500 font-normal text-xs">— opcional</span>}
         </label>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <select
@@ -603,7 +620,10 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
         {errors.phone && <span className="text-red-500 text-xs mt-1 block">{errors.phone}</span>}
 
         <label className={labelCls}>
-          Carnet de Identidad (CI) <span className="text-slate-400 dark:text-gray-500 font-normal text-xs">— opcional</span>
+          Carnet de Identidad (CI){' '}
+          {requiresStaffInfo
+            ? <span style={{ color: '#EF4444', fontWeight: 700, fontSize: '0.75rem' }}>*</span>
+            : <span className="text-slate-400 dark:text-gray-500 font-normal text-xs">— opcional</span>}
         </label>
         <input
           type="text"
@@ -882,7 +902,7 @@ export const UsuariosView = () => {
           raw
             .filter(r => r.isActive !== false)
             .sort((a, b) => (b.hierarchyLevel ?? 0) - (a.hierarchyLevel ?? 0))
-            .map(r => ({ id: r.id, name: r.name, label: formatRoleName(r.name) }))
+            .map(r => ({ id: r.id, name: r.name, label: formatRoleName(r.name), level: r.hierarchyLevel ?? 0 }))
         );
       })
       .catch(() => {});
@@ -977,7 +997,9 @@ export const UsuariosView = () => {
         const email    = (u?.email ?? '').toLowerCase();
         if (term && !fullName.includes(term) && !email.includes(term)) return false;
 
-        if (filterRole) {
+        if (filterRole === 'none') {
+          if ((u?.userRoles ?? []).length > 0) return false;
+        } else if (filterRole) {
           const rId = String(Number(u?.userRoles?.[0]?.roleId ?? 0));
           if (rId !== filterRole) return false;
         }
@@ -1107,6 +1129,7 @@ export const UsuariosView = () => {
             <select value={filterRole} onChange={e => setFilterRole(e.target.value)}
               className="bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none">
               <option value="">Todos los roles</option>
+              <option value="none">Sin rol asignado</option>
               {roleOptions.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
             </select>
             <span style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#8E8E93', fontSize: '0.7rem' }}>▼</span>

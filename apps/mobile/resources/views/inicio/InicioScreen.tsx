@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -30,7 +30,7 @@ import { InstructorDashboard } from './InstructorDashboard';
 import { NutritionistDashboard } from './NutritionistDashboard';
 
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = width * 0.45;
+const CARD_WIDTH = width * 0.36;
 
 const GALLERY_ICONS: Array<{ icon: string; color: string; label: string }> = [
   { icon: 'run', color: '#e94560', label: 'Running' },
@@ -107,7 +107,6 @@ const NextReservationBanner = ({ onBuscar }: { onBuscar: () => void }) => {
     );
   }
 
-  // Reserva encontrada → tarjeta detallada
   return (
     <View style={nb.card}>
       {/* Badge superior */}
@@ -172,21 +171,38 @@ const NextReservationBanner = ({ onBuscar }: { onBuscar: () => void }) => {
 
 const ClientDashboard = () => {
   const navigation = useNavigation<any>();
+  const { user }   = useAuth();
+  const p          = (user as any)?.profile;
+  const firstName  = p?.firstName ?? '';
+  const lastName   = p?.lastName  ?? '';
+  const fullName   = firstName || lastName
+    ? `${firstName}${lastName ? ' ' + lastName : ''}`.trim()
+    : (user as any)?.email?.split('@')[0] ?? 'GymSync';
+
   const [sedes, setSedes] = useState<SedeConDistancia[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [errorType, setErrorType] = useState<'permission' | 'network' | null>(null);
 
   const fetchSedes = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
+    setErrorType(null);
     try {
       const { obtenerSedesCercanasUseCase } = GeolocationModule.provideUseCases();
-      // Aumentamos el rango para asegurar que aparezcan datos reales (50km)
-      const result = await obtenerSedesCercanasUseCase.execute({ maxResultados: 10, radioKm: 50 });
+      const result = await obtenerSedesCercanasUseCase.execute({ maxResultados: 10, radioKm: 10 });
       if (result.isRight()) {
         setSedes(result.value.sedes);
+      } else {
+        const code = (result.value as any)?.code ?? '';
+        if (code === 'PERMISO_DENEGADO' || code === 'GPS_DESACTIVADO') {
+          setErrorType('permission');
+        } else {
+          setErrorType('network');
+        }
       }
     } catch (e) {
       console.error('[InicioScreen] Error fetching sedes:', e);
+      setErrorType('network');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -282,7 +298,7 @@ const ClientDashboard = () => {
         <View style={styles.header}>
           <View>
             <Text style={styles.welcomeText}>Bienvenido,</Text>
-            <Text style={styles.title}>GymSync</Text>
+            <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit>{fullName}</Text>
           </View>
           <TouchableOpacity
             style={styles.searchBtn}
@@ -303,7 +319,7 @@ const ClientDashboard = () => {
           <View style={styles.sectionIconRow}>
             <MaterialCommunityIcons name="map-marker-radius" size={28} color="#f05b22" />
             <View style={{ marginLeft: 10 }}>
-              <Text style={styles.sectionTitle}>Marcas cercanas</Text>
+              <Text style={styles.sectionTitle}>Sucursales cercanas</Text>
               <Text style={styles.sectionSubtitle}>Basado en tu ubicación actual</Text>
             </View>
           </View>
@@ -320,10 +336,32 @@ const ClientDashboard = () => {
             <ActivityIndicator size="small" color="#f05b22" />
             <Text style={styles.loadingText}>Buscando marcas...</Text>
           </View>
+        ) : errorType === 'permission' ? (
+          <View style={styles.emptyState}>
+            <MaterialCommunityIcons name="map-marker-off-outline" size={48} color="#444" />
+            <Text style={styles.emptyText}>Permiso de ubicación requerido</Text>
+            <Text style={styles.emptySubText}>
+              Activa los permisos de ubicación en la configuración del dispositivo para ver sucursales cercanas.
+            </Text>
+            <TouchableOpacity style={styles.retryBtn} onPress={() => Linking.openSettings()}>
+              <Text style={styles.retryBtnText}>Abrir configuración</Text>
+            </TouchableOpacity>
+          </View>
+        ) : errorType === 'network' ? (
+          <View style={styles.emptyState}>
+            <MaterialCommunityIcons name="wifi-off" size={48} color="#444" />
+            <Text style={styles.emptyText}>Sin conexión</Text>
+            <Text style={styles.emptySubText}>
+              No se pudo conectar al servidor. Verifica tu conexión a internet e intenta de nuevo.
+            </Text>
+            <TouchableOpacity style={styles.retryBtn} onPress={() => onRefresh()}>
+              <Text style={styles.retryBtnText}>Reintentar</Text>
+            </TouchableOpacity>
+          </View>
         ) : sedes.length === 0 ? (
           <View style={styles.emptyState}>
             <MaterialCommunityIcons name="map-marker-off-outline" size={48} color="#444" />
-            <Text style={styles.emptyText}>No hay marcas cercanas en este radio.</Text>
+            <Text style={styles.emptyText}>No hay sucursales en un radio de 10 km.</Text>
             <TouchableOpacity style={styles.retryBtn} onPress={() => onRefresh()}>
               <Text style={styles.retryBtnText}>Reintentar</Text>
             </TouchableOpacity>
@@ -350,10 +388,10 @@ const ClientDashboard = () => {
                   </View>
                 </View>
                 <View style={styles.cardInfo}>
+                  {item.sede.parentName ? (
+                    <Text style={styles.gymBrand} numberOfLines={1}>{item.sede.parentName}</Text>
+                  ) : null}
                   <Text style={styles.gymName} numberOfLines={1}>{item.sede.nombre}</Text>
-                  <Text style={styles.gymAddress} numberOfLines={1}>
-                    {item.sede.direccion || 'Sin dirección'}
-                  </Text>
                   <View style={styles.ratingRow}>
                     <MaterialCommunityIcons name="star" size={14} color="#f05b22" />
                     {/* TODO: Requerir rating al backend */}
@@ -368,81 +406,103 @@ const ClientDashboard = () => {
           />
         )}
 
-        {/* ── Acceso rápido: Historial de Gimnasios ── */}
-        <TouchableOpacity
-          style={styles.historialBtn}
-          activeOpacity={0.8}
-          onPress={() => (navigation as any).navigate('GymHistorial')}
-        >
-          <View style={styles.historialBtnLeft}>
-            <View style={styles.historialBtnIcon}>
-              <MaterialCommunityIcons name="history" size={20} color="#f05b22" />
-            </View>
-            <View>
-              <Text style={styles.historialBtnTitle}>Historial de Gimnasios</Text>
-              <Text style={styles.historialBtnSub}>Ver tus visitas registradas</Text>
-            </View>
+        {/* ══ GRUPO 1: Actividad Física (naranja) ══ */}
+        <View style={styles.groupLabel}>
+          <MaterialCommunityIcons name="dumbbell" size={15} color="#f05b22" />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.groupLabelTitle, { color: '#f05b22' }]}>Actividad Física</Text>
+            <Text style={styles.groupLabelSub}>Entrena y revisa lo que has hecho</Text>
           </View>
-          <MaterialCommunityIcons name="chevron-right" size={22} color="#444" />
-        </TouchableOpacity>
+        </View>
 
-        {/* ── Historial de Entrenamientos ── */}
         <TouchableOpacity
-          style={styles.historialBtn}
-          activeOpacity={0.8}
-          onPress={() => navigation.navigate('WorkoutHistory')}
-        >
-          <View style={styles.historialBtnLeft}>
-            <View style={styles.historialBtnIcon}>
-              <MaterialCommunityIcons name="calendar-clock" size={20} color="#f05b22" />
-            </View>
-            <View>
-              <Text style={styles.historialBtnTitle}>Historial de Entrenamientos</Text>
-              <Text style={styles.historialBtnSub}>Revisa tus rutinas pasadas</Text>
-            </View>
-          </View>
-          <MaterialCommunityIcons name="chevron-right" size={22} color="#444" />
-        </TouchableOpacity>
-
-        {/* ── Iniciar Entrenamiento ── */}
-        <TouchableOpacity
-          style={styles.historialBtn}
+          style={[styles.historialBtn, { borderColor: '#f05b2228' }]}
           activeOpacity={0.8}
           onPress={() => navigation.navigate('WorkoutMode')}
         >
           <View style={styles.historialBtnLeft}>
-            <View style={styles.historialBtnIcon}>
+            <View style={[styles.historialBtnIcon, { backgroundColor: '#f05b221a' }]}>
               <MaterialCommunityIcons name="play-circle-outline" size={20} color="#f05b22" />
             </View>
             <View>
               <Text style={styles.historialBtnTitle}>Iniciar Entrenamiento</Text>
-              <Text style={styles.historialBtnSub}>Registra tu sesion activa</Text>
+              <Text style={styles.historialBtnSub}>Registra tu sesión activa ahora</Text>
             </View>
           </View>
-          <MaterialCommunityIcons name="chevron-right" size={22} color="#444" />
+          <MaterialCommunityIcons name="chevron-right" size={22} color="#f05b2266" />
         </TouchableOpacity>
 
-        {/* ── Cuadro de Mando ── */}
         <TouchableOpacity
-          style={[styles.historialBtn, { borderColor: '#FF5E0033', borderWidth: 1 }]}
+          style={[styles.historialBtn, { borderColor: '#f05b2228' }]}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('WorkoutHistory')}
+        >
+          <View style={styles.historialBtnLeft}>
+            <View style={[styles.historialBtnIcon, { backgroundColor: '#f05b221a' }]}>
+              <MaterialCommunityIcons name="calendar-clock" size={20} color="#f05b22" />
+            </View>
+            <View>
+              <Text style={styles.historialBtnTitle}>Historial de Entrenamientos</Text>
+              <Text style={styles.historialBtnSub}>Revisa todas tus sesiones pasadas</Text>
+            </View>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={22} color="#f05b2266" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.historialBtn, { borderColor: '#f05b2228' }]}
+          activeOpacity={0.8}
+          onPress={() => (navigation as any).navigate('GymHistorial')}
+        >
+          <View style={styles.historialBtnLeft}>
+            <View style={[styles.historialBtnIcon, { backgroundColor: '#f05b221a' }]}>
+              <MaterialCommunityIcons name="history" size={20} color="#f05b22" />
+            </View>
+            <View>
+              <Text style={styles.historialBtnTitle}>Historial de Gimnasios</Text>
+              <Text style={styles.historialBtnSub}>Consulta tus visitas a los gimnasios</Text>
+            </View>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={22} color="#f05b2266" />
+        </TouchableOpacity>
+
+        {/* ══ GRUPO 2: Tu Progreso (verde) ══ */}
+        <View style={[styles.groupLabel, { marginTop: 28 }]}>
+          <MaterialCommunityIcons name="chart-line" size={15} color="#22c55e" />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.groupLabelTitle, { color: '#22c55e' }]}>Tu Progreso</Text>
+            <Text style={styles.groupLabelSub}>Visualiza cómo estás mejorando con el tiempo</Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.historialBtn, { borderColor: '#22c55e33' }]}
           activeOpacity={0.8}
           onPress={() => (navigation as any).navigate('CuadroDeMando')}
         >
           <View style={styles.historialBtnLeft}>
-            <View style={[styles.historialBtnIcon, { backgroundColor: '#FF5E0022' }]}>
-              <MaterialCommunityIcons name="chart-timeline-variant" size={20} color="#f05b22" />
+            <View style={[styles.historialBtnIcon, { backgroundColor: '#22c55e1a' }]}>
+              <MaterialCommunityIcons name="chart-timeline-variant" size={20} color="#22c55e" />
             </View>
             <View>
-              <Text style={styles.historialBtnTitle}>Cuadro de Mando</Text>
-              <Text style={styles.historialBtnSub}>Evolución y línea de tiempo</Text>
+              <Text style={styles.historialBtnTitle}>Mi Evolución Física</Text>
+              <Text style={styles.historialBtnSub}>Estadísticas y línea de tiempo de tu progreso</Text>
             </View>
           </View>
-          <MaterialCommunityIcons name="chevron-right" size={22} color="#444" />
+          <MaterialCommunityIcons name="chevron-right" size={22} color="#22c55e66" />
         </TouchableOpacity>
 
-        {/* ── Catálogo de Asesores ── */}
+        {/* ══ GRUPO 3: ¿Necesitas orientación? (celeste) ══ */}
+        <View style={[styles.groupLabel, { marginTop: 28 }]}>
+          <MaterialCommunityIcons name="account-star-outline" size={15} color="#38BDF8" />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.groupLabelTitle, { color: '#38BDF8' }]}>¿Necesitas orientación?</Text>
+            <Text style={styles.groupLabelSub}>Un asesor puede guiarte y diseñar tu plan</Text>
+          </View>
+        </View>
+
         <TouchableOpacity
-          style={[styles.historialBtn, { borderColor: '#38BDF833', borderWidth: 1 }]}
+          style={[styles.historialBtn, { borderColor: '#38BDF833' }]}
           activeOpacity={0.8}
           onPress={() => (navigation as any).navigate('StaffCatalog')}
         >
@@ -452,10 +512,10 @@ const ClientDashboard = () => {
             </View>
             <View>
               <Text style={styles.historialBtnTitle}>Catálogo de Asesores</Text>
-              <Text style={styles.historialBtnSub}>Solicita asesoría personalizada</Text>
+              <Text style={styles.historialBtnSub}>Encuentra tu entrenador personalizado</Text>
             </View>
           </View>
-          <MaterialCommunityIcons name="chevron-right" size={22} color="#444" />
+          <MaterialCommunityIcons name="chevron-right" size={22} color="#38BDF866" />
         </TouchableOpacity>
 
         {/* ── Explora Disciplinas ── */}
@@ -642,29 +702,36 @@ const styles = StyleSheet.create({
   cardInfo: {
     paddingHorizontal: 4,
   },
+  gymBrand: {
+    fontSize: 10,
+    color: '#f05b22aa',
+    fontWeight: '500',
+    letterSpacing: 0.2,
+    marginBottom: 1,
+  },
   gymName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#ffffff',
   },
   gymAddress: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#666',
-    marginTop: 4,
+    marginTop: 3,
   },
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 6,
-    gap: 4,
+    marginTop: 4,
+    gap: 3,
   },
   ratingText: {
-    fontSize: 13,
+    fontSize: 11,
     color: '#ffffff',
     fontWeight: 'bold',
   },
   capacityText: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#666',
   },
   loadingState: {
@@ -688,6 +755,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 12,
     fontSize: 14,
+  },
+  emptySubText: {
+    color: '#333',
+    textAlign: 'center',
+    marginTop: 6,
+    fontSize: 12,
+    lineHeight: 17,
+    paddingHorizontal: 8,
   },
   retryBtn: {
     marginTop: 15,
@@ -735,6 +810,24 @@ const styles = StyleSheet.create({
     color: '#555',
     fontSize: 11,
     marginTop: 2,
+  },
+  groupLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 20,
+    marginTop: 24,
+    marginBottom: 6,
+  },
+  groupLabelTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  groupLabelSub: {
+    color: '#333',
+    fontSize: 10,
+    marginTop: 1,
   },
   onboardSection: {
     paddingHorizontal: 20,

@@ -6,8 +6,7 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { Marker, Callout } from 'react-native-maps';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SedeMarkerProps } from './SedeMarker.props';
 import { AforoBadge } from '../UI/AforoBadge/AforoBadge.component';
@@ -27,43 +26,36 @@ export const SedeMarker: React.FC<SedeMarkerProps> = ({ sede, distancia, onPress
     : 'Lleno';
 
   return (
-    <Marker
-      coordinate={sede.coordenadas.toMapCoordinate()}
-      pinColor={pinColor}
-      onPress={onPress}
-      accessibilityLabel={`Marca ${sede.nombre}, a ${distancia.legible}. ${statusLabel}`}
-    >
-      <Callout tooltip onPress={onPress}>
-        <View style={styles.calloutContainer}>
-          <Text style={styles.calloutTitle} numberOfLines={1}>
-            {sede.nombre}
-          </Text>
-          <View style={styles.calloutInfo}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <MaterialCommunityIcons name="map-marker-distance" size={12} color="#a0a0b8" />
-              <Text style={styles.calloutDistance}>{distancia.kmCorta}</Text>
-            </View>
-            <AforoBadge aforo={sede.aforo} size="small" />
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-            <MaterialCommunityIcons name="account-group-outline" size={12} color="#a0a0b8" />
-            <Text style={styles.calloutAforo}>
-              Aforo hoy: {sede.aforo.actual} / {sede.aforo.maximo}
-            </Text>
-          </View>
-          {sede.capacidadMaquinas > 0 && (
-            <Text style={{ fontSize: 12, color: '#aaa', marginTop: 2 }}>
-              Aforo Máquinas: {sede.capacidadMaquinas}
-            </Text>
-          )}
+    <TouchableOpacity onPress={onPress} accessibilityLabel={`Marca ${sede.nombre}, a ${distancia.legible}. ${statusLabel}`}>
+      <View style={styles.calloutContainer}>
+        <Text style={styles.calloutTitle} numberOfLines={1}>
+          {sede.nombre}
+        </Text>
+        <View style={styles.calloutInfo}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <MaterialCommunityIcons name="circle-small" size={14} color={pinColor} />
-            <Text style={[styles.calloutStatus, { color: pinColor }]}>{statusLabel}</Text>
+            <MaterialCommunityIcons name="map-marker-distance" size={12} color="#a0a0b8" />
+            <Text style={styles.calloutDistance}>{distancia.kmCorta}</Text>
           </View>
-          <Text style={styles.calloutHint}>Toca para más info</Text>
+          <AforoBadge aforo={sede.aforo} size="small" />
         </View>
-      </Callout>
-    </Marker>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+          <MaterialCommunityIcons name="account-group-outline" size={12} color="#a0a0b8" />
+          <Text style={styles.calloutAforo}>
+            Aforo hoy: {sede.aforo.actual} / {sede.aforo.maximo}
+          </Text>
+        </View>
+        {sede.capacidadMaquinas > 0 && (
+          <Text style={{ fontSize: 12, color: '#aaa', marginTop: 2 }}>
+            Aforo Máquinas: {sede.capacidadMaquinas}
+          </Text>
+        )}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <MaterialCommunityIcons name="circle-small" size={14} color={pinColor} />
+          <Text style={[styles.calloutStatus, { color: pinColor }]}>{statusLabel}</Text>
+        </View>
+        <Text style={styles.calloutHint}>Toca para más info</Text>
+      </View>
+    </TouchableOpacity>
   );
 };
 

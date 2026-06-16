@@ -8,7 +8,8 @@ import { AuthService } from '../auth/AuthService';
 import { authEvents } from '../auth/authEvents';
 import { useAuth } from '../../Shared/hooks/useAuth';
 
-const MANAGER_ROLES = new Set(['GERENTE', 'SUPER_ADMIN']);
+const MANAGER_ROLES  = new Set(['GERENTE', 'SUPER_ADMIN']);
+const TRAINER_ROLES  = new Set(['ENTRENADOR', 'INSTRUCTOR', 'NUTRICIONISTA']);
 
 type GymEventPayload = {
   message?: string;
@@ -71,7 +72,7 @@ export function useGymEventsSocket(): void {
   const socketRef = useRef<Socket | null>(null);
 
   const role = user?.role?.toUpperCase() ?? '';
-  const shouldConnect = isAuthenticated && MANAGER_ROLES.has(role);
+  const shouldConnect = isAuthenticated && (MANAGER_ROLES.has(role) || TRAINER_ROLES.has(role));
 
   useEffect(() => {
     if (!shouldConnect) {
@@ -132,6 +133,16 @@ export function useGymEventsSocket(): void {
       socket.on('cancel_reservation', (payload: GymEventPayload) => {
         void handleReservationEvent('cancel_reservation', payload ?? {});
       });
+
+      if (TRAINER_ROLES.has(role)) {
+        socket.on('routine_session_update', (payload: any) => {
+          const userId = payload?.userId ?? payload?.user?.id;
+          if (userId != null) {
+            queryClient.invalidateQueries({ queryKey: ['trainer-client-sessions', userId] });
+          }
+          queryClient.invalidateQueries({ queryKey: ['trainer-client-sessions'] });
+        });
+      }
     };
 
     void connect();

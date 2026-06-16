@@ -9,7 +9,7 @@ import {
   Alert,
   RefreshControl,
   Modal,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -32,6 +32,7 @@ const STATUS_LABEL: Record<string, string> = {
   USED:       'Completada',
   PENDING:    'Pendiente',
   PENDIENTE:  'Pendiente',
+  CADUCADA:   'Caducada',
 };
 
 const STATUS_COLOR: Record<string, string> = {
@@ -44,6 +45,7 @@ const STATUS_COLOR: Record<string, string> = {
   USED:       '#2dce89',
   PENDING:    '#FFB300',
   PENDIENTE:  '#FFB300',
+  CADUCADA:   '#F59E0B',
 };
 
 // Grupos para filtrado
@@ -51,7 +53,7 @@ const COMPLETED_STATUSES = new Set(['COMPLETADA', 'USADA', 'USED']);
 const CANCELLED_STATUSES = new Set(['CANCELADA', 'CANCELLED']);
 const RECEIVED_STATUSES  = new Set(['CONFIRMADA', 'CONFIRMED', 'PENDING', 'PENDIENTE']);
 
-const UNCANCELABLE = new Set(['CANCELADA', 'CANCELLED', 'COMPLETADA', 'USADA', 'USED']);
+const UNCANCELABLE = new Set(['CANCELADA', 'CANCELLED', 'COMPLETADA', 'USADA', 'USED', 'CADUCADA']);
 const isCancelable = (r?: UserReservation | null) =>
   !!r?.canCancel && !UNCANCELABLE.has(r?.status ?? '');
 
@@ -64,7 +66,6 @@ const payColor = (r?: UserReservation | null) => isPaid(r) ? Colors.accent : '#A
 const fmt5 = (t?: string | null) => t?.substring(0, 5) ?? '—';
 
 const CONFIRMED = new Set(['CONFIRMADA', 'CONFIRMED']);
-const QR_SIZE   = Dimensions.get('window').width * 0.62;
 
 // ─── QR dinámico con auto-refresh ────────────────────────────────────────────
 const DynamicQRCode = ({
@@ -74,11 +75,14 @@ const DynamicQRCode = ({
   reservationId: number;
   fallbackToken?: string;
 }) => {
+  const { width } = useWindowDimensions();
+  const qrSize = Math.min(width * 0.55, 260);
+
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ['qr-token', reservationId],
     queryFn:  () => reservationApi.getDynamicQRToken(reservationId),
-    refetchInterval: 150_000,          // refresca a los 2.5 min (token vive 3 min)
-    refetchIntervalInBackground: false, // ahorra batería en segundo plano
+    refetchInterval: 150_000,
+    refetchIntervalInBackground: false,
     staleTime: 120_000,
     retry: 2,
   });
@@ -89,7 +93,7 @@ const DynamicQRCode = ({
     <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
       <QRCode
         value={token}
-        size={QR_SIZE}
+        size={qrSize}
         backgroundColor="#FFFFFF"
         color={isFetching ? '#AAAAAA' : '#0A0A0A'}
       />
@@ -97,8 +101,8 @@ const DynamicQRCode = ({
         <View style={{
           position: 'absolute',
           backgroundColor: '#1C1C1E',
-          width: QR_SIZE,
-          height: QR_SIZE,
+          width: qrSize,
+          height: qrSize,
           alignItems: 'center',
           justifyContent: 'center',
         }}>
@@ -109,7 +113,7 @@ const DynamicQRCode = ({
   );
 };
 
-type FilterStatus = '' | 'CONFIRMADA' | 'COMPLETADA' | 'CANCELADA';
+type FilterStatus = '' | 'CONFIRMADA' | 'COMPLETADA' | 'CANCELADA' | 'CADUCADA';
 
 export const MisReservasScreen = () => {
   const [qrReservation, setQrReservation] = useState<UserReservation | null>(null);
@@ -120,6 +124,9 @@ export const MisReservasScreen = () => {
   const queryClient    = useQueryClient();
   const [cancelingAll, setCancelingAll] = useState(false);
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('');
+  const { width: screenW } = useWindowDimensions();
+  const isTablet = screenW >= 600;
+  const hPad = isTablet ? Math.max(20, (screenW - 700) / 2) : 16;
 
   // Auto-cerrar el modal si la reserva cambia a COMPLETADA/USADA en backend
   useEffect(() => {
@@ -213,6 +220,7 @@ export const MisReservasScreen = () => {
     if (filterStatus === 'CONFIRMADA' && !RECEIVED_STATUSES.has(st))  return false;
     if (filterStatus === 'COMPLETADA' && !COMPLETED_STATUSES.has(st)) return false;
     if (filterStatus === 'CANCELADA'  && !CANCELLED_STATUSES.has(st)) return false;
+    if (filterStatus === 'CADUCADA'   && st !== 'CADUCADA')           return false;
     if (!filterStatus && (CANCELLED_STATUSES.has(st) || COMPLETED_STATUSES.has(st))) return false;
     return true;
   });
@@ -223,22 +231,38 @@ export const MisReservasScreen = () => {
     { status: 'CONFIRMADA', label: 'Recibidas' },
     { status: 'COMPLETADA', label: 'Completadas' },
     { status: 'CANCELADA',  label: 'Canceladas' },
+    { status: 'CADUCADA',   label: 'Caducadas' },
   ];
 
-  const FilterChips = () => (
-    <View style={s.chips}>
-      {STATUS_CHIPS.map(f => (
-        <TouchableOpacity
-          key={f.status || 'all'}
-          onPress={() => setFilterStatus(f.status)}
-          style={[s.chip, filterStatus === f.status && s.chipActive]}
-          activeOpacity={0.7}
-        >
-          <Text style={[s.chipTxt, filterStatus === f.status && s.chipTxtActive]}>{f.label}</Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
+  const FilterChips = () => {
+    const items = STATUS_CHIPS.map(f => (
+      <TouchableOpacity
+        key={f.status || 'all'}
+        onPress={() => setFilterStatus(f.status)}
+        style={[s.chip, filterStatus === f.status && s.chipActive]}
+        activeOpacity={0.7}
+      >
+        <Text style={[s.chipTxt, filterStatus === f.status && s.chipTxtActive]}>{f.label}</Text>
+      </TouchableOpacity>
+    ));
+    if (isTablet) {
+      return (
+        <View style={[s.chipsRowTablet, { paddingHorizontal: hPad }]}>
+          {items}
+        </View>
+      );
+    }
+    return (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={s.chips}
+        style={s.chipsScroll}
+      >
+        {items}
+      </ScrollView>
+    );
+  };
 
   if (visible.length === 0) return (
     <SafeAreaView style={s.safe}>
@@ -307,7 +331,7 @@ export const MisReservasScreen = () => {
       </Modal>
 
       {hasActive && (
-        <View style={s.topBar}>
+        <View style={[s.topBar, { paddingHorizontal: hPad }]}>
           <TouchableOpacity
             style={[s.cancelAllBtn, cancelingAll && s.disabledOpacity]}
             onPress={handleCancelAll}
@@ -330,7 +354,8 @@ export const MisReservasScreen = () => {
       <FilterChips />
 
       <ScrollView
-        contentContainerStyle={s.scroll}
+        style={s.list}
+        contentContainerStyle={[s.scroll, { paddingHorizontal: hPad }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -498,20 +523,23 @@ const ReservationCard = ({
 const s = StyleSheet.create({
   safe:   { flex: 1, backgroundColor: Colors.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, gap: 12 },
-  scroll: { padding: 16 },
+  list:   { flex: 1 },
+  scroll: { paddingVertical: 16 },
   soft:   { color: Colors.textSoft, fontSize: 14, textAlign: 'center' },
 
   emptyTitle:   { color: Colors.text, fontSize: 18, fontWeight: '700', textAlign: 'center' },
   retryBtn:     { marginTop: 4, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: Colors.primary },
   retryTxt:     { color: Colors.primary, fontWeight: '600' },
 
-  chips:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10, gap: 6 },
-  chip:         { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: '#334155', backgroundColor: 'transparent' },
+  chipsScroll:    { paddingVertical: 10, flexGrow: 0, flexShrink: 0 },
+  chipsRowTablet: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', paddingVertical: 10, gap: 8 },
+  chips:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, gap: 8 },
+  chip:           { alignItems: 'center', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10, borderWidth: 1, borderColor: '#334155', backgroundColor: 'transparent' },
   chipActive:   { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  chipTxt:      { fontSize: 11, fontWeight: '600', color: '#94a3b8' },
+  chipTxt:      { fontSize: 12, fontWeight: '600', color: '#94a3b8' },
   chipTxtActive:{ color: '#fff' },
 
-  topBar:          { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4 },
+  topBar:          { paddingTop: 14, paddingBottom: 4 },
   cancelAllBtn:    { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-end', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: Colors.danger, backgroundColor: '#1C1C1E' },
   disabledOpacity: {},
   cancelAllTxt:    { color: Colors.danger, fontWeight: '700', fontSize: 13 },

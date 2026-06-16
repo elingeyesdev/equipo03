@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import * as Location from 'expo-location';
 import {
   View,
@@ -14,11 +14,11 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BuscarStackParamList } from '../../../routes/BuscarStack';
-import MapView, { UrlTile, Region } from 'react-native-maps';
 import { OSMConfig } from '../../../app/Providers/geolocation/config/osm.config';
 import { useFilterStore } from '../../../app/Providers/geolocation/stores/FilterStore';
 import { useMapScreenStore } from '../../../app/Http/Controllers/geolocation/MapScreen.Controller';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
+import { LeafletMapView } from '../../../app/Providers/geolocation/components/LeafletMap/LeafletMapView';
 
 // Roles que deben ver el mapa filtrado por su marca (NO el mapa global de CLIENTE)
 const STAFF_ROLES = new Set(['GERENTE', 'INSTRUCTOR', 'ENTRENADOR', 'PERSONAL_DE_LIMPIEZA', 'NUTRICIONISTA']);
@@ -38,22 +38,14 @@ const CATEGORIAS = [
 
 export const BuscarScreen = () => {
   const [query, setQuery]         = useState('');
-  const [mapRegion, setMapRegion] = useState<Region>(OSMConfig.defaults.initialRegion);
-  const mapRef                    = useRef<MapView>(null);
+  const [userLoc, setUserLoc]     = useState<{ lat: number; lng: number } | null>(null);
   const navigation                = useNavigation<NavigationProp>();
   const { user }                  = useAuth();
 
-  // Centrar el preview en la ubicación real del usuario (silencioso si falla)
+  // Obtener ubicación real para el preview del mapa
   useEffect(() => {
     Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
-      .then(pos => {
-        setMapRegion({
-          latitude:      pos.coords.latitude,
-          longitude:     pos.coords.longitude,
-          latitudeDelta:  0.04,
-          longitudeDelta: 0.04,
-        });
-      })
+      .then(pos => setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }))
       .catch(() => {}); // fallback al centro por defecto (Santa Cruz)
   }, []);
 
@@ -114,28 +106,21 @@ export const BuscarScreen = () => {
           <Text style={styles.sectionTitle}>Encuentra marcas aquí</Text>
         </View>
 
-        {/* Preview del mapa — altura fija, sin overflow:hidden para evitar bug iOS */}
+        {/* Preview del mapa con ubicación real del usuario */}
         <View style={styles.mapPlaceholderWrapper}>
-          <MapView
-            ref={mapRef}
+          <LeafletMapView
+            mode="preview"
+            sedes={[]}
+            userLocation={userLoc}
+            initialCenter={
+              userLoc
+                ? { lat: userLoc.lat, lng: userLoc.lng }
+                : { lat: OSMConfig.defaults.initialRegion.latitude, lng: OSMConfig.defaults.initialRegion.longitude }
+            }
+            initialZoom={14}
+            interactive={false}
             style={StyleSheet.absoluteFillObject}
-            region={mapRegion}
-            zoomEnabled={false}
-            pitchEnabled={false}
-            scrollEnabled={false}
-            rotateEnabled={false}
-            showsCompass={false}
-            showsUserLocation
-            showsMyLocationButton={false}
-            pointerEvents="none"
-          >
-            <UrlTile
-              urlTemplate={OSMConfig.tileUrlTemplate}
-              maximumZ={OSMConfig.tiles.maximumZ}
-              flipY={OSMConfig.tiles.flipY}
-              tileSize={OSMConfig.tiles.tileSize}
-            />
-          </MapView>
+          />
 
           {/* Toque transparente sobre todo el mapa */}
           <TouchableOpacity
@@ -147,7 +132,7 @@ export const BuscarScreen = () => {
             }}
           />
 
-          {/* Franja inferior con el CTA — fondo semitransparente solo en la base */}
+          {/* Franja inferior con el CTA */}
           <View style={styles.mapBottomBar} pointerEvents="none">
             <View style={styles.mapOverlayPill}>
               <MaterialCommunityIcons name="map-search-outline" size={16} color="#fff" />

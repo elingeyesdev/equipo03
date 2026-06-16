@@ -46,13 +46,23 @@ import { TrainerPlanScreen }   from '../resources/views/inicio/TrainerPlanScreen
 // ── Stacks de Perfil segregados ───────────────────────────────────────────────
 import { ClientePerfilStack, GerentePerfilStack } from './PerfilStack';
 
+// ── Rutina Ejecución (CLIENTE) ────────────────────────────────────────────────
+import { EjecutarRutinaScreen }   from '../resources/views/perfil/EjecutarRutinaScreen';
+import { ResumenEjercicioScreen } from '../resources/views/perfil/ResumenEjercicioScreen';
+
+// ── Seguimiento (ENTRENADOR) ──────────────────────────────────────────────────
+import { SeguimientoScreen }       from '../resources/views/seguimiento/SeguimientoScreen';
+import { HistorialRutinaScreen }   from '../resources/views/seguimiento/HistorialRutinaScreen';
+import { RegistroEjercicioScreen } from '../resources/views/seguimiento/RegistroEjercicioScreen';
+
 // ── Iconos de tabs ────────────────────────────────────────────────────────────
 const TAB_ICON: Record<string, string> = {
-  'Inicio':      'home',
-  'Buscar':      'magnify',
-  'Mis Reservas':'calendar',
-  'Auditoría':   'clipboard-text-outline',
-  'Perfil':      'account',
+  'Inicio':       'home',
+  'Buscar':       'magnify',
+  'Mis Reservas': 'calendar',
+  'Auditoría':    'clipboard-text-outline',
+  'Seguimiento':  'chart-line',
+  'Perfil':       'account',
 };
 
 const tabScreenOptions = ({ route }: { route: { name: string } }) => ({
@@ -155,6 +165,16 @@ const ClienteStack = () => (
       component={StaffCatalogScreen}
       options={{ headerShown: false }}
     />
+    <ClienteNav.Screen
+      name="EjecutarRutina"
+      component={EjecutarRutinaScreen}
+      options={{ headerShown: false, gestureEnabled: false }}
+    />
+    <ClienteNav.Screen
+      name="ResumenEjercicio"
+      component={ResumenEjercicioScreen}
+      options={{ headerShown: false, gestureEnabled: false }}
+    />
   </ClienteNav.Navigator>
 );
 
@@ -188,9 +208,10 @@ const GerenteStack = () => (
 const StaffTab = createBottomTabNavigator();
 const StaffTabs = () => (
   <StaffTab.Navigator screenOptions={tabScreenOptions}>
-    <StaffTab.Screen name="Inicio"  component={StaffInicioScreen} />
-    <StaffTab.Screen name="Buscar"  component={BuscarStack} />
-    <StaffTab.Screen name="Perfil"  component={ClientePerfilStack} />
+    <StaffTab.Screen name="Inicio"       component={StaffInicioScreen} />
+    <StaffTab.Screen name="Buscar"       component={BuscarStack} />
+    <StaffTab.Screen name="Seguimiento"  component={SeguimientoScreen} />
+    <StaffTab.Screen name="Perfil"       component={ClientePerfilStack} />
   </StaffTab.Navigator>
 );
 
@@ -227,6 +248,16 @@ const StaffStack = () => (
     <StaffNav.Screen
       name="TrainerPlan"
       component={TrainerPlanScreen}
+      options={{ headerShown: false }}
+    />
+    <StaffNav.Screen
+      name="HistorialRutina"
+      component={HistorialRutinaScreen}
+      options={{ headerShown: false }}
+    />
+    <StaffNav.Screen
+      name="RegistroEjercicio"
+      component={RegistroEjercicioScreen}
       options={{ headerShown: false }}
     />
   </StaffNav.Navigator>
