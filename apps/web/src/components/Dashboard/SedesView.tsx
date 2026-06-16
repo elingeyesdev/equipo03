@@ -244,30 +244,17 @@ export const SedesView = () => {
         };
       }
 
-      console.log(`[Security Check]: Ejecutando acción para Rol ${user?.role} con Scope Gym ${user?.gymId || 'Global'}`);
-      console.log(`[Final Contract]: Enviando payload a /gyms -> ${JSON.stringify(payload)}`);
-
       if (sedeToEdit) {
-        // 1ª Petición: Actualizar identidad del gym
         await apiClient.put(`/gyms/${sedeToEdit.id}`, payload);
-
-        setGyms(prev => prev.map(g => g.id === sedeToEdit.id
-          ? { ...g, name: formData.name, description: formData.description || '' }
-          : g
-        ));
+        await cargarSedes();
       } else {
-        const res = await apiClient.post('/gyms', payload);
-        const newSede = res.data?.id ? res.data : { id: res.data?.data?.id || Date.now(), ...payload };
-        setGyms(prev => [...prev, newSede]);
+        await apiClient.post('/gyms', payload);
+        await cargarSedes();
       }
 
       setIsModalOpen(false);
-    } catch (err: any) {
-      console.error('[Debug] Error completo del servidor en handleSaveSede:', JSON.stringify(err?.response?.data, null, 2));
-      if (err?.response?.status === 400) {
-        console.error('[API Error 400] Arreglo de validaciones:', err?.response?.data?.message || err?.response?.data);
-      }
-      // api.config.ts maneja el toast
+    } catch {
+      // El interceptor de apiClient maneja el toast de error
     }
   };
 

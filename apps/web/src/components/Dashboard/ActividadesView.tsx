@@ -266,6 +266,7 @@ const ActivityFormModal = ({
     initial?.defaultDurationMin ? String(initial.defaultDurationMin) : ''
   );
   const [isFreeAccess, setIsFreeAccess] = useState(initial?.isFreeAccess ?? false);
+  const [isActive,     setIsActive]     = useState(initial?.isActive ?? true);
   const [saving, setSaving] = useState(false);
 
   // ── Horarios de clase (solo en edición) ──
@@ -420,6 +421,7 @@ const ActivityFormModal = ({
           description: description.trim(),
           defaultDurationMin: parsedDuration,
           isFreeAccess,
+          isActive,
         });
         toast.success('Servicio actualizado');
       } else {
@@ -430,8 +432,8 @@ const ActivityFormModal = ({
           defaultDurationMin: parsedDuration,
           isFreeAccess,
         }) as any;
-        // POST de horarios al nuevo servicio (si los hay y no es acceso libre)
-        const newActivityId: number | undefined = res?.data?.id ?? res?.id;
+        // El interceptor puede devolver body.data o el body directo
+        const newActivityId: number | undefined = res?.data?.id ?? res?.data?.data?.id;
         if (newActivityId && schedules.length > 0 && !isFreeAccess) {
           await Promise.allSettled(
             schedules.map(s =>
@@ -536,6 +538,26 @@ const ActivityFormModal = ({
               </span>
             </div>
           </div>
+
+          {/* ── Toggle Activo/Inactivo — solo visible en edición ── */}
+          {isEdit && (
+            <div
+              className={`flex items-center gap-3 rounded-xl px-4 py-3 cursor-pointer select-none mb-4 border ${isActive ? 'bg-slate-50 dark:bg-bg-surface border-slate-200 dark:border-bg-deep' : 'bg-gray-100 dark:bg-bg-surface border-red-400'}`}
+              onClick={() => setIsActive(v => !v)}
+            >
+              <div style={{ width: '40px', height: '22px', borderRadius: '11px', background: isActive ? '#00E5A3' : '#FF3B30', position: 'relative', flexShrink: 0, transition: 'background 0.2s ease' }}>
+                <div style={{ position: 'absolute', top: '3px', left: isActive ? '21px' : '3px', width: '16px', height: '16px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s ease', boxShadow: '0 1px 3px rgba(0,0,0,0.4)' }} />
+              </div>
+              <div>
+                <span className={`font-semibold text-[0.88rem] ${isActive ? 'text-green-600 dark:text-[#00E5A3]' : 'text-red-500'}`}>
+                  {isActive ? 'Servicio Activo' : 'Servicio Inactivo'}
+                </span>
+                <span className="block text-slate-400 dark:text-gray-500 text-[0.75rem] mt-[1px]">
+                  {isActive ? 'Los clientes pueden reservar este servicio' : 'Los clientes no pueden ver ni reservar este servicio'}
+                </span>
+              </div>
+            </div>
+          )}
 
           <div style={fieldGap}>
             <label className={labelCls}>

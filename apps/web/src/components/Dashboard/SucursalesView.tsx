@@ -606,13 +606,14 @@ export const SucursalesView = () => {
   const handleSaveSucursal = async (formData: SucursalFormData) => {
     try {
       const payload: {
-        name: string; description: string; maxCapacity: number; parentId: number | null;
+        name: string; description: string; maxCapacity: number; machineCapacity: number; parentId: number | null;
         location: { address: string; city: string; latitude: number; longitude: number };
         schedules?: ScheduleFormEntry[];
       } = {
         name: formData.name,
         description: formData.description || formData.address,
         maxCapacity: Number(formData.maxCapacity) || 0,
+        machineCapacity: Number(formData.machineCapacity) || 0,
         parentId: Number(formData.parentId) || null,
         location: {
           address: formData.address || '',

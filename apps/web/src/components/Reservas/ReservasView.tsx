@@ -54,23 +54,23 @@ export const ReservasView = () => {
       const raw: any[] = Array.isArray(data) ? data : data?.data ?? [];
 
       // Mapa id → nombre de todas las entidades (sedes y sucursales)
-      const allByIdName = new Map<number, string>(raw.map((g: any) => [g.id, g.name]));
+      const allByIdName = new Map<number, string>(raw.map(g => [g.id, g.name]));
 
-      // Sedes (marcas): maxCapacity === 0
+      // Marcas: sin parentId (raíz de la jerarquía)
       const sedesMap = new Map<number, string>(
-        raw.filter((g: any) => (g.maxCapacity ?? 0) === 0).map((g: any) => [g.id, g.name])
+        raw.filter(g => !g.parentId).map(g => [g.id, g.name])
       );
 
-      // Sucursales: maxCapacity > 0
+      // Sucursales: tienen parentId (pertenecen a una marca)
       const sucursalesData = raw
-        .filter((g: any) => (g.maxCapacity ?? 0) > 0)
-        .sort((a: any, b: any) => a.name.localeCompare(b.name));
+        .filter(g => !!g.parentId)
+        .sort((a, b) => a.name.localeCompare(b.name));
 
-      setSucursales(sucursalesData.map((g: any) => ({ id: g.id, name: g.name })));
+      setSucursales(sucursalesData.map(g => ({ id: g.id, name: g.name })));
 
       // Construir mapa gymId → { sucursalName, sedeName }
       const infoMap = new Map<number, { sucursalName: string; sedeName: string }>();
-      sucursalesData.forEach((g: any) => {
+      sucursalesData.forEach(g => {
         const parentId = g.parentId ?? g.parent?.id;
         infoMap.set(g.id, {
           sucursalName: g.name,
@@ -87,9 +87,11 @@ export const ReservasView = () => {
       ? Number(user.gymId)
       : (filterGym ? Number(filterGym) : undefined);
 
-    // Solo se envía gymId al backend — estado y fecha se filtran client-side
+    // HOY se filtra client-side (por fecha); el resto se delega al backend con ?status=
+    const statusParam = (filterStatus && filterStatus !== 'HOY') ? filterStatus : undefined;
     const data = await reservationsApi.getReservations({
       gymId: selectedGymId,
+      status: statusParam,
     });
     let sorted = [...data].sort((a, b) =>
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -107,7 +109,7 @@ export const ReservasView = () => {
     setReservations(sorted);
     setLoading(false);
     setCurrentPage(1);
-  }, [filterGym, isGerente, isCliente, user]);
+  }, [filterStatus, filterGym, isGerente, isCliente, user]);
 
   // Se dispara automáticamente cuando filterStatus, filterGym u otro dep cambia
   // eslint-disable-next-line react-hooks/set-state-in-effect

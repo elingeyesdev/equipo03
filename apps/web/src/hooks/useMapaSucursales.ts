@@ -74,17 +74,17 @@ export function useMapaSucursales(user: WebUser | null): MapaSucursalesState {
         const allGyms = await gymsApiAdapter.findAll();
         if (!mounted) return;
 
-        // Sedes principales (maxCapacity === 0) → mapa id → nombre
+        // Marcas/sedes principales: parentId === null (no tienen padre en la jerarquía)
         const sedesMap = new Map<number, string>();
         allGyms
-          .filter(g => (g.maxCapacity ?? 0) === 0)
+          .filter(g => !g.parentId)
           .forEach(g => sedesMap.set(g.id, g.name));
 
-        // Construir todas las sucursales con coordenadas válidas
+        // Sucursales: tienen parentId (pertenecen a una marca)
         let sinGeoCount = 0;
         const all: SucursalMapaDTO[] = [];
 
-        for (const gym of allGyms.filter(g => (g.maxCapacity ?? 0) > 0)) {
+        for (const gym of allGyms.filter(g => !!g.parentId)) {
           const dto = buildSucursalDTO(gym, sedesMap);
           if (!dto) { sinGeoCount++; continue; }
           all.push(dto);

@@ -8,6 +8,7 @@ export interface AutenticacionContext {
   userId: string;
   role: UserRole;
   gymId?: string; // Requerido si es GERENTE (vinculado en user_roles)
+  level?: number; // Nivel jerárquico del rol; determina las pantallas en la app
 }
 
 export class ConsultarHistorialAccesosUseCase {

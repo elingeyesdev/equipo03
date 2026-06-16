@@ -460,17 +460,8 @@ export const RutinasView = () => {
         durationWeeks:   formData.durationWeeks,
         exercises:       formData.exercises,
       });
-      const updatedExercises: RoutineExerciseItem[] = formData.exercises.map((e: any) => ({
-        ...e,
-        exercise: allExercises.find(ex => ex.id === e.exerciseId),
-      }));
-      setTemplates(prev =>
-        prev.map(r =>
-          r.id === templateToEdit.id
-            ? { ...r, ...formData, exercises: updatedExercises }
-            : r,
-        ),
-      );
+      const refreshRes = await apiClient.get('/routines', { params: { isTemplate: 'true' } });
+      setTemplates(Array.isArray(refreshRes.data) ? refreshRes.data : []);
       toast.success('Plantilla actualizada.');
     } else {
       const res = await apiClient.post('/routines', {

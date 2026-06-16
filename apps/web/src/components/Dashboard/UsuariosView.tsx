@@ -1286,18 +1286,20 @@ export const UsuariosView = () => {
                             Horarios
                           </button>
                         )}
-                        {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE' || user?.role === 'RECEPCIONISTA') && (<>
+                        {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE' || user?.role === 'RECEPCIONISTA') && (
                           <button onClick={() => { setUserToEdit(u); setIsModalOpen(true); }}
                             className="bg-brand-celeste text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1">
                             <Edit size={13} />
                             Editar
                           </button>
+                        )}
+                        {user?.role === 'SUPER_ADMIN' && (
                           <button onClick={() => setDeleteConfirmUser(u)}
                             className="bg-transparent text-gray-500 dark:text-text-muted px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1">
                             <Trash2 size={13} />
                             Eliminar
                           </button>
-                        </>)}
+                        )}
                       </div>
                     </td>
                   </tr>

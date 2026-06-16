@@ -78,12 +78,24 @@ export class AuthService {
 
       const extractedGymId: string | undefined = userData?.gymId ?? undefined;
 
+      // Extraer level del payload del JWT (campo incluido por el backend en buildJwtPayload)
+      // Permite que roles personalizados (ej: CLIENTE2, DEPORTISTA) sean enrutados
+      // correctamente por nivel jerárquico en lugar de nombre de rol
+      let extractedLevel = 0;
+      try {
+        const base64Url = jwtToken.trim().split('.')[1];
+        const base64    = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jwtPayload = JSON.parse(atob(base64));
+        extractedLevel = jwtPayload?.level ?? 0;
+      } catch {}
+
       // userId del objeto user del backend
       const userId = userData?.id;
       const autenticacionContext: AutenticacionContext = {
         userId,
         role: extractedRole,
         gymId: extractedGymId,
+        level: extractedLevel,
       };
 
       // Guardar en SecureStore (encriptado)
