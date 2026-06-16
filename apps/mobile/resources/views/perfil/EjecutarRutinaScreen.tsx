@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import * as Location from 'expo-location';
+import { Audio } from 'expo-av';
 import { ClientRoutine, ClientRoutineExercise } from '../../../app/Providers/staff/api/staff.api';
 import { trainingApi } from '../../../app/Providers/training/api/training.api';
 
@@ -28,7 +29,7 @@ type SetRow = {
   done:              boolean;
 };
 
-type Phase = 'detecting' | 'ready' | 'active' | 'finishing';
+type Phase = 'detecting' | 'ready' | 'countdown' | 'active' | 'finishing';
 type RouteParams = { routine: ClientRoutine; exercise: ClientRoutineExercise };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -90,35 +91,53 @@ export const EjecutarRutinaScreen = () => {
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [sets,      setSets]      = useState<SetRow[]>(() => buildSets(exercise));
   const [cursor,    setCursor]    = useState(0);
-  const [elapsed,   setElapsed]   = useState(0);
+  const [elapsed,    setElapsed]   = useState(0);
+  const [countdown,  setCountdown] = useState(3);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── GPS ─────────────────────────────────────────────────────────────────────
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') { setPhase('ready'); return; }
-        const pos  = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        const locs = await trainingApi.getGymLocations();
-        let nearestId: number | null = null;
-        let nearestLabel = 'Fuera de Sucursales';
-        let minDist = Infinity;
-        for (const loc of locs) {
-          const dist = haversineKm(pos.coords.latitude, pos.coords.longitude, loc.latitude, loc.longitude);
-          if (dist < minDist) {
-            minDist = dist;
-            if (dist <= GYM_RADIUS_KM) {
-              nearestId    = loc.gymId;
-              nearestLabel = loc.brandName ? `${loc.brandName} - ${loc.gymName}` : loc.gymName;
+        if (status !== 'granted' || cancelled) { if (!cancelled) setPhase('ready'); return; }
+
+        // Caché del OS (instantáneo) y fetch de sucursales en paralelo
+        const [locs, cached] = await Promise.all([
+          trainingApi.getGymLocations().catch(() => [] as Awaited<ReturnType<typeof trainingApi.getGymLocations>>),
+          Location.getLastKnownPositionAsync().catch(() => null),
+        ]);
+
+        // Si no hay caché, pedir posición con timeout de 3 s
+        let pos: Awaited<ReturnType<typeof Location.getCurrentPositionAsync>> | null = cached;
+        if (!pos) {
+          const fresh = Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          const timeout = new Promise<null>(r => setTimeout(() => r(null), 3000));
+          pos = await Promise.race([fresh, timeout]);
+        }
+
+        if (!cancelled && pos) {
+          let nearestId: number | null = null;
+          let nearestLabel = 'Fuera de Sucursales';
+          let minDist = Infinity;
+          for (const loc of locs) {
+            const dist = haversineKm(pos.coords.latitude, pos.coords.longitude, loc.latitude, loc.longitude);
+            if (dist < minDist) {
+              minDist = dist;
+              if (dist <= GYM_RADIUS_KM) {
+                nearestId    = loc.gymId;
+                nearestLabel = loc.brandName ? `${loc.brandName} - ${loc.gymName}` : loc.gymName;
+              }
             }
           }
+          setGymId(nearestId);
+          setGymLabel(nearestLabel);
         }
-        setGymId(nearestId);
-        setGymLabel(nearestLabel);
       } catch {/* sin GPS */}
-      finally { setPhase('ready'); }
+      finally { if (!cancelled) setPhase('ready'); }
     })();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
@@ -127,22 +146,62 @@ export const EjecutarRutinaScreen = () => {
     timerRef.current = setInterval(() => setElapsed(e => e + 1), 1000);
   }, []);
 
-  // ── Start session ────────────────────────────────────────────────────────────
-  const handleStart = async () => {
-    try {
-      setPhase('active');
-      const session = await trainingApi.startRoutineSession({
-        routineId: routine.id,
-        gymId,
-        sportType: mode === 'cardio' ? 'CARDIO' : 'MUSCULACION',
+  // ── Countdown 3-2-1 antes de iniciar ─────────────────────────────────────────
+  useEffect(() => {
+    if (phase !== 'countdown') return;
+    let count = 3;
+    let cleanedUp = false;
+    let beepSound: Audio.Sound | null = null;
+    setCountdown(3);
+
+    // Reproducir beep.m4a UNA sola vez al inicio del conteo
+    Audio.Sound.createAsync(
+      require('../../../assets/beep.m4a'),
+      { shouldPlay: true, volume: 0.8 },
+    ).then(({ sound }) => {
+      if (cleanedUp) { sound.unloadAsync(); return; }
+      beepSound = sound;
+      sound.setOnPlaybackStatusUpdate(st => {
+        if (st.isLoaded && st.didJustFinish) sound.unloadAsync();
       });
-      setSessionId(session.id);
-      startTimer();
-    } catch {
-      Alert.alert('Error', 'No se pudo iniciar la sesión. Revisa tu conexión.');
-      setPhase('ready');
-    }
-  };
+    }).catch(() => {});
+
+    const tick = setInterval(() => {
+      count -= 1;
+      if (count > 0) {
+        setCountdown(count);
+      } else {
+        clearInterval(tick);
+        if (!cleanedUp) {
+          (async () => {
+            try {
+              setPhase('active');
+              const session = await trainingApi.startRoutineSession({
+                routineId: routine.id,
+                gymId,
+                sportType: mode === 'cardio' ? 'CARDIO' : 'MUSCULACION',
+              });
+              setSessionId(session.id);
+              startTimer();
+            } catch {
+              Alert.alert('Error', 'No se pudo iniciar la sesión. Revisa tu conexión.');
+              setPhase('ready');
+            }
+          })();
+        }
+      }
+    }, 1000);
+
+    return () => {
+      cleanedUp = true;
+      clearInterval(tick);
+      beepSound?.stopAsync().catch(() => {});
+      beepSound?.unloadAsync().catch(() => {});
+    };
+  }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Start session ────────────────────────────────────────────────────────────
+  const handleStart = () => setPhase('countdown');
 
   // ── Complete a set ───────────────────────────────────────────────────────────
   const handleCompleteSet = async () => {
@@ -237,6 +296,19 @@ export const EjecutarRutinaScreen = () => {
         <View style={s.center}>
           <ActivityIndicator size="large" color="#f05b22" />
           <Text style={s.infoTxt}>Guardando sesión...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ── COUNTDOWN phase ──────────────────────────────────────────────────────────
+  if (phase === 'countdown') {
+    return (
+      <SafeAreaView style={s.safe}>
+        <View style={s.center}>
+          <Text style={s.cdLabel}>¡Prepárate!</Text>
+          <Text style={s.cdNum}>{countdown}</Text>
+          <Text style={s.cdSub} numberOfLines={2}>{exercise.exercise?.name ?? 'Ejercicio'}</Text>
         </View>
       </SafeAreaView>
     );
@@ -438,6 +510,10 @@ const s = StyleSheet.create({
   safe:    { flex: 1, backgroundColor: '#000' },
   center:  { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 14 },
   infoTxt: { color: '#555', fontSize: 14 },
+
+  cdLabel: { color: '#555', fontSize: 13, fontWeight: '700', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 },
+  cdNum:   { color: '#f05b22', fontSize: 120, fontWeight: '900', lineHeight: 120 },
+  cdSub:   { color: '#fff', fontSize: 18, fontWeight: '700', marginTop: 28, textAlign: 'center', paddingHorizontal: 40 },
 
   topBar:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#111' },
   backBtn:  { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },

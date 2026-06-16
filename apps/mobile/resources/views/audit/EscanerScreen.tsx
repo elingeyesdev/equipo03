@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   View,
@@ -15,19 +15,69 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { reservationApi } from '../../../app/Providers/reservations/api/reservation.api';
+import { checkinsApi } from '../../../app/Providers/access/api/checkins.api';
 
 const WIN = Dimensions.get('window');
 const BOX = WIN.width * 0.65;
 
+// mode: 'reservations' = escanear QR de reserva de cliente
+//       'staff'        = escanear carnet QR del personal para registrar ingreso
+type ScanMode = 'reservations' | 'staff';
+
+// Decodifica el payload del JWT sin verificar firma (sirve incluso si el token expiró)
+const decodeJwtPayload = (token: string): { sub?: number; gymId?: number; type?: string } | null => {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const padded = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const json = atob(padded);
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+};
+
+const fmtDate = (d: string) => {
+  const [y, m, day] = d.split('-');
+  return `${day}/${m}/${y}`;
+};
+
+const fmtTime = (t?: string) => (t ? t.substring(0, 5) : '?');
+
+// Devuelve true si la hora actual (HH:mm) supera la hora de fin de la reserva
+const isTimePast = (endTime?: string): boolean => {
+  if (!endTime) return false;
+  const now  = new Date();
+  const [eh, em] = endTime.split(':').map(Number);
+  return now.getHours() > eh || (now.getHours() === eh && now.getMinutes() >= em);
+};
+
+const MODES: Record<ScanMode, { title: string; hint: string; iconName: string }> = {
+  reservations: {
+    title:    'Escanear Reserva de Cliente',
+    hint:     'Apunta el QR de reserva del cliente dentro del recuadro',
+    iconName: 'ticket-confirmation-outline',
+  },
+  staff: {
+    title:    'Registrar Ingreso de Personal',
+    hint:     'Apunta el carnet QR del empleado dentro del recuadro',
+    iconName: 'badge-account-outline',
+  },
+};
+
 export const EscanerScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<Record<string, object | undefined>>>();
+  const route = useRoute<any>();
+  const mode: ScanMode = route.params?.mode ?? 'reservations';
+
   const [permission, requestPermission] = useCameraPermissions();
-  const [scanning, setScanning]   = useState(true);   // false = pausado
+  const [scanning, setScanning]     = useState(true);
   const [processing, setProcessing] = useState(false);
   const queryClient = useQueryClient();
   const lastScan    = useRef<string | null>(null);
 
-  // Pedir permiso automático al montar
+  const { title, hint, iconName } = MODES[mode];
+
   useEffect(() => {
     if (permission && !permission.granted && permission.canAskAgain) {
       requestPermission();
@@ -35,42 +85,254 @@ export const EscanerScreen = () => {
   }, [permission]);
 
   const handleBarCode = async ({ data }: { data: string }) => {
-    // Evitar doble disparo
     if (!scanning || processing || data === lastScan.current) return;
     lastScan.current = data;
     setScanning(false);
     setProcessing(true);
 
     try {
-      // Token opaco: el string crudo ES el token — sin JSON.parse
-      const token = data.trim();
-      if (!token) throw new Error('QR inválido: contenido vacío.');
+      if (mode === 'reservations') {
+        await handleReservationScan(data);
+      } else {
+        await handleStaffScan(data);
+      }
+    } finally {
+      setProcessing(false);
+    }
+  };
 
-      // Check-in seguro por token
+  const handleReservationScan = async (data: string) => {
+    const token = data.trim();
+    if (!token) { resetScan(); return; }
+
+    // Detección cruzada: número puro = carnet de empleado
+    if (/^\d+$/.test(token)) {
+      Alert.alert(
+        '⚠️ Escáner incorrecto',
+        'Este QR es el carnet de un empleado.\n\nUsa el botón "Registrar Ingreso del Personal" para registrar el ingreso de staff.',
+        [{ text: 'Entendido', onPress: () => resetScan() }]
+      );
+      return;
+    }
+
+    try {
       await reservationApi.checkInByToken(token);
 
-      // Invalidar auditoría para refrescar lista
       await queryClient.invalidateQueries({ queryKey: ['audit-history'] });
       await queryClient.invalidateQueries({ queryKey: ['gym-reservations'] });
       await queryClient.invalidateQueries({ queryKey: ['gym-audit-reservations'] });
 
       Alert.alert(
         '✅ Ingreso Autorizado',
-        'Acceso registrado correctamente.',
+        'Reserva del cliente registrada correctamente.',
+        [
+          { text: 'Escanear otro', onPress: () => resetScan() },
+          { text: 'Volver', style: 'cancel', onPress: () => navigation?.goBack() },
+        ]
+      );
+    } catch (err: any) {
+      // Intentar decodificar el JWT para obtener el reservationId (funciona incluso si expiró)
+      const jwtPayload = decodeJwtPayload(token);
+      const reservationId = typeof jwtPayload?.sub === 'number' ? jwtPayload.sub : null;
+
+      if (reservationId) {
+        await handleReservationError(reservationId, err);
+      } else {
+        // No es un JWT válido de check-in
+        Alert.alert(
+          '❌ QR no reconocido',
+          'Este código QR no es válido para check-in de reservas. Verifica que el cliente muestre el QR correcto desde su pantalla de reservas.',
+          [
+            { text: 'Reintentar', onPress: () => resetScan() },
+            { text: 'Cancelar', style: 'cancel', onPress: () => navigation?.goBack() },
+          ]
+        );
+      }
+    }
+  };
+
+  // Obtiene detalles de la reserva y muestra el mensaje contextual adecuado
+  const handleReservationError = async (reservationId: number, originalErr: any) => {
+    // Detectar 403 por status HTTP (no por texto, que puede variar según el backend)
+    const isCrossBrand = originalErr?.response?.status === 403;
+
+    try {
+      const r = await reservationApi.getReservationById(reservationId);
+
+      const clientName  = r.user?.profile?.fullName || 'el cliente';
+      const date        = r.reservationDate || '';          // YYYY-MM-DD
+      const startTime   = fmtTime(r.startTime ?? r.gymActivitySchedule?.startTime);
+      const endTime     = fmtTime(r.endTime   ?? r.gymActivitySchedule?.endTime);
+      const activity    = r.freeActivity?.name ?? r.gymActivitySchedule?.gymActivity?.name ?? '';
+      const fmtDateStr  = date ? fmtDate(date) : '?';
+
+      // Reserva de otra marca (403): mostramos sucursal y marca de la reserva escaneada
+      if (isCrossBrand) {
+        const gymName   = r.gym?.name;
+        const brandName = r.gym?.brand?.name;
+        const location  = [gymName, brandName].filter(Boolean).join(' — ');
+        Alert.alert(
+          '🏢 Reserva de otra marca',
+          `La reserva de ${clientName}${activity ? ` (${activity})` : ''} está registrada en "${location || 'otra sucursal'}" para el ${fmtDateStr} de ${startTime} a ${endTime}.\n\nEsta reserva no pertenece a ninguna de las sucursales de tu marca.`,
+          [{ text: 'Entendido', onPress: () => resetScan() }]
+        );
+        return;
+      }
+
+      // Reserva ya completada
+      if (r.status === 'COMPLETADA') {
+        Alert.alert(
+          'ℹ️ Reserva ya completada',
+          `La reserva de ${clientName}${activity ? ` (${activity})` : ''} para el ${fmtDateStr} ya fue registrada como completada.`,
+          [{ text: 'Entendido', onPress: () => resetScan() }]
+        );
+        return;
+      }
+
+      // Reserva cancelada
+      if (r.status === 'CANCELADA' || r.status === 'CANCELLED') {
+        Alert.alert(
+          '❌ Reserva cancelada',
+          `La reserva de ${clientName}${activity ? ` (${activity})` : ''} para el ${fmtDateStr} fue cancelada y no puede procesarse.`,
+          [{ text: 'Entendido', onPress: () => resetScan() }]
+        );
+        return;
+      }
+
+      const today = new Date().toISOString().split('T')[0];
+      const isToday    = date === today;
+      const isPastDate = date < today;
+      const isFuture   = date > today;
+
+      // Caducada: fecha pasada
+      if (isPastDate) {
+        Alert.alert(
+          '⏱️ Reserva caducada',
+          `La reserva de ${clientName}${activity ? ` (${activity})` : ''} ha caducado.\n\nEstaba programada para el ${fmtDateStr} de ${startTime} a ${endTime}.`,
+          [{ text: 'Entendido', onPress: () => resetScan() }]
+        );
+        return;
+      }
+
+      // Caducada: mismo día pero ya pasó la hora fin
+      if (isToday && isTimePast(r.endTime ?? r.gymActivitySchedule?.endTime)) {
+        Alert.alert(
+          '⏱️ Horario caducado',
+          `La reserva de ${clientName}${activity ? ` (${activity})` : ''} ha caducado.\n\nEstaba programada para el ${fmtDateStr} de ${startTime} a ${endTime}.`,
+          [{ text: 'Entendido', onPress: () => resetScan() }]
+        );
+        return;
+      }
+
+      // Fecha futura: ofrecer check-in adelantado con confirmación
+      if (isFuture) {
+        Alert.alert(
+          '📅 Reserva futura',
+          `La reserva de ${clientName}${activity ? ` (${activity})` : ''} está registrada para el ${fmtDateStr} de ${startTime} a ${endTime}.\n\n¿Confirmar el ingreso de todas formas?`,
+          [
+            {
+              text: 'Confirmar ingreso',
+              onPress: async () => {
+                try {
+                  await reservationApi.confirmReservation(reservationId);
+                  await queryClient.invalidateQueries({ queryKey: ['audit-history'] });
+                  await queryClient.invalidateQueries({ queryKey: ['gym-audit-reservations'] });
+                  Alert.alert(
+                    '✅ Ingreso Confirmado',
+                    `Ingreso de ${clientName} registrado correctamente.`,
+                    [
+                      { text: 'Escanear otro', onPress: () => resetScan() },
+                      { text: 'Volver', style: 'cancel', onPress: () => navigation?.goBack() },
+                    ]
+                  );
+                } catch (e: any) {
+                  const msg = e?.response?.data?.message || e?.message || 'Error al confirmar.';
+                  Alert.alert('❌ Error', msg, [{ text: 'Entendido', onPress: () => resetScan() }]);
+                }
+              },
+            },
+            { text: 'Cancelar', style: 'cancel', onPress: () => resetScan() },
+          ]
+        );
+        return;
+      }
+
+      // Hoy pero QR expirado (JWT de 3 min vencido): ofrecer check-in manual
+      Alert.alert(
+        '⏱️ QR expirado',
+        `El QR de ${clientName} ha expirado (validez: 3 minutos).\n\nLa reserva es para hoy ${fmtDateStr} de ${startTime} a ${endTime}. ¿Confirmar el ingreso manualmente?`,
         [
           {
-            text: 'Escanear otro',
-            onPress: () => {
-              lastScan.current = null;
-              setScanning(true);
-              setProcessing(false);
+            text: 'Confirmar igualmente',
+            onPress: async () => {
+              try {
+                await reservationApi.confirmReservation(reservationId);
+                await queryClient.invalidateQueries({ queryKey: ['audit-history'] });
+                await queryClient.invalidateQueries({ queryKey: ['gym-audit-reservations'] });
+                Alert.alert(
+                  '✅ Ingreso Confirmado',
+                  `Ingreso de ${clientName} registrado correctamente.`,
+                  [
+                    { text: 'Escanear otro', onPress: () => resetScan() },
+                    { text: 'Volver', style: 'cancel', onPress: () => navigation?.goBack() },
+                  ]
+                );
+              } catch (e: any) {
+                const msg = e?.response?.data?.message || e?.message || 'Error al confirmar.';
+                Alert.alert('❌ Error', msg, [{ text: 'Entendido', onPress: () => resetScan() }]);
+              }
             },
           },
-          {
-            text: 'Volver',
-            style: 'cancel',
-            onPress: () => navigation?.goBack(),
-          },
+          { text: 'Cancelar', style: 'cancel', onPress: () => resetScan() },
+        ]
+      );
+    } catch {
+      if (isCrossBrand) {
+        // getReservationById también fue rechazado (restricción de marca en el backend)
+        Alert.alert(
+          '🏢 Reserva de otra marca',
+          'Esta reserva pertenece a una sucursal de una marca diferente a la tuya.\n\nComo gerente, solo puedes registrar ingresos de las sucursales asociadas a tu marca.',
+          [{ text: 'Entendido', onPress: () => resetScan() }]
+        );
+      } else {
+        Alert.alert(
+          '❌ No se pudo procesar',
+          'No fue posible obtener los detalles de esta reserva. Verifica tu conexión e intenta de nuevo.',
+          [
+            { text: 'Reintentar', onPress: () => resetScan() },
+            { text: 'Cancelar', style: 'cancel', onPress: () => navigation?.goBack() },
+          ]
+        );
+      }
+    }
+  };
+
+  const handleStaffScan = async (data: string) => {
+    try {
+      const raw = data.trim();
+      const userId = parseInt(raw, 10);
+
+      // Detección cruzada: si el contenido NO es un número puro, es un QR de reserva
+      const looksLikeReservationQR = isNaN(userId) || userId <= 0 || String(userId) !== raw;
+      if (looksLikeReservationQR) {
+        Alert.alert(
+          '⚠️ Escáner incorrecto',
+          'Este QR es de una reserva de cliente.\n\nUsa el botón "Escanear Reserva de Cliente" para validar el ingreso de un miembro.',
+          [{ text: 'Entendido', onPress: () => resetScan() }]
+        );
+        return;
+      }
+
+      await checkinsApi.staffCheckIn(userId);
+
+      await queryClient.invalidateQueries({ queryKey: ['audit-history'] });
+
+      Alert.alert(
+        '✅ Ingreso Registrado',
+        'El ingreso del personal ha sido registrado correctamente.',
+        [
+          { text: 'Escanear otro', onPress: () => resetScan() },
+          { text: 'Volver', style: 'cancel', onPress: () => navigation?.goBack() },
         ]
       );
     } catch (err: any) {
@@ -78,29 +340,21 @@ export const EscanerScreen = () => {
         err?.response?.data?.message ||
         err?.response?.data?.error   ||
         err?.message                 ||
-        'Error al confirmar el ingreso.';
+        'Error al registrar el ingreso del personal.';
 
-      Alert.alert('❌ Acceso Denegado', msg, [
-        {
-          text: 'Reintentar',
-          onPress: () => {
-            lastScan.current = null;
-            setScanning(true);
-            setProcessing(false);
-          },
-        },
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-          onPress: () => navigation?.goBack(),
-        },
+      Alert.alert('❌ No se pudo registrar', msg, [
+        { text: 'Reintentar', onPress: () => resetScan() },
+        { text: 'Cancelar', style: 'cancel', onPress: () => navigation?.goBack() },
       ]);
-    } finally {
-      setProcessing(false);
     }
   };
 
-  // Sin permiso aún
+  const resetScan = () => {
+    lastScan.current = null;
+    setScanning(true);
+    setProcessing(false);
+  };
+
   if (!permission) {
     return (
       <SafeAreaView style={s.safe}>
@@ -112,7 +366,6 @@ export const EscanerScreen = () => {
     );
   }
 
-  // Permiso denegado
   if (!permission.granted) {
     return (
       <SafeAreaView style={s.safe}>
@@ -142,16 +395,12 @@ export const EscanerScreen = () => {
         onBarcodeScanned={scanning && !processing ? handleBarCode : undefined}
       />
 
-      {/* Overlay oscuro con ventana transparente */}
       <View style={s.overlay}>
-        {/* Fila superior */}
         <View style={s.overlayTop} />
 
-        {/* Fila central: lateral + ventana + lateral */}
         <View style={s.overlayMid}>
           <View style={s.overlaySide} />
           <View style={s.window}>
-            {/* Esquinas decorativas */}
             <View style={[s.corner, s.tl]} />
             <View style={[s.corner, s.tr]} />
             <View style={[s.corner, s.bl]} />
@@ -160,7 +409,6 @@ export const EscanerScreen = () => {
           <View style={s.overlaySide} />
         </View>
 
-        {/* Fila inferior */}
         <View style={s.overlayBot}>
           {processing ? (
             <View style={s.processingRow}>
@@ -168,7 +416,7 @@ export const EscanerScreen = () => {
               <Text style={s.processingTxt}>Verificando…</Text>
             </View>
           ) : scanning ? (
-            <Text style={s.hint}>Apunta el QR del cliente dentro del recuadro</Text>
+            <Text style={s.hint}>{hint}</Text>
           ) : (
             <Text style={s.hint}>Procesando…</Text>
           )}
@@ -179,11 +427,11 @@ export const EscanerScreen = () => {
         </View>
       </View>
 
-      {/* Cabecera flotante */}
+      {/* Cabecera flotante con modo actual */}
       <SafeAreaView style={s.header} pointerEvents="none">
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <MaterialCommunityIcons name="camera-outline" size={16} color="#fff" />
-          <Text style={s.headerTxt}>Escanear Ingreso</Text>
+          <MaterialCommunityIcons name={iconName as any} size={16} color="#fff" />
+          <Text style={s.headerTxt}>{title}</Text>
         </View>
       </SafeAreaView>
     </View>
@@ -197,30 +445,23 @@ const s = StyleSheet.create({
   safe:   { flex: 1, backgroundColor: '#0A0A0A' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, gap: 14 },
 
-  // Cámara overlay
   overlay:    { flex: 1 },
   overlayTop: { flex: 1, backgroundColor: OVERLAY },
   overlayMid: { flexDirection: 'row', height: BOX },
   overlaySide:{ flex: 1, backgroundColor: OVERLAY },
   overlayBot: { flex: 1, backgroundColor: OVERLAY, alignItems: 'center', justifyContent: 'center', gap: 16, paddingHorizontal: 24 },
 
-  window: {
-    width: BOX, height: BOX,
-    // Sin fondo → cámara visible
-  },
+  window: { width: BOX, height: BOX },
 
-  // Esquinas de la mira
   corner: { position: 'absolute', width: 26, height: 26, borderColor: '#f05b22', borderWidth: 3 },
   tl: { top: 0, left: 0,  borderRightWidth: 0, borderBottomWidth: 0 },
   tr: { top: 0, right: 0, borderLeftWidth:  0, borderBottomWidth: 0 },
   bl: { bottom: 0, left: 0,  borderRightWidth: 0, borderTopWidth: 0 },
   br: { bottom: 0, right: 0, borderLeftWidth:  0, borderTopWidth: 0 },
 
-  // Cabecera
   header:    { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center', paddingTop: 12 },
-  headerTxt: { color: '#fff', fontSize: 17, fontWeight: '700', textShadowColor: '#000', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
+  headerTxt: { color: '#fff', fontSize: 15, fontWeight: '700', textShadowColor: '#000', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
 
-  // Textos
   hint:          { color: '#E5E5EA', fontSize: 13, textAlign: 'center', lineHeight: 18 },
   processingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   processingTxt: { color: '#f05b22', fontSize: 14, fontWeight: '600' },
