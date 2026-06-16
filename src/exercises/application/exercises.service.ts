@@ -14,14 +14,21 @@ export class ExercisesService {
     return this.repo.save(this.repo.create(data));
   }
 
-  findAll(filters?: { muscleGroup?: string; difficultyLevel?: string }) {
+  findAll(filters?: {
+    muscleGroup?:    string;
+    difficultyLevel?: string;
+    category?:       string;
+    exerciseType?:   string;
+  }) {
     const qb = this.repo.createQueryBuilder('e');
     if (filters?.muscleGroup)
-      qb.andWhere('e.muscle_group ILIKE :mg', {
-        mg: `%${filters.muscleGroup}%`,
-      });
+      qb.andWhere('e.muscle_group ILIKE :mg', { mg: `%${filters.muscleGroup}%` });
     if (filters?.difficultyLevel)
       qb.andWhere('e.difficulty_level = :dl', { dl: filters.difficultyLevel });
+    if (filters?.category)
+      qb.andWhere('e.category = :cat', { cat: filters.category });
+    if (filters?.exerciseType)
+      qb.andWhere('e.exercise_type = :et', { et: filters.exerciseType });
     return qb.andWhere('e.is_active = true').orderBy('e.name', 'ASC').getMany();
   }
 

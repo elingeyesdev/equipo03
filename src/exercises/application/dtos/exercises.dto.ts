@@ -2,20 +2,28 @@ import { IsString, IsOptional, IsBoolean, IsArray } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateExerciseDto {
-  @ApiProperty({ example: 'Press de Banca' })
+  @ApiProperty({ example: 'Press de Banca Plano' })
   @IsString()
-  name: string;
+  name!: string;
 
-  @ApiPropertyOptional({
-    example: 'Ejercicio compuesto principal para pectorales',
-  })
+  @ApiPropertyOptional({ example: 'Ejercicio compuesto principal para pectorales' })
   @IsOptional()
   @IsString()
   description?: string;
 
-  @ApiProperty({ example: 'Pecho' })
+  @ApiProperty({ example: 'Pectorales' })
   @IsString()
-  muscleGroup: string;
+  muscleGroup!: string;
+
+  @ApiPropertyOptional({ example: 'FUERZA', enum: ['FUERZA', 'CARDIO', 'FUNCIONAL'] })
+  @IsOptional()
+  @IsString()
+  category?: string;
+
+  @ApiPropertyOptional({ example: 'STRENGTH', enum: ['STRENGTH', 'CARDIO', 'HIIT', 'FUNCTIONAL', 'MOBILITY'] })
+  @IsOptional()
+  @IsString()
+  exerciseType?: string;
 
   @ApiPropertyOptional({ example: ['Tríceps', 'Deltoides Anterior'] })
   @IsOptional()
@@ -29,16 +37,14 @@ export class CreateExerciseDto {
 
   @ApiProperty({ example: 'INTERMEDIO' })
   @IsString()
-  difficultyLevel: string;
+  difficultyLevel!: string;
 
   @ApiPropertyOptional({ example: 'https://youtube.com/watch?v=example' })
   @IsOptional()
   @IsString()
   videoUrl?: string;
 
-  @ApiPropertyOptional({
-    example: 'https://images.example.com/bench-press.jpg',
-  })
+  @ApiPropertyOptional({ example: 'https://images.example.com/bench-press.jpg' })
   @IsOptional()
   @IsString()
   imageUrl?: string;
@@ -50,17 +56,25 @@ export class UpdateExerciseDto {
   @IsString()
   name?: string;
 
-  @ApiPropertyOptional({
-    example: 'Variación inclinada para pectoral superior',
-  })
+  @ApiPropertyOptional({ example: 'Variación inclinada para pectoral superior' })
   @IsOptional()
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ example: 'Pecho' })
+  @ApiPropertyOptional({ example: 'Pectorales' })
   @IsOptional()
   @IsString()
   muscleGroup?: string;
+
+  @ApiPropertyOptional({ example: 'FUERZA' })
+  @IsOptional()
+  @IsString()
+  category?: string;
+
+  @ApiPropertyOptional({ example: 'STRENGTH' })
+  @IsOptional()
+  @IsString()
+  exerciseType?: string;
 
   @ApiPropertyOptional({ example: 'AVANZADO' })
   @IsOptional()

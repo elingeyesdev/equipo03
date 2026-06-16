@@ -19,7 +19,8 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "db:reset": "npx ts-node src/scripts/reset-db.ts",
-    "db:seed": "npx ts-node src/scripts/seeder.ts"
+    "db:seed": "npx ts-node src/scripts/seeder.ts",
+    "db:clean-exercises": "npx ts-node src/scripts/reset-exercises.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

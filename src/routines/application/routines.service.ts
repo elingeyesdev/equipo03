@@ -46,6 +46,14 @@ export class RoutinesService {
       routineEntity.gymId = mg;
     }
 
+    // Deactivate existing routines for the same assigned user before creating a new one
+    if (routineEntity.assignedUserId) {
+      await this.routinesRepo.update(
+        { assignedUserId: routineEntity.assignedUserId as number, isActive: true },
+        { isActive: false },
+      );
+    }
+
     const routine = await this.routinesRepo.save(
       this.routinesRepo.create(routineEntity),
     );
@@ -92,7 +100,9 @@ export class RoutinesService {
       .leftJoinAndSelect('routine.exercises', 'exercises')
       .leftJoinAndSelect('exercises.exercise', 'exercise')
       .where('routine.assigned_user_id = :userId', { userId })
-      .andWhere('routine.is_active = :isActive', { isActive: true });
+      .andWhere('routine.is_active = :isActive', { isActive: true })
+      .orderBy('routine.created_at', 'DESC')
+      .addOrderBy('exercises.order_position', 'ASC');
 
     if (mg !== null) {
       qb.andWhere('routine.gym_id = :gymId', { gymId: mg });

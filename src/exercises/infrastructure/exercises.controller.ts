@@ -42,13 +42,17 @@ export class ExercisesController {
 
   @Get()
   @ApiOperation({ summary: 'Listar ejercicios' })
-  @ApiQuery({ name: 'muscleGroup', required: false })
+  @ApiQuery({ name: 'muscleGroup',    required: false })
   @ApiQuery({ name: 'difficultyLevel', required: false })
+  @ApiQuery({ name: 'category',       required: false, description: 'FUERZA | CARDIO | FUNCIONAL' })
+  @ApiQuery({ name: 'exerciseType',   required: false, description: 'STRENGTH | CARDIO | HIIT | FUNCTIONAL | MOBILITY' })
   findAll(
-    @Query('muscleGroup') mg?: string,
+    @Query('muscleGroup')    mg?:  string,
     @Query('difficultyLevel') dl?: string,
+    @Query('category')       cat?: string,
+    @Query('exerciseType')   et?:  string,
   ) {
-    return this.svc.findAll({ muscleGroup: mg, difficultyLevel: dl });
+    return this.svc.findAll({ muscleGroup: mg, difficultyLevel: dl, category: cat, exerciseType: et });
   }
 
   @Get(':id')

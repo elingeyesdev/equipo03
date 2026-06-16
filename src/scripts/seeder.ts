@@ -1,7 +1,7 @@
 // src/scripts/seeder.ts  — Idempotente: findOrCreate / skipIfExists. Sin TRUNCATE.
 import { AppDataSource } from '../config/data-source.cli';
 import * as bcrypt from 'bcrypt';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 
 import { Role } from '../roles/domain/role.entity';
 import { Permission } from '../roles/domain/permission.entity';
@@ -31,6 +31,34 @@ import { NotificationTemplate } from '../notifications/domain/notification-templ
 
 type AnyRepo = Repository<any>;
 
+/**
+ * Resync all table sequences to MAX(id)+1.
+ * Prevents PK conflicts when sequences are out of sync with existing data
+ * (happens after TRUNCATE RESTART IDENTITY or table recreation).
+ */
+async function resetSequences(qr: any): Promise<void> {
+  const tables = [
+    'roles', 'permissions', 'role_permissions', 'user_roles',
+    'users', 'user_profiles',
+    'gyms', 'gym_location', 'gym_schedules', 'gym_infrastructure',
+    'subscription_plans', 'user_subscriptions', 'subscription_payments',
+    'exercise_catalog',
+    'gym_activity', 'gym_activity_schedule', 'gym_activity_attendance',
+    'reservations', 'waitlist_entries', 'check_ins',
+    'routines', 'routine_exercises',
+    'user_training', 'user_training_goals', 'user_training_preferences',
+    'user_training_restrictions', 'emergency_contacts',
+    'workout_sessions', 'workout_sets', 'physical_metrics_history',
+    'notification_templates', 'notifications', 'user_notification_preferences',
+    'system_settings',
+  ];
+  for (const t of tables) {
+    await qr.query(
+      `SELECT setval(pg_get_serial_sequence('"${t}"', 'id'), COALESCE((SELECT MAX(id) FROM "${t}"), 0) + 1, false)`,
+    );
+  }
+}
+
 /** Busca por `where`; crea+guarda solo si no existe. Devuelve siempre el registro. */
 async function findOrCreate(
   repo: AnyRepo,
@@ -47,6 +75,16 @@ async function hasData(repo: AnyRepo): Promise<boolean> {
   return (await repo.count()) > 0;
 }
 
+/** Crea o actualiza por nombre. Siempre marca isActive=true para reactivar si estaba desactivado. */
+async function upsertExercise(repo: AnyRepo, data: any): Promise<any> {
+  const found = await repo.findOneBy({ name: data.name });
+  if (found) {
+    Object.assign(found, { ...data, isActive: true });
+    return repo.save(found);
+  }
+  return repo.save(repo.create({ ...data, isActive: true }));
+}
+
 // ── Seed principal ────────────────────────────────────────────────────────────
 
 async function runSeed() {
@@ -58,6 +96,9 @@ async function runSeed() {
   await queryRunner.startTransaction();
 
   try {
+    // Resync sequences before any INSERT to prevent PK conflicts
+    await resetSequences(queryRunner);
+
     // ── 1. ROLES ──────────────────────────────────────────────────────────────
     const roleRepo = queryRunner.manager.getRepository(Role);
     const rolesData = [
@@ -265,61 +306,102 @@ async function runSeed() {
 
     // ── 6. EXERCISE CATALOG ───────────────────────────────────────────────────
     const exerciseRepo = queryRunner.manager.getRepository(ExerciseCatalog);
-    const exercisesData = [
-      {
-        name: 'Press Banca Plano',
-        description: 'Desarrollo pectoral mayor',
-        muscleGroup: 'PECHO',
-        difficultyLevel: 'INTERMEDIO',
-        equipmentRequired: 'BANCA_BARRA',
-      },
-      {
-        name: 'Sentadilla Libre',
-        description: 'Base fuerza tren inferior',
-        muscleGroup: 'PIERNAS',
-        difficultyLevel: 'AVANZADO',
-        equipmentRequired: 'BARRA',
-      },
-      {
-        name: 'Dominadas Pecho',
-        description: 'Tracción espalda alta',
-        muscleGroup: 'ESPALDA',
-        difficultyLevel: 'INTERMEDIO',
-        equipmentRequired: 'BARRA_DOMINADAS',
-      },
-      {
-        name: 'Press Militar',
-        description: 'Hombros y tríceps',
-        muscleGroup: 'HOMBROS',
-        difficultyLevel: 'INTERMEDIO',
-        equipmentRequired: 'MANCUERNAS',
-      },
-      {
-        name: 'Curl Bíceps Alterno',
-        description: 'Aislamiento bíceps',
-        muscleGroup: 'BRAZOS',
-        difficultyLevel: 'BASICO',
-        equipmentRequired: 'MANCUERNAS',
-      },
-      {
-        name: 'Plancha Abdominal',
-        description: 'Estabilidad core',
-        muscleGroup: 'CORE',
-        difficultyLevel: 'BASICO',
-        equipmentRequired: 'CUERPO',
-      },
-      {
-        name: 'Peso Muerto Rumano',
-        description: 'Cadena posterior',
-        muscleGroup: 'PIERNAS',
-        difficultyLevel: 'AVANZADO',
-        equipmentRequired: 'BARRA_MANCUERNAS',
-      },
+
+    // Desactivar ejercicios con nombres legacy que son reemplazados por el nuevo catálogo
+    const legacyNames = [
+      'Press Banca Plano', 'Sentadilla Libre', 'Dominadas Pecho',
+      'Press Militar', 'Curl Bíceps Alterno', 'Plancha Abdominal',
     ];
+    await exerciseRepo.update({ name: In(legacyNames) }, { isActive: false });
+
+    const exercisesData = [
+      // ── FUERZA — Pectorales ──────────────────────────────────────────────
+      { name: 'Press de Banca Plano',              muscleGroup: 'Pectorales',     category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra olímpica, banco plano' },
+      { name: 'Press de Banca Inclinado',           muscleGroup: 'Pectorales',     category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra olímpica, banco inclinado' },
+      { name: 'Aperturas con Mancuernas',           muscleGroup: 'Pectorales',     category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas, banco plano' },
+      { name: 'Fondos en Paralelas',                muscleGroup: 'Pectorales',     category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Paralelas' },
+      { name: 'Crossover en Polea',                 muscleGroup: 'Pectorales',     category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea alta' },
+      { name: 'Push-ups (Flexiones)',               muscleGroup: 'Pectorales',     category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: null },
+      // ── FUERZA — Dorsales ────────────────────────────────────────────────
+      { name: 'Jalón al Pecho',                     muscleGroup: 'Dorsales',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea alta' },
+      { name: 'Remo con Barra',                     muscleGroup: 'Dorsales',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra' },
+      { name: 'Remo con Mancuerna',                 muscleGroup: 'Dorsales',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuerna, banco' },
+      { name: 'Dominadas (Pull-ups)',               muscleGroup: 'Dorsales',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'AVANZADO',   equipmentRequired: 'Barra dominadas' },
+      { name: 'Remo en Polea Baja',                 muscleGroup: 'Dorsales',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea baja' },
+      { name: 'Pullover con Mancuerna',             muscleGroup: 'Dorsales',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Mancuerna, banco' },
+      // ── FUERZA — Hombros ─────────────────────────────────────────────────
+      { name: 'Press Militar con Barra',            muscleGroup: 'Hombros',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra' },
+      { name: 'Press de Hombros con Mancuernas',   muscleGroup: 'Hombros',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas' },
+      { name: 'Elevaciones Laterales',              muscleGroup: 'Hombros',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas' },
+      { name: 'Elevaciones Frontales',              muscleGroup: 'Hombros',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas' },
+      { name: 'Vuelos Posteriores',                 muscleGroup: 'Hombros',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas' },
+      // ── FUERZA — Bíceps ──────────────────────────────────────────────────
+      { name: 'Curl de Bíceps con Barra',          muscleGroup: 'Bíceps',         category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Barra' },
+      { name: 'Curl con Mancuernas Alterno',        muscleGroup: 'Bíceps',         category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas' },
+      { name: 'Curl en Polea Baja',                 muscleGroup: 'Bíceps',         category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea baja' },
+      { name: 'Curl Martillo',                      muscleGroup: 'Bíceps',         category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas' },
+      { name: 'Curl Concentrado',                   muscleGroup: 'Bíceps',         category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuerna' },
+      // ── FUERZA — Tríceps ─────────────────────────────────────────────────
+      { name: 'Press Francés',                      muscleGroup: 'Tríceps',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra EZ, banco' },
+      { name: 'Extensiones en Polea Alta',          muscleGroup: 'Tríceps',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea alta' },
+      { name: 'Extensiones con Mancuerna sobre la Cabeza', muscleGroup: 'Tríceps', category: 'FUERZA',   exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuerna' },
+      { name: 'Patada de Tríceps',                  muscleGroup: 'Tríceps',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuerna' },
+      { name: 'Fondos para Tríceps',                muscleGroup: 'Tríceps',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Banco o silla' },
+      // ── FUERZA — Cuádriceps ──────────────────────────────────────────────
+      { name: 'Sentadilla con Barra (Back Squat)',  muscleGroup: 'Cuádriceps',     category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra, rack' },
+      { name: 'Sentadilla Frontal (Front Squat)',   muscleGroup: 'Cuádriceps',     category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'AVANZADO',   equipmentRequired: 'Barra, rack' },
+      { name: 'Prensa de Piernas',                  muscleGroup: 'Cuádriceps',     category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina prensa' },
+      { name: 'Zancadas (Lunges)',                  muscleGroup: 'Cuádriceps',     category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas o cuerpo' },
+      { name: 'Sentadilla Búlgara',                 muscleGroup: 'Cuádriceps',     category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Mancuernas, banco' },
+      { name: 'Extensión de Cuádriceps',            muscleGroup: 'Cuádriceps',     category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina de extensión' },
+      // ── FUERZA — Isquiotibiales ──────────────────────────────────────────
+      { name: 'Peso Muerto (Deadlift)',             muscleGroup: 'Isquiotibiales', category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'AVANZADO',   equipmentRequired: 'Barra' },
+      { name: 'Peso Muerto Rumano',                 muscleGroup: 'Isquiotibiales', category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra o mancuernas' },
+      { name: 'Curl de Piernas (Máquina)',          muscleGroup: 'Isquiotibiales', category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina curl' },
+      { name: 'Buenos Días (Good Mornings)',        muscleGroup: 'Isquiotibiales', category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra' },
+      // ── FUERZA — Gemelos ─────────────────────────────────────────────────
+      { name: 'Elevación de Gemelos de Pie',        muscleGroup: 'Gemelos',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina o libre' },
+      { name: 'Elevación de Gemelos Sentado',       muscleGroup: 'Gemelos',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina de gemelos' },
+      // ── FUERZA — Core ────────────────────────────────────────────────────
+      { name: 'Crunch Abdominal',                   muscleGroup: 'Core',           category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: null },
+      { name: 'Plancha (Plank)',                    muscleGroup: 'Core',           category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: null },
+      { name: 'Elevación de Piernas Colgado',       muscleGroup: 'Core',           category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra dominadas' },
+      { name: 'Russian Twist',                      muscleGroup: 'Core',           category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Disco o pelota' },
+      { name: 'Ab Wheel (Rueda Abdominal)',         muscleGroup: 'Core',           category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Rueda abdominal' },
+      { name: 'Crunches en Polea',                  muscleGroup: 'Core',           category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea alta' },
+      // ── CARDIO — Steady-State ────────────────────────────────────────────
+      { name: 'Correr en Cinta',                    muscleGroup: 'Cardio',         category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'BASICO',     equipmentRequired: 'Cinta de correr' },
+      { name: 'Bicicleta Estática',                 muscleGroup: 'Cardio',         category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'BASICO',     equipmentRequired: 'Bicicleta estática' },
+      { name: 'Elíptica',                           muscleGroup: 'Cardio',         category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina elíptica' },
+      { name: 'Remo en Máquina (Rowing)',           muscleGroup: 'Cardio',         category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Máquina de remo' },
+      { name: 'Caminata Rápida',                    muscleGroup: 'Cardio',         category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'BASICO',     equipmentRequired: 'Cinta o exterior' },
+      // ── CARDIO — Intervalos ──────────────────────────────────────────────
+      { name: 'Caminata con Inclinación Progresiva', muscleGroup: 'Cardio',        category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'BASICO',     equipmentRequired: 'Cinta de correr' },
+      { name: 'Sprint en Cinta',                    muscleGroup: 'Cardio',         category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Cinta de correr' },
+      { name: 'Cycling Intervals',                  muscleGroup: 'Cardio',         category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Bicicleta estática' },
+      // ── FUNCIONAL — CrossFit ─────────────────────────────────────────────
+      { name: 'Burpees',                            muscleGroup: 'Funcional',      category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL', difficultyLevel: 'INTERMEDIO', equipmentRequired: null },
+      { name: 'Box Jump (Salto al Cajón)',           muscleGroup: 'Funcional',      category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL', difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Cajón pliométrico' },
+      { name: 'Kettlebell Swing',                   muscleGroup: 'Funcional',      category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL', difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Kettlebell' },
+      { name: 'Wall Ball',                          muscleGroup: 'Funcional',      category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL', difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Balón medicinal, pared' },
+      { name: 'Slam Ball',                          muscleGroup: 'Funcional',      category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL', difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Slam ball' },
+      { name: 'Tire Flip (Volteo de Llanta)',       muscleGroup: 'Funcional',      category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL', difficultyLevel: 'AVANZADO',   equipmentRequired: 'Llanta' },
+      // ── FUNCIONAL — HIIT ─────────────────────────────────────────────────
+      { name: 'Tabata Squat',                       muscleGroup: 'HIIT',           category: 'FUNCIONAL', exerciseType: 'HIIT',       difficultyLevel: 'INTERMEDIO', equipmentRequired: null },
+      { name: 'Tabata Push-ups',                    muscleGroup: 'HIIT',           category: 'FUNCIONAL', exerciseType: 'HIIT',       difficultyLevel: 'INTERMEDIO', equipmentRequired: null },
+      { name: 'Mountain Climbers',                  muscleGroup: 'HIIT',           category: 'FUNCIONAL', exerciseType: 'HIIT',       difficultyLevel: 'BASICO',     equipmentRequired: null },
+      { name: 'Jump Rope (Saltar la Cuerda)',       muscleGroup: 'HIIT',           category: 'FUNCIONAL', exerciseType: 'HIIT',       difficultyLevel: 'BASICO',     equipmentRequired: 'Cuerda de saltar' },
+      // ── FUNCIONAL — Movilidad ─────────────────────────────────────────────
+      { name: 'Estiramiento de Cuádriceps',         muscleGroup: 'Movilidad',      category: 'FUNCIONAL', exerciseType: 'MOBILITY',   difficultyLevel: 'BASICO',     equipmentRequired: null },
+      { name: 'Hip Flexor Stretch',                 muscleGroup: 'Movilidad',      category: 'FUNCIONAL', exerciseType: 'MOBILITY',   difficultyLevel: 'BASICO',     equipmentRequired: null },
+      { name: "World's Greatest Stretch",           muscleGroup: 'Movilidad',      category: 'FUNCIONAL', exerciseType: 'MOBILITY',   difficultyLevel: 'INTERMEDIO', equipmentRequired: null },
+      { name: 'Cat-Cow Stretch',                    muscleGroup: 'Movilidad',      category: 'FUNCIONAL', exerciseType: 'MOBILITY',   difficultyLevel: 'BASICO',     equipmentRequired: null },
+      { name: 'Pigeon Pose',                        muscleGroup: 'Movilidad',      category: 'FUNCIONAL', exerciseType: 'MOBILITY',   difficultyLevel: 'BASICO',     equipmentRequired: null },
+      { name: 'Shoulder Stretch',                   muscleGroup: 'Movilidad',      category: 'FUNCIONAL', exerciseType: 'MOBILITY',   difficultyLevel: 'BASICO',     equipmentRequired: null },
+    ];
+
     const exercises = await Promise.all(
-      exercisesData.map((e) =>
-        findOrCreate(exerciseRepo, { name: e.name } as any, e),
-      ),
+      exercisesData.map((e) => upsertExercise(exerciseRepo, e)),
     );
 
     // ── 7. GYM LOCATION (único por gymId) ────────────────────────────────────
@@ -913,62 +995,26 @@ async function runSeed() {
     const routineExRepo = queryRunner.manager.getRepository(RoutineExercise);
     if (!(await hasData(routineExRepo))) {
       await routineExRepo.save([
-        {
-          routine: routines[0],
-          exercise: exercises[0],
-          orderPosition: 1,
-          setsRecommended: 3,
-          repsRecommended: '12-15',
-          restSecondsBetweenSets: 60,
-        },
-        {
-          routine: routines[0],
-          exercise: exercises[5],
-          orderPosition: 2,
-          setsRecommended: 3,
-          repsRecommended: '30s',
-          restSecondsBetweenSets: 45,
-        },
-        {
-          routine: routines[1],
-          exercise: exercises[1],
-          orderPosition: 1,
-          setsRecommended: 4,
-          repsRecommended: '8-10',
-          restSecondsBetweenSets: 120,
-        },
-        {
-          routine: routines[1],
-          exercise: exercises[2],
-          orderPosition: 2,
-          setsRecommended: 4,
-          repsRecommended: '8-10',
-          restSecondsBetweenSets: 120,
-        },
-        {
-          routine: routines[2],
-          exercise: exercises[6],
-          orderPosition: 1,
-          setsRecommended: 5,
-          repsRecommended: '5',
-          restSecondsBetweenSets: 180,
-        },
-        {
-          routine: routines[3],
-          exercise: exercises[4],
-          orderPosition: 1,
-          setsRecommended: 2,
-          repsRecommended: '15',
-          restSecondsBetweenSets: 30,
-        },
-        {
-          routine: routines[4],
-          exercise: exercises[5],
-          orderPosition: 1,
-          setsRecommended: 3,
-          repsRecommended: '45s',
-          restSecondsBetweenSets: 60,
-        },
+        // routines[0] "Full Body Principiante" — ejercicios base multi-musculares
+        { routine: routines[0], exercise: exercises[0],  orderPosition: 1, setsRecommended: 3, repsRecommended: '12-15', restSecondsBetweenSets: 60  }, // Press de Banca Plano
+        { routine: routines[0], exercise: exercises[6],  orderPosition: 2, setsRecommended: 3, repsRecommended: '12',    restSecondsBetweenSets: 60  }, // Jalón al Pecho
+        { routine: routines[0], exercise: exercises[27], orderPosition: 3, setsRecommended: 3, repsRecommended: '15',    restSecondsBetweenSets: 60  }, // Sentadilla con Barra
+        // routines[1] "Hipertrofia Pecho/Espalda" — volumen tren superior
+        { routine: routines[1], exercise: exercises[0],  orderPosition: 1, setsRecommended: 4, repsRecommended: '8-10',  restSecondsBetweenSets: 120 }, // Press de Banca Plano
+        { routine: routines[1], exercise: exercises[1],  orderPosition: 2, setsRecommended: 4, repsRecommended: '8-10',  restSecondsBetweenSets: 120 }, // Press de Banca Inclinado
+        { routine: routines[1], exercise: exercises[6],  orderPosition: 3, setsRecommended: 4, repsRecommended: '8-10',  restSecondsBetweenSets: 120 }, // Jalón al Pecho
+        { routine: routines[1], exercise: exercises[7],  orderPosition: 4, setsRecommended: 4, repsRecommended: '8-10',  restSecondsBetweenSets: 120 }, // Remo con Barra
+        // routines[2] "Potencia Piernas" — fuerza explosiva
+        { routine: routines[2], exercise: exercises[27], orderPosition: 1, setsRecommended: 5, repsRecommended: '5',     restSecondsBetweenSets: 180 }, // Sentadilla con Barra
+        { routine: routines[2], exercise: exercises[33], orderPosition: 2, setsRecommended: 4, repsRecommended: '5',     restSecondsBetweenSets: 180 }, // Peso Muerto
+        { routine: routines[2], exercise: exercises[29], orderPosition: 3, setsRecommended: 3, repsRecommended: '12',    restSecondsBetweenSets: 120 }, // Prensa de Piernas
+        // routines[3] "Mantenimiento Cardio" — CARDIO con polimorfismo params JSONB
+        { routine: routines[3], exercise: exercises[45], orderPosition: 1, setsRecommended: 1, repsRecommended: null, params: { durationMin: 30, distanceKm: 5,  speedKmh: 10 } }, // Correr en Cinta
+        { routine: routines[3], exercise: exercises[46], orderPosition: 2, setsRecommended: 1, repsRecommended: null, params: { durationMin: 20, distanceKm: 8,  speedKmh: 24 } }, // Bicicleta Estática
+        // routines[4] "Core & Movilidad" — Core STRENGTH + MOBILITY con polimorfismo
+        { routine: routines[4], exercise: exercises[39], orderPosition: 1, setsRecommended: 3, repsRecommended: '20',   restSecondsBetweenSets: 30  }, // Crunch Abdominal
+        { routine: routines[4], exercise: exercises[40], orderPosition: 2, setsRecommended: 3, repsRecommended: '45s',  restSecondsBetweenSets: 30  }, // Plancha
+        { routine: routines[4], exercise: exercises[64], orderPosition: 3, setsRecommended: 2, repsRecommended: null,   params: { durationSeconds: 30, sets: 2 } }, // Hip Flexor Stretch
       ]);
     }
 
@@ -976,117 +1022,56 @@ async function runSeed() {
     if (!(await hasData(sessionRepo))) {
       const sessions = await sessionRepo.save([
         {
-          routine: routines[1],
-          user: users[5],
-          gym: gyms[1],
+          routine: routines[1], user: users[5], gym: gyms[1],
           startedAt: new Date(Date.now() - 86400000),
           finishedAt: new Date(Date.now() - 86400000 + 3600000),
-          status: 'COMPLETED',
-          totalDurationMinutes: 60,
+          status: 'COMPLETED', durationSeconds: 3600,
         },
         {
-          routine: routines[2],
-          user: users[6],
-          gym: gyms[3],
+          routine: routines[2], user: users[6], gym: gyms[3],
           startedAt: new Date(Date.now() - 172800000),
           finishedAt: new Date(Date.now() - 172800000 + 4500000),
-          status: 'COMPLETED',
-          totalDurationMinutes: 75,
+          status: 'COMPLETED', durationSeconds: 4500,
         },
         {
-          routine: routines[0],
-          user: users[4],
-          gym: gyms[0],
-          startedAt: new Date(),
-          finishedAt: undefined,
-          status: 'IN_PROGRESS',
-          totalDurationMinutes: undefined,
+          routine: routines[0], user: users[4], gym: gyms[0],
+          startedAt: new Date(), finishedAt: undefined,
+          status: 'IN_PROGRESS', durationSeconds: undefined,
         },
         {
-          routine: routines[1],
-          user: users[5],
-          gym: gyms[1],
+          routine: routines[1], user: users[5], gym: gyms[1],
           startedAt: new Date(Date.now() - 259200000),
           finishedAt: new Date(Date.now() - 259200000 + 3300000),
-          status: 'COMPLETED',
-          totalDurationMinutes: 55,
+          status: 'COMPLETED', durationSeconds: 3300,
         },
         {
-          routine: routines[3],
-          user: users[2],
-          gym: gyms[0],
+          routine: routines[3], user: users[2], gym: gyms[0],
           startedAt: new Date(Date.now() - 345600000),
           finishedAt: new Date(Date.now() - 345600000 + 2700000),
-          status: 'COMPLETED',
-          totalDurationMinutes: 45,
+          status: 'COMPLETED', durationSeconds: 2700,
         },
       ]);
 
+      // Carga los routine exercises para referenciarlos por routineId + orderPosition
+      // (evita IDs hardcodeados que fallan cuando el auto-increment no empieza en 1)
+      const allRoutineEx = await routineExRepo.find();
+      const reByPos = (routineIdx: number, pos: number) =>
+        allRoutineEx.find(re => re.routineId === routines[routineIdx].id && re.orderPosition === pos) ?? null;
+
       const setRepo = queryRunner.manager.getRepository(WorkoutSet);
       await setRepo.save([
-        {
-          session: sessions[0],
-          routineExercise: routineExRepo.create({ id: 3 }),
-          setNumber: 1,
-          repsCompleted: 10,
-          weightUsedKg: 40.0,
-          restTakenSeconds: 120,
-          completedAt: new Date(),
-        },
-        {
-          session: sessions[0],
-          routineExercise: routineExRepo.create({ id: 3 }),
-          setNumber: 2,
-          repsCompleted: 9,
-          weightUsedKg: 40.0,
-          restTakenSeconds: 125,
-          completedAt: new Date(),
-        },
-        {
-          session: sessions[1],
-          routineExercise: routineExRepo.create({ id: 5 }),
-          setNumber: 1,
-          repsCompleted: 5,
-          weightUsedKg: 80.0,
-          restTakenSeconds: 180,
-          completedAt: new Date(),
-        },
-        {
-          session: sessions[3],
-          routineExercise: routineExRepo.create({ id: 4 }),
-          setNumber: 1,
-          repsCompleted: 10,
-          weightUsedKg: 60.0,
-          restTakenSeconds: 110,
-          completedAt: new Date(),
-        },
-        {
-          session: sessions[4],
-          routineExercise: routineExRepo.create({ id: 7 }),
-          setNumber: 1,
-          repsCompleted: 45,
-          weightUsedKg: 0,
-          restTakenSeconds: 60,
-          completedAt: new Date(),
-        },
-        {
-          session: sessions[0],
-          routineExercise: routineExRepo.create({ id: 4 }),
-          setNumber: 1,
-          repsCompleted: 8,
-          weightUsedKg: 50.0,
-          restTakenSeconds: 130,
-          completedAt: new Date(),
-        },
-        {
-          session: sessions[1],
-          routineExercise: routineExRepo.create({ id: 5 }),
-          setNumber: 2,
-          repsCompleted: 4,
-          weightUsedKg: 85.0,
-          restTakenSeconds: 190,
-          completedAt: new Date(),
-        },
+        // sessions[0] → routines[1] Hipertrofia, pos 1 = Press de Banca Plano
+        { session: sessions[0], routineExercise: reByPos(1, 1), setNumber: 1, repsCompleted: 10, weightUsedKg: 40.0, restTakenSeconds: 120 },
+        { session: sessions[0], routineExercise: reByPos(1, 1), setNumber: 2, repsCompleted: 9,  weightUsedKg: 40.0, restTakenSeconds: 125 },
+        // sessions[0] → routines[1], pos 3 = Jalón al Pecho
+        { session: sessions[0], routineExercise: reByPos(1, 3), setNumber: 1, repsCompleted: 8,  weightUsedKg: 50.0, restTakenSeconds: 130 },
+        // sessions[1] → routines[2] Potencia Piernas, pos 1 = Sentadilla
+        { session: sessions[1], routineExercise: reByPos(2, 1), setNumber: 1, repsCompleted: 5,  weightUsedKg: 80.0, restTakenSeconds: 180 },
+        { session: sessions[1], routineExercise: reByPos(2, 1), setNumber: 2, repsCompleted: 4,  weightUsedKg: 85.0, restTakenSeconds: 190 },
+        // sessions[3] → routines[1], pos 2 = Press de Banca Inclinado
+        { session: sessions[3], routineExercise: reByPos(1, 2), setNumber: 1, repsCompleted: 10, weightUsedKg: 60.0, restTakenSeconds: 110 },
+        // sessions[4] → routines[3] Cardio, pos 1 = Correr en Cinta (duración, no reps)
+        { session: sessions[4], routineExercise: reByPos(3, 1), setNumber: 1, durationSeconds: 1800, restTakenSeconds: 60 },
       ]);
     }
 

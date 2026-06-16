@@ -19,6 +19,12 @@ export class ExerciseCatalog {
   @Column({ type: 'varchar', length: 50, name: 'muscle_group' })
   muscleGroup!: string;
 
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  category!: string | null;
+
+  @Column({ type: 'varchar', length: 30, name: 'exercise_type', nullable: true })
+  exerciseType!: string | null;
+
   @Column({ type: 'jsonb', name: 'secondary_muscle_groups', nullable: true })
   secondaryMuscleGroups!: string[];
 

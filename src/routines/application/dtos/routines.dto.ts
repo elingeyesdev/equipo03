@@ -19,18 +19,25 @@ export class RoutineExerciseItemDto {
   @IsInt()
   orderPosition: number;
 
-  @ApiProperty({ example: 4 })
+  @ApiPropertyOptional({ example: 4 })
+  @IsOptional()
   @IsInt()
-  setsRecommended: number;
+  setsRecommended?: number;
 
-  @ApiProperty({ example: '8-12' })
+  @ApiPropertyOptional({ example: '8-12' })
+  @IsOptional()
   @IsString()
-  repsRecommended: string;
+  repsRecommended?: string;
 
   @ApiPropertyOptional({ example: 60.0 })
   @IsOptional()
   @IsNumber()
   weightRecommendedKg?: number;
+
+  @ApiPropertyOptional({ example: 'LUNES', description: 'Día de la semana' })
+  @IsOptional()
+  @IsString()
+  dayOfWeek?: string;
 
   @ApiPropertyOptional({ example: 90 })
   @IsOptional()
@@ -41,6 +48,10 @@ export class RoutineExerciseItemDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({ description: 'Parámetros polimórficos según exerciseType', example: { durationMin: 30, distanceKm: 5 } })
+  @IsOptional()
+  params?: Record<string, any>;
 }
 
 export class CreateRoutineDto {

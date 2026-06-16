@@ -22,11 +22,11 @@ export class RoutineExercise {
   @Column({ type: 'integer', name: 'order_position' })
   orderPosition!: number;
 
-  @Column({ type: 'integer', name: 'sets_recommended' })
-  setsRecommended!: number;
+  @Column({ type: 'integer', name: 'sets_recommended', nullable: true })
+  setsRecommended!: number | null;
 
-  @Column({ type: 'varchar', length: 50, name: 'reps_recommended' })
-  repsRecommended!: string;
+  @Column({ type: 'varchar', length: 50, name: 'reps_recommended', nullable: true })
+  repsRecommended!: string | null;
 
   @Column({
     type: 'decimal',
@@ -37,6 +37,9 @@ export class RoutineExercise {
   })
   weightRecommendedKg!: number;
 
+  @Column({ type: 'varchar', length: 20, name: 'day_of_week', nullable: true })
+  dayOfWeek!: string | null;
+
   @Column({
     type: 'integer',
     name: 'rest_seconds_between_sets',
@@ -46,6 +49,9 @@ export class RoutineExercise {
 
   @Column({ type: 'text', nullable: true })
   notes!: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  params!: Record<string, any> | null;
 
   // ── Relations ─────────────────────────────────────
   @ManyToOne(() => Routine, (r) => r.exercises, { onDelete: 'CASCADE' })
