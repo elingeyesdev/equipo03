@@ -5,10 +5,12 @@ import {
   Body,
   HttpCode,
   HttpStatus,
+  HttpException,
   UsePipes,
   ValidationPipe,
   UseGuards,
   Request,
+  Response,
   Logger,
 } from '@nestjs/common';
 import {
@@ -18,6 +20,9 @@ import {
   ApiResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
+import type { Response as ExpressResponse } from 'express';
+import { ConfigService } from '@nestjs/config';
 import { AuthService } from '../application/auth.service';
 import {
   RegisterDto,
@@ -26,6 +31,7 @@ import {
   ResetPasswordDto,
 } from '../application/dtos/auth.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { Public } from '../../common/decorators/public.decorator';
 import { UsersService } from '../../users/application/users.service';
 
 const OTP_PIPE = new ValidationPipe({
@@ -35,34 +41,76 @@ const OTP_PIPE = new ValidationPipe({
   transformOptions: { enableImplicitConversion: true },
 });
 
+// Convierte la cadena de expiración del JWT (ej: "24h", "7d", "3600") a milisegundos
+// para usarla como maxAge de la cookie.
+function jwtExpirationToMs(expiration: string | undefined): number {
+  const DEFAULT_MS = 24 * 60 * 60 * 1000; // 24 horas
+  if (!expiration) return DEFAULT_MS;
+  const num = parseInt(expiration, 10);
+  if (isNaN(num)) return DEFAULT_MS;
+  if (expiration.endsWith('d')) return num * 86400 * 1000;
+  if (expiration.endsWith('h')) return num * 3600 * 1000;
+  if (expiration.endsWith('m')) return num * 60 * 1000;
+  if (expiration.endsWith('s')) return num * 1000;
+  return num * 1000; // asume segundos si no hay sufijo
+}
+
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
+  private readonly cookieMaxAge: number;
+
   constructor(
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.cookieMaxAge = jwtExpirationToMs(
+      this.configService.get<string>('JWT_EXPIRATION'),
+    );
+  }
+
+  /** warn para 4xx (esperados), error+stack solo para 5xx (inesperados). */
+  private logError(context: string, error: any): void {
+    if (error instanceof HttpException && error.getStatus() < 500) {
+      this.logger.warn(`[${context}] ${error.message}`);
+    } else {
+      this.logger.error(`[${context}] ${error?.message}`, error?.stack);
+    }
+  }
+
+  /** Emite la cookie HttpOnly con el token y retorna solo los datos del usuario. */
+  private setAuthCookie(res: ExpressResponse, token: string): void {
+    res.cookie('access_token', token, {
+      httpOnly: true,          // inaccesible desde JS — protege de XSS
+      secure: this.configService.get('NODE_ENV') === 'production',
+      sameSite: 'lax',         // protege de CSRF; 'strict' rompería flujos OAuth futuros
+      maxAge: this.cookieMaxAge,
+      path: '/',
+    });
+  }
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Obtener perfil completo del usuario autenticado' })
-  @ApiResponse({
-    status: 200,
-    description: 'Perfil del usuario con relaciones',
-  })
+  @ApiResponse({ status: 200, description: 'Perfil del usuario con relaciones' })
   @ApiResponse({ status: 401, description: 'Token inválido o ausente' })
   async getMe(
     @Request()
-    req: {
-      user: { userId: number; role: string | null; gymId: number | null };
-    },
+    req: { user: { userId: number; role: string | null; gymId: number | null } },
   ) {
-    const user = await this.usersService.findOne(req.user.userId);
-    return this.usersService.toPublicDto(user, req.user.role, req.user.gymId);
+    try {
+      const user = await this.usersService.findOne(req.user.userId);
+      return this.usersService.toPublicDto(user, req.user.role, req.user.gymId);
+    } catch (error: any) {
+      this.logError('getMe', error);
+      throw error;
+    }
   }
 
+  @Public()
   @Post('register')
   @UsePipes(
     new ValidationPipe({
@@ -75,10 +123,24 @@ export class AuthController {
   @ApiOperation({ summary: 'Registrar un nuevo usuario' })
   @ApiBody({ type: RegisterDto })
   @ApiResponse({ status: 201, description: 'Usuario creado exitosamente' })
-  register(@Body() body: RegisterDto) {
-    return this.authService.register(body);
+  async register(
+    @Body() body: RegisterDto,
+    @Response({ passthrough: true }) res: ExpressResponse,
+  ) {
+    try {
+      const result = await this.authService.register(body);
+      this.setAuthCookie(res, result.accessToken);
+      // No exponemos el accessToken en el body
+      const { accessToken: _, ...safeResult } = result;
+      return safeResult;
+    } catch (error: any) {
+      this.logError('register', error);
+      throw error;
+    }
   }
 
+  @Public()
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @UsePipes(
@@ -89,56 +151,81 @@ export class AuthController {
       transformOptions: { enableImplicitConversion: true },
     }),
   )
-  @ApiOperation({ summary: 'Iniciar sesión y obtener JWT' })
+  @ApiOperation({ summary: 'Iniciar sesión — emite cookie HttpOnly con JWT' })
   @ApiBody({ type: LoginDto })
-  @ApiResponse({
-    status: 200,
-    description: 'Login exitoso, retorna accessToken',
-  })
+  @ApiResponse({ status: 200, description: 'Login exitoso, retorna datos del usuario (sin token en body)' })
   @ApiResponse({ status: 401, description: 'Credenciales inválidas' })
-  login(@Body() body: LoginDto) {
-    return this.authService.login(body);
+  async login(
+    @Body() body: LoginDto,
+    @Response({ passthrough: true }) res: ExpressResponse,
+  ) {
+    try {
+      const result = await this.authService.login(body);
+      this.setAuthCookie(res, result.accessToken);
+      // El token va solo en la cookie, nunca en el body (previene XSS)
+      const { accessToken: _, ...safeResult } = result;
+      return safeResult;
+    } catch (error: any) {
+      this.logError('login', error);
+      throw error;
+    }
+  }
+
+  @Public()
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Cerrar sesión — limpia la cookie HttpOnly' })
+  @ApiResponse({ status: 200, description: 'Sesión cerrada correctamente' })
+  logout(@Response({ passthrough: true }) res: ExpressResponse) {
+    res.clearCookie('access_token', {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: this.configService.get('NODE_ENV') === 'production',
+      path: '/',
+    });
+    return { success: true, message: 'Sesión cerrada.' };
   }
 
   /**
    * Solicita un OTP de 6 dígitos por correo.
    * Siempre devuelve 200 (anti-enumeración de usuarios).
-   * POST /api/auth/forgot-password
    */
+  @Public()
+  @Throttle({ default: { ttl: 900000, limit: 5 } })
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   @UsePipes(OTP_PIPE)
-  @ApiOperation({
-    summary: 'Solicitar código OTP para recuperación de contraseña',
-  })
+  @ApiOperation({ summary: 'Solicitar código OTP para recuperación de contraseña' })
   @ApiBody({ type: ForgotPasswordDto })
-  @ApiResponse({
-    status: 200,
-    description: 'Respuesta genérica (anti-enumeración)',
-  })
-  forgotPassword(@Body() body: ForgotPasswordDto) {
-    return this.authService.forgotPassword(body.email);
+  @ApiResponse({ status: 200, description: 'Respuesta genérica (anti-enumeración)' })
+  async forgotPassword(@Body() body: ForgotPasswordDto) {
+    try {
+      return await this.authService.forgotPassword(body.email);
+    } catch (error: any) {
+      this.logError('forgotPassword', error);
+      throw error;
+    }
   }
 
-  /**
-   * Verifica el OTP y actualiza la contraseña.
-   * POST /api/auth/reset-password
-   */
+  /** Verifica el OTP y actualiza la contraseña. */
+  @Public()
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   @UsePipes(OTP_PIPE)
   @ApiOperation({ summary: 'Resetear contraseña con OTP válido' })
   @ApiBody({ type: ResetPasswordDto })
-  @ApiResponse({
-    status: 200,
-    description: '{ success: true, message: "Contraseña actualizada" }',
-  })
+  @ApiResponse({ status: 200, description: '{ success: true, message: "Contraseña actualizada" }' })
   @ApiResponse({ status: 400, description: 'OTP inválido o expirado' })
-  resetPassword(@Body() body: ResetPasswordDto) {
-    return this.authService.resetPassword(
-      body.email,
-      body.otpCode,
-      body.newPassword,
-    );
+  async resetPassword(@Body() body: ResetPasswordDto) {
+    try {
+      return await this.authService.resetPassword(
+        body.email,
+        body.otpCode,
+        body.newPassword,
+      );
+    } catch (error: any) {
+      this.logError('resetPassword', error);
+      throw error;
+    }
   }
 }

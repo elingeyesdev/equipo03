@@ -4,6 +4,8 @@ import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
+import cookieParser = require('cookie-parser');
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
@@ -13,12 +15,21 @@ async function bootstrap() {
   app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads' });
   const configService = app.get(ConfigService);
 
+  // ── Security Headers (helmet) ──────────────────────────────────
+  app.use(helmet());
+
+  // ── Cookie Parser (requerido para leer HttpOnly cookies en el guard JWT) ──
+  app.use(cookieParser());
+
   // ── Global Prefix ──────────────────────────────────────────────
   app.setGlobalPrefix('api');
 
   // ── CORS ───────────────────────────────────────────────────────
+  // origin: true refleja el origen de cada petición —
+  // necesario para que 'credentials: true' funcione sin bloquear el browser.
+  // En producción reemplazar por la URL exacta del frontend.
   app.enableCors({
-    origin: '*',
+    origin: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
@@ -97,7 +108,7 @@ async function bootstrap() {
   ║──────────────────────────────────────────────────────║
   ║  URL:      http://localhost:${port}/api              ║
   ║  Swagger:  http://localhost:${port}/api/docs         ║
-  ║  Env:      ${configService.get('NODE_ENV') || 'development'}                       ║
+  ║  Env:      ${configService.get('NODE_ENV') || 'development'}║
   ╚══════════════════════════════════════════════════════╝
   `);
 }

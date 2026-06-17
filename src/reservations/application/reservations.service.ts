@@ -345,7 +345,7 @@ export class ReservationsService {
     });
 
     const saved = await this.repo.save(entity);
-    this.logger.log(
+    this.logger.debug(
       `Reserva libre ${saved.id}: activity=${activity.id} gym=${activity.gymId} user=${reservationUserId}`,
     );
     return saved;
@@ -451,7 +451,7 @@ export class ReservationsService {
         }),
       );
 
-      this.logger.log(
+      this.logger.debug(
         `[FREE] Reserva ${saved.id} activity=${activity.id} gym=${activity.gymId} user=${reservationUserId}`,
       );
       // Fire-and-forget: no bloquea la respuesta al cliente
@@ -989,7 +989,7 @@ export class ReservationsService {
 
       await queryRunner.commitTransaction();
 
-      this.logger.log(
+      this.logger.debug(
         `Check-in QR: reserva=${reservationId} user=${reservation.userId} gym=${gymIdForCheckIn} by=${userId}`,
       );
 
@@ -1142,7 +1142,7 @@ export class ReservationsService {
 
       await queryRunner.commitTransaction();
 
-      this.logger.log(
+      this.logger.debug(
         `[QR-JWT] Check-in: reserva=${reservation.id} user=${reservation.userId} gym=${gymIdForCheckIn} by=${userId}`,
       );
 
@@ -1214,7 +1214,7 @@ export class ReservationsService {
             'Tienes una nueva reserva confirmada en tu sucursal.',
           )
           .catch(() => {});
-        this.logger.log(
+        this.logger.debug(
           `[PUSH] batch de ${tokens.length} gerente(s) en gym=${gymId}`,
         );
       }

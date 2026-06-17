@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
+import { Request } from 'express';
 
 export interface JwtPayload {
   sub: string;
@@ -11,11 +12,25 @@ export interface JwtPayload {
   brandId?: number | null;
 }
 
+// Extrae el JWT desde la cookie HttpOnly 'access_token'
+const cookieExtractor = (req: Request): string | null => {
+  try {
+    return req?.cookies?.access_token ?? null;
+  } catch {
+    return null;
+  }
+};
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(configService: ConfigService) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      // 1º cookie HttpOnly (producción segura)
+      // 2º Authorization: Bearer ... (fallback para Swagger/Postman/mobile)
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        cookieExtractor,
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ]),
       ignoreExpiration: false,
       secretOrKey: configService.get<string>('JWT_SECRET')!,
     });

@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -11,8 +12,21 @@ import {
 import { Server, Socket } from 'socket.io';
 import { AuthService } from '../../auth/application/auth.service';
 
+/** Parsea el header 'cookie' del handshake y extrae el valor de 'access_token'. */
+function extractTokenFromCookie(cookieHeader: string | undefined): string | null {
+  if (!cookieHeader) return null;
+  try {
+    const match = cookieHeader.match(/(?:^|;\s*)access_token=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
+@SkipThrottle()
 @WebSocketGateway({
-  cors: { origin: '*', credentials: true },
+  // origin: true refleja el origen para soportar credenciales (cookies)
+  cors: { origin: true, credentials: true },
   namespace: '/events',
 })
 export class GymGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -22,36 +36,45 @@ export class GymGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(private readonly authService: AuthService) {}
 
   handleConnection(client: Socket) {
-    const token =
-      (client.handshake.auth?.token as string) ??
-      (client.handshake.headers?.authorization as string)?.replace(
-        'Bearer ',
-        '',
+    try {
+      // Prioridad de extracción del token:
+      // 1. Cookie HttpOnly del handshake (producción — withCredentials: true)
+      // 2. auth.token del handshake (compatibilidad hacia atrás durante migración)
+      // 3. Authorization header (Postman / herramientas de desarrollo)
+      const cookieToken = extractTokenFromCookie(
+        client.handshake.headers?.cookie as string,
       );
+      const authToken = client.handshake.auth?.token as string | undefined;
+      const headerToken = (client.handshake.headers?.authorization as string)
+        ?.replace('Bearer ', '');
 
-    const payload = token ? this.authService.verifyToken(token) : null;
+      const token = cookieToken ?? authToken ?? headerToken ?? null;
+      const payload = token ? this.authService.verifyToken(token) : null;
 
-    if (!payload) {
+      if (!payload) {
+        this.logger.warn(`[WS] Conexión rechazada — token inválido o ausente (id: ${client.id})`);
+        client.disconnect();
+        return;
+      }
+
+      client.data.userId = payload.sub;
+      client.data.role   = payload.role?.toUpperCase() ?? null;
+      client.data.gymId  = payload.gymId;
+
+      const role = client.data.role;
+
+      if (role === 'GERENTE' && payload.gymId) {
+        client.join(`gym_${payload.gymId}`);
+        this.logger.log(`GERENTE userId=${payload.sub} → sala gym_${payload.gymId}`);
+      } else if (role === 'SUPER_ADMIN') {
+        client.join('admin_room');
+        this.logger.log(`SUPER_ADMIN userId=${payload.sub} → admin_room`);
+      } else {
+        client.join(`user_${payload.sub}`);
+      }
+    } catch (error: any) {
+      this.logger.error(`[WS] Error en handleConnection: ${error?.message}`, error?.stack);
       client.disconnect();
-      return;
-    }
-
-    client.data.userId = payload.sub;
-    client.data.role = payload.role?.toUpperCase() ?? null;
-    client.data.gymId = payload.gymId;
-
-    const role = client.data.role;
-
-    if (role === 'GERENTE' && payload.gymId) {
-      client.join(`gym_${payload.gymId}`);
-      this.logger.log(
-        `GERENTE userId=${payload.sub} → sala gym_${payload.gymId}`,
-      );
-    } else if (role === 'SUPER_ADMIN') {
-      client.join('admin_room');
-      this.logger.log(`SUPER_ADMIN userId=${payload.sub} → admin_room`);
-    } else {
-      client.join(`user_${payload.sub}`);
     }
   }
 

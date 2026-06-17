@@ -29,6 +29,7 @@ export class NotificationsService {
       where: { userId },
       relations: ['template'],
       order: { sentAt: 'DESC' },
+      take: 50,
     });
   }
   async markAsRead(id: number) {

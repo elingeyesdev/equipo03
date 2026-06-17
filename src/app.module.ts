@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { JwtAuthGuard } from './auth/infrastructure/guards/jwt-auth.guard';
 
 // ── Domain Modules (Estructura Modular por Dominios) ─────────
 import { AuthModule } from './auth/auth.module';
@@ -23,9 +26,23 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { VisitsModule } from './visits/visits.module';
 
 @Module({
+  providers: [
+    // ThrottlerGuard primero: bloquea fuerza bruta antes de llegar al guard de auth
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // Guard JWT aplicado globalmente — todos los endpoints requieren token
+    // excepto los marcados con @Public() (login, register, forgot-password, etc.)
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+  ],
   imports: [
     // ── Configuration ──────────────────────────────────────────
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
+
+    // ── Rate Limiting ───────────────────────────────────────────
+    // Límite global generoso; auth endpoints lo sobreescriben con @Throttle()
+    ThrottlerModule.forRoot([{
+      ttl: 60000,   // ventana de 60 s (ms)
+      limit: 120,   // 120 req/min por IP (2 req/s — suficiente para uso normal)
+    }]),
 
     // ── Database ───────────────────────────────────────────────
     // IMPORTANTE: Para la primera ejecución después del reset de la DB,
@@ -45,8 +62,7 @@ import { VisitsModule } from './visits/visits.module';
         synchronize: cfg.get('NODE_ENV') !== 'production',
         // Activar SOLO para la primera ejecución post-reset si es necesario
         dropSchema: cfg.get<string>('DROP_SCHEMA') === 'true',
-        // Logging siempre activo para diagnóstico — desactivar en production
-        logging: true,
+        logging: cfg.get('NODE_ENV') !== 'production',
       }),
     }),
 

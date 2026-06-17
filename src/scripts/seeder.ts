@@ -1,1190 +1,514 @@
-// src/scripts/seeder.ts  — Idempotente: findOrCreate / skipIfExists. Sin TRUNCATE.
+// src/scripts/seeder.ts
 import { AppDataSource } from '../config/data-source.cli';
 import * as bcrypt from 'bcrypt';
-import { Repository, In } from 'typeorm';
-
 import { Role } from '../roles/domain/role.entity';
-import { Permission } from '../roles/domain/permission.entity';
 import { User } from '../users/domain/user.entity';
 import { UserProfile } from '../users/domain/user-profile.entity';
 import { UserRole } from '../roles/domain/user-role.entity';
 import { Gym } from '../gyms/domain/gym.entity';
 import { GymLocation } from '../gyms/domain/gym-location.entity';
-import { GymSchedule } from '../gyms/domain/gym-schedule.entity';
-import { SubscriptionPlan } from '../subscriptions/domain/subscription-plan.entity';
-import { UserSubscription } from '../subscriptions/domain/user-subscription.entity';
 import { ExerciseCatalog } from '../exercises/domain/exercise-catalog.entity';
 import { GymActivity } from '../activities/domain/gym-activity.entity';
+import { GymSchedule } from '../gyms/domain/gym-schedule.entity';
 import { GymActivitySchedule } from '../activities/domain/gym-activity-schedule.entity';
-import { Reservation } from '../reservations/domain/reservation.entity';
-import { CheckIn } from '../checkins/domain/check-in.entity';
-import { Routine } from '../routines/domain/routine.entity';
-import { RoutineExercise } from '../routines/domain/routine-exercise.entity';
-import { UserTraining } from '../training/domain/user-training.entity';
-import { UserTrainingGoals } from '../training/domain/user-training-goals.entity';
-import { WorkoutSession } from '../training/domain/workout-session.entity';
-import { WorkoutSet } from '../training/domain/workout-set.entity';
-import { SystemSetting } from '../system/domain/system-setting.entity';
-import { NotificationTemplate } from '../notifications/domain/notification-template.entity';
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-type AnyRepo = Repository<any>;
-
-/**
- * Resync all table sequences to MAX(id)+1.
- * Prevents PK conflicts when sequences are out of sync with existing data
- * (happens after TRUNCATE RESTART IDENTITY or table recreation).
- */
-async function resetSequences(qr: any): Promise<void> {
-  const tables = [
-    'roles', 'permissions', 'role_permissions', 'user_roles',
-    'users', 'user_profiles',
-    'gyms', 'gym_location', 'gym_schedules', 'gym_infrastructure',
-    'subscription_plans', 'user_subscriptions', 'subscription_payments',
-    'exercise_catalog',
-    'gym_activity', 'gym_activity_schedule', 'gym_activity_attendance',
-    'reservations', 'waitlist_entries', 'check_ins',
-    'routines', 'routine_exercises',
-    'user_training', 'user_training_goals', 'user_training_preferences',
-    'user_training_restrictions', 'emergency_contacts',
-    'workout_sessions', 'workout_sets', 'physical_metrics_history',
-    'notification_templates', 'notifications', 'user_notification_preferences',
-    'system_settings',
-  ];
-  for (const t of tables) {
-    await qr.query(
-      `SELECT setval(pg_get_serial_sequence('"${t}"', 'id'), COALESCE((SELECT MAX(id) FROM "${t}"), 0) + 1, false)`,
-    );
-  }
-}
-
-/** Busca por `where`; crea+guarda solo si no existe. Devuelve siempre el registro. */
-async function findOrCreate(
-  repo: AnyRepo,
-  where: any,
-  data: any,
-): Promise<any> {
-  const found = await repo.findOneBy(where);
-  if (found) return found;
-  return repo.save(repo.create(data));
-}
-
-/** Devuelve true si la tabla ya tiene algún registro. */
-async function hasData(repo: AnyRepo): Promise<boolean> {
-  return (await repo.count()) > 0;
-}
-
-/** Crea o actualiza por nombre. Siempre marca isActive=true para reactivar si estaba desactivado. */
-async function upsertExercise(repo: AnyRepo, data: any): Promise<any> {
-  const found = await repo.findOneBy({ name: data.name });
-  if (found) {
-    Object.assign(found, { ...data, isActive: true });
-    return repo.save(found);
-  }
-  return repo.save(repo.create({ ...data, isActive: true }));
-}
-
-// ── Seed principal ────────────────────────────────────────────────────────────
-
+import { GymInfrastructure } from '../gyms/domain/gym-infrastructure.entity';
 async function runSeed() {
-  console.log('🌱 Iniciando Seed Idempotente...');
+  console.log('🌱 Iniciando seed de GymSync...');
 
   const dataSource = await AppDataSource.initialize();
-  const queryRunner = dataSource.createQueryRunner();
-  await queryRunner.connect();
-  await queryRunner.startTransaction();
+  const qr = dataSource.createQueryRunner();
+  await qr.connect();
 
-  try {
-    // Resync sequences before any INSERT to prevent PK conflicts
-    await resetSequences(queryRunner);
-
-    // ── 1. ROLES ──────────────────────────────────────────────────────────────
-    const roleRepo = queryRunner.manager.getRepository(Role);
-    const rolesData = [
-      {
-        name: 'SUPER_ADMIN',
-        description: 'Control total del sistema',
-        hierarchyLevel: 10,
-        isSystemRole: true,
-      },
-      {
-        name: 'ADMIN_SEDE',
-        description: 'Gestión de sede específica',
-        hierarchyLevel: 5,
-        isSystemRole: true,
-      },
-      {
-        name: 'ENTRENADOR',
-        description: 'Asignación de rutinas',
-        hierarchyLevel: 3,
-        isSystemRole: true,
-      },
-      {
-        name: 'RECEPCION',
-        description: 'Validación de ingresos',
-        hierarchyLevel: 2,
-        isSystemRole: true,
-      },
-      {
-        name: 'CLIENTE',
-        description: 'Acceso a app móvil',
-        hierarchyLevel: 1,
-        isSystemRole: true,
-      },
-    ];
-    const roles = await Promise.all(
-      rolesData.map((r) => findOrCreate(roleRepo, { name: r.name } as any, r)),
-    );
-
-    // ── 2. PERMISSIONS ────────────────────────────────────────────────────────
-    const permRepo = queryRunner.manager.getRepository(Permission);
-    await Promise.all([
-      findOrCreate(permRepo, { code: 'users.read' } as any, {
-        code: 'users.read',
-        name: 'Ver usuarios',
-        resource: 'users',
-        action: 'leer',
-      }),
-      findOrCreate(permRepo, { code: 'gyms.manage' } as any, {
-        code: 'gyms.manage',
-        name: 'Gestionar sedes',
-        resource: 'gyms',
-        action: 'escribir',
-      }),
-      findOrCreate(permRepo, { code: 'reservations.create' } as any, {
-        code: 'reservations.create',
-        name: 'Crear reservas',
-        resource: 'reservations',
-        action: 'crear',
-      }),
-      findOrCreate(permRepo, { code: 'routines.assign' } as any, {
-        code: 'routines.assign',
-        name: 'Asignar rutinas',
-        resource: 'routines',
-        action: 'escribir',
-      }),
-      findOrCreate(permRepo, { code: 'reports.view' } as any, {
-        code: 'reports.view',
-        name: 'Ver reportes',
-        resource: 'reports',
-        action: 'leer',
-      }),
-    ]);
-
-    // ── 3. USERS ──────────────────────────────────────────────────────────────
-    const hashedPassword = await bcrypt.hash('123456', 10);
-    const userRepo = queryRunner.manager.getRepository(User);
-    const usersData = [
-      {
-        email: 'admin@gymsync.com',
-        passwordHash: hashedPassword,
-        isActive: true,
-      },
-      {
-        email: 'gerente.santaCruz@gymsync.com',
-        passwordHash: hashedPassword,
-        isActive: true,
-      },
-      {
-        email: 'entrenador.ana@gymsync.com',
-        passwordHash: hashedPassword,
-        isActive: true,
-      },
-      {
-        email: 'entrenador.luis@gymsync.com',
-        passwordHash: hashedPassword,
-        isActive: true,
-      },
-      {
-        email: 'cliente.maria@ejemplo.com',
-        passwordHash: hashedPassword,
-        isActive: true,
-      },
-      {
-        email: 'cliente.jorge@ejemplo.com',
-        passwordHash: hashedPassword,
-        isActive: true,
-      },
-      {
-        email: 'cliente.sofia@ejemplo.com',
-        passwordHash: hashedPassword,
-        isActive: true,
-      },
-    ];
-    const users = await Promise.all(
-      usersData.map((u) =>
-        findOrCreate(userRepo, { email: u.email } as any, u),
-      ),
-    );
-
-    // ── 4. GYMS ───────────────────────────────────────────────────────────────
-    const gymRepo = queryRunner.manager.getRepository(Gym);
-    const gymsData = [
-      {
-        name: 'Smart Fit Centro',
-        description: 'Tecnología y zona de pesas',
-        maxCapacity: 250,
-        isActive: true,
-        isOpen: true,
-      },
-      {
-        name: 'Premier Equipetrol',
-        description: 'Zona premium y spa',
-        maxCapacity: 120,
-        isActive: true,
-        isOpen: true,
-      },
-      {
-        name: 'BioFitness Sur',
-        description: 'Enfoque rehabilitación',
-        maxCapacity: 80,
-        isActive: true,
-        isOpen: true,
-      },
-      {
-        name: 'CrossBox Norte',
-        description: 'Box de CrossFit funcional',
-        maxCapacity: 60,
-        isActive: true,
-        isOpen: true,
-      },
-      {
-        name: 'MegaGym Plan 3000',
-        description: 'Espacio familiar amplio',
-        maxCapacity: 300,
-        isActive: true,
-        isOpen: false,
-      },
-    ];
-    const gyms = await Promise.all(
-      gymsData.map((g) => findOrCreate(gymRepo, { name: g.name } as any, g)),
-    );
-
-    // ── 5. SUBSCRIPTION PLANS ─────────────────────────────────────────────────
-    const planRepo = queryRunner.manager.getRepository(SubscriptionPlan);
-    const plansData = [
-      {
-        name: 'Básico',
-        description: '1 sede, horario restringido',
-        priceMonthly: 120,
-        maxGymsAccess: 1,
-        features: ['acceso_gimnasio'],
-      },
-      {
-        name: 'Estándar',
-        description: '2 sedes, horario completo',
-        priceMonthly: 180,
-        maxGymsAccess: 2,
-        features: ['acceso_gimnasio', 'reservas'],
-      },
-      {
-        name: 'Premium',
-        description: 'Todas las sedes + clases',
-        priceMonthly: 250,
-        maxGymsAccess: 5,
-        features: ['acceso_ilimitado', 'clases', 'rutinas'],
-      },
-      {
-        name: 'Corporativo',
-        description: 'Planes empresariales',
-        priceMonthly: 300,
-        maxGymsAccess: 5,
-        features: ['facturacion', 'reportes', 'soporte'],
-      },
-      {
-        name: 'Estudiante',
-        description: 'Descuento con carnet válido',
-        priceMonthly: 90,
-        maxGymsAccess: 1,
-        features: ['acceso_gimnasio', 'horario_diurno'],
-      },
-    ];
-    const plans = await Promise.all(
-      plansData.map((p) => findOrCreate(planRepo, { name: p.name } as any, p)),
-    );
-
-    // ── 6. EXERCISE CATALOG ───────────────────────────────────────────────────
-    const exerciseRepo = queryRunner.manager.getRepository(ExerciseCatalog);
-
-    // Desactivar ejercicios con nombres legacy que son reemplazados por el nuevo catálogo
-    const legacyNames = [
-      'Press Banca Plano', 'Sentadilla Libre', 'Dominadas Pecho',
-      'Press Militar', 'Curl Bíceps Alterno', 'Plancha Abdominal',
-    ];
-    await exerciseRepo.update({ name: In(legacyNames) }, { isActive: false });
-
-    const exercisesData = [
-      // ── FUERZA — Pectorales ──────────────────────────────────────────────
-      { name: 'Press de Banca Plano',              muscleGroup: 'Pectorales',     category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra olímpica, banco plano' },
-      { name: 'Press de Banca Inclinado',           muscleGroup: 'Pectorales',     category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra olímpica, banco inclinado' },
-      { name: 'Aperturas con Mancuernas',           muscleGroup: 'Pectorales',     category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas, banco plano' },
-      { name: 'Fondos en Paralelas',                muscleGroup: 'Pectorales',     category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Paralelas' },
-      { name: 'Crossover en Polea',                 muscleGroup: 'Pectorales',     category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea alta' },
-      { name: 'Push-ups (Flexiones)',               muscleGroup: 'Pectorales',     category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: null },
-      // ── FUERZA — Dorsales ────────────────────────────────────────────────
-      { name: 'Jalón al Pecho',                     muscleGroup: 'Dorsales',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea alta' },
-      { name: 'Remo con Barra',                     muscleGroup: 'Dorsales',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra' },
-      { name: 'Remo con Mancuerna',                 muscleGroup: 'Dorsales',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuerna, banco' },
-      { name: 'Dominadas (Pull-ups)',               muscleGroup: 'Dorsales',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'AVANZADO',   equipmentRequired: 'Barra dominadas' },
-      { name: 'Remo en Polea Baja',                 muscleGroup: 'Dorsales',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea baja' },
-      { name: 'Pullover con Mancuerna',             muscleGroup: 'Dorsales',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Mancuerna, banco' },
-      // ── FUERZA — Hombros ─────────────────────────────────────────────────
-      { name: 'Press Militar con Barra',            muscleGroup: 'Hombros',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra' },
-      { name: 'Press de Hombros con Mancuernas',   muscleGroup: 'Hombros',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas' },
-      { name: 'Elevaciones Laterales',              muscleGroup: 'Hombros',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas' },
-      { name: 'Elevaciones Frontales',              muscleGroup: 'Hombros',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas' },
-      { name: 'Vuelos Posteriores',                 muscleGroup: 'Hombros',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas' },
-      // ── FUERZA — Bíceps ──────────────────────────────────────────────────
-      { name: 'Curl de Bíceps con Barra',          muscleGroup: 'Bíceps',         category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Barra' },
-      { name: 'Curl con Mancuernas Alterno',        muscleGroup: 'Bíceps',         category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas' },
-      { name: 'Curl en Polea Baja',                 muscleGroup: 'Bíceps',         category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea baja' },
-      { name: 'Curl Martillo',                      muscleGroup: 'Bíceps',         category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas' },
-      { name: 'Curl Concentrado',                   muscleGroup: 'Bíceps',         category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuerna' },
-      // ── FUERZA — Tríceps ─────────────────────────────────────────────────
-      { name: 'Press Francés',                      muscleGroup: 'Tríceps',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra EZ, banco' },
-      { name: 'Extensiones en Polea Alta',          muscleGroup: 'Tríceps',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea alta' },
-      { name: 'Extensiones con Mancuerna sobre la Cabeza', muscleGroup: 'Tríceps', category: 'FUERZA',   exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuerna' },
-      { name: 'Patada de Tríceps',                  muscleGroup: 'Tríceps',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuerna' },
-      { name: 'Fondos para Tríceps',                muscleGroup: 'Tríceps',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Banco o silla' },
-      // ── FUERZA — Cuádriceps ──────────────────────────────────────────────
-      { name: 'Sentadilla con Barra (Back Squat)',  muscleGroup: 'Cuádriceps',     category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra, rack' },
-      { name: 'Sentadilla Frontal (Front Squat)',   muscleGroup: 'Cuádriceps',     category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'AVANZADO',   equipmentRequired: 'Barra, rack' },
-      { name: 'Prensa de Piernas',                  muscleGroup: 'Cuádriceps',     category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina prensa' },
-      { name: 'Zancadas (Lunges)',                  muscleGroup: 'Cuádriceps',     category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas o cuerpo' },
-      { name: 'Sentadilla Búlgara',                 muscleGroup: 'Cuádriceps',     category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Mancuernas, banco' },
-      { name: 'Extensión de Cuádriceps',            muscleGroup: 'Cuádriceps',     category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina de extensión' },
-      // ── FUERZA — Isquiotibiales ──────────────────────────────────────────
-      { name: 'Peso Muerto (Deadlift)',             muscleGroup: 'Isquiotibiales', category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'AVANZADO',   equipmentRequired: 'Barra' },
-      { name: 'Peso Muerto Rumano',                 muscleGroup: 'Isquiotibiales', category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra o mancuernas' },
-      { name: 'Curl de Piernas (Máquina)',          muscleGroup: 'Isquiotibiales', category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina curl' },
-      { name: 'Buenos Días (Good Mornings)',        muscleGroup: 'Isquiotibiales', category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra' },
-      // ── FUERZA — Gemelos ─────────────────────────────────────────────────
-      { name: 'Elevación de Gemelos de Pie',        muscleGroup: 'Gemelos',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina o libre' },
-      { name: 'Elevación de Gemelos Sentado',       muscleGroup: 'Gemelos',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina de gemelos' },
-      // ── FUERZA — Core ────────────────────────────────────────────────────
-      { name: 'Crunch Abdominal',                   muscleGroup: 'Core',           category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: null },
-      { name: 'Plancha (Plank)',                    muscleGroup: 'Core',           category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: null },
-      { name: 'Elevación de Piernas Colgado',       muscleGroup: 'Core',           category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra dominadas' },
-      { name: 'Russian Twist',                      muscleGroup: 'Core',           category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Disco o pelota' },
-      { name: 'Ab Wheel (Rueda Abdominal)',         muscleGroup: 'Core',           category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Rueda abdominal' },
-      { name: 'Crunches en Polea',                  muscleGroup: 'Core',           category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea alta' },
-      // ── CARDIO — Steady-State ────────────────────────────────────────────
-      { name: 'Correr en Cinta',                    muscleGroup: 'Cardio',         category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'BASICO',     equipmentRequired: 'Cinta de correr' },
-      { name: 'Bicicleta Estática',                 muscleGroup: 'Cardio',         category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'BASICO',     equipmentRequired: 'Bicicleta estática' },
-      { name: 'Elíptica',                           muscleGroup: 'Cardio',         category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina elíptica' },
-      { name: 'Remo en Máquina (Rowing)',           muscleGroup: 'Cardio',         category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Máquina de remo' },
-      { name: 'Caminata Rápida',                    muscleGroup: 'Cardio',         category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'BASICO',     equipmentRequired: 'Cinta o exterior' },
-      // ── CARDIO — Intervalos ──────────────────────────────────────────────
-      { name: 'Caminata con Inclinación Progresiva', muscleGroup: 'Cardio',        category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'BASICO',     equipmentRequired: 'Cinta de correr' },
-      { name: 'Sprint en Cinta',                    muscleGroup: 'Cardio',         category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Cinta de correr' },
-      { name: 'Cycling Intervals',                  muscleGroup: 'Cardio',         category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Bicicleta estática' },
-      // ── FUNCIONAL — CrossFit ─────────────────────────────────────────────
-      { name: 'Burpees',                            muscleGroup: 'Funcional',      category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL', difficultyLevel: 'INTERMEDIO', equipmentRequired: null },
-      { name: 'Box Jump (Salto al Cajón)',           muscleGroup: 'Funcional',      category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL', difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Cajón pliométrico' },
-      { name: 'Kettlebell Swing',                   muscleGroup: 'Funcional',      category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL', difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Kettlebell' },
-      { name: 'Wall Ball',                          muscleGroup: 'Funcional',      category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL', difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Balón medicinal, pared' },
-      { name: 'Slam Ball',                          muscleGroup: 'Funcional',      category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL', difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Slam ball' },
-      { name: 'Tire Flip (Volteo de Llanta)',       muscleGroup: 'Funcional',      category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL', difficultyLevel: 'AVANZADO',   equipmentRequired: 'Llanta' },
-      // ── FUNCIONAL — HIIT ─────────────────────────────────────────────────
-      { name: 'Tabata Squat',                       muscleGroup: 'HIIT',           category: 'FUNCIONAL', exerciseType: 'HIIT',       difficultyLevel: 'INTERMEDIO', equipmentRequired: null },
-      { name: 'Tabata Push-ups',                    muscleGroup: 'HIIT',           category: 'FUNCIONAL', exerciseType: 'HIIT',       difficultyLevel: 'INTERMEDIO', equipmentRequired: null },
-      { name: 'Mountain Climbers',                  muscleGroup: 'HIIT',           category: 'FUNCIONAL', exerciseType: 'HIIT',       difficultyLevel: 'BASICO',     equipmentRequired: null },
-      { name: 'Jump Rope (Saltar la Cuerda)',       muscleGroup: 'HIIT',           category: 'FUNCIONAL', exerciseType: 'HIIT',       difficultyLevel: 'BASICO',     equipmentRequired: 'Cuerda de saltar' },
-      // ── FUNCIONAL — Movilidad ─────────────────────────────────────────────
-      { name: 'Estiramiento de Cuádriceps',         muscleGroup: 'Movilidad',      category: 'FUNCIONAL', exerciseType: 'MOBILITY',   difficultyLevel: 'BASICO',     equipmentRequired: null },
-      { name: 'Hip Flexor Stretch',                 muscleGroup: 'Movilidad',      category: 'FUNCIONAL', exerciseType: 'MOBILITY',   difficultyLevel: 'BASICO',     equipmentRequired: null },
-      { name: "World's Greatest Stretch",           muscleGroup: 'Movilidad',      category: 'FUNCIONAL', exerciseType: 'MOBILITY',   difficultyLevel: 'INTERMEDIO', equipmentRequired: null },
-      { name: 'Cat-Cow Stretch',                    muscleGroup: 'Movilidad',      category: 'FUNCIONAL', exerciseType: 'MOBILITY',   difficultyLevel: 'BASICO',     equipmentRequired: null },
-      { name: 'Pigeon Pose',                        muscleGroup: 'Movilidad',      category: 'FUNCIONAL', exerciseType: 'MOBILITY',   difficultyLevel: 'BASICO',     equipmentRequired: null },
-      { name: 'Shoulder Stretch',                   muscleGroup: 'Movilidad',      category: 'FUNCIONAL', exerciseType: 'MOBILITY',   difficultyLevel: 'BASICO',     equipmentRequired: null },
-    ];
-
-    const exercises = await Promise.all(
-      exercisesData.map((e) => upsertExercise(exerciseRepo, e)),
-    );
-
-    // ── 7. GYM LOCATION (único por gymId) ────────────────────────────────────
-    const locRepo = queryRunner.manager.getRepository(GymLocation);
-    await Promise.all([
-      findOrCreate(locRepo, { gymId: gyms[0].id } as any, {
-        gym: gyms[0],
-        address: 'Av. Banzer 4to Anillo',
-        city: 'Santa Cruz',
-        latitude: -17.7833,
-        longitude: -63.1822,
-      }),
-      findOrCreate(locRepo, { gymId: gyms[1].id } as any, {
-        gym: gyms[1],
-        address: 'Calle Beni Equipetrol',
-        city: 'Santa Cruz',
-        latitude: -17.76,
-        longitude: -63.17,
-      }),
-      findOrCreate(locRepo, { gymId: gyms[2].id } as any, {
-        gym: gyms[2],
-        address: 'Av. Roca y Coronado',
-        city: 'Santa Cruz',
-        latitude: -17.8011,
-        longitude: -63.195,
-      }),
-      findOrCreate(locRepo, { gymId: gyms[3].id } as any, {
-        gym: gyms[3],
-        address: 'Av. San Martín Km 4',
-        city: 'Santa Cruz',
-        latitude: -17.755,
-        longitude: -63.165,
-      }),
-      findOrCreate(locRepo, { gymId: gyms[4].id } as any, {
-        gym: gyms[4],
-        address: '2do Anillo Plan 3000',
-        city: 'Santa Cruz',
-        latitude: -17.82,
-        longitude: -63.14,
-      }),
-    ]);
-
-    // ── 8. USER PROFILES (único por userId) ───────────────────────────────────
-    const profileRepo = queryRunner.manager.getRepository(UserProfile);
-    await Promise.all([
-      findOrCreate(profileRepo, { userId: users[0].id } as any, {
-        user: users[0],
-        firstName: 'Admin',
-        lastName: 'Global',
-        phone: '+59170000001',
-        gender: 'OTHER',
-      }),
-      findOrCreate(profileRepo, { userId: users[1].id } as any, {
-        user: users[1],
-        firstName: 'Carlos',
-        lastName: 'Gerente',
-        phone: '+59170000002',
-        gender: 'MALE',
-      }),
-      findOrCreate(profileRepo, { userId: users[2].id } as any, {
-        user: users[2],
-        firstName: 'Ana',
-        lastName: 'Entrenadora',
-        phone: '+59170000003',
-        gender: 'FEMALE',
-      }),
-      findOrCreate(profileRepo, { userId: users[3].id } as any, {
-        user: users[3],
-        firstName: 'Luis',
-        lastName: 'Entrenador',
-        phone: '+59170000004',
-        gender: 'MALE',
-      }),
-      findOrCreate(profileRepo, { userId: users[4].id } as any, {
-        user: users[4],
-        firstName: 'María',
-        lastName: 'Cliente',
-        phone: '+59170000005',
-        gender: 'FEMALE',
-      }),
-      findOrCreate(profileRepo, { userId: users[5].id } as any, {
-        user: users[5],
-        firstName: 'Jorge',
-        lastName: 'Cliente',
-        phone: '+59170000006',
-        gender: 'MALE',
-      }),
-      findOrCreate(profileRepo, { userId: users[6].id } as any, {
-        user: users[6],
-        firstName: 'Sofía',
-        lastName: 'Cliente',
-        phone: '+59170000007',
-        gender: 'FEMALE',
-      }),
-    ]);
-
-    // ── 9. USER ROLES (único por userId + roleId) ─────────────────────────────
-    const userRoleRepo = queryRunner.manager.getRepository(UserRole);
-    const userRolesData = [
-      {
-        user: users[0],
-        role: roles[0],
-        gym: undefined,
-        assignedByUser: users[0],
-      },
-      {
-        user: users[1],
-        role: roles[1],
-        gym: gyms[0],
-        assignedByUser: users[0],
-      },
-      {
-        user: users[2],
-        role: roles[2],
-        gym: gyms[0],
-        assignedByUser: users[0],
-      },
-      {
-        user: users[3],
-        role: roles[2],
-        gym: gyms[1],
-        assignedByUser: users[0],
-      },
-      {
-        user: users[4],
-        role: roles[4],
-        gym: undefined,
-        assignedByUser: users[0],
-      },
-      {
-        user: users[5],
-        role: roles[4],
-        gym: undefined,
-        assignedByUser: users[0],
-      },
-      {
-        user: users[6],
-        role: roles[4],
-        gym: undefined,
-        assignedByUser: users[0],
-      },
-    ];
-    for (const ur of userRolesData) {
-      const exists = await userRoleRepo.findOneBy({
-        userId: ur.user.id,
-        roleId: ur.role.id,
-      });
-      if (!exists) await userRoleRepo.save(userRoleRepo.create(ur as any));
+  // ── TRUNCATE: limpiar todas las tablas y reiniciar secuencias ──────────────
+  // Orden: hijos primero para respetar FK; CASCADE cubre dependencias restantes.
+  const tables = [
+    'role_permissions', 'user_roles',
+    'workout_sets', 'workout_sessions',
+    'reservations', 'check_ins', 'waitlist_entries',
+    'gym_activity_attendance', 'gym_activity_schedule', 'gym_activity',
+    'gym_schedules', 'gym_location', 'gym_infrastructure', 'gyms',
+    'emergency_contacts', 'user_profiles', 'users',
+    'permissions', 'roles', 'exercise_catalog',
+    'routines', 'routine_exercises',
+    'physical_metrics_history',
+    'notification_templates', 'notifications', 'user_notification_preferences',
+    'user_training', 'user_training_goals', 'user_training_preferences',
+    'user_training_restrictions',
+    'subscription_plans', 'user_subscriptions', 'subscription_payments',
+    'system_settings',
+  ];
+  console.log('Limpiando tablas y reiniciando secuencias...');
+  for (const t of tables) {
+    try {
+      await qr.query(`TRUNCATE TABLE "${t}" RESTART IDENTITY CASCADE;`);
+    } catch {
+      // La tabla aún no existe en esta migración — se ignora
     }
-
-    // ── 10. GYM SCHEDULES (único por gymId + dayOfWeek + opensAt) ─────────────
-    const scheduleRepo = queryRunner.manager.getRepository(GymSchedule);
-    const gymSchedulesData = [
-      { gym: gyms[0], dayOfWeek: 'LUN', opensAt: '06:00', closesAt: '22:00' },
-      { gym: gyms[0], dayOfWeek: 'MAR', opensAt: '06:00', closesAt: '22:00' },
-      { gym: gyms[1], dayOfWeek: 'LUN', opensAt: '07:00', closesAt: '23:00' },
-      { gym: gyms[2], dayOfWeek: 'LUN', opensAt: '08:00', closesAt: '20:00' },
-      { gym: gyms[3], dayOfWeek: 'MIE', opensAt: '06:30', closesAt: '21:30' },
-      { gym: gyms[4], dayOfWeek: 'JUE', opensAt: '07:00', closesAt: '21:00' },
-      { gym: gyms[0], dayOfWeek: 'VIE', opensAt: '06:00', closesAt: '22:00' },
-    ];
-    for (const s of gymSchedulesData) {
-      const exists = await scheduleRepo.findOneBy({
-        gymId: s.gym.id,
-        dayOfWeek: s.dayOfWeek,
-        opensAt: s.opensAt,
-      });
-      if (!exists) await scheduleRepo.save(scheduleRepo.create(s as any));
-    }
-
-    // ── 11. GYM ACTIVITIES (único por gymId + name) ───────────────────────────
-    const actRepo = queryRunner.manager.getRepository(GymActivity);
-    const activitiesData = [
-      {
-        gym: gyms[0],
-        name: 'Spinning Pro',
-        description: 'Ciclismo indoor alta intensidad',
-        defaultDurationMin: 45,
-        isActive: true,
-      },
-      {
-        gym: gyms[0],
-        name: 'Yoga Flow',
-        description: 'Flexibilidad y respiración',
-        defaultDurationMin: 60,
-        isActive: true,
-      },
-      {
-        gym: gyms[1],
-        name: 'Pilates Mat',
-        description: 'Core y postura',
-        defaultDurationMin: 50,
-        isActive: true,
-      },
-      {
-        gym: gyms[3],
-        name: 'WOD CrossFit',
-        description: 'Entrenamiento funcional diario',
-        defaultDurationMin: 60,
-        isActive: true,
-      },
-      {
-        gym: gyms[2],
-        name: 'Tai Chi Suave',
-        description: 'Movilidad articular',
-        defaultDurationMin: 45,
-        isActive: true,
-      },
-      {
-        gym: gyms[0],
-        name: 'HIIT Quema',
-        description: 'Intervalos alta intensidad',
-        defaultDurationMin: 30,
-        isActive: true,
-      },
-      {
-        gym: gyms[1],
-        name: 'Boxeo Cardio',
-        description: 'Técnica y resistencia',
-        defaultDurationMin: 55,
-        isActive: true,
-      },
-    ];
-    const activities: GymActivity[] = [];
-    for (const a of activitiesData) {
-      activities.push(
-        await findOrCreate(
-          actRepo,
-          { gymId: a.gym.id, name: a.name } as any,
-          a,
-        ),
-      );
-    }
-
-    // ── 12. ACTIVITY SCHEDULES (único por gymActivityId + dayOfWeek + startTime) ─
-    const actSchedRepo = queryRunner.manager.getRepository(GymActivitySchedule);
-    const actSchedulesData = [
-      {
-        gymActivity: activities[0],
-        instructor: users[2],
-        dayOfWeek: 'LUN',
-        startTime: '18:00',
-        endTime: '18:45',
-        maxAttendees: 20,
-        isRecurring: true,
-      },
-      {
-        gymActivity: activities[1],
-        instructor: users[2],
-        dayOfWeek: 'MAR',
-        startTime: '19:00',
-        endTime: '20:00',
-        maxAttendees: 15,
-        isRecurring: true,
-      },
-      {
-        gymActivity: activities[2],
-        instructor: users[3],
-        dayOfWeek: 'LUN',
-        startTime: '10:00',
-        endTime: '10:50',
-        maxAttendees: 12,
-        isRecurring: true,
-      },
-      {
-        gymActivity: activities[3],
-        instructor: users[2],
-        dayOfWeek: 'MIE',
-        startTime: '17:30',
-        endTime: '18:30',
-        maxAttendees: 10,
-        isRecurring: true,
-      },
-      {
-        gymActivity: activities[4],
-        instructor: undefined,
-        dayOfWeek: 'JUE',
-        startTime: '08:00',
-        endTime: '08:45',
-        maxAttendees: 25,
-        isRecurring: true,
-      },
-      {
-        gymActivity: activities[5],
-        instructor: users[3],
-        dayOfWeek: 'VIE',
-        startTime: '18:30',
-        endTime: '19:00',
-        maxAttendees: 30,
-        isRecurring: true,
-      },
-      {
-        gymActivity: activities[6],
-        instructor: users[2],
-        dayOfWeek: 'SAB',
-        startTime: '09:00',
-        endTime: '09:55',
-        maxAttendees: 18,
-        isRecurring: true,
-      },
-    ];
-    const schedules: GymActivitySchedule[] = [];
-    for (const s of actSchedulesData) {
-      const found = await actSchedRepo.findOneBy({
-        gymActivityId: s.gymActivity.id,
-        dayOfWeek: s.dayOfWeek,
-        startTime: s.startTime,
-      });
-      schedules.push(
-        found ??
-          ((await actSchedRepo.save(
-            actSchedRepo.create(s as any),
-          )) as unknown as GymActivitySchedule),
-      );
-    }
-
-    // ── 13. RESERVATIONS (saltar si ya existen) ───────────────────────────────
-    const resRepo = queryRunner.manager.getRepository(Reservation);
-    if (!(await hasData(resRepo))) {
-      await resRepo.save([
-        {
-          user: users[4],
-          gymActivitySchedule: schedules[0],
-          reservationDate: new Date('2026-04-28'),
-          status: 'CONFIRMADA',
-          createdBy: users[4].id,
-          createdAt: new Date(),
-        },
-        {
-          user: users[5],
-          gymActivitySchedule: schedules[2],
-          reservationDate: new Date('2026-04-29'),
-          status: 'CONFIRMADA',
-          createdBy: users[5].id,
-          createdAt: new Date(),
-        },
-        {
-          user: users[6],
-          gymActivitySchedule: schedules[1],
-          reservationDate: new Date('2026-04-30'),
-          status: 'CONFIRMADA',
-          createdBy: users[6].id,
-          createdAt: new Date(),
-        },
-        {
-          user: users[4],
-          gymActivitySchedule: schedules[3],
-          reservationDate: new Date('2026-05-01'),
-          status: 'CANCELADA',
-          createdBy: users[4].id,
-          createdAt: new Date(),
-          cancelledAt: new Date(),
-        },
-        {
-          user: users[5],
-          gymActivitySchedule: schedules[4],
-          reservationDate: new Date('2026-05-02'),
-          status: 'CONFIRMADA',
-          createdBy: users[5].id,
-          createdAt: new Date(),
-        },
-        {
-          user: users[6],
-          gymActivitySchedule: schedules[5],
-          reservationDate: new Date('2026-05-03'),
-          status: 'CONFIRMADA',
-          createdBy: users[6].id,
-          createdAt: new Date(),
-        },
-        {
-          user: users[4],
-          gymActivitySchedule: schedules[6],
-          reservationDate: new Date('2026-05-04'),
-          status: 'CONFIRMADA',
-          createdBy: users[4].id,
-          createdAt: new Date(),
-        },
-      ]);
-    }
-
-    // ── 14. CHECK-INS (saltar si ya existen) ──────────────────────────────────
-    const checkRepo = queryRunner.manager.getRepository(CheckIn);
-    if (!(await hasData(checkRepo))) {
-      await checkRepo.save([
-        {
-          user: users[4],
-          gym: gyms[0],
-          checkInTime: new Date(Date.now() - 86400000),
-          method: 'QR',
-          status: 'COMPLETED',
-        },
-        {
-          user: users[5],
-          gym: gyms[1],
-          checkInTime: new Date(Date.now() - 172800000),
-          method: 'MANUAL',
-          status: 'COMPLETED',
-        },
-        {
-          user: users[6],
-          gym: gyms[2],
-          checkInTime: new Date(Date.now() - 259200000),
-          method: 'QR',
-          status: 'DENIED',
-        },
-        {
-          user: users[4],
-          gym: gyms[0],
-          checkInTime: new Date(Date.now() - 345600000),
-          method: 'QR',
-          status: 'COMPLETED',
-        },
-        {
-          user: users[5],
-          gym: gyms[3],
-          checkInTime: new Date(Date.now() - 432000000),
-          method: 'BIOMETRIC',
-          status: 'COMPLETED',
-        },
-        {
-          user: users[6],
-          gym: gyms[1],
-          checkInTime: new Date(Date.now() - 518400000),
-          method: 'QR',
-          status: 'COMPLETED',
-        },
-        {
-          user: users[4],
-          gym: gyms[0],
-          checkInTime: new Date(Date.now() - 604800000),
-          method: 'MANUAL',
-          status: 'COMPLETED',
-        },
-      ]);
-    }
-
-    // ── 15. USER TRAINING (único por userId) ──────────────────────────────────
-    const trainingRepo = queryRunner.manager.getRepository(UserTraining);
-    const trainingsUsers = [users[4], users[5], users[6], users[2], users[3]];
-    const trainings: UserTraining[] = await Promise.all(
-      trainingsUsers.map((u) =>
-        findOrCreate(trainingRepo, { userId: u.id } as any, { user: u }),
-      ),
-    );
-
-    // ── 16. TRAINING GOALS (único por userTrainingId) ─────────────────────────
-    const goalRepo = queryRunner.manager.getRepository(UserTrainingGoals);
-    const goalsData = [
-      {
-        userTraining: trainings[0],
-        primaryGoal: 'BAJAR_PESO',
-        experienceLevel: 'PRINCIPIANTE',
-      },
-      {
-        userTraining: trainings[1],
-        primaryGoal: 'GANAR_MUSCULO',
-        experienceLevel: 'INTERMEDIO',
-      },
-      {
-        userTraining: trainings[2],
-        primaryGoal: 'RENDIMIENTO',
-        experienceLevel: 'AVANZADO',
-      },
-      {
-        userTraining: trainings[3],
-        primaryGoal: 'MANTENER',
-        experienceLevel: 'AVANZADO',
-      },
-      {
-        userTraining: trainings[4],
-        primaryGoal: 'SALUD',
-        experienceLevel: 'INTERMEDIO',
-      },
-    ];
-    for (const g of goalsData) {
-      await findOrCreate(
-        goalRepo,
-        { userTrainingId: g.userTraining.id } as any,
-        g,
-      );
-    }
-
-    // ── 17. USER SUBSCRIPTIONS (saltar si ya existen) ─────────────────────────
-    const subRepo = queryRunner.manager.getRepository(UserSubscription);
-    if (!(await hasData(subRepo))) {
-      await subRepo.save([
-        {
-          user: users[4],
-          plan: plans[2],
-          homeGym: gyms[0],
-          status: 'ACTIVO',
-          startDate: new Date('2026-01-15'),
-          endDate: new Date('2027-01-15'),
-          autoRenew: true,
-        },
-        {
-          user: users[5],
-          plan: plans[0],
-          homeGym: gyms[1],
-          status: 'ACTIVO',
-          startDate: new Date('2026-03-01'),
-          endDate: new Date('2026-09-01'),
-          autoRenew: false,
-        },
-        {
-          user: users[6],
-          plan: plans[4],
-          homeGym: gyms[2],
-          status: 'ACTIVO',
-          startDate: new Date('2026-02-10'),
-          endDate: new Date('2026-08-10'),
-          autoRenew: true,
-        },
-        {
-          user: users[4],
-          plan: plans[1],
-          homeGym: gyms[0],
-          status: 'PAUSADO',
-          startDate: new Date('2025-06-01'),
-          endDate: new Date('2025-12-01'),
-          autoRenew: false,
-        },
-        {
-          user: users[5],
-          plan: plans[3],
-          homeGym: gyms[3],
-          status: 'VENCIDO',
-          startDate: new Date('2025-01-01'),
-          endDate: new Date('2025-12-31'),
-          autoRenew: false,
-        },
-      ]);
-    }
-
-    // ── 18. ROUTINES (único por name) ─────────────────────────────────────────
-    const routineRepo = queryRunner.manager.getRepository(Routine);
-    const routinesData = [
-      {
-        name: 'Full Body Principiante',
-        description: 'Adaptación general 4 semanas',
-        trainer: users[2],
-        assignedUser: users[4],
-        difficultyLevel: 'BASICO',
-        durationWeeks: 4,
-        isActive: true,
-      },
-      {
-        name: 'Hipertrofia Pecho/Espalda',
-        description: 'Volumen tren superior',
-        trainer: users[3],
-        assignedUser: users[5],
-        difficultyLevel: 'INTERMEDIO',
-        durationWeeks: 6,
-        isActive: true,
-      },
-      {
-        name: 'Potencia Piernas',
-        description: 'Fuerza explosiva',
-        trainer: users[2],
-        assignedUser: users[6],
-        difficultyLevel: 'AVANZADO',
-        durationWeeks: 8,
-        isActive: true,
-      },
-      {
-        name: 'Mantenimiento Cardio',
-        description: 'Rutina ligera recuperación',
-        trainer: users[3],
-        assignedUser: users[2],
-        difficultyLevel: 'BASICO',
-        durationWeeks: 2,
-        isActive: true,
-      },
-      {
-        name: 'Core & Movilidad',
-        description: 'Prevención lesiones',
-        trainer: users[2],
-        assignedUser: undefined,
-        difficultyLevel: 'INTERMEDIO',
-        durationWeeks: 4,
-        isActive: true,
-      },
-    ];
-    const routines: Routine[] = await Promise.all(
-      routinesData.map((r) =>
-        findOrCreate(routineRepo, { name: r.name } as any, r),
-      ),
-    );
-
-    // ── 19. ROUTINE EXERCISES + WORKOUT SESSIONS + SETS (saltar si ya existen) ─
-    const routineExRepo = queryRunner.manager.getRepository(RoutineExercise);
-    if (!(await hasData(routineExRepo))) {
-      await routineExRepo.save([
-        // routines[0] "Full Body Principiante" — ejercicios base multi-musculares
-        { routine: routines[0], exercise: exercises[0],  orderPosition: 1, setsRecommended: 3, repsRecommended: '12-15', restSecondsBetweenSets: 60  }, // Press de Banca Plano
-        { routine: routines[0], exercise: exercises[6],  orderPosition: 2, setsRecommended: 3, repsRecommended: '12',    restSecondsBetweenSets: 60  }, // Jalón al Pecho
-        { routine: routines[0], exercise: exercises[27], orderPosition: 3, setsRecommended: 3, repsRecommended: '15',    restSecondsBetweenSets: 60  }, // Sentadilla con Barra
-        // routines[1] "Hipertrofia Pecho/Espalda" — volumen tren superior
-        { routine: routines[1], exercise: exercises[0],  orderPosition: 1, setsRecommended: 4, repsRecommended: '8-10',  restSecondsBetweenSets: 120 }, // Press de Banca Plano
-        { routine: routines[1], exercise: exercises[1],  orderPosition: 2, setsRecommended: 4, repsRecommended: '8-10',  restSecondsBetweenSets: 120 }, // Press de Banca Inclinado
-        { routine: routines[1], exercise: exercises[6],  orderPosition: 3, setsRecommended: 4, repsRecommended: '8-10',  restSecondsBetweenSets: 120 }, // Jalón al Pecho
-        { routine: routines[1], exercise: exercises[7],  orderPosition: 4, setsRecommended: 4, repsRecommended: '8-10',  restSecondsBetweenSets: 120 }, // Remo con Barra
-        // routines[2] "Potencia Piernas" — fuerza explosiva
-        { routine: routines[2], exercise: exercises[27], orderPosition: 1, setsRecommended: 5, repsRecommended: '5',     restSecondsBetweenSets: 180 }, // Sentadilla con Barra
-        { routine: routines[2], exercise: exercises[33], orderPosition: 2, setsRecommended: 4, repsRecommended: '5',     restSecondsBetweenSets: 180 }, // Peso Muerto
-        { routine: routines[2], exercise: exercises[29], orderPosition: 3, setsRecommended: 3, repsRecommended: '12',    restSecondsBetweenSets: 120 }, // Prensa de Piernas
-        // routines[3] "Mantenimiento Cardio" — CARDIO con polimorfismo params JSONB
-        { routine: routines[3], exercise: exercises[45], orderPosition: 1, setsRecommended: 1, repsRecommended: null, params: { durationMin: 30, distanceKm: 5,  speedKmh: 10 } }, // Correr en Cinta
-        { routine: routines[3], exercise: exercises[46], orderPosition: 2, setsRecommended: 1, repsRecommended: null, params: { durationMin: 20, distanceKm: 8,  speedKmh: 24 } }, // Bicicleta Estática
-        // routines[4] "Core & Movilidad" — Core STRENGTH + MOBILITY con polimorfismo
-        { routine: routines[4], exercise: exercises[39], orderPosition: 1, setsRecommended: 3, repsRecommended: '20',   restSecondsBetweenSets: 30  }, // Crunch Abdominal
-        { routine: routines[4], exercise: exercises[40], orderPosition: 2, setsRecommended: 3, repsRecommended: '45s',  restSecondsBetweenSets: 30  }, // Plancha
-        { routine: routines[4], exercise: exercises[64], orderPosition: 3, setsRecommended: 2, repsRecommended: null,   params: { durationSeconds: 30, sets: 2 } }, // Hip Flexor Stretch
-      ]);
-    }
-
-    const sessionRepo = queryRunner.manager.getRepository(WorkoutSession);
-    if (!(await hasData(sessionRepo))) {
-      const sessions = await sessionRepo.save([
-        {
-          routine: routines[1], user: users[5], gym: gyms[1],
-          startedAt: new Date(Date.now() - 86400000),
-          finishedAt: new Date(Date.now() - 86400000 + 3600000),
-          status: 'COMPLETED', durationSeconds: 3600,
-        },
-        {
-          routine: routines[2], user: users[6], gym: gyms[3],
-          startedAt: new Date(Date.now() - 172800000),
-          finishedAt: new Date(Date.now() - 172800000 + 4500000),
-          status: 'COMPLETED', durationSeconds: 4500,
-        },
-        {
-          routine: routines[0], user: users[4], gym: gyms[0],
-          startedAt: new Date(), finishedAt: undefined,
-          status: 'IN_PROGRESS', durationSeconds: undefined,
-        },
-        {
-          routine: routines[1], user: users[5], gym: gyms[1],
-          startedAt: new Date(Date.now() - 259200000),
-          finishedAt: new Date(Date.now() - 259200000 + 3300000),
-          status: 'COMPLETED', durationSeconds: 3300,
-        },
-        {
-          routine: routines[3], user: users[2], gym: gyms[0],
-          startedAt: new Date(Date.now() - 345600000),
-          finishedAt: new Date(Date.now() - 345600000 + 2700000),
-          status: 'COMPLETED', durationSeconds: 2700,
-        },
-      ]);
-
-      // Carga los routine exercises para referenciarlos por routineId + orderPosition
-      // (evita IDs hardcodeados que fallan cuando el auto-increment no empieza en 1)
-      const allRoutineEx = await routineExRepo.find();
-      const reByPos = (routineIdx: number, pos: number) =>
-        allRoutineEx.find(re => re.routineId === routines[routineIdx].id && re.orderPosition === pos) ?? null;
-
-      const setRepo = queryRunner.manager.getRepository(WorkoutSet);
-      await setRepo.save([
-        // sessions[0] → routines[1] Hipertrofia, pos 1 = Press de Banca Plano
-        { session: sessions[0], routineExercise: reByPos(1, 1), setNumber: 1, repsCompleted: 10, weightUsedKg: 40.0, restTakenSeconds: 120 },
-        { session: sessions[0], routineExercise: reByPos(1, 1), setNumber: 2, repsCompleted: 9,  weightUsedKg: 40.0, restTakenSeconds: 125 },
-        // sessions[0] → routines[1], pos 3 = Jalón al Pecho
-        { session: sessions[0], routineExercise: reByPos(1, 3), setNumber: 1, repsCompleted: 8,  weightUsedKg: 50.0, restTakenSeconds: 130 },
-        // sessions[1] → routines[2] Potencia Piernas, pos 1 = Sentadilla
-        { session: sessions[1], routineExercise: reByPos(2, 1), setNumber: 1, repsCompleted: 5,  weightUsedKg: 80.0, restTakenSeconds: 180 },
-        { session: sessions[1], routineExercise: reByPos(2, 1), setNumber: 2, repsCompleted: 4,  weightUsedKg: 85.0, restTakenSeconds: 190 },
-        // sessions[3] → routines[1], pos 2 = Press de Banca Inclinado
-        { session: sessions[3], routineExercise: reByPos(1, 2), setNumber: 1, repsCompleted: 10, weightUsedKg: 60.0, restTakenSeconds: 110 },
-        // sessions[4] → routines[3] Cardio, pos 1 = Correr en Cinta (duración, no reps)
-        { session: sessions[4], routineExercise: reByPos(3, 1), setNumber: 1, durationSeconds: 1800, restTakenSeconds: 60 },
-      ]);
-    }
-
-    // ── 20. SYSTEM SETTINGS (único por settingKey) ────────────────────────────
-    const settingRepo = queryRunner.manager.getRepository(SystemSetting);
-    const settingsData = [
-      {
-        settingKey: 'app.maintenance_mode',
-        settingValue: false,
-        description: 'Modo mantenimiento global',
-        updatedByUser: users[0],
-      },
-      {
-        settingKey: 'reservations.max_advance_days',
-        settingValue: 30,
-        description: 'Días máximos para reservar',
-        updatedByUser: users[0],
-      },
-      {
-        settingKey: 'reservations.cancellation_window_hours',
-        settingValue: 2,
-        description: 'Ventana de cancelación sin penalización',
-        updatedByUser: users[0],
-      },
-      {
-        settingKey: 'aforo.alert_threshold_percent',
-        settingValue: 90,
-        description: 'Umbral de alerta de saturación',
-        updatedByUser: users[0],
-      },
-      {
-        settingKey: 'notifications.push_batch_size',
-        settingValue: 100,
-        description: 'Lote máximo de push notifications',
-        updatedByUser: users[0],
-      },
-      {
-        settingKey: 'geolocation.fallback_radius_km',
-        settingValue: 5,
-        description: 'Radio fallback GPS',
-        updatedByUser: users[0],
-      },
-      {
-        settingKey: 'training.auto_assign_templates',
-        settingValue: true,
-        description: 'Asignar templates por defecto al registrar usuario',
-        updatedByUser: users[0],
-      },
-    ];
-    for (const s of settingsData) {
-      await findOrCreate(settingRepo, { settingKey: s.settingKey } as any, s);
-    }
-
-    // ── 21. NOTIFICATION TEMPLATES (único por type) ───────────────────────────
-    const templateRepo =
-      queryRunner.manager.getRepository(NotificationTemplate);
-    const templatesData = [
-      {
-        type: 'RESERVA_CONFIRMADA',
-        titleTemplate: '✅ Reserva Confirmada',
-        bodyTemplate: 'Tu clase de {{activity}} el {{date}} ha sido reservada.',
-      },
-      {
-        type: 'RECORDATORIO_CLASE',
-        titleTemplate: '⏰ Tu clase comienza pronto',
-        bodyTemplate: 'Recuerda tu clase de {{activity}} en 1 hora.',
-      },
-      {
-        type: 'CANCELACION_ADMIN',
-        titleTemplate: '⚠️ Clase Cancelada',
-        bodyTemplate:
-          'La actividad {{activity}} ha sido cancelada por la administración.',
-      },
-      {
-        type: 'CUPO_LIBRE',
-        titleTemplate: '🎉 ¡Cupo Disponible!',
-        bodyTemplate: 'Se liberó un lugar en {{activity}}. ¡Resérvalo ya!',
-      },
-      {
-        type: 'VENCIMIENTO_SUSCRIPCION',
-        titleTemplate: '📅 Membresía por vencer',
-        bodyTemplate:
-          'Tu plan vence en {{days}} días. Renueva para no perder acceso.',
-      },
-      {
-        type: 'CHECKIN_EXITOSO',
-        titleTemplate: '️ Bienvenido/a',
-        bodyTemplate: 'Check-in registrado en {{gym}}. ¡Buen entreno!',
-      },
-      {
-        type: 'META_CUMPLIDA',
-        titleTemplate: '🏆 ¡Felicidades!',
-        bodyTemplate: 'Has completado tu meta de {{goal}}. Revisa tu progreso.',
-      },
-    ];
-    await Promise.all(
-      templatesData.map((t) =>
-        findOrCreate(templateRepo, { type: t.type } as any, t),
-      ),
-    );
-
-    await queryRunner.commitTransaction();
-    console.log(
-      '✅ Seed idempotente completado. Segunda ejecución: sin duplicados, sin destrucción.',
-    );
-  } catch (error) {
-    await queryRunner.rollbackTransaction();
-    console.error('❌ Error en seed:', error);
-    process.exit(1);
-  } finally {
-    await queryRunner.release();
-    await dataSource.destroy();
   }
+
+  
+  console.log('\n[1/6] Creando roles (IDs 1-9)...');
+  const roleRepo = qr.manager.getRepository(Role);
+  const rolesData = [
+    { name: 'SUPER_ADMIN',          description: 'Administrador Global — acceso total',           hierarchyLevel: 10, isSystemRole: true  },
+    { name: 'GERENTE',              description: 'Gerente de Sede o Marca',                        hierarchyLevel:  5, isSystemRole: true  },
+    { name: 'USER',                 description: 'Cliente / Socio del gimnasio',                   hierarchyLevel:  1, isSystemRole: false },
+    { name: 'ENTRENADOR',           description: 'Entrenador Personal',                            hierarchyLevel:  3, isSystemRole: true  },
+    { name: 'COORDINADOR',          description: 'Coordinador de Sede',                            hierarchyLevel:  2, isSystemRole: false },
+    { name: 'PERSONAL_DE_LIMPIEZA', description: 'Personal de Limpieza',                           hierarchyLevel:  1, isSystemRole: false },
+    { name: 'INSTRUCTOR',           description: 'Instructor de Clases Grupales',                  hierarchyLevel:  3, isSystemRole: false },
+    { name: 'NUTRICIONISTA',        description: 'Nutricionista',                                  hierarchyLevel:  3, isSystemRole: true  },
+    { name: 'RECEPCIONISTA',        description: 'Recepcionista / Cajero',                         hierarchyLevel:  4, isSystemRole: false },
+  ];
+
+  const savedRoles: Role[] = [];
+  for (const r of rolesData) {
+    savedRoles.push(await roleRepo.save(roleRepo.create(r)));
+  }
+
+  const roleByName = (name: string): Role => {
+    const found = savedRoles.find(r => r.name === name);
+    if (!found) throw new Error(`Rol '${name}' no encontrado en el seed`);
+    return found;
+  };
+
+  console.log('   Roles creados:', savedRoles.map(r => `${r.id}=${r.name}`).join(', '));
+
+
+  // PASO 2 — MARCAS (10 registros; IDs 1-10)
+
+  console.log('\n[2/6] Creando 10 marcas (Gimnasios Reales de SCZ)...');
+  const gymRepo = qr.manager.getRepository(Gym);
+  const locRepo = qr.manager.getRepository(GymLocation);
+  const schedRepo = qr.manager.getRepository(GymSchedule);
+  const infraRepo = qr.manager.getRepository(GymInfrastructure);
+
+  const brandNames = [
+    'Premier Fitness Club',
+    'Megatlon Bolivia',
+    'Smart Fit',
+    'Reyes Gym',
+    'Sport Fitness',
+    'BioCenter Fitness',
+    'Olimpia Gym',
+    'Fit Bull',
+    'VIP Fitness Club',
+    'Body Masters'
+  ];
+  
+  const savedBrands: Gym[] = [];
+  for (const bName of brandNames) {
+    savedBrands.push(await gymRepo.save(gymRepo.create({
+      name: bName, description: 'Cadena matriz', maxCapacity: 0,
+      isActive: true, isOpen: true,
+    })));
+  }
+
+
+  // PASO 3 — SUCURSALES (30 registros; IDs 11-40)
+
+  console.log('\n[3/6] Creando 30 sucursales y sus horarios de atención...');
+  const savedBranches: Gym[] = [];
+  
+  // Zonas y direcciones realistas en SCZ
+  const sczZones = [
+    { zone: 'Equipetrol', address: 'Av. San Martín, 3er Anillo Interno', lat: -17.7667, lng: -63.1970 },
+    { zone: 'Centro', address: 'Calle 24 de Septiembre #150, Plaza 24 de Septiembre', lat: -17.7833, lng: -63.1821 },
+    { zone: 'Urubó', address: 'Av. Principal del Urubó, pasando el puente', lat: -17.7512, lng: -63.2201 },
+    { zone: 'Plan 3000', address: 'Rotonda del Plan 3000, Av. Paurito', lat: -17.8335, lng: -63.1415 },
+    { zone: 'Villa 1ro de Mayo', address: 'Plaza Principal Villa 1ro de Mayo', lat: -17.8011, lng: -63.1366 },
+    { zone: 'Santos Dumont', address: 'Av. Santos Dumont, 4to Anillo', lat: -17.8172, lng: -63.1855 },
+    { zone: 'Banzer', address: 'Av. Banzer, 5to Anillo', lat: -17.7441, lng: -63.1702 },
+    { zone: 'Doble Vía a La Guardia', address: 'Doble Vía a La Guardia, Km 3', lat: -17.8089, lng: -63.2081 },
+    { zone: 'Mutualista', address: 'Av. Mutualista, 3er Anillo Externo', lat: -17.7655, lng: -63.1598 },
+    { zone: 'Las Palmas', address: 'Barrio Las Palmas, Av. Iberica', lat: -17.7951, lng: -63.2005 }
+  ];
+
+  let branchCount = 0;
+  for (const parent of savedBrands) {
+    // 3 sucursales por marca, elegimos zonas secuencialmente
+    for (let i = 0; i < 3; i++) {
+      const zoneData = sczZones[(branchCount + i) % sczZones.length];
+      const branchName = `${parent.name} Sede ${zoneData.zone}`;
+      
+      const randCap = 100 + Math.floor(Math.random() * 200); // 100 to 300
+      const machineCap = Math.floor(randCap * (0.3 + Math.random() * 0.3)); // 30% a 60% del aforo total
+
+      const branch = await gymRepo.save(gymRepo.create({
+        name:        branchName,
+        description: `Sucursal ubicada en la zona ${zoneData.zone}`,
+        parentId:    parent.id,
+        maxCapacity: randCap,
+        isActive: true,
+        isOpen:   true,
+      }));
+      savedBranches.push(branch);
+
+      await locRepo.save(locRepo.create({
+        gymId:     branch.id,
+        address:   zoneData.address,
+        city:      'Santa Cruz de la Sierra',
+        latitude:  zoneData.lat + (Math.random() * 0.005 - 0.0025), // Jitter
+        longitude: zoneData.lng + (Math.random() * 0.005 - 0.0025),
+      }));
+
+      await infraRepo.save(infraRepo.create({
+        gymId: branch.id,
+        machineCapacity: machineCap,
+      }));
+
+
+      // --- Generar Horarios de Atención ---
+      const days = ['LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB', 'DOM'];
+      const schedules = days.map(day => {
+        let opens = '06:00:00';
+        let closes = '22:00:00';
+        let isHol = false;
+
+        if (day === 'SAB') {
+          opens = '07:00:00';
+          closes = '18:00:00';
+        } else if (day === 'DOM') {
+          opens = '08:00:00';
+          closes = '13:00:00';
+          // Algunas sucursales cierran los domingos
+          if (branchCount % 3 === 0) {
+            isHol = true;
+          }
+        }
+
+        return schedRepo.create({
+          gymId: branch.id,
+          dayOfWeek: day,
+          opensAt: opens,
+          closesAt: closes,
+          isHoliday: isHol
+        });
+      });
+      await schedRepo.save(schedules);
+    }
+    branchCount += 3;
+  }
+
+  // La primera sucursal es la sede de referencia para los usuarios staff de prueba
+  const firstBranch = savedBranches[0];
+  console.log(`   Primera sucursal: id=${firstBranch.id} — "${firstBranch.name}"`);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PASO 4 — USUARIOS CLAVE con roles y gymId correctamente asignados
+  //
+  // Las sucursales ya existen → el FK en user_roles.gym_id es válido.
+  // Para roles de staff, gymId = firstBranch.id → el JWT incluirá la sede.
+  // ═══════════════════════════════════════════════════════════════════════════
+  console.log('\n[4/6] Creando usuarios clave...');
+  const userRepo    = qr.manager.getRepository(User);
+  const profileRepo = qr.manager.getRepository(UserProfile);
+  const urRepo      = qr.manager.getRepository(UserRole);
+
+  const passwordHash = await bcrypt.hash('Aaron123*', 10);
+
+  type KeyUserDef = {
+    email: string;
+    firstName: string;
+    lastName: string;
+    roleName: string;
+    gymId: number | null;
+  };
+
+  const keyUsers: KeyUserDef[] = [
+    // Admins / sin sede
+    { email: 'admin@gymsync.com',         firstName: 'Super',       lastName: 'Admin',         roleName: 'SUPER_ADMIN',          gymId: null           },
+    // Staff con sede asignada
+    { email: 'gerente@gymsync.com',        firstName: 'Carlos',      lastName: 'Gerente',       roleName: 'GERENTE',              gymId: firstBranch.id },
+    { email: 'recepcion@gymsync.com',      firstName: 'Maria',       lastName: 'Recepcion',     roleName: 'RECEPCIONISTA',        gymId: firstBranch.id },
+    { email: 'entrenador@gymsync.com',     firstName: 'Luis',        lastName: 'Entrenador',    roleName: 'ENTRENADOR',           gymId: firstBranch.id },
+    { email: 'instructor@gymsync.com',     firstName: 'Sofia',       lastName: 'Instructora',   roleName: 'INSTRUCTOR',           gymId: firstBranch.id },
+    { email: 'nutricionista@gymsync.com',  firstName: 'Ana',         lastName: 'Nutricionista', roleName: 'NUTRICIONISTA',        gymId: firstBranch.id },
+    // Clientes (sin sede)
+    { email: 'cliente@gymsync.com',        firstName: 'Juan',        lastName: 'Cliente',       roleName: 'USER',                 gymId: null           },
+    { email: 'cliente2@gymsync.com',       firstName: 'Laura',       lastName: 'Clienta',       roleName: 'USER',                 gymId: null           },
+  ];
+
+  let adminUserId: number | null = null;
+
+  for (const ku of keyUsers) {
+    const user = await userRepo.save(userRepo.create({
+      email: ku.email, passwordHash, isActive: true,
+    }));
+
+    await profileRepo.save(profileRepo.create({
+      userId:    user.id,
+      firstName: ku.firstName,
+      lastName:  ku.lastName,
+      gender:    'OTHER',
+    }));
+
+    if (adminUserId === null) adminUserId = user.id; // primer usuario = admin
+
+    await urRepo.save(urRepo.create({
+      userId:     user.id,
+      roleId:     roleByName(ku.roleName).id,
+      gymId:      ku.gymId ?? undefined,
+      assignedBy: ku.roleName === 'SUPER_ADMIN' ? undefined : adminUserId,
+    }));
+
+    const gymLabel = ku.gymId ? ` (gym id=${ku.gymId} — ${firstBranch.name})` : '';
+    console.log(`   ✓ ${ku.email.padEnd(32)} → ${ku.roleName}${gymLabel}`);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PASO 5 — 50 USUARIOS ALEATORIOS (Roles distribuidos)
+  // 10 clientes (8 aquí + 2 clave), 2 super_admin (1 aquí + 1 clave), resto staff
+  // ═══════════════════════════════════════════════════════════════════════════
+  console.log('\n[5/6] Creando 50 usuarios con roles aleatorios...');
+  
+  const firstNames = [
+    'Carlos','Maria','Jose','Ana','Luis','Sofia','Jorge','Lucia','Miguel','Laura',
+    'Pedro','Carmen','Raul','Elena','Fernando','Paula','Diego','Marta','Javier','Sara',
+    'Andres','Beatriz','Alejandro','Isabel','Manuel','Cristina','Daniel','Teresa','David','Rosa',
+    'Adrian','Julia','Mario','Patricia','Alberto','Alba','Victor','Silvia','Marcos','Natalia',
+    'Oscar','Irene','Ruben','Lorena','Ivan','Angela','Gabriel','Belen','Hugo','Rocio',
+  ];
+  const lastNames = [
+    'Gomez','Rodriguez','Fernandez','Lopez','Martinez','Sanchez','Perez','Martin','Garcia','Ruiz',
+    'Diaz','Suarez','Romero','Alvarez','Torres','Navarro','Gutierrez','Molina','Blanco','Castro',
+    'Ortiz','Rubio','Marin','Sanz','Iglesias','Vazquez','Ramos','Gil','Serrano','Mendez',
+    'Cabrera','Medina','Rojas','Flores','Vargas','Rios','Castillo','Pena','Guzman','Leon',
+    'Herrera','Cortes','Mora','Arias','Vega','Cruz','Mendoza','Soto','Campos','Delgado',
+  ];
+
+  const randomRoles = [
+    ...Array(8).fill('USER'),
+    ...Array(1).fill('SUPER_ADMIN')
+  ];
+  const staffRoleNames = ['GERENTE', 'RECEPCIONISTA', 'INSTRUCTOR', 'ENTRENADOR'];
+  for (let i = 0; i < 41; i++) {
+    randomRoles.push(staffRoleNames[i % staffRoleNames.length]);
+  }
+  // Mezclar roles
+  randomRoles.sort(() => Math.random() - 0.5);
+
+  for (let i = 0; i < 50; i++) {
+    const fn    = firstNames[i];
+    const ln    = lastNames[i];
+    const email = `${fn.toLowerCase()}${ln.toLowerCase()}@gmail.com`;
+
+    const user = await userRepo.save(userRepo.create({
+      email, passwordHash, isActive: true,
+    }));
+
+    await profileRepo.save(profileRepo.create({
+      userId:    user.id,
+      firstName: fn,
+      lastName:  ln,
+      phone:     `+5917${Math.floor(1000000 + Math.random() * 9000000)}`,
+      ci:        `${Math.floor(1000000 + Math.random() * 9000000)}`,
+      gender:    i % 2 === 0 ? 'MALE' : 'FEMALE',
+    }));
+
+    const roleName = randomRoles[i];
+    let assignedGymId: number | undefined = undefined;
+
+    // Asignar sucursal aleatoria al staff
+    if (roleName !== 'USER' && roleName !== 'SUPER_ADMIN') {
+      assignedGymId = savedBranches[Math.floor(Math.random() * savedBranches.length)].id;
+    }
+
+    await urRepo.save(urRepo.create({
+      userId:     user.id,
+      roleId:     roleByName(roleName).id,
+      gymId:      assignedGymId,
+      assignedBy: adminUserId!,
+    }));
+  }
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PASO 6 — ACTIVIDADES (80 actividades distribuidas en sucursales)
+  // ═══════════════════════════════════════════════════════════════════════════
+  console.log('\n[6/6] Creando 80 actividades/servicios y sus horarios...');
+  const actRepo      = qr.manager.getRepository(GymActivity);
+  const exerciseRepo = qr.manager.getRepository(ExerciseCatalog);
+  const actSchedRepo = qr.manager.getRepository(GymActivitySchedule);
+
+  // Obtener instructores para asignar a las clases guiadas
+  const instructorRoleId = roleByName('INSTRUCTOR').id;
+  const instructors = await urRepo.find({
+    where: { roleId: instructorRoleId },
+    relations: ['user']
+  }).then(urs => urs.map(ur => ur.user));
+
+  const serviceDefinitions = [
+    { name: 'Musculación Libre', desc: 'Acceso a todas las máquinas de fuerza y peso libre. Entrena a tu ritmo.', isFreeAccess: true, duration: undefined },
+    { name: 'Zona Cardio', desc: 'Acceso a cintas, elípticas, escaladoras y bicicletas estáticas.', isFreeAccess: true, duration: undefined },
+    { name: 'Open Box CrossFit', desc: 'Uso libre del área de entrenamiento funcional y halterofilia.', isFreeAccess: true, duration: undefined },
+    { name: 'Área de Estiramiento', desc: 'Espacio dedicado a elongación, movilidad y recuperación activa.', isFreeAccess: true, duration: undefined },
+    { name: 'Zona Funcional Libre', desc: 'Acceso libre a pesas rusas, cajones, balones medicinales y sogas.', isFreeAccess: true, duration: undefined },
+    { name: 'Natación Libre', desc: 'Acceso a la piscina olímpica para nado libre por carriles.', isFreeAccess: true, duration: undefined },
+    
+    { name: 'Zumba Masterclass', desc: 'Clase de baile fitness de alta intensidad con ritmos latinos y urbanos.', isFreeAccess: false, duration: 60 },
+    { name: 'Yoga Inicial', desc: 'Clase de Hatha Yoga para principiantes. Mejora flexibilidad y reduce estrés.', isFreeAccess: false, duration: 60 },
+    { name: 'Yoga Avanzado', desc: 'Vinyasa Flow intenso para practicantes experimentados.', isFreeAccess: false, duration: 90 },
+    { name: 'Pilates Mat', desc: 'Pilates en colchoneta enfocado en el core, postura y control corporal.', isFreeAccess: false, duration: 45 },
+    { name: 'Spinning (Indoor Cycling)', desc: 'Clase guiada en bicicleta estática con simulación de rutas y sprints.', isFreeAccess: false, duration: 45 },
+    { name: 'CrossFit WOD', desc: 'Workout of the Day. Entrenamiento funcional de alta intensidad guiado por coach.', isFreeAccess: false, duration: 60 },
+    { name: 'Boxeo Recreativo', desc: 'Técnicas de boxeo, golpeo al saco y acondicionamiento físico sin contacto.', isFreeAccess: false, duration: 60 },
+    { name: 'TRX Suspensión', desc: 'Entrenamiento funcional utilizando tu propio peso corporal en cintas TRX.', isFreeAccess: false, duration: 45 },
+    { name: 'Entrenamiento Funcional HIIT', desc: 'Intervalos de alta intensidad para quemar grasa y tonificar rápidamente.', isFreeAccess: false, duration: 30 },
+    { name: 'Glúteos, Abdomen y Piernas (GAP)', desc: 'Clase localizada para fortalecer el tren inferior y core.', isFreeAccess: false, duration: 45 },
+    { name: 'Body Pump', desc: 'Clase con barras y discos al ritmo de la música para trabajar todos los grupos musculares.', isFreeAccess: false, duration: 60 },
+    { name: 'AquaGym', desc: 'Gimnasia acuática de bajo impacto, ideal para articulaciones.', isFreeAccess: false, duration: 45 },
+    { name: 'Kickboxing', desc: 'Clase combinando patadas y golpes de puño para mejorar capacidad cardiovascular.', isFreeAccess: false, duration: 60 },
+    { name: 'Danza Árabe', desc: 'Clase de danza oriental enfocada en el control y disociación corporal.', isFreeAccess: false, duration: 60 }
+  ];
+
+  for (let i = 0; i < 80; i++) {
+    const branch = savedBranches[i % savedBranches.length];
+    const def = serviceDefinitions[i % serviceDefinitions.length];
+    
+    // Sufijo para evitar duplicados exactos si se repite en la misma sucursal (aunque matemáticamente se distribuye bien)
+    const uniqueName = (i >= serviceDefinitions.length * savedBranches.length) ? `${def.name} II` : def.name;
+
+    const activity = await actRepo.save(actRepo.create({
+      gymId:              branch.id,
+      name:               uniqueName,
+      description:        def.desc,
+      defaultDurationMin: def.duration,
+      isActive:           true,
+      isFreeAccess:       def.isFreeAccess
+    }));
+
+    // Si NO es libre, requiere horarios (GymActivitySchedule)
+    if (!def.isFreeAccess && instructors.length > 0) {
+      const instructor = instructors[i % instructors.length];
+      const schedulesToCreate: GymActivitySchedule[] = [];
+      const days = i % 2 === 0 ? ['LUN', 'MIE', 'VIE'] : ['MAR', 'JUE'];
+      
+      const startHour = 8 + (i % 12); // Horarios entre 08:00 y 19:00
+      const startTime = `${startHour.toString().padStart(2, '0')}:00:00`;
+      
+      const duration = def.duration || 60;
+      const endHour = startHour + Math.floor(duration / 60);
+      const endMin = duration % 60;
+      const endTime = `${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}:00`;
+
+      for (const d of days) {
+        schedulesToCreate.push(actSchedRepo.create({
+          gymActivityId: activity.id,
+          instructorId: instructor.id,
+          dayOfWeek: d,
+          startTime: startTime,
+          endTime: endTime,
+          maxAttendees: 15 + (i % 10), // Cupos entre 15 y 24
+          isRecurring: true
+        }));
+      }
+      await actSchedRepo.save(schedulesToCreate);
+    }
+  }
+
+  // ── Catálogo de ejercicios (69 ejercicios con video URLs) ──────────────────
+  const exercises = [
+    { name: 'Press de Banca Plano',                 muscleGroup: 'Pectorales',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra olímpica, banco plano',         videoUrl: 'https://www.youtube.com/shorts/_XvyWBUeJwU' },
+    { name: 'Press de Banca Inclinado',              muscleGroup: 'Pectorales',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra olímpica, banco inclinado',     videoUrl: 'https://www.youtube.com/shorts/9IrOq4WapSQ' },
+    { name: 'Aperturas con Mancuernas',              muscleGroup: 'Pectorales',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas, banco plano',             videoUrl: 'https://www.youtube.com/shorts/UgmYbrytasw' },
+    { name: 'Fondos en Paralelas',                   muscleGroup: 'Pectorales',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Paralelas',                           videoUrl: 'https://www.youtube.com/shorts/ZtONmh5a_fU' },
+    { name: 'Crossover en Polea',                    muscleGroup: 'Pectorales',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea alta',                          videoUrl: 'https://www.youtube.com/shorts/Jokaz7dBJNg' },
+    { name: 'Push-ups (Flexiones)',                  muscleGroup: 'Pectorales',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: '',                                    videoUrl: 'https://www.youtube.com/shorts/-m9buxRuWEc' },
+    { name: 'Jalón al Pecho',                        muscleGroup: 'Dorsales',      category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea alta',                          videoUrl: 'https://www.youtube.com/shorts/trZQjegcRx0' },
+    { name: 'Remo con Barra',                        muscleGroup: 'Dorsales',      category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra',                               videoUrl: 'https://www.youtube.com/shorts/pegqZPBqK_k' },
+    { name: 'Remo con Mancuerna',                    muscleGroup: 'Dorsales',      category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuerna, banco',                    videoUrl: 'https://www.youtube.com/shorts/H8jf3DwlIlo' },
+    { name: 'Dominadas (Pull-ups)',                  muscleGroup: 'Dorsales',      category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'AVANZADO',   equipmentRequired: 'Barra dominadas',                     videoUrl: 'https://www.youtube.com/shorts/cr5KmVftdbE' },
+    { name: 'Remo en Polea Baja',                    muscleGroup: 'Dorsales',      category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea baja',                          videoUrl: 'https://www.youtube.com/shorts/8QuMq1GMMng' },
+    { name: 'Pullover con Mancuerna',                muscleGroup: 'Dorsales',      category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Mancuerna, banco',                    videoUrl: 'https://www.youtube.com/shorts/jCV5t9Cy4hI' },
+    { name: 'Press Militar con Barra',               muscleGroup: 'Hombros',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra',                               videoUrl: 'https://www.youtube.com/shorts/O8Z0gPBh4j8' },
+    { name: 'Press de Hombros con Mancuernas',       muscleGroup: 'Hombros',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas',                          videoUrl: 'https://www.youtube.com/shorts/2D0TyoHv_EY' },
+    { name: 'Elevaciones Laterales',                 muscleGroup: 'Hombros',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas',                          videoUrl: 'https://www.youtube.com/shorts/tGfZu2dwLXo' },
+    { name: 'Elevaciones Frontales',                 muscleGroup: 'Hombros',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas',                          videoUrl: 'https://www.youtube.com/shorts/h9xfpTrAvkE' },
+    { name: 'Vuelos Posteriores',                    muscleGroup: 'Hombros',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas',                          videoUrl: 'https://www.youtube.com/shorts/tt4cUiD8hR8' },
+    { name: 'Curl de Bíceps con Barra',              muscleGroup: 'Bíceps',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Barra',                               videoUrl: 'https://www.youtube.com/shorts/3v4Zc7iujIk' },
+    { name: 'Curl con Mancuernas Alterno',           muscleGroup: 'Bíceps',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas',                          videoUrl: 'https://www.youtube.com/shorts/FHY_2t7R714' },
+    { name: 'Curl en Polea Baja',                    muscleGroup: 'Bíceps',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea baja',                          videoUrl: 'https://www.youtube.com/shorts/W0Wz4wXIIrQ' },
+    { name: 'Curl Martillo',                         muscleGroup: 'Bíceps',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas',                          videoUrl: 'https://www.youtube.com/shorts/NyW2fT2gQhM' },
+    { name: 'Curl Concentrado',                      muscleGroup: 'Bíceps',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuerna',                           videoUrl: 'https://www.youtube.com/shorts/cHxRJdSVIkA' },
+    { name: 'Press Francés',                         muscleGroup: 'Tríceps',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra EZ, banco',                     videoUrl: 'https://www.youtube.com/shorts/O-vNLrJDTTM' },
+    { name: 'Extensiones en Polea Alta',             muscleGroup: 'Tríceps',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea alta',                          videoUrl: 'https://www.youtube.com/shorts/aHfbuBf1TJk' },
+    { name: 'Extensiones con Mancuerna sobre la Cabeza', muscleGroup: 'Tríceps',   category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuerna',                           videoUrl: 'https://www.youtube.com/shorts/8FNGBJUHfsA' },
+    { name: 'Patada de Tríceps',                     muscleGroup: 'Tríceps',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuerna',                           videoUrl: 'https://www.youtube.com/shorts/3Bv1n7-DN7c' },
+    { name: 'Fondos para Tríceps',                   muscleGroup: 'Tríceps',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Banco o silla',                       videoUrl: 'https://www.youtube.com/shorts/ZtONmh5a_fU' },
+    { name: 'Sentadilla con Barra (Back Squat)',      muscleGroup: 'Cuádriceps',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra, rack',                         videoUrl: 'https://www.youtube.com/shorts/H5VYU6t_w9o' },
+    { name: 'Sentadilla Frontal (Front Squat)',       muscleGroup: 'Cuádriceps',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'AVANZADO',   equipmentRequired: 'Barra, rack',                         videoUrl: 'https://www.youtube.com/shorts/r6Z_h_WAX5o' },
+    { name: 'Prensa de Piernas',                     muscleGroup: 'Cuádriceps',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina prensa',                      videoUrl: 'https://www.youtube.com/shorts/MDtA7bI8uE4' },
+    { name: 'Zancadas (Lunges)',                      muscleGroup: 'Cuádriceps',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas o cuerpo',                 videoUrl: 'https://www.youtube.com/shorts/_lSFEA3uYY0' },
+    { name: 'Sentadilla Búlgara',                    muscleGroup: 'Cuádriceps',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Mancuernas, banco',                   videoUrl: 'https://www.youtube.com/shorts/lG3MsPmEQQk' },
+    { name: 'Extensión de Cuádriceps',               muscleGroup: 'Cuádriceps',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina de extensión',                videoUrl: 'https://www.youtube.com/shorts/N32sIi1ktv4' },
+    { name: 'Peso Muerto (Deadlift)',                 muscleGroup: 'Isquiotibiales',category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'AVANZADO',   equipmentRequired: 'Barra',                               videoUrl: 'https://www.youtube.com/shorts/ZaTM37cfiDs' },
+    { name: 'Peso Muerto Rumano',                    muscleGroup: 'Isquiotibiales',category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra o mancuernas',                  videoUrl: 'https://www.youtube.com/shorts/8tTKm-3wX5s' },
+    { name: 'Curl de Piernas (Máquina)',              muscleGroup: 'Isquiotibiales',category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina curl',                        videoUrl: 'https://www.youtube.com/shorts/sy_uiKaFtFA' },
+    { name: 'Buenos Días (Good Mornings)',            muscleGroup: 'Isquiotibiales',category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra',                               videoUrl: 'https://www.youtube.com/shorts/yihU2gFswpk' },
+    { name: 'Elevación de Gemelos de Pie',           muscleGroup: 'Gemelos',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina o libre',                     videoUrl: 'https://www.youtube.com/shorts/yQZDGjL-xT4' },
+    { name: 'Elevación de Gemelos Sentado',          muscleGroup: 'Gemelos',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina de gemelos',                  videoUrl: 'https://www.youtube.com/shorts/4f_-CJVbyxg' },
+    { name: 'Crunch Abdominal',                      muscleGroup: 'Core',          category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: '',                                    videoUrl: 'https://www.youtube.com/shorts/11iRiN7Sb5Q' },
+    { name: 'Plancha (Plank)',                       muscleGroup: 'Core',          category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: '',                                    videoUrl: 'https://www.youtube.com/shorts/hoeNgjheDHk' },
+    { name: 'Elevación de Piernas Colgado',          muscleGroup: 'Core',          category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra dominadas',                     videoUrl: 'https://www.youtube.com/shorts/WFAziRYp2bg' },
+    { name: 'Russian Twist',                         muscleGroup: 'Core',          category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Disco o pelota',                      videoUrl: 'https://www.youtube.com/shorts/u0-X63Fq7LU' },
+    { name: 'Ab Wheel (Rueda Abdominal)',             muscleGroup: 'Core',          category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Rueda abdominal',                     videoUrl: 'https://www.youtube.com/shorts/WXGBYjIOcN4' },
+    { name: 'Crunches en Polea',                     muscleGroup: 'Core',          category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea alta',                          videoUrl: 'https://www.youtube.com/shorts/dkGwcfo9zto' },
+    { name: 'Correr en Cinta',                       muscleGroup: 'Cardio',        category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'BASICO',     equipmentRequired: 'Cinta de correr',                     videoUrl: 'https://www.youtube.com/shorts/S3N5cv5iKI8' },
+    { name: 'Bicicleta Estática',                    muscleGroup: 'Cardio',        category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'BASICO',     equipmentRequired: 'Bicicleta estática',                  videoUrl: 'https://www.youtube.com/shorts/z99qyGHnFLI' },
+    { name: 'Elíptica',                              muscleGroup: 'Cardio',        category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina elíptica',                    videoUrl: 'https://www.youtube.com/shorts/dBMotc3AiVc' },
+    { name: 'Remo en Máquina (Rowing)',               muscleGroup: 'Cardio',        category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Máquina de remo',                     videoUrl: 'https://www.youtube.com/shorts/978LzxkqJ0M' },
+    { name: 'Caminata Rápida',                       muscleGroup: 'Cardio',        category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'BASICO',     equipmentRequired: 'Cinta o exterior',                    videoUrl: 'https://www.youtube.com/shorts/17fJGOV6tG4' },
+    { name: 'Caminata con Inclinación Progresiva',   muscleGroup: 'Cardio',        category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'BASICO',     equipmentRequired: 'Cinta de correr',                     videoUrl: 'https://www.youtube.com/shorts/XBOX7qPKrIs' },
+    { name: 'Sprint en Cinta',                       muscleGroup: 'Cardio',        category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Cinta de correr',                     videoUrl: 'https://www.youtube.com/shorts/Tl_qu05p3R8' },
+    { name: 'Cycling Intervals',                     muscleGroup: 'Cardio',        category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Bicicleta estática',                  videoUrl: 'https://www.youtube.com/shorts/6c_sfPfNvnc' },
+    { name: 'Burpees',                               muscleGroup: 'Funcional',     category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL',difficultyLevel: 'INTERMEDIO', equipmentRequired: '',                                    videoUrl: 'https://www.youtube.com/shorts/RevoEOa_Esw' },
+    { name: 'Box Jump (Salto al Cajón)',              muscleGroup: 'Funcional',     category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL',difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Cajón pliométrico',                   videoUrl: 'https://www.youtube.com/shorts/Z9Vw6MxOHP8' },
+    { name: 'Kettlebell Swing',                      muscleGroup: 'Funcional',     category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL',difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Kettlebell',                          videoUrl: 'https://www.youtube.com/shorts/8tTKm-3wX5s' },
+    { name: 'Wall Ball',                             muscleGroup: 'Funcional',     category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL',difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Balón medicinal, pared',              videoUrl: 'https://www.youtube.com/shorts/oPtoE61Oc04' },
+    { name: 'Slam Ball',                             muscleGroup: 'Funcional',     category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL',difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Slam ball',                           videoUrl: 'https://www.youtube.com/shorts/uuIJroNfvdQ' },
+    { name: 'Tire Flip (Volteo de Llanta)',           muscleGroup: 'Funcional',     category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL',difficultyLevel: 'AVANZADO',   equipmentRequired: 'Llanta',                              videoUrl: 'https://www.youtube.com/shorts/Zjt3RcaLd3Y' },
+    { name: 'Tabata Squat',                          muscleGroup: 'HIIT',          category: 'FUNCIONAL', exerciseType: 'HIIT',      difficultyLevel: 'INTERMEDIO', equipmentRequired: '',                                    videoUrl: 'https://www.youtube.com/shorts/F3oJ0xomHDw' },
+    { name: 'Tabata Push-ups',                       muscleGroup: 'HIIT',          category: 'FUNCIONAL', exerciseType: 'HIIT',      difficultyLevel: 'INTERMEDIO', equipmentRequired: '',                                    videoUrl: 'https://www.youtube.com/shorts/RIgmkSMbM4E' },
+    { name: 'Mountain Climbers',                     muscleGroup: 'HIIT',          category: 'FUNCIONAL', exerciseType: 'HIIT',      difficultyLevel: 'BASICO',     equipmentRequired: '',                                    videoUrl: 'https://www.youtube.com/shorts/EdeBTHMFLKY' },
+    { name: 'Jump Rope (Saltar la Cuerda)',           muscleGroup: 'HIIT',          category: 'FUNCIONAL', exerciseType: 'HIIT',      difficultyLevel: 'BASICO',     equipmentRequired: 'Cuerda de saltar',                    videoUrl: 'https://www.youtube.com/shorts/OPd9NF1Xpl0' },
+    { name: 'Estiramiento de Cuádriceps',            muscleGroup: 'Movilidad',     category: 'FUNCIONAL', exerciseType: 'MOBILITY',  difficultyLevel: 'BASICO',     equipmentRequired: '',                                    videoUrl: 'https://www.youtube.com/shorts/Ztwz8rrDShk' },
+    { name: 'Hip Flexor Stretch',                    muscleGroup: 'Movilidad',     category: 'FUNCIONAL', exerciseType: 'MOBILITY',  difficultyLevel: 'BASICO',     equipmentRequired: '',                                    videoUrl: 'https://www.youtube.com/shorts/41ReSOu0dh4' },
+    { name: "World's Greatest Stretch",              muscleGroup: 'Movilidad',     category: 'FUNCIONAL', exerciseType: 'MOBILITY',  difficultyLevel: 'INTERMEDIO', equipmentRequired: '',                                    videoUrl: 'https://www.youtube.com/shorts/PE-UuERblwA' },
+    { name: 'Cat-Cow Stretch',                       muscleGroup: 'Movilidad',     category: 'FUNCIONAL', exerciseType: 'MOBILITY',  difficultyLevel: 'BASICO',     equipmentRequired: '',                                    videoUrl: 'https://www.youtube.com/shorts/rbuptYr2CGM' },
+    { name: 'Pigeon Pose',                           muscleGroup: 'Movilidad',     category: 'FUNCIONAL', exerciseType: 'MOBILITY',  difficultyLevel: 'BASICO',     equipmentRequired: '',                                    videoUrl: 'https://www.youtube.com/shorts/UlyMK4MJ1v4' },
+    { name: 'Shoulder Stretch',                      muscleGroup: 'Movilidad',     category: 'FUNCIONAL', exerciseType: 'MOBILITY',  difficultyLevel: 'BASICO',     equipmentRequired: '',                                    videoUrl: 'https://www.youtube.com/shorts/PczacMV5HTw' },
+  ];
+
+  for (const ex of exercises) {
+    await exerciseRepo.save(exerciseRepo.create({ ...ex, isActive: true }));
+  }
+
+  // ── Resumen final ──────────────────────────────────────────────────────────
+  await qr.release();
+
+  console.log('\n✅ Seed completado exitosamente.');
+  console.log('─'.repeat(60));
+  console.log(`   Roles:       9  (IDs 1-9, sincronizados con el frontend)`);
+  console.log(`   Marcas:      10 (IDs 1-10)`);
+  console.log(`   Sucursales:  30 (IDs 11-40)`);
+  console.log(`   Usuarios:    ${keyUsers.length + 50} (${keyUsers.length} clave + 50 aleatorios)`);
+  console.log(`   Actividades: 50`);
+  console.log(`   Ejercicios:  ${exercises.length}`);
+  console.log('─'.repeat(60));
+  console.log('\n📋 Credenciales de prueba (contraseña: Aaron123*)');
+  console.log('─'.repeat(60));
+  console.log('  admin@gymsync.com           → SUPER_ADMIN       (web)');
+  console.log('  gerente@gymsync.com         → GERENTE           (web)');
+  console.log('  recepcion@gymsync.com       → RECEPCIONISTA     (web)');
+  console.log('  entrenador@gymsync.com      → ENTRENADOR        (móvil)');
+  console.log('  instructor@gymsync.com      → INSTRUCTOR        (móvil)');
+  console.log('  nutricionista@gymsync.com   → NUTRICIONISTA     (móvil)');
+  console.log('  cliente@gymsync.com         → USER/CLIENTE      (móvil)');
+  console.log('─'.repeat(60));
+
+  process.exit(0);
 }
 
-runSeed();
+runSeed().catch(err => {
+  console.error('❌ Error en el seeder:', err);
+  process.exit(1);
+});

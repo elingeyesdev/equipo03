@@ -146,6 +146,7 @@ export class SubscriptionsService {
     return this.paymentsRepo.find({
       where: { subscriptionId },
       order: { paymentDate: 'DESC' },
+      take: 50,
     });
   }
 }
