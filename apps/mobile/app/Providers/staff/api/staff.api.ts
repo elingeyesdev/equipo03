@@ -196,6 +196,7 @@ export type ClientRoutineExercise = {
     muscleGroup?:  string;
     category?:     string;
     exerciseType?: string;
+    videoUrl?:     string | null;
   };
 };
 
