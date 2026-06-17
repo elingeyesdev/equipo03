@@ -81,6 +81,11 @@ export class UpdateExerciseDto {
   @IsString()
   difficultyLevel?: string;
 
+  @ApiPropertyOptional({ example: 'https://www.youtube.com/shorts/abc123' })
+  @IsOptional()
+  @IsString()
+  videoUrl?: string;
+
   @ApiPropertyOptional({ example: false })
   @IsOptional()
   @IsBoolean()
