@@ -35,10 +35,8 @@ export const DashboardLayout = () => {
   }
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
-  const handleLogout = () => {
-    logout();
-    localStorage.removeItem('gymsync_user');
-    sessionStorage.clear();
+  const handleLogout = async () => {
+    await logout(); // limpia cookie en el backend + estado local
     navigate('/login', { replace: true });
   };
 

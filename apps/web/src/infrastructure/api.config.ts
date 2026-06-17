@@ -2,12 +2,20 @@ import axios from 'axios';
 import type { AxiosInstance } from 'axios';
 import toast from 'react-hot-toast';
 
-const forceLogout = () => {
-  localStorage.removeItem('gymsync_user');
-  localStorage.removeItem('gymsync_token');
-  sessionStorage.clear();
-  if (window.location.pathname !== '/login') {
-    window.location.href = '/login';
+// Limpia el estado local y redirige al login.
+// El token ya NO está en localStorage — la cookie HttpOnly la borra el backend.
+const forceLogout = async () => {
+  try {
+    // Pedirle al backend que limpie la cookie HttpOnly
+    await axios.post('/api/auth/logout', {}, { withCredentials: true });
+  } catch {
+    // Si falla (ya expiró, red caída) igual se redirige
+  } finally {
+    localStorage.removeItem('gymsync_user');
+    sessionStorage.clear();
+    if (window.location.pathname !== '/login') {
+      window.location.href = '/login';
+    }
   }
 };
 
@@ -17,8 +25,9 @@ const handleAccessDenied = (message?: string) => {
 
 export const createApiClient = (): AxiosInstance => {
   const client = axios.create({
-    baseURL: '/api', // Redirigido internamente por Vite al puerto 3000
+    baseURL: '/api',
     timeout: 10000,
+    withCredentials: true, // envía la cookie HttpOnly en cada petición automáticamente
     headers: {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -28,13 +37,10 @@ export const createApiClient = (): AxiosInstance => {
   // ── Request interceptor ──────────────────────────────────────────────────────
   client.interceptors.request.use(
     (config) => {
-      // 1. Inyectar JWT en todas las peticiones
-      const token = localStorage.getItem('gymsync_token');
-      if (token && config.headers) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+      // El JWT viaja en la cookie HttpOnly — NO se inyecta en el header Authorization.
+      // El browser lo adjunta automáticamente gracias a withCredentials: true.
 
-      // 2. Inyección de Scope para GERENTE (solo en GET, con exclusiones)
+      // Inyección de Scope para GERENTE (solo en GET, con exclusiones)
       if (config.method?.toUpperCase() === 'GET') {
         const userStr = localStorage.getItem('gymsync_user');
         if (userStr) {
@@ -42,7 +48,6 @@ export const createApiClient = (): AxiosInstance => {
             const user = JSON.parse(userStr);
 
             if (user.role === 'GERENTE') {
-              // Endpoints globales que no aceptan gym_id como query param
               const GYM_SCOPE_EXCLUDED = [
                 '/gyms/brands',
                 '/roles',
@@ -52,7 +57,9 @@ export const createApiClient = (): AxiosInstance => {
                 '/dashboard/summary',
               ];
               const url = config.url ?? '';
-              const isExcluded = GYM_SCOPE_EXCLUDED.some(p => url.startsWith(p) || url.includes(p));
+              const isExcluded = GYM_SCOPE_EXCLUDED.some(
+                (p) => url.startsWith(p) || url.includes(p),
+              );
 
               if (!isExcluded) {
                 config.params = config.params || {};
@@ -62,20 +69,25 @@ export const createApiClient = (): AxiosInstance => {
                   config.params.brand_id = user.brandId;
                 } else {
                   config.params.gym_id = -1;
-                  console.warn('[RBAC Security]: Gerente sin gymId ni brandId detectado. Petición bloqueada con gym_id=-1.');
+                  console.warn(
+                    '[RBAC Security]: Gerente sin gymId ni brandId. Petición bloqueada con gym_id=-1.',
+                  );
                 }
               }
             }
           } catch (e) {
-            console.error('[api.config]: Error al parsear usuario del localStorage', e);
+            console.error('[api.config]: Error al parsear gymsync_user del localStorage', e);
           }
         }
       }
 
-      console.log(`[Web API] ${config.method?.toUpperCase()} ${config.url}`, config.params || config.data);
+      console.log(
+        `[Web API] ${config.method?.toUpperCase()} ${config.url}`,
+        config.params || config.data,
+      );
       return config;
     },
-    (error) => Promise.reject(error)
+    (error) => Promise.reject(error),
   );
 
   // ── Response interceptor ─────────────────────────────────────────────────────
@@ -101,10 +113,12 @@ export const createApiClient = (): AxiosInstance => {
       return response;
     },
     (error) => {
-      // Suprimir toasts para endpoints que el caller ya maneja con .catch()
       const SILENT_ON_ERROR = ['/gyms/brands', '/roles', '/auth/login'];
       const url = error.config?.url ?? '';
-      if (error.config?._skipErrorToast || SILENT_ON_ERROR.some(p => url.includes(p))) {
+      if (
+        error.config?._skipErrorToast ||
+        SILENT_ON_ERROR.some((p) => url.includes(p))
+      ) {
         return Promise.reject(error);
       }
 
@@ -115,18 +129,29 @@ export const createApiClient = (): AxiosInstance => {
         const body = error.response.data;
         const rawMessage = body?.message || body?.error || error.message;
 
-        let errorMessage = typeof rawMessage === 'string' ? rawMessage : 'Error desconocido';
+        let errorMessage =
+          typeof rawMessage === 'string' ? rawMessage : 'Error desconocido';
         if (Array.isArray(rawMessage)) {
-          errorMessage = rawMessage.join('\n• ');
-          errorMessage = '• ' + errorMessage;
+          errorMessage = '• ' + rawMessage.join('\n• ');
         }
 
         if (status === 400) {
-          console.warn(`[API Error 400]: Detalle de validación ->\n`, errorMessage);
-          toast.error(`Error de validación:\n${errorMessage}`, { duration: 6000, style: { whiteSpace: 'pre-wrap', textAlign: 'left' } });
-        } else if (status === 500 && typeof rawMessage === 'string' && (rawMessage.toLowerCase().includes('duplicate key') || rawMessage.toLowerCase().includes('unique constraint'))) {
-          console.error(`[API Error 500]: Duplicidad en la Base de Datos ->`, rawMessage);
-          toast.error("Error de secuencia en DB. Intente de nuevo o ejecute el script de reseteo.", { duration: 8000 });
+          console.warn(`[API Error 400]:`, errorMessage);
+          toast.error(`Error de validación:\n${errorMessage}`, {
+            duration: 6000,
+            style: { whiteSpace: 'pre-wrap', textAlign: 'left' },
+          });
+        } else if (
+          status === 500 &&
+          typeof rawMessage === 'string' &&
+          (rawMessage.toLowerCase().includes('duplicate key') ||
+            rawMessage.toLowerCase().includes('unique constraint'))
+        ) {
+          console.error(`[API Error 500]: Duplicidad en DB ->`, rawMessage);
+          toast.error(
+            'Error de secuencia en DB. Intente de nuevo o ejecute el script de reseteo.',
+            { duration: 8000 },
+          );
         } else if (status === 401) {
           forceLogout();
         } else if (status === 403) {
@@ -134,8 +159,6 @@ export const createApiClient = (): AxiosInstance => {
         } else if (body?.success === false) {
           toast.error(errorMessage);
         } else {
-          // Priorizar el mensaje real del backend (ej: "Ya existe un usuario con este email")
-          // sobre el código numérico genérico.
           toast.error(errorMessage || `Error del servidor (${status})`);
         }
       } else {
@@ -143,7 +166,7 @@ export const createApiClient = (): AxiosInstance => {
       }
 
       return Promise.reject(error);
-    }
+    },
   );
 
   return client;

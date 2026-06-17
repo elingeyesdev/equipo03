@@ -368,6 +368,7 @@ export const ResumenView = () => {
   const [error,     setError]     = useState<string | null>(null);
   const [summary,   setSummary]   = useState<SummaryData>({});
   const [gyms,      setGyms]      = useState<GymDto[]>([]);
+  const [gymBrands, setGymBrands] = useState<GymDto[]>([]);
   const [allUsers,  setAllUsers]  = useState<UserDto[]>([]);
   const [updatedAt, setUpdatedAt] = useState<Date>(new Date());
 
@@ -376,15 +377,20 @@ export const ResumenView = () => {
     setLoading(true);
     setError(null);
     try {
-      const [summaryRes, gymsRes, usersRes] = await Promise.allSettled([
+      const [summaryRes, gymsRes, brandsRes, usersRes] = await Promise.allSettled([
         apiClient.get<SummaryData>('/dashboard/summary'),
         apiClient.get('/gyms'),
+        apiClient.get('/gyms/brands'),
         apiClient.get('/users'),
       ]);
       if (summaryRes.status === 'fulfilled') setSummary(summaryRes.value.data ?? {});
       if (gymsRes.status === 'fulfilled') {
         const raw = gymsRes.value.data;
         setGyms(Array.isArray(raw) ? raw : []);
+      }
+      if (brandsRes.status === 'fulfilled') {
+        const raw = brandsRes.value.data;
+        setGymBrands(Array.isArray(raw) ? raw : []);
       }
       if (usersRes.status === 'fulfilled') {
         const raw = usersRes.value.data;
@@ -408,7 +414,7 @@ export const ResumenView = () => {
   if (user?.role === 'CLIENTE') return <ClienteResumen />;
 
   // ── Datos base ──────────────────────────────────────────────────────────────
-  const brands   = gyms.filter(g => !g.parentId);
+  const brands   = gymBrands;
   const branches = gyms.filter(g => !!g.parentId);
 
   const activeBranches = branches.filter(g => !!g.isActive);

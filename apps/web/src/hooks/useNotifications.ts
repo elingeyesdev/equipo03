@@ -2,11 +2,12 @@
  * useNotifications Hook
  * ---------------------
  * Establece un canal WebSocket persistente con el backend (Socket.io).
- * Estrategia de Salas (Rooms):
- *   - GERENTE     → room_gym_{gymId}   (aislamiento estricto por sede)
- *   - SUPER_ADMIN → room_admin_all     (visibilidad global)
+ * El token se envía via cookie HttpOnly (withCredentials: true) y también
+ * via handshake.auth para compatibilidad con el gateway durante la transición.
  *
- * Al recibir el evento 'security_alert', dispara un Toast proactivo.
+ * Estrategia de Salas (Rooms):
+ *   - GERENTE     → gym_{gymId}   (aislamiento estricto por sede)
+ *   - SUPER_ADMIN → admin_room    (visibilidad global)
  */
 
 import { useEffect, useRef } from 'react';
@@ -20,7 +21,7 @@ export interface SecurityAlertPayload {
   attemptedUserId: number;
   reason: string;
   timestamp: string;
-  isLive: true; // Flag para diferenciar de notificaciones históricas de DB
+  isLive: true;
 }
 
 export const useNotifications = () => {
@@ -30,22 +31,25 @@ export const useNotifications = () => {
   useEffect(() => {
     if (!user?.id) return;
 
-    const token = localStorage.getItem('gymsync_token');
-    if (!token) return;
-
     // Solo roles con acceso al módulo de auditoría reciben el socket
-    if (user.role !== 'SUPER_ADMIN' && user.role !== 'GERENTE' && user.role !== 'RECEPCIONISTA') return;
+    if (
+      user.role !== 'SUPER_ADMIN' &&
+      user.role !== 'GERENTE' &&
+      user.role !== 'RECEPCIONISTA'
+    ) return;
 
-    console.log(`[NotificationGateway]: Iniciando conexión WS para rol ${user.role}...`);
+    console.log(
+      `[NotificationGateway]: Iniciando conexión WS para rol ${user.role}...`,
+    );
 
-    // Usar el mismo origen que la web (pasa por el proxy de Vite → puerto 3000)
     const BASE_URL = import.meta.env.VITE_API_URL ?? window.location.origin;
     const SOCKET_URL = `${BASE_URL}/events`;
 
     const socket = io(SOCKET_URL, {
       path: '/socket.io',
       transports: ['websocket', 'polling'],
-      auth: { token },
+      // withCredentials envía la cookie HttpOnly al servidor en el handshake WS
+      withCredentials: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 2000,
       autoConnect: false,
@@ -55,42 +59,47 @@ export const useNotifications = () => {
 
     let isMounted = true;
 
-    // Conectar en el siguiente tick — si el cleanup llega primero (StrictMode),
-    // isMounted=false y nunca abrimos el WebSocket, sin error.
     const connectTimer = setTimeout(() => {
       if (!isMounted) return;
       socket.connect();
     }, 0);
 
     socket.on('connect', () => {
-      console.log(`[NotificationGateway]: Conexión establecida. Socket ID: ${socket.id}`);
+      console.log(
+        `[NotificationGateway]: Conexión establecida. Socket ID: ${socket.id}`,
+      );
 
       // Unirse a la sala correspondiente según rol
-      if ((user.role === 'GERENTE' || user.role === 'RECEPCIONISTA') && user.gymId) {
+      if (
+        (user.role === 'GERENTE' || user.role === 'RECEPCIONISTA') &&
+        user.gymId
+      ) {
         const room = `gym_${user.gymId}`;
-        socket.emit('join_room', { room, token });
+        socket.emit('join_room', { room });
         console.log(`[NotificationGateway]: ${user.role} unido a sala: ${room}`);
       } else if (user.role === 'SUPER_ADMIN') {
-        socket.emit('join_room', { room: 'admin_room', token });
+        socket.emit('join_room', { room: 'admin_room' });
         console.log(`[NotificationGateway]: SUPER_ADMIN unido a sala: admin_room`);
       }
     });
 
-    // --- Listener del Evento Principal ---
     socket.on('security_alert', (payload: SecurityAlertPayload) => {
       console.warn(
-        `[SecurityAlert LIVE]: Acceso denegado en ${payload.gymName} | Usuario ${payload.attemptedUserId} | ${payload.reason}`
+        `[SecurityAlert LIVE]: Acceso denegado en ${payload.gymName} | Usuario ${payload.attemptedUserId} | ${payload.reason}`,
       );
 
-      // Validación de privacidad de Gerente: Descarta alertas de otras sedes
-      if ((user.role === 'GERENTE' || user.role === 'RECEPCIONISTA') && user.gymId && String(payload.gymId) !== String(user.gymId)) {
+      // Validación de privacidad: el GERENTE no ve alertas de otras sedes
+      if (
+        (user.role === 'GERENTE' || user.role === 'RECEPCIONISTA') &&
+        user.gymId &&
+        String(payload.gymId) !== String(user.gymId)
+      ) {
         console.warn(
-          `[Security Guard]: Alerta de Sede ajena descartada para Gerente ID ${user.id}. Sede recibida: ${payload.gymId}`
+          `[Security Guard]: Alerta de Sede ajena descartada para rol ${user.role} ID ${user.id}. Sede recibida: ${payload.gymId}`,
         );
         return;
       }
 
-      // Toast proactivo con sonido y duración prolongada
       toast.error(
         ` Alerta de Seguridad\nAcceso denegado a Usuario ${payload.attemptedUserId}\nen sede "${payload.gymName}"`,
         {
@@ -103,13 +112,15 @@ export const useNotifications = () => {
             maxWidth: '380px',
           },
           icon: '🚨',
-        }
+        },
       );
     });
 
     socket.on('connect_error', (err) => {
-      console.warn(`[NotificationGateway]: Error de conexión WS -`, err.message);
-      // No bloquear la UI si el WS no está disponible
+      console.warn(
+        `[NotificationGateway]: Error de conexión WS -`,
+        err.message,
+      );
     });
 
     socket.on('disconnect', (reason) => {
