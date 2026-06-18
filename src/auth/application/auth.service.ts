@@ -157,6 +157,7 @@ export class AuthService {
     lastName: string;
     phone?: string;
     ci?: string;
+    gender?: string;
   }) {
     const existing = await this.usersService.findByEmail(data.email);
     if (existing)
@@ -210,13 +211,25 @@ export class AuthService {
       email: user.email,
     });
     const gymName = this.extractGymName(user.userRoles, payload.gymId);
+    const topUR = user.userRoles?.find(ur => ur.gymId === payload.gymId) ?? user.userRoles?.[0];
+    const gym = topUR?.gym;
+    let brandName: string | null = null;
+    let brandId: number | null = (payload as any).brandId ?? null;
+    if (gym) {
+      if (gym.parentId === null) { brandName = gym.name; brandId = gym.id; }
+      else { brandName = gym.parent?.name ?? null; }
+    }
+
     return {
       accessToken: this.jwtService.sign(payload),
       user: {
         id: user.id,
         email: user.email,
         role: payload.role,
+        level: payload.level ?? 0,
         gymId: payload.gymId,
+        brandId,
+        brandName,
         gymName,
         firstName: user.profile?.firstName ?? null,
         lastName: user.profile?.lastName ?? null,
@@ -252,7 +265,8 @@ export class AuthService {
     const user = await this.usersService.findByEmail(email);
 
     if (user) {
-      const otpCode = String(Math.floor(100000 + Math.random() * 900000));
+      const { randomInt } = await import('crypto');
+      const otpCode = String(randomInt(100000, 999999));
       const otpExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // +15 min
 
       await this.userRepo.update(user.id, { otpCode, otpExpiresAt });
@@ -302,7 +316,11 @@ export class AuthService {
   ): Promise<{ success: boolean; message: string }> {
     const user = await this.userRepo.findOne({ where: { email } });
 
-    if (!user || user.otpCode !== otpCode) {
+    const { timingSafeEqual } = await import('crypto');
+    const otpMatch = user?.otpCode
+      ? timingSafeEqual(Buffer.from(user.otpCode), Buffer.from(otpCode.padEnd(6, '0').substring(0, 6)))
+      : false;
+    if (!user || !otpMatch) {
       throw new BadRequestException('Código OTP inválido.');
     }
 

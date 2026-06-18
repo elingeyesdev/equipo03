@@ -22,19 +22,32 @@ async function runSeed() {
   // ── TRUNCATE: limpiar todas las tablas y reiniciar secuencias ──────────────
   // Orden: hijos primero para respetar FK; CASCADE cubre dependencias restantes.
   const tables = [
+    // Staff / Asesorías
+    'client_advisors', 'staff_schedules', 'nutritional_appointments', 'trainer_plans',
+    // Roles y permisos
     'role_permissions', 'user_roles',
+    // Entrenamientos
     'workout_sets', 'workout_sessions',
-    'reservations', 'check_ins', 'waitlist_entries',
+    // Reservas y accesos
+    'reservations', 'check_ins', 'waitlist_entries', 'visits',
+    // Actividades
     'gym_activity_attendance', 'gym_activity_schedule', 'gym_activity',
+    // Gimnasios
     'gym_schedules', 'gym_location', 'gym_infrastructure', 'gyms',
+    // Usuarios
     'emergency_contacts', 'user_profiles', 'users',
+    // Catálogos
     'permissions', 'roles', 'exercise_catalog',
     'routines', 'routine_exercises',
+    // Métricas y training
     'physical_metrics_history',
-    'notification_templates', 'notifications', 'user_notification_preferences',
     'user_training', 'user_training_goals', 'user_training_preferences',
     'user_training_restrictions',
+    // Notificaciones
+    'notification_templates', 'notifications', 'user_notification_preferences',
+    // Suscripciones
     'subscription_plans', 'user_subscriptions', 'subscription_payments',
+    // Sistema
     'system_settings',
   ];
   console.log('Limpiando tablas y reiniciando secuencias...');
@@ -84,15 +97,15 @@ async function runSeed() {
   const infraRepo = qr.manager.getRepository(GymInfrastructure);
 
   const brandNames = [
-    'Premier Fitness Club',
-    'Megatlon Bolivia',
+    'Premier',
+    'Megatlon',
     'Smart Fit',
-    'Reyes Gym',
-    'Sport Fitness',
-    'BioCenter Fitness',
-    'Olimpia Gym',
+    'Reyes',
+    'Sport',
+    'Bio Center',
+    'Olimpia',
     'Fit Bull',
-    'VIP Fitness Club',
+    'VIP',
     'Body Masters'
   ];
   
@@ -129,7 +142,7 @@ async function runSeed() {
     // 3 sucursales por marca, elegimos zonas secuencialmente
     for (let i = 0; i < 3; i++) {
       const zoneData = sczZones[(branchCount + i) % sczZones.length];
-      const branchName = `${parent.name} Sede ${zoneData.zone}`;
+      const branchName = `${parent.name} ${zoneData.zone}`;
       
       const randCap = 100 + Math.floor(Math.random() * 200); // 100 to 300
       const machineCap = Math.floor(randCap * (0.3 + Math.random() * 0.3)); // 30% a 60% del aforo total
@@ -218,8 +231,9 @@ async function runSeed() {
   const keyUsers: KeyUserDef[] = [
     // Admins / sin sede
     { email: 'admin@gymsync.com',         firstName: 'Super',       lastName: 'Admin',         roleName: 'SUPER_ADMIN',          gymId: null           },
-    // Staff con sede asignada
-    { email: 'gerente@gymsync.com',        firstName: 'Carlos',      lastName: 'Gerente',       roleName: 'GERENTE',              gymId: firstBranch.id },
+    // Gerente → asignado a MARCA (no sucursal) para que JWT emita brandId
+    { email: 'gerente@gymsync.com',        firstName: 'Carlos',      lastName: 'Gerente',       roleName: 'GERENTE',              gymId: savedBrands[0].id },
+    // Staff → asignado a sucursal
     { email: 'recepcion@gymsync.com',      firstName: 'Maria',       lastName: 'Recepcion',     roleName: 'RECEPCIONISTA',        gymId: firstBranch.id },
     { email: 'entrenador@gymsync.com',     firstName: 'Luis',        lastName: 'Entrenador',    roleName: 'ENTRENADOR',           gymId: firstBranch.id },
     { email: 'instructor@gymsync.com',     firstName: 'Sofia',       lastName: 'Instructora',   roleName: 'INSTRUCTOR',           gymId: firstBranch.id },
@@ -309,8 +323,9 @@ async function runSeed() {
     const roleName = randomRoles[i];
     let assignedGymId: number | undefined = undefined;
 
-    // Asignar sucursal aleatoria al staff
-    if (roleName !== 'USER' && roleName !== 'SUPER_ADMIN') {
+    if (roleName === 'GERENTE') {
+      assignedGymId = savedBrands[Math.floor(Math.random() * savedBrands.length)].id;
+    } else if (roleName !== 'USER' && roleName !== 'SUPER_ADMIN') {
       assignedGymId = savedBranches[Math.floor(Math.random() * savedBranches.length)].id;
     }
 
@@ -360,16 +375,19 @@ async function runSeed() {
     { name: 'Danza Árabe', desc: 'Clase de danza oriental enfocada en el control y disociación corporal.', isFreeAccess: false, duration: 60 }
   ];
 
+  const usedPerBranch = new Map<number, Set<string>>();
   for (let i = 0; i < 80; i++) {
     const branch = savedBranches[i % savedBranches.length];
     const def = serviceDefinitions[i % serviceDefinitions.length];
-    
-    // Sufijo para evitar duplicados exactos si se repite en la misma sucursal (aunque matemáticamente se distribuye bien)
-    const uniqueName = (i >= serviceDefinitions.length * savedBranches.length) ? `${def.name} II` : def.name;
+
+    if (!usedPerBranch.has(branch.id)) usedPerBranch.set(branch.id, new Set());
+    const used = usedPerBranch.get(branch.id)!;
+    if (used.has(def.name)) continue;
+    used.add(def.name);
 
     const activity = await actRepo.save(actRepo.create({
       gymId:              branch.id,
-      name:               uniqueName,
+      name:               def.name,
       description:        def.desc,
       defaultDurationMin: def.duration,
       isActive:           true,
@@ -484,6 +502,7 @@ async function runSeed() {
 
   // ── Resumen final ──────────────────────────────────────────────────────────
   await qr.release();
+  await dataSource.destroy();
 
   console.log('\n✅ Seed completado exitosamente.');
   console.log('─'.repeat(60));

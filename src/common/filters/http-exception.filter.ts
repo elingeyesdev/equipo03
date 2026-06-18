@@ -31,11 +31,19 @@ export class HttpExceptionFilter implements ExceptionFilter {
         message = res.message || exception.message;
       }
     } else if (exception instanceof Error) {
-      message = exception.message;
-      this.logger.error(
-        `Unhandled exception: ${exception.message}`,
-        exception.stack,
-      );
+      const isFK = exception.message?.includes('viola la llave foránea')
+                || exception.message?.includes('violates foreign key');
+      if (isFK) {
+        status = HttpStatus.BAD_REQUEST;
+        message = 'Los datos enviados hacen referencia a registros que ya no existen. Intenta de nuevo.';
+        this.logger.warn(`FK violation: ${exception.message}`);
+      } else {
+        message = exception.message;
+        this.logger.error(
+          `Unhandled exception: ${exception.message}`,
+          exception.stack,
+        );
+      }
     }
 
     response.status(status).json({

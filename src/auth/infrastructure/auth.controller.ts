@@ -130,9 +130,7 @@ export class AuthController {
     try {
       const result = await this.authService.register(body);
       this.setAuthCookie(res, result.accessToken);
-      // No exponemos el accessToken en el body
-      const { accessToken: _, ...safeResult } = result;
-      return safeResult;
+      return result;
     } catch (error: any) {
       this.logError('register', error);
       throw error;
@@ -162,9 +160,7 @@ export class AuthController {
     try {
       const result = await this.authService.login(body);
       this.setAuthCookie(res, result.accessToken);
-      // El token va solo en la cookie, nunca en el body (previene XSS)
-      const { accessToken: _, ...safeResult } = result;
-      return safeResult;
+      return result;
     } catch (error: any) {
       this.logError('login', error);
       throw error;

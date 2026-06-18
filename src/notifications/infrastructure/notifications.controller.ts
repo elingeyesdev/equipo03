@@ -5,11 +5,15 @@ import {
   Put,
   Body,
   Param,
+  Req,
   UseGuards,
   ParseIntPipe,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { NotificationsService } from '../application/notifications.service';
 import {
   CreateTemplateDto,
@@ -19,12 +23,14 @@ import {
 
 @ApiTags('Notifications')
 @Controller('notifications')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth('access-token')
 export class NotificationsController {
   constructor(private readonly svc: NotificationsService) {}
 
   @Post('templates')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('access-token')
+  @UseGuards(RolesGuard)
+  @Roles('SUPER_ADMIN')
   @ApiOperation({ summary: 'Crear plantilla de notificación' })
   @ApiBody({ type: CreateTemplateDto })
   createTemplate(@Body() body: CreateTemplateDto) {
@@ -32,16 +38,16 @@ export class NotificationsController {
   }
 
   @Get('templates')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('access-token')
+  @UseGuards(RolesGuard)
+  @Roles('SUPER_ADMIN', 'GERENTE')
   @ApiOperation({ summary: 'Listar plantillas' })
   findTemplates() {
     return this.svc.findAllTemplates();
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('access-token')
+  @UseGuards(RolesGuard)
+  @Roles('SUPER_ADMIN', 'GERENTE')
   @ApiOperation({ summary: 'Enviar notificación' })
   @ApiBody({ type: SendNotificationDto })
   send(@Body() body: SendNotificationDto) {
@@ -49,38 +55,36 @@ export class NotificationsController {
   }
 
   @Get('user/:userId')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Notificaciones de usuario' })
-  findByUser(@Param('userId', ParseIntPipe) uid: number) {
+  findByUser(@Req() req: any, @Param('userId', ParseIntPipe) uid: number) {
+    if (Number(req.user.userId) !== uid) {
+      throw new ForbiddenException('Solo puedes ver tus propias notificaciones.');
+    }
     return this.svc.findByUser(uid);
   }
 
   @Put(':id/read')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Marcar como leída' })
   markRead(@Param('id', ParseIntPipe) id: number) {
     return this.svc.markAsRead(id);
   }
 
   @Get('preferences/:userId')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Obtener preferencias de notificación' })
-  getPrefs(@Param('userId', ParseIntPipe) uid: number) {
+  getPrefs(@Req() req: any, @Param('userId', ParseIntPipe) uid: number) {
+    if (Number(req.user.userId) !== uid) {
+      throw new ForbiddenException('Solo puedes ver tus propias preferencias.');
+    }
     return this.svc.getPreferences(uid);
   }
 
   @Put('preferences/:userId')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Actualizar preferencias de notificación' })
   @ApiBody({ type: UpdatePreferencesDto })
-  updatePrefs(
-    @Param('userId', ParseIntPipe) uid: number,
-    @Body() body: UpdatePreferencesDto,
-  ) {
+  updatePrefs(@Req() req: any, @Param('userId', ParseIntPipe) uid: number, @Body() body: UpdatePreferencesDto) {
+    if (Number(req.user.userId) !== uid) {
+      throw new ForbiddenException('Solo puedes modificar tus propias preferencias.');
+    }
     return this.svc.updatePreferences(uid, body);
   }
 }

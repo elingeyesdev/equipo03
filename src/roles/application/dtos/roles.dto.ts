@@ -40,9 +40,9 @@ export class CreatePermissionDto {
 
 export class CreateRoleDto {
   @ApiProperty({ example: 'TRAINER' })
-  @IsString()
-  @IsNotEmpty()
-  @MinLength(3)
+  @IsString({ message: 'El nombre del rol debe ser texto' })
+  @IsNotEmpty({ message: 'El nombre del rol es obligatorio' })
+  @MinLength(3, { message: 'El nombre del rol debe tener al menos 3 caracteres' })
   @Matches(/^[A-Z_]+$/, {
     message: 'El nombre solo puede contener mayúsculas y guiones bajos',
   })
@@ -50,8 +50,8 @@ export class CreateRoleDto {
 
   @ApiPropertyOptional({ example: 'Entrenador personal del gimnasio' })
   @IsOptional()
-  @IsString()
-  @MinLength(5)
+  @IsString({ message: 'La descripción debe ser texto' })
+  @MinLength(5, { message: 'La descripción debe tener al menos 5 caracteres' })
   description?: string;
 
   @ApiPropertyOptional({
@@ -74,9 +74,9 @@ export class CreateRoleDto {
 export class UpdateRoleDto {
   @ApiPropertyOptional({ example: 'TRAINER' })
   @IsOptional()
-  @IsString()
-  @IsNotEmpty()
-  @MinLength(3)
+  @IsString({ message: 'El nombre del rol debe ser texto' })
+  @IsNotEmpty({ message: 'El nombre del rol es obligatorio' })
+  @MinLength(3, { message: 'El nombre del rol debe tener al menos 3 caracteres' })
   @Matches(/^[A-Z_]+$/, {
     message: 'El nombre solo puede contener mayúsculas y guiones bajos',
   })
@@ -84,8 +84,8 @@ export class UpdateRoleDto {
 
   @ApiPropertyOptional({ example: 'Entrenador personal del gimnasio' })
   @IsOptional()
-  @IsString()
-  @MinLength(5)
+  @IsString({ message: 'La descripción debe ser texto' })
+  @MinLength(5, { message: 'La descripción debe tener al menos 5 caracteres' })
   description?: string;
 
   @ApiPropertyOptional()

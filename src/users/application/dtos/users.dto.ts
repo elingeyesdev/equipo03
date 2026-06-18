@@ -141,7 +141,7 @@ export class CreateUserDto {
     example: 'admin@corpusgym.com',
     description: 'Correo electrónico único',
   })
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'El correo electrónico es obligatorio' })
   @IsEmail({}, { message: 'Formato de correo electrónico inválido' })
   email!: string;
 
@@ -149,19 +149,19 @@ export class CreateUserDto {
     example: 'MiClave123!',
     description: 'Mínimo 8 caracteres, 1 número y 1 carácter especial',
   })
-  @IsString()
-  @IsNotEmpty()
+  @IsString({ message: 'La contraseña debe ser texto' })
+  @IsNotEmpty({ message: 'La contraseña es obligatoria' })
   @Matches(PASSWORD_REGEX, { message: PASSWORD_MSG })
   password!: string;
 
   @ApiProperty({ example: 'RASB', description: 'Nombre' })
-  @IsString()
-  @IsNotEmpty()
+  @IsString({ message: 'El nombre debe ser texto' })
+  @IsNotEmpty({ message: 'El nombre es obligatorio' })
   firstName!: string;
 
   @ApiProperty({ example: 'Admin', description: 'Apellido' })
-  @IsString()
-  @IsNotEmpty()
+  @IsString({ message: 'El apellido debe ser texto' })
+  @IsNotEmpty({ message: 'El apellido es obligatorio' })
   lastName!: string;
 
   @ApiPropertyOptional({
@@ -227,18 +227,18 @@ export class UpdateUserDto {
 
   @ApiPropertyOptional({ example: 'NuevaClave123!' })
   @IsOptional()
-  @IsString()
+  @IsString({ message: 'La contraseña debe ser texto' })
   @Matches(PASSWORD_REGEX, { message: PASSWORD_MSG })
   password?: string;
 
   @ApiPropertyOptional({ example: 'Carlos' })
   @IsOptional()
-  @IsString()
+  @IsString({ message: 'El nombre debe ser texto' })
   firstName?: string;
 
   @ApiPropertyOptional({ example: 'López' })
   @IsOptional()
-  @IsString()
+  @IsString({ message: 'El apellido debe ser texto' })
   lastName?: string;
 
   @ApiPropertyOptional({ example: '+59170099999' })
@@ -275,4 +275,9 @@ export class UpdateUserDto {
   @IsOptional()
   @Matches(CI_REGEX, { message: CI_MSG })
   ci?: string;
+
+  @ApiPropertyOptional({ example: 'MALE', description: 'MALE | FEMALE | OTHER' })
+  @IsOptional()
+  @IsString()
+  gender?: string;
 }

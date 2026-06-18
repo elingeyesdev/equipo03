@@ -129,7 +129,7 @@ export class UsersService {
   async findOne(id: number): Promise<User> {
     const user = await this.usersRepo.findOne({
       where: { id },
-      relations: ['profile', 'userRoles', 'userRoles.role', 'userRoles.gym'],
+      relations: ['profile', 'userRoles', 'userRoles.role', 'userRoles.gym', 'userRoles.gym.parent'],
     });
     if (!user)
       throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
@@ -145,7 +145,7 @@ export class UsersService {
   async findByEmail(email: string): Promise<User | null> {
     return this.usersRepo.findOne({
       where: { email },
-      relations: ['profile', 'userRoles', 'userRoles.role', 'userRoles.gym'],
+      relations: ['profile', 'userRoles', 'userRoles.role', 'userRoles.gym', 'userRoles.gym.parent'],
     });
   }
 
@@ -158,6 +158,7 @@ export class UsersService {
       lastName: string;
       phone: string;
       ci: string;
+      gender: string;
       isActive: boolean;
       roleId?: number;
       gymIds?: number[];
@@ -173,7 +174,8 @@ export class UsersService {
       data.firstName !== undefined ||
       data.lastName !== undefined ||
       data.phone !== undefined ||
-      data.ci !== undefined
+      data.ci !== undefined ||
+      data.gender !== undefined
     ) {
       if (user.profile) {
         if (data.firstName !== undefined)
@@ -181,6 +183,7 @@ export class UsersService {
         if (data.lastName !== undefined) user.profile.lastName = data.lastName;
         if (data.phone !== undefined) user.profile.phone = data.phone;
         if (data.ci !== undefined) user.profile.ci = data.ci;
+        if (data.gender !== undefined) user.profile.gender = data.gender;
         await this.profilesRepo.save(user.profile);
       } else {
         const newProfile = this.profilesRepo.create({
@@ -189,6 +192,7 @@ export class UsersService {
           lastName: data.lastName || '',
           phone: data.phone,
           ci: data.ci,
+          gender: data.gender,
         });
         await this.profilesRepo.save(newProfile);
       }
@@ -436,17 +440,42 @@ export class UsersService {
     );
     const top = sorted[0];
 
+    const roleName = roleOverride !== undefined
+      ? roleOverride
+      : (top?.role?.name?.toUpperCase() ?? null);
+    const gymId = gymIdOverride !== undefined ? gymIdOverride : (top?.gymId ?? null);
+    const hierarchyLevel = top?.role?.hierarchyLevel ?? 0;
+
+    let brandId: number | null = null;
+    let brandName: string | null = null;
+    let gymName: string | null = null;
+
+    if (gymId) {
+      const assignment = (user.userRoles ?? []).find(ur => ur.gymId === gymId);
+      const gym = assignment?.gym;
+      if (gym) {
+        if (gym.parentId === null) {
+          brandId = gym.id;
+          brandName = gym.name;
+        } else {
+          gymName = gym.name;
+          brandName = gym.parent?.name ?? null;
+        }
+      }
+    }
+
     return {
       id: user.id,
       email: user.email,
       isActive: user.isActive,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
-      role:
-        roleOverride !== undefined
-          ? roleOverride
-          : (top?.role?.name?.toUpperCase() ?? null),
-      gymId: gymIdOverride !== undefined ? gymIdOverride : (top?.gymId ?? null),
+      role: roleName,
+      gymId,
+      brandId,
+      brandName,
+      gymName,
+      level: hierarchyLevel,
       roles: (user.userRoles ?? []).map((ur) => ({
         id: ur.role?.id ?? null,
         name: ur.role?.name?.toUpperCase() ?? null,

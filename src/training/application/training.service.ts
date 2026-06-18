@@ -19,6 +19,7 @@ import { WorkoutSession } from '../domain/workout-session.entity';
 import { WorkoutSet } from '../domain/workout-set.entity';
 import { UserSubscription } from '../../subscriptions/domain/user-subscription.entity';
 import { Routine } from '../../routines/domain/routine.entity';
+import { Gym } from '../../gyms/domain/gym.entity';
 import { GymGateway } from '../../notifications/infrastructure/gym.gateway';
 import {
   getManagerGymId,
@@ -45,6 +46,7 @@ export class TrainingService {
     @InjectRepository(UserSubscription)
     private subsRepo: Repository<UserSubscription>,
     @InjectRepository(Routine) private routinesRepo: Repository<Routine>,
+    @InjectRepository(Gym) private gymsRepo: Repository<Gym>,
     private readonly gateway: GymGateway,
     @Inject(REQUEST) private readonly request: RequestWithUser,
   ) {}
@@ -236,12 +238,14 @@ export class TrainingService {
 
     const mg = this.managerGymId();
 
-    let gymId: number | null;
+    let gymId: number | null = null;
     if (mg !== null) {
       gymId = mg;
     } else if (data.gymId) {
-      gymId = Number(data.gymId);
-    } else {
+      const gym = await this.gymsRepo.findOne({ where: { id: Number(data.gymId) } });
+      gymId = gym ? gym.id : null;
+    }
+    if (!gymId) {
       const sub = await this.subsRepo.findOne({
         where: { userId, status: 'ACTIVO' },
         order: { createdAt: 'DESC' },
@@ -341,6 +345,9 @@ export class TrainingService {
         );
       }
       sessionData.gymId = mg;
+    } else if (sessionData.gymId) {
+      const gym = await this.gymsRepo.findOne({ where: { id: Number(sessionData.gymId) } });
+      if (!gym) sessionData.gymId = null;
     }
 
     const session = await this.sessionsRepo.save(

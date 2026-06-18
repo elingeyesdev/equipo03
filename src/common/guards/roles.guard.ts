@@ -19,12 +19,23 @@ export class RolesGuard implements CanActivate {
     if (!required?.length) return true;
 
     const { user } = context.switchToHttp().getRequest();
-    const userRole = user?.role?.toUpperCase() ?? null;
-    if (!userRole || !required.map((r) => r.toUpperCase()).includes(userRole)) {
-      throw new ForbiddenException(
-        'No tiene permisos para realizar esta acción',
-      );
-    }
-    return true;
+    const userRole = user?.role?.toUpperCase() ?? '';
+    const userLevel = user?.level ?? 0;
+
+    const requiredUpper = required.map(r => r.toUpperCase());
+
+    if (requiredUpper.includes(userRole)) return true;
+
+    if (requiredUpper.includes('SUPER_ADMIN') && userLevel >= 10) return true;
+    if (requiredUpper.includes('GERENTE') && userLevel >= 4) return true;
+    if (requiredUpper.includes('RECEPCIONISTA') && userLevel >= 4) return true;
+    if (requiredUpper.includes('ENTRENADOR') && userLevel >= 3) return true;
+    if (requiredUpper.includes('INSTRUCTOR') && userLevel >= 3) return true;
+    if (requiredUpper.includes('NUTRICIONISTA') && userLevel >= 3) return true;
+    if ((requiredUpper.includes('USER') || requiredUpper.includes('CLIENTE')) && userLevel >= 1) return true;
+
+    throw new ForbiddenException(
+      'No tiene permisos para realizar esta acción',
+    );
   }
 }

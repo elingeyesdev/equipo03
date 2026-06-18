@@ -7,15 +7,18 @@ export type RequestUser = {
   role?: string | null;
   gymId?: number | null;
   brandId?: number | null;
+  level?: number;
 };
 
 export type RequestWithUser = Request & { user?: RequestUser };
 
-/** Cuando el rol es GERENTE o RECEPCIONISTA devuelve su gymId (o brandId para gerente); otros → null (sin filtro). */
+/** Level 4+ (recepcionista, gerente, etc.): devuelve gymId o brandId para filtrar. Level 10+ o nivel bajo → null (sin filtro). */
 export function getManagerGymId(req: RequestWithUser): number | null {
   const user = req.user;
   if (!user) return null;
-  if (user.role !== 'GERENTE' && user.role !== 'RECEPCIONISTA') return null;
+  const level = user.level ?? 0;
+  if (level >= 10) return null;
+  if (level < 4) return null;
   if (user.gymId !== null && user.gymId !== undefined)
     return Number(user.gymId);
   if (user.brandId !== null && user.brandId !== undefined)
@@ -23,24 +26,13 @@ export function getManagerGymId(req: RequestWithUser): number | null {
   throw new ForbiddenException('El usuario no tiene un gimnasio asignado');
 }
 
-/**
- * Para cualquier rol de staff con sede asignada (GERENTE, INSTRUCTOR, ENTRENADOR,
- * NUTRICIONISTA, PERSONAL_DE_LIMPIEZA) devuelve su gymId.
- * CLIENTE y SUPER_ADMIN → null (sin filtro por marca).
- */
-const BRAND_SCOPED_ROLES = new Set([
-  'GERENTE',
-  'RECEPCIONISTA',
-  'INSTRUCTOR',
-  'ENTRENADOR',
-  'NUTRICIONISTA',
-  'PERSONAL_DE_LIMPIEZA',
-]);
-
+/** Level 3+ staff con sede: devuelve gymId/brandId. Level 10+ o level < 3 → null (sin filtro). */
 export function getStaffGymId(req: RequestWithUser): number | null {
   const user = req.user;
-  if (!user || !user.role) return null;
-  if (!BRAND_SCOPED_ROLES.has(user.role)) return null;
+  if (!user) return null;
+  const level = user.level ?? 0;
+  if (level >= 10) return null;
+  if (level < 3) return null;
   if (user.gymId !== null && user.gymId !== undefined)
     return Number(user.gymId);
   if (user.brandId !== null && user.brandId !== undefined)

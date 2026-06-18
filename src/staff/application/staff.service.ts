@@ -5,6 +5,7 @@ import {
   ConflictException,
   ForbiddenException,
   NotFoundException,
+  UnauthorizedException,
   Logger,
   Scope,
 } from '@nestjs/common';
@@ -703,6 +704,9 @@ export class StaffService {
     if (clientId === advisorId) {
       throw new BadRequestException('No puedes solicitarte a ti mismo como asesor.');
     }
+
+    const client = await this.userRepo.findOne({ where: { id: clientId } });
+    if (!client) throw new UnauthorizedException('Tu sesión expiró. Cierra sesión e inicia de nuevo.');
 
     const advisor = await this.userRepo.findOne({ where: { id: advisorId } });
     if (!advisor) throw new NotFoundException(`Asesor ${advisorId} no encontrado.`);

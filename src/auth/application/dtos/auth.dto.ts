@@ -48,6 +48,11 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   ci?: string;
+
+  @ApiProperty({ example: 'Masculino', description: 'Masculino | Femenino | Otro', required: false })
+  @IsOptional()
+  @IsString()
+  gender?: string;
 }
 
 export class LoginDto {

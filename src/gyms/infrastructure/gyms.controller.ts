@@ -229,6 +229,17 @@ export class GymsController {
     return this.svc.findSchedules(id);
   }
 
+  @Get(':id/occupancy')
+  @ApiOperation({ summary: 'Estadísticas de ocupación por reservas completadas' })
+  @ApiParam({ name: 'id', example: 11 })
+  @ApiQuery({ name: 'period', required: false, enum: ['day', 'week', 'month', 'year'], description: 'Período (default: day)' })
+  getOccupancy(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('period') period?: 'day' | 'week' | 'month' | 'year',
+  ) {
+    return this.svc.getOccupancyStats(id, period || 'day');
+  }
+
   @Put(':id/location')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPER_ADMIN', 'GERENTE')

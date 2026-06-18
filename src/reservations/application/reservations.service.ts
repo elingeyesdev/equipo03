@@ -113,14 +113,20 @@ export class ReservationsService {
         : String(r.reservationDate).slice(0, 10);
 
     const now = new Date();
-    const todayUtc = now.toISOString().slice(0, 10);
+    const botOffset = -4 * 60;
+    const localMinutes = now.getUTCHours() * 60 + now.getUTCMinutes() + botOffset;
+    const localDayShift = localMinutes < 0 ? -1 : localMinutes >= 1440 ? 1 : 0;
 
-    if (dateStr < todayUtc) return true;
-    if (dateStr > todayUtc) return false;
+    const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + localDayShift, 12));
+    const todayStr = todayUTC.toISOString().slice(0, 10);
+
+    if (dateStr < todayStr) return true;
+    if (dateStr > todayStr) return false;
 
     if (!r.endTime) return false;
     const [eh, em] = String(r.endTime).slice(0, 5).split(':').map(Number);
-    return now.getUTCHours() * 60 + now.getUTCMinutes() >= eh * 60 + em;
+    const nowLocalMins = ((localMinutes % 1440) + 1440) % 1440;
+    return nowLocalMins >= eh * 60 + em;
   }
 
   private getAuthUser(): RequestUser {
@@ -317,18 +323,18 @@ export class ReservationsService {
 
     const reservationDate = this.parseReservationDateOnly(data.reservationDate);
 
-    // ── Dup-check: misma actividad, mismo usuario, misma fecha, estado activo ─
-    const dup = await this.repo.exist({
-      where: {
-        userId: reservationUserId,
-        activityId: activity.id,
-        reservationDate,
-        status: In([...ACTIVE_RESERVATION_STATUSES]),
-      },
-    });
-    if (dup) {
+    const overlap = await this.repo
+      .createQueryBuilder('r')
+      .where('r.userId = :uid', { uid: reservationUserId })
+      .andWhere('r.activityId = :aid', { aid: activity.id })
+      .andWhere('r.reservation_date = :d', { d: reservationDate })
+      .andWhere('r.status IN (:...st)', { st: [...ACTIVE_RESERVATION_STATUSES] })
+      .andWhere('r.start_time < :end', { end: data.endTime })
+      .andWhere('r.end_time > :start', { start: data.startTime })
+      .getExists();
+    if (overlap) {
       throw new ConflictException(
-        'Ya tienes una reserva activa para esta actividad en esta fecha.',
+        'Ya tienes una reserva en ese horario para esta actividad.',
       );
     }
 
@@ -422,17 +428,18 @@ export class ReservationsService {
         data.reservationDate,
       );
 
-      const dup = await this.repo.exist({
-        where: {
-          userId: reservationUserId,
-          activityId: activity.id,
-          reservationDate,
-          status: In([...ACTIVE_RESERVATION_STATUSES]),
-        },
-      });
-      if (dup) {
+      const overlap = await this.repo
+        .createQueryBuilder('r')
+        .where('r.userId = :uid', { uid: reservationUserId })
+        .andWhere('r.activityId = :aid', { aid: activity.id })
+        .andWhere('r.reservation_date = :d', { d: reservationDate })
+        .andWhere('r.status IN (:...st)', { st: [...ACTIVE_RESERVATION_STATUSES] })
+        .andWhere('r.start_time < :end', { end: data.endTime })
+        .andWhere('r.end_time > :start', { start: data.startTime })
+        .getExists();
+      if (overlap) {
         throw new ConflictException(
-          'Ya tienes una reserva activa para esta actividad en esta fecha.',
+          'Ya tienes una reserva en ese horario para esta actividad.',
         );
       }
 
@@ -595,7 +602,7 @@ export class ReservationsService {
     }
   }
 
-  /** Fecha calendario UTC medianoche para columnas `date` sin corrimientos por zona. */
+  /** Mediodía UTC: inmune a cualquier zona horaria (UTC±12 nunca cruza de día). */
   private parseReservationDateOnly(isoDate: string): Date {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(isoDate).trim());
     if (!m) {
@@ -603,10 +610,7 @@ export class ReservationsService {
         'reservationDate debe tener formato YYYY-MM-DD',
       );
     }
-    const y = Number(m[1]);
-    const mo = Number(m[2]);
-    const d = Number(m[3]);
-    return new Date(Date.UTC(y, mo - 1, d));
+    return new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12, 0, 0));
   }
 
   async findAll(opts: {

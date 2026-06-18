@@ -18,11 +18,11 @@ export class CreateActivityDto {
   gymId?: number;
 
   @ApiProperty({ example: 'Spinning' })
-  @IsString()
+  @IsString({ message: 'El nombre del servicio debe ser texto' })
   name: string;
 
   @ApiProperty({ example: 'Clase de ciclismo indoor de alta intensidad' })
-  @IsString()
+  @IsString({ message: 'La descripción debe ser texto' })
   description: string;
 
   @ApiPropertyOptional({ example: 45 })

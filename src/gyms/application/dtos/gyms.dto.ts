@@ -15,19 +15,19 @@ import { Type } from 'class-transformer';
 
 export class CreateGymLocationDto {
   @ApiProperty({ example: 'Av. Monseñor Rivero #300, Santa Cruz' })
-  @IsString()
+  @IsString({ message: 'La dirección debe ser texto' })
   address: string;
 
   @ApiProperty({ example: 'Santa Cruz de la Sierra' })
-  @IsString()
+  @IsString({ message: 'La ciudad debe ser texto' })
   city: string;
 
   @ApiProperty({ example: -17.7833 })
-  @IsNumber()
+  @IsNumber({}, { message: 'La latitud debe ser un número' })
   latitude: number;
 
   @ApiProperty({ example: -63.1821 })
-  @IsNumber()
+  @IsNumber({}, { message: 'La longitud debe ser un número' })
   longitude: number;
 }
 
@@ -58,7 +58,7 @@ export class CreateGymScheduleDto {
 
 export class CreateGymDto {
   @ApiProperty({ example: 'Corpus Gym - Sede Centro' })
-  @IsString()
+  @IsString({ message: 'El nombre debe ser texto' })
   name: string;
 
   @ApiPropertyOptional({
@@ -66,7 +66,7 @@ export class CreateGymDto {
       'Gimnasio premium con área de CrossFit, piscina y spa en el centro de Santa Cruz',
   })
   @IsOptional()
-  @IsString()
+  @IsString({ message: 'La descripción debe ser texto' })
   description?: string;
 
   @ApiProperty({
@@ -84,6 +84,14 @@ export class CreateGymDto {
   @IsOptional()
   @IsInt()
   parentId?: number;
+
+  @ApiPropertyOptional({
+    example: 50,
+    description: 'Capacidad de máquinas de la sucursal',
+  })
+  @IsOptional()
+  @IsInt()
+  machineCapacity?: number;
 
   @ApiPropertyOptional({
     type: CreateGymLocationDto,

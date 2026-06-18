@@ -68,9 +68,10 @@ export class GymsService {
   }
 
   async create(data: any) {
-    const { location, schedules, ...gymData } = data as {
+    const { location, schedules, machineCapacity, ...gymData } = data as {
       location?: { latitude?: number; longitude?: number; [k: string]: any };
       schedules?: any[];
+      machineCapacity?: number;
       name: string;
       [key: string]: unknown;
     };
@@ -102,6 +103,11 @@ export class GymsService {
         await this.locRepo.save(
           this.locRepo.create({ ...location, gymId: gym.id }),
         );
+      if (machineCapacity != null) {
+        await this.infraRepo.save(
+          this.infraRepo.create({ gymId: gym.id, machineCapacity }),
+        );
+      }
       if (schedules?.length) {
         const items = schedules.map((s: any) =>
           this.schedRepo.create({ ...s, gymId: gym.id }),
@@ -457,5 +463,60 @@ export class GymsService {
       latitude: Number(l.latitude),
       longitude: Number(l.longitude),
     }));
+  }
+
+  async getOccupancyStats(gymId: number, period: 'day' | 'week' | 'month' | 'year' = 'day') {
+    const gym = await this.gymsRepo.findOne({
+      where: { id: gymId },
+      relations: ['infrastructure'],
+    });
+    if (!gym) throw new NotFoundException(`Gym ${gymId} no encontrado`);
+
+    const tz = process.env.APP_TIMEZONE ?? 'America/La_Paz';
+    const now = new Date(new Date().toLocaleString('en-US', { timeZone: tz }));
+
+    let since: Date;
+    if (period === 'year') {
+      since = new Date(now.getFullYear(), 0, 1);
+    } else if (period === 'month') {
+      since = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else if (period === 'week') {
+      const day = now.getDay();
+      since = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day);
+    } else {
+      since = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    }
+
+    const completed = await this.reservationRepo
+      .createQueryBuilder('r')
+      .where('r.gymId = :gymId', { gymId })
+      .andWhere('r.status IN (:...st)', { st: ['COMPLETADA', 'USADA', 'USED'] })
+      .andWhere('r.reservation_date >= :since', { since: since.toISOString().slice(0, 10) })
+      .getCount();
+
+    const breakdown = await this.reservationRepo
+      .createQueryBuilder('r')
+      .select("TO_CHAR(r.reservation_date, 'YYYY-MM-DD')", 'date')
+      .addSelect('COUNT(*)', 'count')
+      .where('r.gymId = :gymId', { gymId })
+      .andWhere('r.status IN (:...st)', { st: ['COMPLETADA', 'USADA', 'USED'] })
+      .andWhere('r.reservation_date >= :since', { since: since.toISOString().slice(0, 10) })
+      .groupBy("TO_CHAR(r.reservation_date, 'YYYY-MM-DD')")
+      .orderBy("TO_CHAR(r.reservation_date, 'YYYY-MM-DD')", 'ASC')
+      .getRawMany();
+
+    const maxCapacity = gym.maxCapacity || 1;
+    const pct = Math.min(100, Math.round((completed / maxCapacity) * 100));
+
+    return {
+      gymId,
+      gymName: gym.name,
+      period,
+      since: since.toISOString().slice(0, 10),
+      completedReservations: completed,
+      maxCapacity,
+      occupancyPct: period === 'day' ? pct : undefined,
+      breakdown: breakdown.map((r: any) => ({ date: r.date, count: Number(r.count) })),
+    };
   }
 }

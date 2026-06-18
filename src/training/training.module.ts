@@ -9,6 +9,7 @@ import { WorkoutSession } from './domain/workout-session.entity';
 import { WorkoutSet } from './domain/workout-set.entity';
 import { UserSubscription } from '../subscriptions/domain/user-subscription.entity';
 import { Routine } from '../routines/domain/routine.entity';
+import { Gym } from '../gyms/domain/gym.entity';
 import { TrainingService } from './application/training.service';
 import { TrainingController } from './infrastructure/training.controller';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -25,6 +26,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
       WorkoutSet,
       UserSubscription,
       Routine,
+      Gym,
     ]),
     NotificationsModule,
   ],

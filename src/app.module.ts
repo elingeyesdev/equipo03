@@ -60,8 +60,7 @@ import { VisitsModule } from './visits/visits.module';
         database: cfg.get<string>('DB_DATABASE'),
         autoLoadEntities: true,
         synchronize: cfg.get('NODE_ENV') !== 'production',
-        // Activar SOLO para la primera ejecución post-reset si es necesario
-        dropSchema: cfg.get<string>('DROP_SCHEMA') === 'true',
+        dropSchema: cfg.get('NODE_ENV') !== 'production' && cfg.get<string>('DROP_SCHEMA') === 'true',
         logging: cfg.get('NODE_ENV') !== 'production',
       }),
     }),
