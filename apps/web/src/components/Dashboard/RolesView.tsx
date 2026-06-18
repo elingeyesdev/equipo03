@@ -4,7 +4,7 @@ import { Navigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
-import { ModalOverlay, ConfirmModal, panelStyle } from './Shared/DashboardShared';
+import { ModalOverlay, ConfirmModal, panelStyle, guardClose } from './Shared/DashboardShared';
 import type { GymDto, GymScheduleDto, UserDto, CheckinDto, ScheduleEntry } from './Shared/DashboardTypes';
 import { Edit, Trash2, Plus, Shield } from 'lucide-react';
 
@@ -31,6 +31,9 @@ const RoleModal = ({ isOpen, onClose, roleToEdit, onSave, roles }: any) => {
     isSystemRole: false,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState(false);
+
+  useEffect(() => { setTouched(false); }, [isOpen]);
 
   useEffect(() => {
     if (roleToEdit) {
@@ -90,14 +93,14 @@ const RoleModal = ({ isOpen, onClose, roleToEdit, onSave, roles }: any) => {
   const errStyle: CSSProperties = { color: '#ef4444', fontSize: '0.72rem', marginTop: '0.3rem' };
 
   return (
-    <ModalOverlay onClose={onClose}>
+    <ModalOverlay onClose={onClose} isDirty={touched} onFormChange={() => setTouched(true)}>
       {/* Header */}
       <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-gray-800 mb-4">
         <h2 className="text-lg font-bold text-slate-900 dark:text-white m-0">
           {roleToEdit ? 'Editar Rol' : 'Nuevo Rol'}
         </h2>
         <button
-          onClick={onClose}
+          onClick={() => guardClose(touched, onClose)}
           className="text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-gray-300 text-sm font-bold bg-slate-100 dark:bg-gray-800 px-2 py-1 rounded border-0 cursor-pointer transition-colors"
         >
           ✕
@@ -196,7 +199,7 @@ const RoleModal = ({ isOpen, onClose, roleToEdit, onSave, roles }: any) => {
       {/* Acciones */}
       <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-gray-800">
         <button
-          onClick={onClose}
+          onClick={() => guardClose(touched, onClose)}
           className="px-4 py-2 bg-slate-100 dark:bg-gray-800 hover:bg-slate-200 dark:hover:bg-gray-700 text-slate-700 dark:text-gray-300 text-sm font-semibold rounded-lg border-0 cursor-pointer transition-colors"
         >
           Cancelar

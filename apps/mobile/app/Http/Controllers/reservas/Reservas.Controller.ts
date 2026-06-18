@@ -61,7 +61,6 @@ export const ReservasController = (
   const cargarDetallesSucursal = async (gymId: string) => {
     // Evitar llamadas duplicadas o condiciones de carrera si ya se está cargando o ya está cargado el mismo gymId
     if (useReservasStore.getState().loading && useReservasStore.getState().gymId === gymId) {
-      console.log('[DEBUG ZUSTAND] Evitando recarga duplicada/race condition para gymId:', gymId);
       return;
     }
 
@@ -74,10 +73,7 @@ export const ReservasController = (
       const result = await obtenerDetallesUseCase.execute({ gymId });
 
       if (result.isRight()) {
-        console.log('[DEBUG ZUSTAND] Estado anterior de Zustand:', store.detalleSucursal ? store.detalleSucursal.actividadesDisponibles : 'null');
-        console.log('[DEBUG ZUSTAND] Guardando en Store actividades unificadas:', result.value.actividadesDisponibles);
         store.setDetalleSucursal(result.value);
-        console.log('[DEBUG ZUSTAND] Estado posterior de Zustand:', useReservasStore.getState().detalleSucursal?.actividadesDisponibles);
       } else {
         store.setError(result.value.message || 'Error desconocido al cargar sucursal.');
       }
@@ -106,7 +102,7 @@ export const ReservasController = (
       const userId      = currentUser?.userId || '';
 
       if (!userId || !token) {
-        console.error('[ERROR AUTH] No hay token en el llavero seguro. confirmarNuevaReserva bloqueado.');
+        console.warn('[AUTH] No hay token. confirmarNuevaReserva bloqueado.');
         const authErr = new Error('No hay sesión activa. Inicia sesión nuevamente.');
         store.setError(authErr.message);
         return left(authErr);

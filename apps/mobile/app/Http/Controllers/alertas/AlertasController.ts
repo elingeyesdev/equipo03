@@ -68,7 +68,7 @@ export const AlertasController = (medicalConditionsRaw?: string) => {
       setConfig(savedConfig);
       setAlertas(items);
     } catch (e) {
-      console.error('Error cargando alertas:', e);
+      console.warn('Error cargando alertas:', (e as Error)?.message);
     } finally {
       setIsLoading(false);
     }

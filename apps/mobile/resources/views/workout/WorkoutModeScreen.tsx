@@ -115,7 +115,7 @@ export const WorkoutModeScreen = () => {
         setSections(built);
         setExpanded(initExpanded);
       } catch (err) {
-        console.error('Error fetching catalog:', err);
+        console.warn('Error fetching catalog:', (err as Error)?.message);
       } finally {
         setLoading(false);
       }

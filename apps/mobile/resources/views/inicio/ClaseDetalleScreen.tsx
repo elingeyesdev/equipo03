@@ -129,7 +129,7 @@ export const ClaseDetalleScreen = () => {
         setFilteredReservas(list); // sin filtro inicial
       })
       .catch(err => {
-        console.log('ERROR /api/staff/me/students:', err?.response?.status, err?.message);
+        // fetch failed
         setError(true);
       })
       .finally(() => setLoading(false));

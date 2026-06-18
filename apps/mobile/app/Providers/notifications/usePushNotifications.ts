@@ -52,9 +52,7 @@ export function usePushNotifications() {
         console.warn('[PushNotifications] Backend no confirmó registro:', result);
         return;
       }
-      console.log(
-        `[PushNotifications] Token registrado en push_token (${token.substring(0, 24)}…).`,
-      );
+      // token registered
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
       console.warn('[PushNotifications] registerToken error:', message, e);
@@ -64,7 +62,7 @@ export function usePushNotifications() {
   const clearToken = async (): Promise<void> => {
     try {
       await userApi.clearPushToken();
-      console.log('[PushNotifications] Token eliminado del backend.');
+      // token cleared
     } catch (e) {
       console.warn('[PushNotifications] clearToken error:', e);
     }
@@ -121,8 +119,6 @@ export function usePushNotificationListeners(): void {
     const response = Notifications.addNotificationResponseReceivedListener((event) => {
       const data = event.notification.request.content.data as Record<string, unknown>;
       const type = String(data?.type ?? '');
-      console.log('[Push Tocado]', type, 'Reserva:', data?.reservationId);
-
       if (MANAGER_PUSH_TYPES.has(type)) {
         queryClient.invalidateQueries({ queryKey: ['gym-audit-reservations'] });
         queryClient.invalidateQueries({ queryKey: ['manager-dashboard-stats'] });

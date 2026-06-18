@@ -58,119 +58,93 @@ const buildHTML = (
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body,#map{width:100%;height:100%;background:#0a0a0a;}
 
-/* ── User location animated pin ── */
-.uloc-wrap{width:34px;height:46px;position:relative;}
-.uloc-pulse{
-  position:absolute;top:-6px;left:-6px;
-  width:36px;height:36px;
-  border-radius:50% 50% 50% 0;
-  transform:rotate(-45deg);
-  border:3px solid rgba(74,144,217,0.7);
-  animation:upulse 2s ease-out infinite;
+/* ── User location — radar pulse ── */
+.uloc{width:44px;height:44px;position:relative;}
+.uloc-ring1,.uloc-ring2{
+  position:absolute;inset:0;border-radius:50%;
+  border:2px solid rgba(56,189,248,0.35);
 }
-.uloc-pin{
-  width:24px;height:24px;
-  background:#4A90D9;
-  border:3px solid #fff;
-  border-radius:50% 50% 50% 0;
-  transform:rotate(-45deg);
-  position:absolute;top:0;left:0;
-  box-shadow:0 3px 10px rgba(74,144,217,0.6);
+.uloc-ring1{animation:radar 2.4s cubic-bezier(0,.6,.5,1) infinite;}
+.uloc-ring2{animation:radar 2.4s cubic-bezier(0,.6,.5,1) .8s infinite;}
+.uloc-core{
+  width:16px;height:16px;border-radius:50%;
+  background:#38BDF8;border:2.5px solid #fff;
+  position:absolute;top:14px;left:14px;
 }
-.uloc-inner{
-  width:8px;height:8px;
-  background:#fff;border-radius:50%;
-  position:absolute;top:8px;left:8px;
-  transform:rotate(45deg);
-}
-.uloc-shadow{
-  width:10px;height:4px;
-  background:rgba(0,0,0,0.22);
-  border-radius:50%;
-  position:absolute;bottom:0;left:7px;
-}
-@keyframes upulse{
-  0%{transform:rotate(-45deg) scale(1);opacity:.8;}
-  100%{transform:rotate(-45deg) scale(2.8);opacity:0;}
-}
+@keyframes radar{0%{transform:scale(.6);opacity:.9;}100%{transform:scale(2.8);opacity:0;}}
 
-/* ── Sede pin ── */
-.sede-wrap{width:24px;height:34px;position:relative;}
-.sede-pin{
-  width:22px;height:22px;
-  border-radius:50% 50% 50% 0;
-  transform:rotate(-45deg);
-  border:2.5px solid rgba(255,255,255,0.35);
-  position:absolute;top:0;left:0;
-  box-shadow:0 2px 6px rgba(0,0,0,0.4);
-}
-.sede-dot{
-  width:7px;height:7px;
-  background:rgba(255,255,255,0.85);border-radius:50%;
-  position:absolute;top:7px;left:7px;
-  transform:rotate(45deg);
-}
-.sede-shadow{
-  width:8px;height:4px;
-  background:rgba(0,0,0,0.18);
-  border-radius:50%;
-  position:absolute;bottom:0;left:7px;
-}
+/* ── Sede pin — SVG teardrop ── */
+.pin-wrap{width:30px;height:40px;filter:drop-shadow(0 3px 4px rgba(0,0,0,.55));position:relative;}
+.pin-wrap svg{display:block;}
 
-/* ── Popup dark base ── */
+/* ── Cluster — concentric rings ── */
+.marker-cluster{background:transparent!important;border:none!important;}
+.marker-cluster div{background:transparent!important;margin:0!important;width:auto!important;height:auto!important;line-height:normal!important;}
+.cl-wrap{position:relative;width:48px;height:48px;}
+.cl-halo{
+  position:absolute;inset:-4px;border-radius:50%;
+  background:rgba(255,94,0,.15);
+  border:2px solid rgba(255,94,0,.3);
+}
+.cl-core{
+  position:absolute;inset:4px;border-radius:50%;
+  background:#FF5E00;
+  display:flex;align-items:center;justify-content:center;
+  font:800 13px/1 system-ui,-apple-system,sans-serif;color:#fff;
+}
+.cl-lg .cl-wrap{width:56px;height:56px;}
+.cl-lg .cl-halo{inset:-5px;}
+.cl-lg .cl-core{font-size:15px;}
+
+/* ── Popup dark ── */
 .leaflet-popup-content-wrapper{
-  background:#1a1a2e!important;
-  border-radius:12px!important;
-  border:1px solid #2a2a4a!important;
-  padding:0!important;
-  box-shadow:0 4px 20px rgba(0,0,0,.6)!important;
+  background:#141414!important;border-radius:12px!important;
+  border:1px solid #2a2a2a!important;padding:0!important;
 }
-.leaflet-popup-tip{background:#1a1a2e!important;}
+.leaflet-popup-tip{background:#141414!important;}
 .leaflet-popup-content{margin:0!important;}
 .leaflet-popup-close-button{display:none!important;}
-
-/* staff popup */
-.pp-staff .leaflet-popup-content-wrapper{background:#111!important;border-color:#2a2a2a!important;}
-.pp-staff .leaflet-popup-tip{background:#111!important;}
-
-/* visited popup */
-.pp-visited .leaflet-popup-content-wrapper{background:#111!important;border-color:#FF5E00!important;}
-.pp-visited .leaflet-popup-tip{background:#111!important;}
+.pp-staff .leaflet-popup-content-wrapper{border-color:#2a2a2a!important;}
+.pp-staff .leaflet-popup-tip{background:#141414!important;}
+.pp-visited .leaflet-popup-content-wrapper{border-color:#FF5E00!important;}
+.pp-visited .leaflet-popup-tip{background:#141414!important;}
 
 /* ── Popup content ── */
-.pbox{padding:12px;font-family:system-ui,-apple-system,sans-serif;}
-.ptitle{color:#fff;font-size:14px;font-weight:700;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:210px;}
-.prow{display:flex;align-items:center;gap:4px;margin-bottom:4px;font-size:12px;color:#a0a0b8;}
-.pbadge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;background:#1C1C1E;margin-left:auto;}
-.phint{color:#e94560;font-size:10px;text-align:right;margin-top:4px;}
-.paddr{color:#888;font-size:11px;margin-bottom:4px;}
-.paforo{color:#aaa;font-size:11px;display:flex;align-items:center;gap:4px;margin-bottom:2px;}
-.pbar-bg{background:#1a1a1a;height:4px;border-radius:2px;width:100%;margin-top:2px;overflow:hidden;}
-.pbar-fill{height:100%;border-radius:2px;}
-.pgym-badge{padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;background:#1C1C1E;border:1px solid #FF5E00;color:#f05b22;display:inline-block;margin-bottom:4px;}
-.pclosed-badge{padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;background:#1C1C1E;border:1px solid #8e8e93;color:#8e8e93;display:inline-block;margin-bottom:4px;}
-.pvisited-row{display:flex;align-items:center;gap:5px;color:#f05b22;font-size:11px;font-weight:700;margin-bottom:6px;}
+.pbox{padding:12px 14px;font-family:system-ui,-apple-system,sans-serif;}
+.ptitle{color:#fff;font-size:13px;font-weight:700;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;}
+.prow{display:flex;align-items:center;gap:5px;margin-bottom:4px;font-size:12px;color:#999;}
+.pbadge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;margin-left:auto;}
+.pbar-bg{background:#1a1a1a;height:4px;border-radius:2px;width:100%;margin-top:6px;overflow:hidden;}
+.pbar-fill{height:100%;border-radius:2px;transition:width .3s;}
+.phint{color:#666;font-size:10px;text-align:right;margin-top:6px;}
+.paddr{color:#777;font-size:11px;margin-bottom:4px;}
+.paforo{color:#999;font-size:11px;display:flex;align-items:center;gap:4px;margin-bottom:2px;}
+.pgym-badge{padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;background:#1C1C1E;border:1px solid #FF5E00;color:#FF5E00;display:inline-block;margin-bottom:4px;}
+.pclosed-badge{padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;background:#1C1C1E;border:1px solid #555;color:#888;display:inline-block;margin-bottom:4px;}
+.pvisited-row{display:flex;align-items:center;gap:5px;color:#FF5E00;font-size:11px;font-weight:700;margin-bottom:6px;}
 
-/* ── Controls ── */
-.leaflet-control-attribution{background:rgba(0,0,0,.55)!important;color:#aaa!important;font-size:9px!important;}
-.leaflet-control-attribution a{color:#aaa!important;}
-.leaflet-control-zoom a{background:#111!important;color:#fff!important;border-color:#333!important;}
-.leaflet-control-zoom a:hover{background:#222!important;}
+/* ── Controls — hidden for mobile immersion ── */
+.leaflet-control-zoom{display:none!important;}
+.leaflet-control-attribution{background:rgba(0,0,0,.5)!important;color:#555!important;font-size:8px!important;padding:2px 5px!important;}
+.leaflet-control-attribution a{color:#555!important;}
 </style>
 </head>
 <body>
 <div id="map"></div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"><\/script>
 <script>
 var MODE='${mode}';
 var map=L.map('map',{
   center:[${lat},${lng}],
   zoom:${zoom},
-  zoomControl:${interactive},
+  zoomControl:false,
   attributionControl:true,
   dragging:${interactive},
   touchZoom:${interactive},
@@ -180,49 +154,87 @@ var map=L.map('map',{
   keyboard:${interactive},
   tap:${interactive},
 });
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
   maxZoom:19,
-  attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  attribution:'© <a href="https://www.openstreetmap.org/copyright">OSM</a> · <a href="https://carto.com/">CARTO</a>',
+  subdomains:'abcd',
 }).addTo(map);
 
-/* ── User location marker ── */
+/* ── Aforo color helper ── */
+function aforoColor(s){
+  if(s.isClosed) return '#555';
+  var max=s.aforoMaximo||1;
+  var pct=Math.round((s.aforoActual||0)/max*100);
+  if(pct>=85) return '#FF3B30';
+  if(pct>=60) return '#FF9500';
+  return '#34C759';
+}
+function aforoPct(s){
+  var max=s.aforoMaximo||1;
+  return Math.min(100,Math.round((s.aforoActual||0)/max*100));
+}
+
+/* ── User location marker — radar pulse ── */
 var userMarker=null;
 function setUserLocation(ulat,ulng){
   if(userMarker){userMarker.setLatLng([ulat,ulng]);return;}
   var icon=L.divIcon({
-    html:'<div class="uloc-wrap"><div class="uloc-pulse"></div><div class="uloc-pin"><div class="uloc-inner"></div></div><div class="uloc-shadow"></div></div>',
-    className:'',iconSize:[34,46],iconAnchor:[12,46],
+    html:'<div class="uloc"><div class="uloc-ring1"></div><div class="uloc-ring2"></div><div class="uloc-core"></div></div>',
+    className:'',iconSize:[44,44],iconAnchor:[22,22],
   });
-  userMarker=L.marker([ulat,ulng],{icon:icon,zIndexOffset:2000}).addTo(map);
+  userMarker=L.marker([ulat,ulng],{icon:icon,zIndexOffset:2000,interactive:false}).addTo(map);
 }
+
+/* ── Cluster group ── */
+var clusterGroup=L.markerClusterGroup({
+  maxClusterRadius:45,
+  spiderfyOnMaxZoom:true,
+  showCoverageOnHover:false,
+  zoomToBoundsOnClick:true,
+  disableClusteringAtZoom:16,
+  iconCreateFunction:function(cluster){
+    var count=cluster.getChildCount();
+    var lg=count>=20?'cl-lg':'';
+    var sz=lg?56:48;
+    return L.divIcon({
+      html:'<div class="'+lg+'"><div class="cl-wrap"><div class="cl-halo"></div><div class="cl-core">'+count+'</div></div></div>',
+      className:'marker-cluster',
+      iconSize:L.point(sz,sz),
+      iconAnchor:L.point(sz/2,sz/2),
+    });
+  }
+});
+map.addLayer(clusterGroup);
 
 /* ── Sede markers ── */
 var sedeMarkers={};
 
 function buildClientPopup(s){
-  var pin=s.isClosed?'#8e8e93':(s.isAvailable?'#2ecc71':'#e74c3c');
-  var lbl=s.isClosed?'Cerrado':(s.isAvailable?'Abierto':'Lleno');
-  var h='<div class="pbox">'
+  var pin=aforoColor(s);
+  var pct=aforoPct(s);
+  var lbl=s.isClosed?'Cerrado':pct>=85?'Lleno':pct>=60?'Alto':'Disponible';
+  return '<div class="pbox">'
     +'<div class="ptitle">'+s.nombre+'</div>'
     +'<div class="prow">📍 '+(s.distancia||'')
     +'<span class="pbadge" style="border:1px solid '+pin+';color:'+pin+';">'+lbl+'</span></div>'
-    +'<div class="prow">👥 Aforo: '+(s.aforoActual||0)+' / '+(s.aforoMaximo||0)+'</div>'
-    +(s.capacidadMaquinas>0?'<div class="prow">⚙️ Máquinas: '+s.capacidadMaquinas+'</div>':'')
-    +'<div class="phint">Toca para más info →</div>'
+    +'<div class="prow">👥 '+(s.aforoActual||0)+' / '+(s.aforoMaximo||0)+' ('+pct+'%)</div>'
+    +'<div class="pbar-bg"><div class="pbar-fill" style="width:'+pct+'%;background:'+pin+';"></div></div>'
+    +(s.capacidadMaquinas>0?'<div class="prow" style="margin-top:4px;">⚙️ '+s.capacidadMaquinas+' máquinas</div>':'')
+    +'<div class="phint">Toca para ver detalles</div>'
     +'</div>';
-  return h;
 }
 
 function buildStaffPopup(s){
-  var pin=s.isClosed?'#8e8e93':(s.isAvailable?'#2ecc71':'#e74c3c');
-  var pct=s.pct||0;
+  var pin=aforoColor(s);
+  var pct=s.pct||aforoPct(s);
   var h='<div class="pbox">';
   if(s.isUserGym) h+='<span class="pgym-badge">Tu sucursal</span> ';
-  if(s.isClosed)  h+='<span class="pclosed-badge">Cerrada ahora</span>';
+  if(s.isClosed) h+='<span class="pclosed-badge">Cerrada</span>';
   h+='<div class="ptitle">'+s.nombre+'</div>';
   if(s.address) h+='<div class="paddr">📍 '+s.address+'</div>';
   if(!s.isClosed){
-    h+='<div class="paforo">👥 '+(s.aforoActual||0)+'/'+(s.aforoMaximo||0)+' ('+pct+'% ocupación)</div>'
+    h+='<div class="paforo">👥 '+(s.aforoActual||0)+'/'+(s.aforoMaximo||0)+' ('+pct+'%)</div>'
       +'<div class="pbar-bg"><div class="pbar-fill" style="width:'+Math.min(pct,100)+'%;background:'+pin+';"></div></div>';
   }
   h+='</div>';
@@ -236,27 +248,35 @@ function buildVisitedPopup(s){
     +'</div>';
 }
 
+function pinSVG(fill){
+  var dark=fill.replace(/[0-9a-f]/gi,function(c){var n=Math.max(0,parseInt(c,16)-3);return n.toString(16);});
+  return '<div class="pin-wrap"><svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">'
+    +'<path d="M15 38 C15 38 2 22 2 14 C2 6.82 7.82 1 15 1 C22.18 1 28 6.82 28 14 C28 22 15 38 15 38Z" fill="'+fill+'" stroke="'+dark+'" stroke-width="1.5"/>'
+    +'<circle cx="15" cy="14" r="5" fill="rgba(255,255,255,0.9)"/>'
+    +'</svg></div>';
+}
+
 function addSede(s){
-  var pin=s.isClosed?'#8e8e93':(s.isAvailable?'#2ecc71':'#e74c3c');
-  if(MODE==='visited'||s.isUserGym) pin='#f05b22';
+  var pin=aforoColor(s);
+  if(MODE==='visited'||s.isUserGym) pin='#FF5E00';
 
   var icon=L.divIcon({
-    html:'<div class="sede-wrap"><div class="sede-pin" style="background:'+pin+';"></div><div class="sede-dot"></div><div class="sede-shadow"></div></div>',
-    className:'',iconSize:[24,34],iconAnchor:[12,34],popupAnchor:[0,-36],
+    html:pinSVG(pin),
+    className:'',iconSize:[30,40],iconAnchor:[15,40],popupAnchor:[0,-38],
   });
 
   var popHtml=MODE==='staff'?buildStaffPopup(s):MODE==='visited'?buildVisitedPopup(s):buildClientPopup(s);
   var popCls=MODE==='staff'?'pp-staff':MODE==='visited'?'pp-visited':'';
 
   var m=L.marker([s.lat,s.lng],{icon:icon,zIndexOffset:s.isUserGym?999:1})
-    .bindPopup(popHtml,{closeButton:false,maxWidth:260,className:popCls})
-    .on('click',function(){sendRN({type:'MARKER_PRESS',sedeId:s.id});})
-    .addTo(map);
+    .bindPopup(popHtml,{closeButton:false,maxWidth:240,className:popCls})
+    .on('click',function(){sendRN({type:'MARKER_PRESS',sedeId:s.id});});
+  clusterGroup.addLayer(m);
   sedeMarkers[String(s.id)]=m;
 }
 
 function setSedes(list){
-  Object.values(sedeMarkers).forEach(function(m){map.removeLayer(m);});
+  clusterGroup.clearLayers();
   sedeMarkers={};
   list.forEach(addSede);
 }
@@ -267,7 +287,7 @@ function handleCommand(cmd){
   if(cmd.type==='SET_USER_LOCATION'){setUserLocation(cmd.lat,cmd.lng);}
   else if(cmd.type==='SET_SEDES'){setSedes(cmd.sedes);}
   else if(cmd.type==='FLY_TO'){map.flyTo([cmd.lat,cmd.lng],cmd.zoom||15,{animate:true,duration:1});}
-  else if(cmd.type==='OPEN_POPUP'){var m=sedeMarkers[String(cmd.sedeId)];if(m)m.openPopup();}
+  else if(cmd.type==='OPEN_POPUP'){var m=sedeMarkers[String(cmd.sedeId)];if(m){clusterGroup.zoomToShowLayer(m,function(){m.openPopup();});}}
 }
 
 document.addEventListener('message',function(e){try{handleCommand(JSON.parse(e.data));}catch(e){}});
@@ -275,7 +295,7 @@ window.addEventListener('message',function(e){try{handleCommand(JSON.parse(e.dat
 
 function sendRN(obj){try{window.ReactNativeWebView.postMessage(JSON.stringify(obj));}catch(e){}}
 sendRN({type:'MAP_READY'});
-</script>
+<\/script>
 </body>
 </html>`;
 
@@ -299,7 +319,6 @@ export const LeafletMapView = forwardRef<LeafletMapHandle, LeafletMapProps>(
     const webViewRef  = useRef<WebView>(null);
     const isReadyRef  = useRef(false);
     const pendingRef  = useRef<object[]>([]);
-    // Keep latest props in refs to avoid stale closures in onMessage
     const sedesRef         = useRef(sedes);
     const userLocationRef  = useRef(userLocation);
     sedesRef.current        = sedes;
@@ -320,13 +339,11 @@ export const LeafletMapView = forwardRef<LeafletMapHandle, LeafletMapProps>(
       setUserLocation: (lat, lng)                => send({ type: 'SET_USER_LOCATION', lat, lng }),
     }));
 
-    // Push sedes when they change (only if map already ready)
     useEffect(() => {
       if (!isReadyRef.current) return;
       send({ type: 'SET_SEDES', sedes });
     }, [sedes, send]);
 
-    // Push user location when it changes (only if map already ready)
     useEffect(() => {
       if (!isReadyRef.current || !userLocation) return;
       send({ type: 'SET_USER_LOCATION', lat: userLocation.lat, lng: userLocation.lng });
@@ -339,12 +356,10 @@ export const LeafletMapView = forwardRef<LeafletMapHandle, LeafletMapProps>(
         if (msg.type === 'MAP_READY') {
           isReadyRef.current = true;
 
-          // Flush queued commands (e.g. early flyTo calls)
           const pending = [...pendingRef.current];
           pendingRef.current = [];
           pending.forEach(cmd => send(cmd));
 
-          // Push current data
           const currentSedes = sedesRef.current;
           const currentLoc   = userLocationRef.current;
           if (currentSedes.length) send({ type: 'SET_SEDES', sedes: currentSedes });

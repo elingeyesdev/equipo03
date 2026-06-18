@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
-import { ModalOverlay, ConfirmModal } from './Shared/DashboardShared';
+import { ModalOverlay, ConfirmModal, guardClose } from './Shared/DashboardShared';
 import { Eye, Edit, Trash2, Plus, X } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -58,7 +58,7 @@ const TimeSelect = ({ value, onChange }: { value: string; onChange: (v: string) 
   const h = parts[0]?.padStart(2, '0') ?? '08';
   const m = parts[1]?.substring(0, 2) ?? '00';
 
-  const selCls = "bg-slate-50 dark:bg-[#1C1C1E] text-slate-900 dark:text-[#E5E5EA] border-0 px-[0.4rem] py-[0.45rem] text-[0.88rem] font-mono font-semibold cursor-pointer outline-none appearance-none text-center";
+  const selCls = "bg-slate-50 dark:bg-[#1C1C1E] text-slate-900 dark:text-[#E5E5EA] border-0 px-[0.4rem] py-[0.45rem] text-sm font-mono font-semibold cursor-pointer outline-none appearance-none text-center";
 
   return (
     <div className="inline-flex items-center gap-px bg-slate-100 dark:bg-bg-surface border border-slate-200 dark:border-bg-deep rounded-lg overflow-hidden">
@@ -102,17 +102,17 @@ const badgeInactive: CSSProperties = {
 };
 
 const btnPrimary: CSSProperties = {
-  background: 'var(--color-brand-orange)', color: '#fff', border: 'none',
+  background: '#FF5E00', color: '#fff', border: 'none',
   borderRadius: '8px', padding: '0.5rem 1.2rem',
   cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem',
 };
 
-const btnSecondaryCls = "px-3 py-1 bg-brand-celeste text-black rounded cursor-pointer text-[0.85rem] font-semibold inline-flex items-center gap-1";
+const btnSecondaryCls = "px-4 py-2 bg-slate-100 dark:bg-gray-800 hover:bg-slate-200 dark:hover:bg-gray-700 text-slate-700 dark:text-gray-300 text-sm font-medium rounded-lg border-0 cursor-pointer transition-colors";
 
-const btnDangerCls = "bg-transparent text-gray-500 dark:text-text-muted px-2 py-1 rounded cursor-pointer text-[0.82rem] font-semibold inline-flex items-center gap-1";
+const btnDangerCls = "bg-transparent text-gray-500 dark:text-text-muted px-2 py-1 rounded cursor-pointer text-sm font-semibold inline-flex items-center gap-1";
 
-const inputCls = "w-full bg-slate-50 dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-white rounded-lg px-[0.9rem] py-[0.6rem] text-[0.9rem] focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors box-border";
-const labelCls = "block mb-[0.35rem] text-[0.8rem] font-medium text-slate-500 dark:text-gray-500 uppercase tracking-[0.04em]";
+const inputCls = "w-full bg-slate-50 dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-celeste transition-colors box-border";
+const labelCls = "block mb-1 text-sm font-medium text-slate-700 dark:text-gray-300";
 const fieldGap: CSSProperties = { marginBottom: '1rem' };
 
 // ─── Activity Detail Modal ────────────────────────────────────────────────────
@@ -165,7 +165,7 @@ const ActivityDetailModal = ({
         {/* Header fijo */}
         <div className="flex justify-between items-start flex-shrink-0 mb-4">
           <div>
-            <div className="text-[0.7rem] font-bold uppercase tracking-[0.08em] mb-[0.2rem]" style={{ color: '#FF5E00' }}>
+            <div className="text-xs font-bold uppercase tracking-[0.08em] mb-[0.2rem]" style={{ color: '#FF5E00' }}>
               Ficha del Servicio · #{activity.id}
             </div>
             <h2 className="m-0 text-[1.35rem] font-bold text-slate-900 dark:text-white">{activity.name}</h2>
@@ -175,7 +175,7 @@ const ActivityDetailModal = ({
 
         {/* Contenido scrollable */}
         <div style={{ overflowY: 'auto', flex: 1, minHeight: 0, paddingRight: '0.2rem' }}>
-          <div className="grid grid-cols-2 gap-[0.6rem] mb-4">
+          <div className="grid grid-cols-2 gap-2.5 mb-4">
             {field('Gimnasio / Sucursal', activity.gym?.name ?? `Gym #${activity.gymId}`)}
             {field('Duración', activity.defaultDurationMin ? `${activity.defaultDurationMin} min` : 'No definida')}
             {field('Tipo', activity.isFreeAccess
@@ -224,7 +224,7 @@ const ActivityDetailModal = ({
         </div>
 
         {/* Footer fijo */}
-        <div className="flex gap-[0.6rem] mt-4 pt-3 border-t border-slate-200 dark:border-bg-deep flex-shrink-0">
+        <div className="flex gap-2.5 mt-4 pt-3 border-t border-slate-200 dark:border-bg-deep flex-shrink-0">
           <button onClick={onClose} className={`${btnSecondaryCls} flex-1`}>Cerrar</button>
           <button onClick={onEdit} style={{ ...btnPrimary, flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}><Edit size={14} />Editar Servicio</button>
         </div>
@@ -269,6 +269,7 @@ const ActivityFormModal = ({
   const [isFreeAccess, setIsFreeAccess] = useState(initial?.isFreeAccess ?? false);
   const [isActive,     setIsActive]     = useState(initial?.isActive ?? true);
   const [saving, setSaving] = useState(false);
+  const [touched, setTouched] = useState(false);
 
   // ── Horarios de clase (solo en edición) ──
   const [schedules,        setSchedules]        = useState<ActivitySchedule[]>([]);
@@ -411,6 +412,10 @@ const ActivityFormModal = ({
       toast.error('Selecciona un gimnasio');
       return;
     }
+    if (!isFreeAccess && schedules.length === 0) {
+      toast.error('Debes agregar al menos un horario de clase o activar Acceso Libre');
+      return;
+    }
     const parsedDuration = duration.trim() ? parseInt(duration, 10) : 0;
 
     setSaving(true);
@@ -463,17 +468,20 @@ const ActivityFormModal = ({
   const selectCls = `${inputCls} appearance-none cursor-pointer pr-10`;
 
   return (
-    <ModalOverlay onClose={onClose}>
+    <ModalOverlay onClose={onClose} isDirty={touched} onFormChange={() => setTouched(true)}>
       {/* Header fijo */}
-      <div className="flex justify-between items-center mb-5 flex-shrink-0">
-        <h2 className="m-0 text-[1.2rem] font-bold" style={{ color: '#FF5E00' }}>
+      <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-gray-800 mb-4 flex-shrink-0">
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white m-0">
           {isEdit ? 'Editar Servicio' : 'Nuevo Servicio'}
         </h2>
-        <button onClick={onClose} style={{ background: '#8e8e93', border: 'none', color: '#fff', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', padding: '0.25rem 0.6rem', borderRadius: '6px' }}>X</button>
+        <button
+          onClick={() => guardClose(touched, onClose)}
+          className="text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-gray-300 text-sm font-bold bg-slate-100 dark:bg-gray-800 px-2 py-1 rounded border-0 cursor-pointer transition-colors"
+        >✕</button>
       </div>
 
       {/* Contenido scrollable */}
-      <div style={{ overflowY: 'auto', flex: 1, paddingRight: '0.2rem' }}>
+      <div className="overflow-y-auto flex-1 pr-1 dark-scrollbar">
         <form onSubmit={handleSubmit} id="activity-form" style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
           {/* Selectors marca → sucursal — solo SUPER_ADMIN */}
           {needsGymPicker && (
@@ -485,7 +493,7 @@ const ActivityFormModal = ({
                     <option value="">— Selecciona una marca —</option>
                     {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                   </select>
-                  <span className="absolute right-[0.85rem] top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-gray-500 text-[0.75rem]">▼</span>
+                  <span className="absolute right-[0.85rem] top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-gray-500 text-xs">▼</span>
                 </div>
               </div>
               {selectedBrandId && (
@@ -496,7 +504,7 @@ const ActivityFormModal = ({
                       <option value="">— Selecciona una sucursal —</option>
                       {filteredBranches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                     </select>
-                    <span className="absolute right-[0.85rem] top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-gray-500 text-[0.75rem]">▼</span>
+                    <span className="absolute right-[0.85rem] top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-gray-500 text-xs">▼</span>
                   </div>
                 </div>
               )}
@@ -531,11 +539,11 @@ const ActivityFormModal = ({
               <div style={{ position: 'absolute', top: '3px', left: isFreeAccess ? '21px' : '3px', width: '16px', height: '16px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s ease', boxShadow: '0 1px 3px rgba(0,0,0,0.4)' }} />
             </div>
             <div>
-              <span className={`font-semibold text-[0.88rem] ${isFreeAccess ? 'text-brand-orange' : 'text-slate-700 dark:text-gray-200'}`}>
-                Acceso Libre / Open Gym
+              <span className={`font-semibold text-sm ${isFreeAccess ? 'text-brand-orange' : 'text-slate-700 dark:text-gray-200'}`}>
+                Acceso Libre
               </span>
-              <span className="block text-slate-400 dark:text-gray-500 text-[0.75rem] mt-[1px]">
-                No requiere horarios de clase — los usuarios entran sin reservar bloque específico
+              <span className="block text-slate-400 dark:text-gray-500 text-xs mt-0.5">
+                No requiere horarios de clase — los usuarios entran sin reservar un bloque específico
               </span>
             </div>
           </div>
@@ -550,10 +558,10 @@ const ActivityFormModal = ({
                 <div style={{ position: 'absolute', top: '3px', left: isActive ? '21px' : '3px', width: '16px', height: '16px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s ease', boxShadow: '0 1px 3px rgba(0,0,0,0.4)' }} />
               </div>
               <div>
-                <span className={`font-semibold text-[0.88rem] ${isActive ? 'text-green-600 dark:text-[#00E5A3]' : 'text-red-500'}`}>
+                <span className={`font-semibold text-sm ${isActive ? 'text-green-600 dark:text-[#00E5A3]' : 'text-red-500'}`}>
                   {isActive ? 'Servicio Activo' : 'Servicio Inactivo'}
                 </span>
-                <span className="block text-slate-400 dark:text-gray-500 text-[0.75rem] mt-[1px]">
+                <span className="block text-slate-400 dark:text-gray-500 text-xs mt-0.5">
                   {isActive ? 'Los clientes pueden reservar este servicio' : 'Los clientes no pueden ver ni reservar este servicio'}
                 </span>
               </div>
@@ -563,7 +571,7 @@ const ActivityFormModal = ({
           <div style={fieldGap}>
             <label className={labelCls}>
               Duración por defecto (minutos)
-              <span className="text-slate-400 dark:text-gray-500 font-normal ml-[0.4rem] text-[0.75rem]">— opcional</span>
+              <span className="text-slate-400 dark:text-gray-500 font-normal ml-1 text-xs">— opcional</span>
             </label>
             <input className={inputCls} type="number" min={0} max={480}
               value={duration} onChange={e => setDuration(e.target.value)}
@@ -573,39 +581,39 @@ const ActivityFormModal = ({
           {/* ── Horarios de clase — disponible en creación y edición, solo si NO es acceso libre ── */}
           {!isFreeAccess && (
             <div className="mt-5 pt-5 border-t border-slate-200 dark:border-bg-deep">
-              <div className="flex justify-between items-center mb-[0.4rem]">
-                <label className={`${labelCls} !mb-0`}>Horarios de Clase</label>
-                <span className="text-slate-400 dark:text-gray-500 text-[0.75rem]">opcional</span>
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-sm font-medium text-slate-700 dark:text-gray-300">Horarios de Clase</label>
+                <span className="text-brand-orange text-xs font-semibold">obligatorio</span>
               </div>
-              <p className="text-slate-400 dark:text-gray-500 text-[0.76rem] m-0 mb-[0.85rem] leading-relaxed">
+              <p className="text-slate-400 dark:text-gray-500 text-xs m-0 mb-3 leading-relaxed">
                 Define bloques horarios específicos (Zumba, Natación, Sauna…). Los usuarios podrán reservar en estos bloques desde la app.
               </p>
 
               {/* Lista de horarios existentes */}
               {schedulesLoading ? (
-                <p className="text-slate-400 dark:text-gray-500 text-[0.82rem] mb-3">Cargando horarios...</p>
+                <p className="text-slate-400 dark:text-gray-500 text-sm mb-3">Cargando horarios...</p>
               ) : schedules.length === 0 ? (
-                <p className="text-slate-400 dark:text-gray-500 text-[0.82rem] italic mb-3">Sin horarios configurados</p>
+                <p className="text-slate-400 dark:text-gray-500 text-sm italic mb-3">Sin horarios configurados</p>
               ) : (
-                <div className="flex flex-col gap-[0.35rem] mb-[0.85rem]">
+                <div className="flex flex-col gap-1.5 mb-3">
                   {schedules.map(s => {
                     const instrLabel = instructors.find(i => i.id === Number((s as any).instructorId))?.label
                       ?? (s as any).instructor?.email;
                     return (
-                      <div key={s.id} className="flex items-center gap-[0.6rem] bg-gray-50 dark:bg-bg-surface border border-brand-orange rounded-lg px-[0.75rem] py-[0.45rem]">
-                        <span className="font-bold text-[0.78rem] min-w-[36px]" style={{ color: '#FF5E00' }}>
+                      <div key={s.id} className="flex items-center gap-2.5 bg-gray-50 dark:bg-bg-surface border border-brand-orange rounded-lg px-3 py-2">
+                        <span className="font-bold text-xs font-bold min-w-[36px]" style={{ color: '#FF5E00' }}>
                           {DAY_LABELS[s.dayOfWeek] ?? s.dayOfWeek}
                         </span>
-                        <span className="text-slate-700 dark:text-gray-200 text-[0.85rem] flex-1">
+                        <span className="text-slate-700 dark:text-gray-200 text-sm flex-1">
                           {s.startTime.substring(0, 5)} – {s.endTime.substring(0, 5)}
                           {instrLabel && (
-                            <span className="text-slate-400 dark:text-gray-500 ml-2 text-[0.76rem]">
+                            <span className="text-slate-400 dark:text-gray-500 ml-2 text-xs">
                               · 🎓 {instrLabel}
                             </span>
                           )}
                         </span>
                         <button type="button" onClick={() => handleDeleteSchedule(s.id)}
-                          className="bg-red-50 dark:bg-bg-surface text-red-500 border border-red-200 dark:border-gray-600 rounded-md px-2 py-[0.15rem] cursor-pointer text-[0.75rem]">
+                          className="bg-red-50 dark:bg-bg-surface text-red-500 border border-red-200 dark:border-gray-600 rounded-md px-2 py-[0.15rem] cursor-pointer text-xs">
                           ✕
                         </button>
                       </div>
@@ -615,14 +623,14 @@ const ActivityFormModal = ({
               )}
 
               {/* Fila para agregar nuevo horario */}
-              <div className="flex flex-col gap-[0.6rem] bg-slate-50 dark:bg-bg-surface border border-dashed border-slate-300 dark:border-bg-deep rounded-lg p-3">
+              <div className="flex flex-col gap-2.5 bg-slate-50 dark:bg-bg-surface border border-dashed border-slate-300 dark:border-bg-deep rounded-lg p-3">
                 {/* Chips de días */}
                 <div>
-                  <span className="text-[0.72rem] text-slate-500 dark:text-gray-500 block mb-[0.4rem] uppercase tracking-[0.04em]">Día</span>
-                  <div className="flex gap-[0.3rem] flex-wrap">
+                  <span className="text-xs text-slate-500 dark:text-gray-500 block mb-1 font-medium">Día</span>
+                  <div className="flex gap-1 flex-wrap">
                     {Object.entries(DAY_LABELS).map(([key]) => (
                       <button key={key} type="button" onClick={() => setNewDay(key)}
-                        className={`px-[0.6rem] py-[0.35rem] rounded-full text-[0.72rem] cursor-pointer ${newDay === key ? 'font-bold border border-brand-orange bg-gray-100 dark:bg-bg-surface text-brand-orange' : 'font-normal border border-slate-300 dark:border-bg-deep bg-white dark:bg-bg-deep text-slate-500 dark:text-text-muted'}`}>
+                        className={`px-2.5 py-1 rounded-full text-xs cursor-pointer transition-colors ${newDay === key ? 'font-semibold border border-brand-orange bg-orange-50 dark:bg-bg-surface text-brand-orange' : 'font-normal border border-slate-300 dark:border-bg-deep bg-white dark:bg-bg-deep text-slate-500 dark:text-text-muted'}`}>
                         {key}
                       </button>
                     ))}
@@ -640,12 +648,12 @@ const ActivityFormModal = ({
                 <div className="flex gap-2 flex-wrap">
                   {/* Selector instructor */}
                   <div style={{ flex: 2, minWidth: '140px' }}>
-                    <span className="text-[0.72rem] text-slate-500 dark:text-gray-500 block mb-[0.3rem] uppercase tracking-[0.04em]">Instructor *</span>
+                    <span className="text-xs text-slate-500 dark:text-gray-500 block mb-1 font-medium">Instructor *</span>
                     <div className="relative">
                       <select
                         value={newInstructorId}
                         onChange={e => setNewInstructorId(e.target.value)}
-                        className={`${selectCls} text-[0.83rem]`}
+                        className={`${selectCls} text-sm`}
                       >
                         <option value="">— Seleccionar —</option>
                         {instructors.map(i => (
@@ -655,7 +663,7 @@ const ActivityFormModal = ({
                       <span className="absolute right-[0.6rem] top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-gray-500 text-[0.65rem]">▼</span>
                     </div>
                     {instructors.length === 0 && (
-                      <span className="text-[0.7rem] text-slate-400 dark:text-gray-600 mt-[0.2rem] block">
+                      <span className="text-xs text-slate-400 dark:text-gray-600 mt-0.5 block">
                         Sin instructores asignados a esta marca
                       </span>
                     )}
@@ -663,12 +671,12 @@ const ActivityFormModal = ({
 
                   {/* Aforo */}
                   <div style={{ flex: 1, minWidth: '80px' }}>
-                    <span className="text-[0.72rem] text-slate-500 dark:text-gray-500 block mb-[0.3rem] uppercase tracking-[0.04em]">Aforo *</span>
+                    <span className="text-xs text-slate-500 dark:text-gray-500 block mb-1 font-medium">Aforo *</span>
                     <input
                       type="number" min={1} max={500}
                       value={newMaxAttendees}
                       onChange={e => setNewMaxAttendees(e.target.value)}
-                      className={`${inputCls} text-[0.83rem]`}
+                      className={`${inputCls} text-sm`}
                       placeholder="20"
                     />
                   </div>
@@ -689,7 +697,7 @@ const ActivityFormModal = ({
 
       {/* Botones fijos al fondo */}
       <div className="flex gap-3 justify-end mt-5 pt-4 pb-1 border-t border-slate-200 dark:border-bg-deep flex-shrink-0">
-        <button type="button" className={btnSecondaryCls} onClick={onClose}>Cancelar</button>
+        <button type="button" className={btnSecondaryCls} onClick={() => guardClose(touched, onClose)}>Cancelar</button>
         <button type="submit" form="activity-form" style={btnPrimary} disabled={saving}>
           {saving ? 'Guardando...' : isEdit ? 'Guardar Cambios' : 'Crear Servicio'}
         </button>

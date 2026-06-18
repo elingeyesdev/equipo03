@@ -24,8 +24,6 @@ export class AxiosSedesApiAdapter implements ISedesApiService {
 
   async obtenerSedes(params: SedesQueryParams): Promise<Either<Error, Sede[]>> {
     try {
-      console.log('[AxiosSedesApiAdapter] Obteniendo sedes con params:', params);
-      
       const response = await this.client.get('/api/gyms', {
         params: {
           lat: params.userLat,
@@ -39,7 +37,7 @@ export class AxiosSedesApiAdapter implements ISedesApiService {
       const payload = response.data;
 
       if (!Array.isArray(payload)) {
-        console.error('[AxiosSedesApiAdapter] Respuesta no es un array:', payload);
+        console.warn('[AxiosSedesApiAdapter] Respuesta no es un array:', payload);
         return left(new Error('Formato de respuesta inválido'));
       }
 
@@ -47,21 +45,18 @@ export class AxiosSedesApiAdapter implements ISedesApiService {
         SedeDTOMapper.toDomain(dto)
       );
 
-      console.log('[AxiosSedesApiAdapter] Sedes obtenidas:', sedes.length);
       return right(sedes);
     } catch (error: unknown) {
       const message = error instanceof Error
         ? error.message
         : 'Error al obtener sedes del servidor';
-      console.error('[AxiosSedesApiAdapter] Error:', message);
+      console.warn('[AxiosSedesApiAdapter] Error:', message);
       return left(new Error(message));
     }
   }
 
   async obtenerSedePorId(id: string): Promise<Either<Error, Sede>> {
     try {
-      console.log('[AxiosSedesApiAdapter] Iniciando consulta unificada de sede e id:', id);
-      
       // Consultas en paralelo para gimnasio y sus actividades reales
       const gymIdParam = Number(id);
       const [gymResponse, activitiesResponse] = await Promise.all([
@@ -77,12 +72,6 @@ export class AxiosSedesApiAdapter implements ISedesApiService {
       const gymDataCruda = gymResponse.data;
       const rawActividades = activitiesResponse.data;
       const actividadesCrudas = Array.isArray(rawActividades) ? rawActividades : (rawActividades?.data ?? []);
-      
-      // INYECCIÓN DE LOGS DE DIAGNÓSTICO (PASO 3)
-      console.log('[DEBUG DIAGNÓSTICO] OBJETO CRUDO DE GIMNASIO (gymResponse.data):', gymResponse.data);
-      console.log('[DEBUG DIAGNÓSTICO] OBJETO CRUDO DE ACTIVIDADES (activitiesResponse.data):', activitiesResponse.data);
-      console.log('[DEBUG DIAGNÓSTICO] gymDataCruda EXTRAÍDO:', gymDataCruda);
-      console.log('[DEBUG DIAGNÓSTICO] actividadesCrudas EXTRAÍDAS:', actividadesCrudas);
       
       const DOW_MAP: Record<string, number> = { DOM:0, LUN:1, MAR:2, MIE:3, JUE:4, VIE:5, SAB:6 };
       const dayTimes: Record<number, { min: string; max: string }> = {};
@@ -108,8 +97,6 @@ export class AxiosSedesApiAdapter implements ISedesApiService {
         (gymDataCruda.schedules?.length    > 0 ? gymDataCruda.schedules    : null) ??
         (derivedSchedules.length           > 0 ? derivedSchedules          : []);
 
-      console.log('[Sedes] Horarios derivados de actividades:', derivedSchedules);
-
       const combinedPayload = {
         ...gymDataCruda,
         schedules,
@@ -120,18 +107,13 @@ export class AxiosSedesApiAdapter implements ISedesApiService {
         gym_activity: actividadesCrudas,
       };
 
-      console.log('[DEBUG DIAGNÓSTICO] OBJETO COMBINADO ENVIADO AL MAPPER:', combinedPayload);
-      console.log('[AxiosSedesApiAdapter] Payload unificado combinado con éxito:', combinedPayload);
-      
       const sede = SedeDTOMapper.toDomain(combinedPayload);
-      console.log('[AxiosSedesApiAdapter] Sede de dominio generada correctamente con actividades:', sede.servicios);
-      
       return right(sede);
     } catch (error: unknown) {
       const message = error instanceof Error
         ? error.message
         : `Error al obtener sede ${id}`;
-      console.error('[AxiosSedesApiAdapter] Error unificado en obtenerSedePorId:', message);
+      console.warn('[AxiosSedesApiAdapter] Error unificado en obtenerSedePorId:', message);
       return left(new Error(message));
     }
   }

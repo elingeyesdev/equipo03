@@ -98,7 +98,7 @@ export const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 8,
     left: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(10,10,10,0.7)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 4,

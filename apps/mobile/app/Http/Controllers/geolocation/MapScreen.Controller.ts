@@ -96,7 +96,7 @@ export const MapScreenController = (
     try {
       await calcularRutaUseCase.execute(store.userLocation, sede);
     } catch (err) {
-      console.error('Error al abrir navegación:', err);
+      console.warn('Error al abrir navegación:', (err as Error)?.message);
     }
   };
 

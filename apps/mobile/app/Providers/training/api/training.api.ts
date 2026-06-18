@@ -23,6 +23,8 @@ trainingClient.interceptors.request.use(
 );
 
 attach401Guard(trainingClient);
+import { attachOfflineInterceptor } from '../../offline/offlineInterceptor';
+attachOfflineInterceptor(trainingClient);
 
 export type WorkoutSet = {
   id:               number;
@@ -55,11 +57,18 @@ export type WorkoutSession = {
   startedAt:       string;
   finishedAt:      string | null;
   status:          'IN_PROGRESS' | 'COMPLETED' | 'PARTIAL' | 'FINISHED' | 'CANCELLED' | string;
-  locationText?:   string;
+  locationText?:   string | null;
+  activityText?:   string | null;
+  routineName?:    string | null;
   gymName?:        string | null;
   brandName?:      string | null;
   sets?:           WorkoutSet[];
-  gym?:            { id: number; name: string } | null;
+  gym?: {
+    id: number;
+    name: string;
+    parentId?: number | null;
+    brand?: { id: number; name: string } | null;
+  } | null;
   routine?: {
     id: number;
     name: string;
@@ -120,7 +129,7 @@ export const trainingApi = {
       const response = await trainingClient.post('/api/training/sessions/completed', payload);
       return response.data?.data ?? response.data;
     } catch (err: any) {
-      console.error('ERROR 400 DETALLE:', err?.response?.data?.message || err?.message);
+      console.warn('[training] saveCompletedSession:', err?.response?.data?.message || err?.message);
       throw err;
     }
   },

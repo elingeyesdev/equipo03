@@ -29,12 +29,12 @@ reservationClient.interceptors.request.use(
   async (config) => {
     const raw = await AuthService.getToken();
     if (!raw) {
-      console.error('[ERROR AUTH] No hay token en el llavero seguro');
+      console.warn('[AUTH] No hay token en el llavero seguro');
       return Promise.reject(new Error('Sin sesión activa.'));
     }
     const token = raw.trim();
     config.headers['Authorization'] = `Bearer ${token}`;
-    console.log(`[AUTH] ${config.method?.toUpperCase()} ${config.url} | Bearer ${token.substring(0, 25)}...`);
+    // auth header injected
     return config;
   },
   (error) => Promise.reject(error),
@@ -42,6 +42,8 @@ reservationClient.interceptors.request.use(
 
 // ── Interceptor global 401 → alerta + logout + redirect al login ─────────────
 attach401Guard(reservationClient);
+import { attachOfflineInterceptor } from '../../offline/offlineInterceptor';
+attachOfflineInterceptor(reservationClient);
 
 export const reservationApi = {
 
@@ -147,7 +149,7 @@ export const reservationApi = {
       });
     } catch (err: any) {
       const status = err?.response?.status;
-      console.error(`[Reservas] Error ${status ?? '?'}:`, err?.response?.data ?? err?.message);
+      console.warn(`[Reservas] Error ${status ?? '?'}:`, err?.response?.data?.message ?? err?.message);
       // 401 → ya lo maneja attach401Guard (alerta + logout automático)
       if (status === 403) {
         const payload = await AuthService.getTokenPayload();

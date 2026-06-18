@@ -67,7 +67,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           new Promise<void>((resolve) => setTimeout(resolve, 8000)),
         ]);
       } catch (e) {
-        console.error('[AuthContext] Error restaurando sesión:', e);
+        console.warn('[AuthContext] Error restaurando sesión:', e);
       } finally {
         setIsLoading(false);
       }
@@ -91,12 +91,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (result.success && result.user) {
         try {
-          const role  = (result.user as any)?.role?.toUpperCase() ?? '';
-          const level = (result.user as any)?.level ?? 0;
-          if (role === 'SUPER_ADMIN' || level >= 10) {
+          const role = (result.user as any)?.role?.toUpperCase() ?? '';
+          if (role === 'SUPER_ADMIN') {
             setError('Esta cuenta es exclusiva del panel web administrativo. Accede desde el navegador en tu computadora.');
             return false;
           }
+        } catch {}
+
+        try {
+          const { queryClient } = await import('../../../App');
+          queryClient.clear();
         } catch {}
 
         const userData = await AuthService.fetchUserProfile();
@@ -128,10 +132,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       await clearToken();
       await AuthService.logout();
+      const { queryClient } = await import('../../../App');
+      queryClient.clear();
       setUser(null);
       setError(null);
     } catch (err: any) {
-      console.error('[AuthContext] Error en logout:', err);
+      console.warn('[AuthContext] Error en logout:', err);
     } finally {
       setIsLoading(false);
     }

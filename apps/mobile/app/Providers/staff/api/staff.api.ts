@@ -20,6 +20,8 @@ staffClient.interceptors.request.use(
 );
 
 attach401Guard(staffClient);
+import { attachOfflineInterceptor } from '../../offline/offlineInterceptor';
+attachOfflineInterceptor(staffClient);
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 

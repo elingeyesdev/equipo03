@@ -13,26 +13,47 @@ const backdropStyle: CSSProperties = {
   padding: '1rem',
 };
 
-export const ModalOverlay = ({ children, onClose, maxWidth }: {
+const UNSAVED_MSG = 'Tienes cambios sin guardar. ¿Deseas salir?';
+
+export const guardClose = (isDirty: boolean, onClose: () => void) => {
+  if (!isDirty || window.confirm(UNSAVED_MSG)) onClose();
+};
+
+export const ModalOverlay = ({ children, onClose, maxWidth, isDirty, onFormChange }: {
   children: React.ReactNode;
   onClose: () => void;
   maxWidth?: string;
+  isDirty?: boolean;
+  onFormChange?: () => void;
 }) => {
+  const dirtyRef = React.useRef(false);
+  const closeRef = React.useRef(onClose);
+  dirtyRef.current = !!isDirty;
+  closeRef.current = onClose;
+
   React.useEffect(() => {
     document.body.setAttribute('data-modal-open', 'true');
-    return () => document.body.removeAttribute('data-modal-open');
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') guardClose(dirtyRef.current, closeRef.current);
+    };
+    window.addEventListener('keydown', onEsc);
+    return () => {
+      document.body.removeAttribute('data-modal-open');
+      window.removeEventListener('keydown', onEsc);
+    };
   }, []);
 
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) onClose();
+    if (e.target === e.currentTarget) guardClose(!!isDirty, onClose);
   };
 
   return createPortal(
     <div style={backdropStyle} onClick={handleBackdropClick}>
       <div
-        className="bg-white dark:bg-bg-surface w-full rounded-2xl border border-slate-200 dark:border-bg-deep p-6 relative flex flex-col"
+        className="bg-white dark:bg-bg-surface w-full rounded-2xl border border-slate-200 dark:border-bg-deep p-6 relative flex flex-col dark-scrollbar"
         style={{ maxHeight: '90vh', overflowY: 'auto', maxWidth: maxWidth ?? '32rem' }}
         onClick={e => e.stopPropagation()}
+        onChangeCapture={onFormChange}
       >
         {children}
       </div>

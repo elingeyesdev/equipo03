@@ -44,17 +44,15 @@ const styles = StyleSheet.create({
     marginBottom: 35,
   },
   logoBadge: {
-    width: 65,
-    height: 65,
-    borderRadius: 16,
-    backgroundColor: '#f05b22',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#1C1C1E',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 15,
-    transform: [{ rotate: '45deg' }],
   },
   logoIcon: {
-    transform: [{ rotate: '-45deg' }],
   },
   title: {
     fontSize: 30,
@@ -185,6 +183,7 @@ export const RegisterScreen = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [gender, setGender] = useState('');
   const [password, setPassword] = useState('');
   
   const [showPassword, setShowPassword] = useState(false);
@@ -270,7 +269,8 @@ export const RegisterScreen = () => {
         name,
         email,
         password,
-        phone.trim() ? phone : undefined
+        phone.trim() ? phone : undefined,
+        gender || undefined,
       );
 
       if (response.success) {
@@ -307,11 +307,11 @@ export const RegisterScreen = () => {
             {/* Header / Brand */}
             <View style={styles.brandContainer}>
               <View style={styles.logoBadge}>
-                <MaterialCommunityIcons 
-                  name="lightning-bolt" 
-                  size={32} 
-                  color="white" 
-                  style={styles.logoIcon} 
+                <MaterialCommunityIcons
+                  name="dumbbell"
+                  size={28}
+                  color="#FF5E00"
+                  style={styles.logoIcon}
                 />
               </View>
               <Text style={styles.title}>Crear Cuenta</Text>
@@ -416,6 +416,38 @@ export const RegisterScreen = () => {
                     editable={!isLoading}
                     keyboardType="phone-pad"
                   />
+                </View>
+              </View>
+
+              {/* Campo Género (Opcional) */}
+              <View style={styles.inputWrapper}>
+                <Text style={styles.label}>Género — opcional</Text>
+                <View style={styles.inputContainer}>
+                  <MaterialCommunityIcons name="account-outline" size={20} color="#666" style={styles.inputIcon} />
+                  <View style={{ flex: 1, flexDirection: 'row', gap: 8 }}>
+                    {([
+                      { value: 'MALE', label: 'Masculino' },
+                      { value: 'FEMALE', label: 'Femenino' },
+                      { value: 'OTHER', label: 'Otro' },
+                    ] as const).map(opt => (
+                      <TouchableOpacity
+                        key={opt.value}
+                        onPress={() => setGender(gender === opt.value ? '' : opt.value)}
+                        style={{
+                          flex: 1,
+                          paddingVertical: 8,
+                          borderRadius: 8,
+                          backgroundColor: gender === opt.value ? '#FF5E00' : '#222',
+                          alignItems: 'center',
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={{ color: gender === opt.value ? '#fff' : '#888', fontSize: 12, fontWeight: '600' }}>
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 </View>
               </View>
 

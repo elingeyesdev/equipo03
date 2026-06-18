@@ -4,7 +4,7 @@ import { Navigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
-import { ModalOverlay, ConfirmModal, panelStyle } from './Shared/DashboardShared';
+import { ModalOverlay, ConfirmModal, panelStyle, guardClose } from './Shared/DashboardShared';
 import type { GymDto, GymScheduleDto, UserDto, CheckinDto, ScheduleEntry } from './Shared/DashboardTypes';
 import { Edit, Trash2, Building2 } from 'lucide-react';
 
@@ -13,7 +13,10 @@ const DESC_MAX = 180;
 const MarcaModal = ({ isOpen, onClose, marcaToEdit, onSave, existingGyms = [] }: any) => {
   const [formData, setFormData] = useState({ name: '', description: '' });
   const [errors, setErrors]     = useState<Record<string, string>>({});
+  const [touched, setTouched]   = useState(false);
   const textareaRef             = React.useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => { setTouched(false); }, [isOpen]);
 
   /* Auto-resize textarea */
   const autoResize = () => {
@@ -74,7 +77,7 @@ const MarcaModal = ({ isOpen, onClose, marcaToEdit, onSave, existingGyms = [] }:
   const labelCls = "text-xs font-semibold text-slate-500 dark:text-gray-500 uppercase tracking-wide";
 
   return (
-    <ModalOverlay onClose={onClose}>
+    <ModalOverlay onClose={onClose} isDirty={touched} onFormChange={() => setTouched(true)}>
       <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">
         {marcaToEdit ? 'Editar Marca' : 'Nueva Marca'}
       </h2>
@@ -124,7 +127,7 @@ const MarcaModal = ({ isOpen, onClose, marcaToEdit, onSave, existingGyms = [] }:
 
         {/* Botones */}
         <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-gray-800">
-          <button type="button" onClick={onClose}
+          <button type="button" onClick={() => guardClose(touched, onClose)}
             className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-bg-deep rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent">
             Cancelar
           </button>

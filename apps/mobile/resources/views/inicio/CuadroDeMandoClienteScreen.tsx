@@ -302,8 +302,8 @@ function ActividadesChart({ sessions }: { sessions: WorkoutSession[] }) {
       />
       {/* Leyenda manual para mayor legibilidad en fondo oscuro */}
       <View style={pie.legend}>
-        {pieData.map(item => (
-          <View key={item.name} style={pie.legendRow}>
+        {pieData.map((item, idx) => (
+          <View key={`${item.name}-${idx}`} style={pie.legendRow}>
             <View style={[pie.dot, { backgroundColor: item.color }]} />
             <Text style={pie.legendLabel} numberOfLines={1}>{item.name}</Text>
             <Text style={pie.legendCount}>{item.population} ses.</Text>
@@ -344,22 +344,20 @@ function SessionCard({ session }: { session: WorkoutSession }) {
           )}
         </View>
 
-        {/* Fila 1: [map-pin] sede — celeste */}
+        {/* Fila 1: [map-pin] sede + marca */}
         <View style={card.infoRow}>
           <Feather name="map-pin" size={13} color={C.celeste} />
           {(() => {
             const s = session as any;
-            const gymName =
-              session.gym?.name  || s.gym_name  || s.gymName  || 'Sucursal Independiente';
-            const brandObj =
-              (session.gym as any)?.parent || (session.gym as any)?.brand;
-            const brandName =
-              brandObj?.name || s.brand_name || s.brandName || '';
-            const showBrand = brandName && brandName !== gymName;
-            return showBrand ? (
+            const gymName = session.gym?.name ?? s.gymName ?? null;
+            const brandName = session.gym?.brand?.name ?? s.brandName ?? null;
+            if (!gymName) {
+              return <Text style={card.gymName}>Fuera de sucursal</Text>;
+            }
+            return brandName ? (
               <View>
                 <Text style={card.brandName} numberOfLines={1}>{brandName}</Text>
-                <Text style={card.gymName}   numberOfLines={1}>{gymName}</Text>
+                <Text style={card.gymName} numberOfLines={1}>{gymName}</Text>
               </View>
             ) : (
               <Text style={card.gymName} numberOfLines={1}>{gymName}</Text>
@@ -367,11 +365,11 @@ function SessionCard({ session }: { session: WorkoutSession }) {
           })()}
         </View>
 
-        {/* Fila 2: [activity] tipo de rutina — blanco */}
+        {/* Fila 2: [activity] rutina o tipo */}
         <View style={card.infoRow}>
           <Feather name="activity" size={13} color={C.primary} />
           <Text style={card.sportText}>
-            {session.routine?.name ?? sportLabel(session.sportType)}
+            {session.routine?.name ?? (session as any).routineName ?? sportLabel(session.sportType)}
           </Text>
         </View>
 
@@ -612,7 +610,7 @@ export const CuadroDeMandoClienteScreen: React.FC = () => {
         Alert.alert('PDF guardado', uri);
       }
     } catch (e: any) {
-      console.error('[generatePDF]', e);
+      console.warn('[generatePDF]', e?.message);
       Alert.alert('Error', 'Fallo al generar el reporte. Intenta de nuevo.');
     } finally {
       // SIEMPRE liberar los estados de carga, pase lo que pase

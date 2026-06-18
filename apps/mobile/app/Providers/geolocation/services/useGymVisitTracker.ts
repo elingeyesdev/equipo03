@@ -75,12 +75,12 @@ export const useGymVisitTracker = () => {
               gymName:    closestGym!.name,
               gymAddress: closestGym!.address,
             });
-            console.log(`[VisitTracker] Ingresó a: ${closestGym!.name} (${closestDist}m)`);
+            // entered gym
 
           } else if (currentInside && closestDist > EXIT_RADIUS_M) {
             const completed = await VisitStorageService.endVisit();
             insideGymRef.current = null;
-            console.log(`[VisitTracker] Salió de: ${currentInside.name}`);
+            // exited gym
 
             if (completed) {
               try {
@@ -90,7 +90,7 @@ export const useGymVisitTracker = () => {
                   exitedAt:    completed.exitedAt,
                   durationMin: completed.durationMin,
                 });
-                console.log('[VisitTracker] Visita sincronizada con backend.');
+                // synced
               } catch (e) {
                 console.warn('[VisitTracker] No se pudo sincronizar visita al backend:', e);
               }

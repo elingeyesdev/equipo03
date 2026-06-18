@@ -41,7 +41,7 @@ export const useAuditHistory = () => {
       const response = await client.get('/api/checkins');
       setHistory(response.data || []);
     } catch (err: any) {
-      console.error('[useAuditHistory] Error:', err);
+      console.warn('[useAuditHistory] Error:', err?.message);
       setError(err.message || 'Error al obtener el historial de auditoría');
     } finally {
       setIsLoading(false);

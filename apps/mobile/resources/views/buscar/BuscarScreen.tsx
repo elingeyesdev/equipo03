@@ -5,9 +5,9 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TextInput,
   TouchableOpacity,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -15,99 +15,94 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BuscarStackParamList } from '../../../routes/BuscarStack';
 import { OSMConfig } from '../../../app/Providers/geolocation/config/osm.config';
-import { useFilterStore } from '../../../app/Providers/geolocation/stores/FilterStore';
 import { useMapScreenStore } from '../../../app/Http/Controllers/geolocation/MapScreen.Controller';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { LeafletMapView } from '../../../app/Providers/geolocation/components/LeafletMap/LeafletMapView';
+import { visitsApi, VisitRecord } from '../../../app/Providers/geolocation/services/visits.api';
+import { reservationApi } from '../../../app/Providers/reservations/api/reservation.api';
 
-// Roles que deben ver el mapa filtrado por su marca (NO el mapa global de CLIENTE)
 const STAFF_ROLES = new Set(['GERENTE', 'INSTRUCTOR', 'ENTRENADOR', 'PERSONAL_DE_LIMPIEZA', 'NUTRICIONISTA']);
 
-const { width, height } = Dimensions.get('window');
-const GRID_GAP = 10;
-const GRID_ITEM = (width - 40 - GRID_GAP) / 2;
+const { width } = Dimensions.get('window');
 
-type NavigationProp = NativeStackNavigationProp<BuscarStackParamList, 'BuscarHome'>;
+const C = {
+  bg: '#0A0A0A', surface: '#1C1C1E', border: '#2A2A2C',
+  orange: '#FF5E00', celeste: '#38BDF8', green: '#34C759',
+  white: '#FFFFFF', soft: '#888', dim: '#555',
+};
 
-const CATEGORIAS = [
-  { label: 'Aerobicos', icon: 'heart-pulse', color: '#e94560', query: 'Zumba' }, // Match approx con los servicios
-  { label: 'Aparatos', icon: 'dumbbell', color: '#f05b22', query: 'Musculación' },
-  { label: 'Boxeo', icon: 'boxing-glove', color: '#9b5de5', query: 'Artes Marciales' },
-  { label: 'Calistenia', icon: 'arm-flex', color: '#00b4d8', query: 'Crossfit' },
-];
+const DOW_LABELS = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'];
+
+type Nav = NativeStackNavigationProp<BuscarStackParamList, 'BuscarHome'>;
 
 export const BuscarScreen = () => {
-  const [query, setQuery]         = useState('');
-  const [userLoc, setUserLoc]     = useState<{ lat: number; lng: number } | null>(null);
-  const navigation                = useNavigation<NavigationProp>();
-  const { user }                  = useAuth();
+  const navigation = useNavigation<Nav>();
+  const { user } = useAuth();
+  const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
+  const [lastVisit, setLastVisit] = useState<VisitRecord | null | undefined>(undefined);
+  const [todayClasses, setTodayClasses] = useState<any[]>([]);
+  const [loadingClasses, setLoadingClasses] = useState(true);
 
-  // Obtener ubicación real para el preview del mapa
-  useEffect(() => {
-    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
-      .then(pos => setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }))
-      .catch(() => {}); // fallback al centro por defecto (Santa Cruz)
-  }, []);
-
-  const resetFiltros = useFilterStore(state => state.resetFiltros);
-  const setFiltros = useFilterStore(state => state.setFiltros);
-
-  // Determinar si el usuario es staff (mapa de marca) o cliente (mapa global)
   const isStaff = STAFF_ROLES.has(user?.role ?? '');
   const mapaRoute: keyof BuscarStackParamList = isStaff ? 'StaffMapa' : 'Mapa';
 
-  const handleCategoryPress = (categoryQuery: string) => {
-    if (isStaff) {
-      // Staff: navegar directamente al mapa de su marca sin filtros de categoría
-      navigation.navigate('StaffMapa');
-      return;
-    }
-    resetFiltros();
-    setFiltros({ servicios: [categoryQuery as any] });
-    useMapScreenStore.setState({ isListView: true });
-    navigation.navigate('Mapa');
-  };
+  useEffect(() => {
+    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+      .then(pos => setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    visitsApi.getMyVisits()
+      .then(visits => setLastVisit(visits.length > 0 ? visits[0] : null))
+      .catch(() => setLastVisit(null));
+  }, []);
+
+  useEffect(() => {
+    const loadClasses = async () => {
+      try {
+        const todayDow = DOW_LABELS[new Date().getDay()];
+        const activities = await reservationApi.getGymActivities(0).catch(() => []);
+        const withSchedules = activities.filter(
+          (a: any) => !a.isFreeAccess && a.schedules?.some((s: any) => s.dayOfWeek === todayDow),
+        );
+        setTodayClasses(withSchedules.slice(0, 6));
+      } catch {
+        setTodayClasses([]);
+      } finally {
+        setLoadingClasses(false);
+      }
+    };
+    loadClasses();
+  }, []);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={s.container} edges={['top']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={s.scroll}
         removeClippedSubviews={false}
       >
         {/* Header */}
-        <View style={styles.headerRow}>
-          <Text style={styles.title}>Buscar</Text>
+        <View style={s.headerRow}>
+          <Text style={s.title}>Buscar</Text>
           <TouchableOpacity
-            style={styles.historialBtn}
+            style={s.historialBtn}
             onPress={() => navigation.navigate('Historial')}
             activeOpacity={0.7}
           >
-            <MaterialCommunityIcons name="history" size={20} color="#fff" />
-            <Text style={styles.historialBtnText}>Historial</Text>
+            <MaterialCommunityIcons name="history" size={18} color={C.white} />
+            <Text style={s.historialTxt}>Historial</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Search bar */}
-        <View style={styles.searchBar}>
-          <MaterialCommunityIcons name="magnify" size={22} color="#888" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Pesas, cardio, corredora, etc..."
-            placeholderTextColor="#888"
-            value={query}
-            onChangeText={setQuery}
-          />
+        {/* ── Mapa preview ── */}
+        <View style={s.sectionRow}>
+          <MaterialCommunityIcons name="map-marker" size={20} color={C.orange} />
+          <Text style={s.sectionTitle}>Sucursales cerca de ti</Text>
         </View>
 
-        {/* Explorar cerca de ti — abre el mapa real */}
-        <View style={styles.sectionRow}>
-          <MaterialCommunityIcons name="map-marker" size={22} color="#f05b22" />
-          <Text style={styles.sectionTitle}>Encuentra marcas aquí</Text>
-        </View>
-
-        {/* Preview del mapa con ubicación real del usuario */}
-        <View style={styles.mapPlaceholderWrapper}>
+        <View style={s.mapWrap}>
           <LeafletMapView
             mode="preview"
             sedes={[]}
@@ -121,8 +116,6 @@ export const BuscarScreen = () => {
             interactive={false}
             style={StyleSheet.absoluteFillObject}
           />
-
-          {/* Toque transparente sobre todo el mapa */}
           <TouchableOpacity
             style={StyleSheet.absoluteFillObject}
             activeOpacity={0.9}
@@ -131,171 +124,136 @@ export const BuscarScreen = () => {
               navigation.navigate(mapaRoute);
             }}
           />
-
-          {/* Franja inferior con el CTA */}
-          <View style={styles.mapBottomBar} pointerEvents="none">
-            <View style={styles.mapOverlayPill}>
-              <MaterialCommunityIcons name="map-search-outline" size={16} color="#fff" />
-              <Text style={styles.mapOverlayText}>Toca para ver el mapa interactivo</Text>
+          <View style={s.mapBar} pointerEvents="none">
+            <View style={s.mapPill}>
+              <MaterialCommunityIcons name="map-search-outline" size={14} color={C.white} />
+              <Text style={s.mapPillTxt}>Ver mapa interactivo</Text>
             </View>
           </View>
         </View>
 
-        {/* ¿Qué quieres entrenar hoy? */}
-        <Text style={styles.categoriesTitle}>¿Que quieres entrenar hoy?</Text>
-
-        <View style={styles.categoriesGrid}>
-          {CATEGORIAS.map((cat, idx) => (
-            <TouchableOpacity 
-              key={idx} 
-              style={styles.categoryCard} 
-              activeOpacity={0.8}
-              onPress={() => handleCategoryPress(cat.query)}
-            >
-              <View style={[styles.categoryIconBg, { backgroundColor: '#1C1C1E' }]}>
-                <MaterialCommunityIcons name={cat.icon as any} size={28} color={cat.color} />
-              </View>
-              <Text style={styles.categoryLabel}>{cat.label}</Text>
-            </TouchableOpacity>
-          ))}
+        {/* ── Clases disponibles hoy ── */}
+        <View style={[s.sectionRow, { marginTop: 28 }]}>
+          <MaterialCommunityIcons name="calendar-today" size={20} color={C.celeste} />
+          <Text style={s.sectionTitle}>Clases disponibles hoy</Text>
         </View>
+
+        {loadingClasses ? (
+          <ActivityIndicator color={C.orange} style={{ marginTop: 16 }} />
+        ) : todayClasses.length === 0 ? (
+          <View style={s.emptyCard}>
+            <MaterialCommunityIcons name="calendar-blank-outline" size={24} color={C.dim} />
+            <Text style={s.emptyTxt}>No hay clases programadas para hoy cerca de ti</Text>
+          </View>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.classesScroll}>
+            {todayClasses.map((cls: any) => {
+              const schedule = cls.schedules?.[0];
+              const start = schedule?.startTime?.substring(0, 5) ?? '';
+              const end = schedule?.endTime?.substring(0, 5) ?? '';
+              const gymName = cls.gym?.name ?? '';
+              return (
+                <View key={cls.id} style={s.classCard}>
+                  <Text style={s.className} numberOfLines={1}>{cls.name}</Text>
+                  {gymName ? <Text style={s.classGym} numberOfLines={1}>{gymName}</Text> : null}
+                  <View style={s.classTimeRow}>
+                    <MaterialCommunityIcons name="clock-outline" size={13} color={C.celeste} />
+                    <Text style={s.classTime}>{start} – {end}</Text>
+                  </View>
+                  {cls.defaultDurationMin && (
+                    <Text style={s.classDuration}>{cls.defaultDurationMin} min</Text>
+                  )}
+                </View>
+              );
+            })}
+          </ScrollView>
+        )}
+
+        {/* ── Última sucursal visitada ── */}
+        <View style={[s.sectionRow, { marginTop: 28 }]}>
+          <MaterialCommunityIcons name="map-marker-check" size={20} color={C.green} />
+          <Text style={s.sectionTitle}>Última sucursal visitada</Text>
+        </View>
+
+        {lastVisit === undefined ? (
+          <ActivityIndicator color={C.orange} style={{ marginTop: 16 }} />
+        ) : lastVisit === null ? (
+          <View style={s.emptyCard}>
+            <MaterialCommunityIcons name="map-marker-off-outline" size={24} color={C.dim} />
+            <Text style={s.emptyTxt}>No has visitado sucursales recientemente</Text>
+          </View>
+        ) : (
+          <View style={s.visitCard}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.visitName}>{lastVisit.gym?.name ?? 'Sucursal'}</Text>
+              {lastVisit.gym?.location?.address && (
+                <Text style={s.visitAddr} numberOfLines={1}>{lastVisit.gym.location.address}</Text>
+              )}
+              <Text style={s.visitDate}>
+                {new Date(lastVisit.enteredAt).toLocaleDateString('es-BO', { day: 'numeric', month: 'short', year: 'numeric' })}
+                {lastVisit.durationMin ? ` · ${lastVisit.durationMin} min` : ''}
+              </Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={22} color={C.dim} />
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  scrollContent: {
-    paddingBottom: 100,
-  },
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.bg },
+  scroll: { paddingBottom: 100 },
   headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 16,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
+  title: { fontSize: 28, fontWeight: '800', color: C.white },
   historialBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1c1c1e',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    gap: 6,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: C.surface, paddingVertical: 7, paddingHorizontal: 12, borderRadius: 18,
   },
-  historialBtnText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1c1c1e',
-    borderRadius: 12,
-    marginHorizontal: 20,
-    paddingHorizontal: 14,
-    height: 48,
-    gap: 10,
-  },
-  searchInput: {
-    flex: 1,
-    color: '#fff',
-    fontSize: 15,
-  },
+  historialTxt: { color: C.white, fontSize: 13, fontWeight: '600' },
   sectionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginTop: 24,
-    gap: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 20, marginTop: 8,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#ffffff',
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: C.white },
+  mapWrap: {
+    marginHorizontal: 20, marginTop: 10, height: 200, borderRadius: 14,
+    borderWidth: 1, borderColor: C.border, backgroundColor: C.surface, overflow: 'hidden',
   },
-  mapPlaceholderWrapper: {
-    marginHorizontal: 20,
-    marginTop: 12,
-    height: 220,
-    borderRadius: 16,
-    // overflow:'hidden' se omite — bloquea el render de MapView en iOS
-    borderWidth: 1,
-    borderColor: '#333',
-    backgroundColor: '#1c1c1e',
+  mapBar: {
+    position: 'absolute', bottom: 0, left: 0, right: 0, height: 44,
+    backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center',
   },
-  mapBottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 58,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
+  mapPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 16,
   },
-  mapOverlayPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(0,0,0,0.65)',
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 20,
+  mapPillTxt: { color: C.white, fontWeight: '600', fontSize: 12 },
+  classesScroll: { paddingHorizontal: 20, paddingTop: 12, gap: 10 },
+  classCard: {
+    width: 160, backgroundColor: C.surface, borderRadius: 12, padding: 14,
+    borderWidth: 1, borderColor: C.border,
   },
-  mapOverlayText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 13,
+  className: { color: C.white, fontSize: 14, fontWeight: '700', marginBottom: 2 },
+  classGym: { color: C.soft, fontSize: 11, marginBottom: 8 },
+  classTimeRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  classTime: { color: C.celeste, fontSize: 12, fontWeight: '600' },
+  classDuration: { color: C.dim, fontSize: 11, marginTop: 4 },
+  emptyCard: {
+    marginHorizontal: 20, marginTop: 12, backgroundColor: C.surface, borderRadius: 12,
+    padding: 20, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: C.border,
   },
-  categoriesTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    paddingHorizontal: 20,
-    marginTop: 28,
-    marginBottom: 12,
+  emptyTxt: { color: C.dim, fontSize: 13, textAlign: 'center' },
+  visitCard: {
+    marginHorizontal: 20, marginTop: 12, backgroundColor: C.surface, borderRadius: 12,
+    padding: 16, flexDirection: 'row', alignItems: 'center',
+    borderWidth: 1, borderColor: C.border,
   },
-  categoriesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 20,
-    gap: GRID_GAP,
-  },
-  categoryCard: {
-    width: GRID_ITEM,
-    height: 110,
-    backgroundColor: '#1c1c1e',
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  categoryIconBg: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  categoryLabel: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
+  visitName: { color: C.white, fontSize: 15, fontWeight: '700' },
+  visitAddr: { color: C.soft, fontSize: 12, marginTop: 2 },
+  visitDate: { color: C.dim, fontSize: 11, marginTop: 4 },
 });

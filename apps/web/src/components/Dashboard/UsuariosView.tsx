@@ -3,7 +3,7 @@ import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
 import { DB_ROLES, ROLE_ID_TO_NAME } from '../../config/rbac.constants';
-import { ModalOverlay, ConfirmModal, panelStyle, RecordDetailModal, DetailField } from './Shared/DashboardShared';
+import { ModalOverlay, ConfirmModal, panelStyle, RecordDetailModal, DetailField, guardClose } from './Shared/DashboardShared';
 import type { GymDto, UserDto } from './Shared/DashboardTypes';
 import { Eye, Edit, Trash2, Plus, Clock, Building2 } from 'lucide-react';
 
@@ -140,10 +140,12 @@ const StaffScheduleModal = ({
   // gymId → dayOfWeek → DaySchedule
   const [schedules, setSchedules] = useState<Record<number, Record<number, DaySchedule>>>({});
   const [loading, setLoading]     = useState(false);
+  const [touched, setTouched]     = useState(false);
   const [saving,  setSaving]      = useState(false);
 
   useEffect(() => {
     if (!isOpen || !employee) return;
+    setTouched(false);
     setActiveGymId(gyms[0]?.id ?? null);
 
     const init: Record<number, Record<number, DaySchedule>> = {};
@@ -261,7 +263,7 @@ const StaffScheduleModal = ({
   const employeeName = [employee?.profile?.firstName, employee?.profile?.lastName].filter(Boolean).join(' ') || employee?.email || '';
 
   return (
-    <ModalOverlay onClose={onClose}>
+    <ModalOverlay onClose={onClose} isDirty={touched} onFormChange={() => setTouched(true)}>
       <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-0.5">Horarios Laborales</h2>
       <p className="text-sm text-slate-500 dark:text-gray-400 mb-4">{employeeName}</p>
 
@@ -362,7 +364,7 @@ const StaffScheduleModal = ({
       <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100 dark:border-gray-800 flex-shrink-0">
         <button
           className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-bg-deep rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent"
-          onClick={onClose}
+          onClick={() => guardClose(touched, onClose)}
         >
           Cancelar
         </button>
@@ -403,10 +405,11 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
 
   const [formData, setFormData] = useState({
     firstName: '', lastName: '', email: '', password: '', phone: '',
-    phonePrefix: '+591', phoneNumber: '', ci: '',
+    phonePrefix: '+591', phoneNumber: '', ci: '', gender: '' as string,
     roleId: DB_ROLES.USER as number, gymIds: [] as number[], isActive: true,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [gyms, setGyms] = useState<GymDto[]>([]);
   const [loadingGyms, setLoadingGyms] = useState(false);
@@ -445,6 +448,8 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
   // ── Poblar formulario al abrir ─────────────────────────────────────────────────
   useEffect(() => {
     if (!isOpen) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTouched(false);
     if (userToEdit) {
       const gymsFromRoles = (userToEdit.userRoles ?? [])
         .map(ur => ur.gym)
@@ -459,6 +464,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
         phonePrefix: prefix,
         phoneNumber: number,
         ci:          userToEdit.profile?.ci ?? '',
+        gender:      (userToEdit.profile as Record<string, unknown>)?.gender as string ?? '',
         email:       userToEdit.email ?? '',
         password:    '',
         roleId:      Number(userToEdit.userRoles?.[0]?.roleId) || DB_ROLES.USER,
@@ -466,7 +472,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
         isActive:    userToEdit.isActive ?? true,
       });
     } else {
-      setFormData({ firstName: '', lastName: '', email: '', password: '', phone: '', phonePrefix: '+591', phoneNumber: '', ci: '', roleId: DB_ROLES.USER, gymIds: [], isActive: true });
+      setFormData({ firstName: '', lastName: '', email: '', password: '', phone: '', phonePrefix: '+591', phoneNumber: '', ci: '', gender: '', roleId: DB_ROLES.USER, gymIds: [], isActive: true });
     }
     setSelectedSede(sedeIdDelGerente || '');
     setSelectedMarcaId(sedeIdDelGerente ?? '');
@@ -574,7 +580,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
   const labelCls = "block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1 mt-3";
 
   return (
-    <ModalOverlay onClose={onClose}>
+    <ModalOverlay onClose={onClose} isDirty={touched} onFormChange={() => setTouched(true)}>
       <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
         {userToEdit ? 'Editar Usuario' : 'Nuevo Usuario'}
       </h2>
@@ -634,6 +640,20 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
           maxLength={20}
         />
         {errors.ci && <span className="text-red-500 text-xs mt-1 block">{errors.ci}</span>}
+
+        <label className={labelCls}>
+          Género <span className="text-slate-400 dark:text-gray-500 font-normal text-xs">— opcional</span>
+        </label>
+        <select
+          className={inputCls()}
+          value={formData.gender}
+          onChange={e => setFormData({ ...formData, gender: e.target.value })}
+        >
+          <option value="">Sin especificar</option>
+          <option value="MALE">Masculino</option>
+          <option value="FEMALE">Femenino</option>
+          <option value="OTHER">Otro</option>
+        </select>
 
         <label className={labelCls}>Correo Electrónico</label>
         <input
@@ -841,7 +861,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
       </div>
 
       <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100 dark:border-gray-800 flex-shrink-0">
-        <button className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-bg-deep rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent" onClick={onClose}>Cancelar</button>
+        <button className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-bg-deep rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent" onClick={() => guardClose(touched, onClose)}>Cancelar</button>
         <button className="px-4 py-2 bg-brand-celeste text-black font-medium rounded-lg border-0 cursor-pointer" onClick={() => {
           if (!validateForm()) return;
           if (isGerente || isRecepcionista) {
@@ -1047,6 +1067,7 @@ export const UsuariosView = () => {
         // Solo envía phone/ci si tienen valor (campos opcionales)
         ...(formData.phone?.trim() ? { phone: formData.phone.trim() } : {}),
         ...(formData.ci?.trim()    ? { ci:    formData.ci.trim()    } : {}),
+        ...(formData.gender        ? { gender: formData.gender }      : {}),
         roleId:    Number(formData.roleId),
         gymIds: (([DB_ROLES.SUPER_ADMIN, DB_ROLES.CLIENTE, DB_ROLES.USER] as number[]).includes(Number(formData.roleId)))
           ? []

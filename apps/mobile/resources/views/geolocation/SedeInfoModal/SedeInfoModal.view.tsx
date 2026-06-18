@@ -73,16 +73,11 @@ export const SedeInfoModalView: React.FC<SedeInfoModalViewProps> = ({
             </TouchableOpacity>
           </View>
 
-          {/* Info rápida */}
+          {/* Info rápida + Barra de aforo */}
           <View style={styles.quickInfo}>
             <View style={styles.quickInfoItem}>
               <Text style={styles.quickInfoLabel}>Distancia</Text>
               <Text style={styles.quickInfoValue}>{distancia.kmCorta}</Text>
-            </View>
-            <View style={styles.quickInfoDivider} />
-            <View style={styles.quickInfoItem}>
-              <Text style={styles.quickInfoLabel}>Aforo</Text>
-              <AforoBadge aforo={sede.aforo} size="medium" />
             </View>
             <View style={styles.quickInfoDivider} />
             <View style={styles.quickInfoItem}>
@@ -91,20 +86,47 @@ export const SedeInfoModalView: React.FC<SedeInfoModalViewProps> = ({
                 styles.statusText,
                 {
                   color: !sede.estaAbierta
-                    ? '#8e8e93'
+                    ? '#888'
                     : sede.estaDisponible
-                    ? '#2ecc71'
-                    : '#e74c3c',
+                    ? '#34C759'
+                    : '#FF3B30',
                 }
               ]}>
                 {!sede.estaAbierta
                   ? 'Cerrado'
                   : sede.estaDisponible
-                  ? 'Abierto ahora'
+                  ? 'Abierto'
                   : 'Lleno'}
               </Text>
             </View>
+            <View style={styles.quickInfoDivider} />
+            <View style={styles.quickInfoItem}>
+              <Text style={styles.quickInfoLabel}>Aforo</Text>
+              <AforoBadge aforo={sede.aforo} size="medium" />
+            </View>
           </View>
+
+          {/* Barra de ocupación */}
+          {sede.aforo && sede.aforo.maximo > 0 && (
+            <View style={{ marginHorizontal: 20, marginBottom: 16 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                <Text style={{ color: '#888', fontSize: 12 }}>Ocupación actual</Text>
+                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
+                  {sede.aforo.actual} / {sede.aforo.maximo}
+                </Text>
+              </View>
+              <View style={{ height: 6, backgroundColor: '#1C1C1E', borderRadius: 3, overflow: 'hidden' }}>
+                <View style={{
+                  height: 6,
+                  borderRadius: 3,
+                  width: `${Math.min(100, Math.round((sede.aforo.actual / sede.aforo.maximo) * 100))}%`,
+                  backgroundColor:
+                    (sede.aforo.actual / sede.aforo.maximo) >= 0.85 ? '#FF3B30' :
+                    (sede.aforo.actual / sede.aforo.maximo) >= 0.60 ? '#FF9500' : '#34C759',
+                }} />
+              </View>
+            </View>
+          )}
 
           <ScrollView
             style={styles.scrollContent}

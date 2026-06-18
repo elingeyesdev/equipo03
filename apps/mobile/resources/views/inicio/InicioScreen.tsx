@@ -201,7 +201,7 @@ const ClientDashboard = () => {
         }
       }
     } catch (e) {
-      console.error('[InicioScreen] Error fetching sedes:', e);
+      console.warn('[InicioScreen] Error fetching sedes:', (e as Error)?.message);
       setErrorType('network');
     } finally {
       setLoading(false);

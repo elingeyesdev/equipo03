@@ -21,7 +21,7 @@ export class AxiosReservasApiAdapter implements IReservasApiService {
 
       const token = await AuthService.getToken();
       if (!token) {
-        console.error('[ERROR AUTH] No hay token en el llavero seguro');
+        console.warn('[ERROR AUTH] No hay token en el llavero seguro');
         return left(new Error('No hay sesión activa. Inicia sesión nuevamente.'));
       }
 
@@ -77,11 +77,11 @@ export class AxiosReservasApiAdapter implements IReservasApiService {
         reservationDate: dateParts,
       };
 
-      console.log('[AxiosReservasApiAdapter] Enviando payload final al servidor:', payload);
+      // payload ready
 
       const response = await reservationApi.createReservation(payload);
 
-      console.log('[AxiosReservasApiAdapter] Servidor respondió con éxito:', response);
+      // success
 
       //Traducir de vuelta a la entidad Reserva de dominio
       const reserva = Reserva.create({
@@ -102,7 +102,7 @@ export class AxiosReservasApiAdapter implements IReservasApiService {
 
     } catch (error: any) {
       const errorMsg = error?.response?.data?.message || error?.message || 'Error al persistir la reserva en el backend.';
-      console.error('[AxiosReservasApiAdapter] Error:', errorMsg);
+      console.warn('[AxiosReservasApiAdapter] Error:', errorMsg);
       return left(new Error(errorMsg));
     }
   }

@@ -27,8 +27,35 @@
     @apply bg-gray-100 text-gray-900 dark:bg-bg-deep dark:text-text-main;
   }
 
+  .dark {
+    color-scheme: dark;
+  }
+
   * {
     box-shadow: none !important;
     text-shadow: none !important;
   }
+}
+
+/* Inputs numéricos / time — spinners oscuros en dark mode */
+.dark input[type="number"],
+.dark input[type="time"],
+.dark select {
+  color-scheme: dark;
+}
+
+/* Scrollbar oscuro global en dark mode */
+.dark ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.dark ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #374151;
+  border-radius: 3px;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #4b5563;
 }
