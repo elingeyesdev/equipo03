@@ -1,42 +1,28 @@
-/**
- * roles.config.ts — Mapa de rutas y privilegios del dashboard.
- *
- * FUENTE DE VERDAD ÚNICA para:
- *   - El sidebar (DashboardLayout.tsx) — qué links aparecen en el DOM.
- *   - El RoleGuard (RoleGuard.tsx)     — qué rutas se montan en el árbol.
- *
- * Para añadir/quitar permisos, edita SOLO este archivo.
- */
 import type { UserRole } from '@gymsync/core';
 
 export interface NavRoute {
-  /** Segmento de ruta relativo al /dashboard/ */
   path: string;
-  /** Etiqueta visible en el sidebar */
   label: string;
-  /** Roles que pueden acceder. Si el usuario no tiene uno de estos, no se monta. */
   allowedRoles: UserRole[];
+  minLevel?: number;
 }
 
-/**
- * Todas las rutas del dashboard en orden de aparición en el sidebar.
- * La propiedad `allowedRoles` es la misma lista que consume RoleGuard.
- */
 export const NAV_ROUTES: NavRoute[] = [
-  { path: 'resumen',     label: 'Resumen',              allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'ENTRENADOR', 'NUTRICIONISTA', 'CLIENTE', 'USER'] },
-  { path: 'auditoria',   label: 'Registros del Personal', allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA'] },
-  { path: 'usuarios',    label: 'Usuarios',              allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'ENTRENADOR', 'NUTRICIONISTA', 'RECEPCIONISTA'] },
-  { path: 'sedes',       label: 'Marcas',                  allowedRoles: ['SUPER_ADMIN'] },
-  { path: 'sucursales',  label: 'Sucursales',             allowedRoles: ['SUPER_ADMIN'] },
-  { path: 'roles',       label: 'Roles',                  allowedRoles: ['SUPER_ADMIN'] },
-  { path: 'mapa',        label: 'Mapa de Red',            allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA'] },
-{ path: 'actividades', label: 'Catálogo de Servicios',  allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA'] },
-  { path: 'reservas',    label: 'Gestion de Reservas',    allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'CLIENTE', 'RECEPCIONISTA'] },
-  { path: 'medidas',     label: 'Medidas',                allowedRoles: ['CLIENTE'] },
+  { path: 'resumen',     label: 'Resumen',               allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA'], minLevel: 4 },
+  { path: 'auditoria',   label: 'Registros del Personal', allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA'], minLevel: 4 },
+  { path: 'usuarios',    label: 'Usuarios',               allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA'], minLevel: 4 },
+  { path: 'sedes',       label: 'Marcas',                 allowedRoles: ['SUPER_ADMIN'], minLevel: 10 },
+  { path: 'sucursales',  label: 'Sucursales',             allowedRoles: ['SUPER_ADMIN'], minLevel: 10 },
+  { path: 'roles',       label: 'Roles',                  allowedRoles: ['SUPER_ADMIN'], minLevel: 10 },
+  { path: 'mapa',        label: 'Mapa de Red',            allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA'], minLevel: 4 },
+  { path: 'actividades', label: 'Catálogo de Servicios',  allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA'], minLevel: 4 },
+  { path: 'reservas',    label: 'Gestion de Reservas',    allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA'], minLevel: 4 },
 ];
 
-/** Helper: devuelve solo las rutas visibles para un rol dado. */
-export const getRoutesForRole = (role: UserRole | undefined): NavRoute[] => {
+export const getRoutesForRole = (role: UserRole | undefined, level?: number): NavRoute[] => {
   if (!role) return [];
-  return NAV_ROUTES.filter(r => r.allowedRoles.includes(role));
+  const lvl = level ?? 0;
+  return NAV_ROUTES.filter(r =>
+    r.allowedRoles.includes(role) || (r.minLevel !== undefined && lvl >= r.minLevel)
+  );
 };

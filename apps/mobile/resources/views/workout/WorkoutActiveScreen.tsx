@@ -108,7 +108,7 @@ export const WorkoutActiveScreen = () => {
   useEffect(() => {
     VisitStorageService.getActiveVisit().then(visit => {
       if (visit?.gymId != null) setActiveGymId(Number(visit.gymId));
-    });
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -126,7 +126,10 @@ export const WorkoutActiveScreen = () => {
         return next;
       });
     }, 1000);
-    return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+      if (soundRef.current) { soundRef.current.stopAsync().catch(() => {}); soundRef.current.unloadAsync().catch(() => {}); soundRef.current = null; }
+    };
   }, []); 
 
   useEffect(() => {

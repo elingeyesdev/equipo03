@@ -209,10 +209,19 @@ const AccesosPanel = () => {
     const currentPage = (resetPage || timeFilterActive) ? 1 : page;
     const limit = timeFilterActive ? 1000 : 20;
 
-    // Gerente: Restringir a sucursal asociada a la cuenta del gerente
-    const selectedGymId = user.role === 'GERENTE' ? (user.gymId || undefined) : (filtroSede || undefined);
+    const level = user.level ?? 0;
+    const selectedGymId = level >= 4 && level < 10
+      ? (user.gymId || (user.brandId ? String(user.brandId) : undefined))
+      : (filtroSede || undefined);
 
-    const result = await consultarAccesosUseCase.execute(user, {
+    const authCtx = {
+      ...user,
+      userId: String(user.userId),
+      brandId: user.brandId ? String(user.brandId) : undefined,
+      level,
+    };
+
+    const result = await consultarAccesosUseCase.execute(authCtx, {
       gymId:  selectedGymId,
       estado: filtroEstado || undefined,
       page:   currentPage,

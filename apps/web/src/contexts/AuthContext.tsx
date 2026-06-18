@@ -10,20 +10,15 @@ import type { UserRole } from '@gymsync/core';
 import { apiClient } from '../infrastructure/api.config';
 import { VALID_ROLES, ROLE_ID_TO_NAME, DB_ROLES } from '../config/rbac.constants';
 
-const ALLOWED_WEB_ROLES = new Set<string>(['SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA']);
-
-// ─── Tipo extendido de usuario (solo para la app web) ────────────────────────
 export interface WebUser {
-  /** ID numérico del usuario (= sub del JWT). */
   id: number;
-  /** Nombre del rol en mayúsculas, derivado del JWT. */
+  userId: number;
   role: UserRole;
-  /** ID numérico del rol en la BD (sincronizado con DB_ROLES). */
   roleId: number;
-  /** ID del gimnasio/sucursal asignado. Solo presente en GERENTE de sucursal u otros staff. */
+  level: number;
   gymId?: string;
-  /** ID de la Marca asignada. Solo presente en GERENTE cuya asignación es a nivel de Marca. */
   brandId?: number;
+  brandName?: string;
   firstName?: string;
   lastName?: string;
   gymName?: string;
@@ -129,12 +124,16 @@ function buildUserFromMeResponse(data: Record<string, any>): WebUser | null {
           )
         : 3;
 
+    const id = Number(data.id ?? data.userId ?? 0);
     return {
-      id: Number(data.id ?? data.userId ?? 0),
+      id,
+      userId: id,
       role,
       roleId,
+      level: Number(data.level ?? data.hierarchyLevel ?? 0),
       gymId: data.gymId ? String(data.gymId) : undefined,
       brandId: data.brandId ? Number(data.brandId) : undefined,
+      brandName: data.brandName || undefined,
       firstName: profile.firstName || data.firstName || '',
       lastName: profile.lastName || data.lastName || '',
       gymName: data.gymName || data.gym?.name || '',
@@ -232,10 +231,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         webUser = {
           id,
+          userId: id,
           role,
           roleId,
+          level: Number(jwtPayload.level ?? userData.level ?? 0),
           gymId,
           brandId,
+          brandName: userData.brandName || undefined,
           firstName: userData.profile?.firstName || userData.firstName || '',
           lastName:  userData.profile?.lastName  || userData.lastName  || '',
           gymName:   userData.gymName || userData.gym?.name || '',
@@ -248,7 +250,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         webUser = built;
       }
 
-      if (!ALLOWED_WEB_ROLES.has(webUser.role)) {
+      if (webUser.level < 4) {
         return {
           success: false,
           error:
@@ -286,10 +288,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const value = React.useMemo(
+    () => ({ isAuthenticated: !!user, user, login, logout, isLoading }),
+    [user, login, logout, isLoading],
+  );
+
   return (
-    <AuthContext.Provider
-      value={{ isAuthenticated: !!user, user, login, logout, isLoading }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

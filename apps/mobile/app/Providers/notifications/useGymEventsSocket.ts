@@ -10,6 +10,7 @@ import { useAuth } from '../../Shared/hooks/useAuth';
 
 const MANAGER_ROLES  = new Set(['GERENTE', 'SUPER_ADMIN']);
 const TRAINER_ROLES  = new Set(['ENTRENADOR', 'INSTRUCTOR', 'NUTRICIONISTA']);
+const getLevel = (user: any): number => user?.level ?? 0;
 
 type GymEventPayload = {
   message?: string;
@@ -72,7 +73,8 @@ export function useGymEventsSocket(): void {
   const socketRef = useRef<Socket | null>(null);
 
   const role = user?.role?.toUpperCase() ?? '';
-  const shouldConnect = isAuthenticated && (MANAGER_ROLES.has(role) || TRAINER_ROLES.has(role));
+  const level = getLevel(user);
+  const shouldConnect = isAuthenticated && level >= 3;
 
   useEffect(() => {
     if (!shouldConnect) {
@@ -99,10 +101,10 @@ export function useGymEventsSocket(): void {
 
       socket.on('connect', () => {
         const trimmedToken = token.trim();
-        if (role === 'GERENTE' && user?.gymId) {
-          socket.emit('join_room', { room: `gym_${user.gymId}`, token: trimmedToken });
-        } else if (role === 'SUPER_ADMIN') {
+        if (level >= 10) {
           socket.emit('join_room', { room: 'admin_room', token: trimmedToken });
+        } else if (level >= 4 && user?.gymId) {
+          socket.emit('join_room', { room: `gym_${user.gymId}`, token: trimmedToken });
         }
       });
 

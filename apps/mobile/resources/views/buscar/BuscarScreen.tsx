@@ -21,7 +21,7 @@ import { LeafletMapView } from '../../../app/Providers/geolocation/components/Le
 import { visitsApi, VisitRecord } from '../../../app/Providers/geolocation/services/visits.api';
 import { reservationApi } from '../../../app/Providers/reservations/api/reservation.api';
 
-const STAFF_ROLES = new Set(['GERENTE', 'INSTRUCTOR', 'ENTRENADOR', 'PERSONAL_DE_LIMPIEZA', 'NUTRICIONISTA']);
+// Staff = level >= 3 (entrenadores, instructores, recepcionistas, gerentes, etc.)
 
 const { width } = Dimensions.get('window');
 
@@ -43,7 +43,7 @@ export const BuscarScreen = () => {
   const [todayClasses, setTodayClasses] = useState<any[]>([]);
   const [loadingClasses, setLoadingClasses] = useState(true);
 
-  const isStaff = STAFF_ROLES.has(user?.role ?? '');
+  const isStaff = ((user as any)?.level ?? 0) >= 3;
   const mapaRoute: keyof BuscarStackParamList = isStaff ? 'StaffMapa' : 'Mapa';
 
   useEffect(() => {

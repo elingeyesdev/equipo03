@@ -2,13 +2,14 @@ import type { IAccessApiService, AccesoQueryParams } from '../output/IAccessApiS
 import type { Acceso } from '../../../domain/entities/Acceso.entity';
 import { Either, left } from '../../../shared/kernel/Either';
 
-export type UserRole = 'SUPER_ADMIN' | 'GERENTE' | 'ENTRENADOR' | 'NUTRICIONISTA' | 'CLIENTE' | 'USER' | 'RECEPCIONISTA';
+export type UserRole = 'SUPER_ADMIN' | 'GERENTE' | 'ENTRENADOR' | 'NUTRICIONISTA' | 'CLIENTE' | 'USER' | 'RECEPCIONISTA' | string;
 
 export interface AutenticacionContext {
   userId: string;
   role: UserRole;
-  gymId?: string; // Requerido si es GERENTE (vinculado en user_roles)
-  level?: number; // Nivel jerárquico del rol; determina las pantallas en la app
+  gymId?: string;
+  brandId?: string;
+  level?: number;
 }
 
 export class ConsultarHistorialAccesosUseCase {
@@ -18,16 +19,20 @@ export class ConsultarHistorialAccesosUseCase {
     authContext: AutenticacionContext,
     params: AccesoQueryParams
   ): Promise<Either<Error, { data: Acceso[], total: number }>> {
-    
-    // RBAC: Verificación de permisos según la tabla roles y user_roles
+
+    const level = authContext.level ?? 0;
     let gymIdFilter = params.gymId;
 
-    if (authContext.role === 'GERENTE' || authContext.role === 'RECEPCIONISTA') {
-      if (!authContext.gymId) {
-        return left(new Error('ACCESO_DENEGADO: No tienes un gym_id asignado en user_roles.'));
+    if (level >= 10) {
+      // SUPER_ADMIN: sin filtro, ve todo
+    } else if (level >= 4) {
+      // Gerente / Recepcionista: filtrar por su gym o brand
+      const resolvedGymId = authContext.gymId || authContext.brandId;
+      if (!resolvedGymId) {
+        return left(new Error('ACCESO_DENEGADO: No tienes una sucursal o marca asignada.'));
       }
-      gymIdFilter = authContext.gymId;
-    } else if (authContext.role !== 'SUPER_ADMIN') {
+      gymIdFilter = resolvedGymId;
+    } else {
       return left(new Error('ACCESO_DENEGADO: Rol no autorizado para visualizar auditoría.'));
     }
 

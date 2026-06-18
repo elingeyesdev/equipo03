@@ -51,7 +51,7 @@ export const NetworkProvider = ({ children }: { children: React.ReactNode }) => 
 
       if (connected && !prevOnline.current) {
         showToast('Conexión restaurada');
-        SyncManager.sync().then(() => refreshPendingCount());
+        SyncManager.sync().then(() => refreshPendingCount()).catch(() => {});
       }
 
       prevOnline.current = connected;

@@ -474,34 +474,38 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
     } else {
       setFormData({ firstName: '', lastName: '', email: '', password: '', phone: '', phonePrefix: '+591', phoneNumber: '', ci: '', gender: '', roleId: DB_ROLES.USER, gymIds: [], isActive: true });
     }
-    setSelectedSede(sedeIdDelGerente || '');
-    setSelectedMarcaId(sedeIdDelGerente ?? '');
+    if (sedeIdDelGerente) {
+      setSelectedSede(sedeIdDelGerente);
+      setSelectedMarcaId(sedeIdDelGerente);
+    } else {
+      setSelectedSede('');
+      setSelectedMarcaId('');
+    }
   }, [userToEdit, isOpen, sedeIdDelGerente]);
 
-  // ── Pre-poblar selectedSede al editar un GERENTE (espera que gyms cargue) ─────
+  // ── Pre-poblar marca y sucursal al editar (espera que gyms cargue) ──────────
   useEffect(() => {
-    if (!isOpen || !userToEdit || formData.roleId !== DB_ROLES.GERENTE || !gyms.length) return;
-    const sucursalId = formData.gymIds[0];
-    if (!sucursalId) return;
-    const sucursal = gyms.find(g => g.id === sucursalId);
-    const sedeId   = sucursal?.parentId ?? sucursal?.parent?.id;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (sedeId) setSelectedSede(sedeId);
-  }, [gyms, formData.gymIds, formData.roleId, isOpen, userToEdit]);
-
-  // ── Pre-poblar selectedMarcaId al editar staff multi-sede ─────────────────────
-  useEffect(() => {
-    if (!isOpen || !gyms.length) return;
+    if (!isOpen || !userToEdit || !gyms.length) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (sedeIdDelGerente) { setSelectedMarcaId(sedeIdDelGerente); return; }
-    if (!userToEdit) return;
-    const roleName = roleOptions.find(r => r.id === formData.roleId)?.name ?? '';
-    if (!SEDE_ROLE_NAMES.has(roleName) || roleName === 'GERENTE') return;
+
     const firstGymId = formData.gymIds[0];
     if (!firstGymId) return;
     const firstGym = gyms.find(g => g.id === firstGymId);
-    const marcaId  = firstGym?.parentId ?? firstGym?.parent?.id;
-    if (marcaId) setSelectedMarcaId(marcaId);
+    if (!firstGym) return;
+
+    const roleName = roleOptions.find(r => r.id === formData.roleId)?.name ?? '';
+
+    if (roleName === 'GERENTE') {
+      if (firstGym.parentId ?? firstGym.parent?.id) {
+        setSelectedSede(firstGym.parentId ?? firstGym.parent?.id ?? '');
+      } else {
+        setSelectedSede(firstGym.id);
+      }
+    } else {
+      const marcaId = firstGym.parentId ?? firstGym.parent?.id;
+      if (marcaId) setSelectedMarcaId(marcaId);
+    }
   }, [isOpen, sedeIdDelGerente, gyms, formData.gymIds, formData.roleId, userToEdit, roleOptions]);
 
   // ── Restaurar marca del Gerente/Recepcionista si se limpió al cambiar de rol ──

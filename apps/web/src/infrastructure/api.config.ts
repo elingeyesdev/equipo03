@@ -37,54 +37,6 @@ export const createApiClient = (): AxiosInstance => {
   // ── Request interceptor ──────────────────────────────────────────────────────
   client.interceptors.request.use(
     (config) => {
-      // El JWT viaja en la cookie HttpOnly — NO se inyecta en el header Authorization.
-      // El browser lo adjunta automáticamente gracias a withCredentials: true.
-
-      // Inyección de Scope para GERENTE (solo en GET, con exclusiones)
-      if (config.method?.toUpperCase() === 'GET') {
-        const userStr = localStorage.getItem('gymsync_user');
-        if (userStr) {
-          try {
-            const user = JSON.parse(userStr);
-
-            if (user.role === 'GERENTE') {
-              const GYM_SCOPE_EXCLUDED = [
-                '/gyms/brands',
-                '/roles',
-                '/auth/me',
-                '/reservations/validate',
-                '/reservations/check-in',
-                '/dashboard/summary',
-              ];
-              const url = config.url ?? '';
-              const isExcluded = GYM_SCOPE_EXCLUDED.some(
-                (p) => url.startsWith(p) || url.includes(p),
-              );
-
-              if (!isExcluded) {
-                config.params = config.params || {};
-                if (user.gymId) {
-                  config.params.gym_id = user.gymId;
-                } else if (user.brandId) {
-                  config.params.brand_id = user.brandId;
-                } else {
-                  config.params.gym_id = -1;
-                  console.warn(
-                    '[RBAC Security]: Gerente sin gymId ni brandId. Petición bloqueada con gym_id=-1.',
-                  );
-                }
-              }
-            }
-          } catch (e) {
-            console.error('[api.config]: Error al parsear gymsync_user del localStorage', e);
-          }
-        }
-      }
-
-      console.log(
-        `[Web API] ${config.method?.toUpperCase()} ${config.url}`,
-        config.params || config.data,
-      );
       return config;
     },
     (error) => Promise.reject(error),
