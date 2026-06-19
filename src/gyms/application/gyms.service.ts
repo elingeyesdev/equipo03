@@ -143,14 +143,14 @@ export class GymsService {
       if (!brandId) {
         gymsToMap = await this.gymsRepo.find({
           where: { parentId: sg, isActive: true },
-          relations: ['location', 'schedules', 'parent', 'infrastructure'],
+          relations: ['location', 'schedules', 'parent', 'infrastructure', 'activities'],
           order: { id: 'ASC' },
         });
       } else {
         // Devolver TODAS las sucursales activas de la misma marca, sin filtro de distancia
         gymsToMap = await this.gymsRepo.find({
           where: { parentId: brandId, isActive: true },
-          relations: ['location', 'schedules', 'parent', 'infrastructure'],
+          relations: ['location', 'schedules', 'parent', 'infrastructure', 'activities'],
           order: { id: 'ASC' },
         });
       }
@@ -161,6 +161,7 @@ export class GymsService {
         .leftJoinAndSelect('gym.schedules', 'schedules')
         .leftJoinAndSelect('gym.parent', 'parent')
         .leftJoinAndSelect('gym.infrastructure', 'infrastructure')
+        .leftJoinAndSelect('gym.activities', 'activities')
         .where('gym.isActive = :active', { active: true })
         .andWhere('gym.parentId IS NOT NULL')
         .orderBy('gym.id', 'ASC')
@@ -260,20 +261,17 @@ export class GymsService {
       gym.location.longitude = Number(gym.location.longitude);
     }
 
+    const activeServices = (gym.activities ?? [])
+      .filter(a => a.isActive)
+      .map(a => a.name);
+
     return {
       ...gym,
-      // Sobreescribe el campo estático isOpen con el cálculo dinámico basado en schedules
       isOpen: isGymOpenNow(gym.schedules ?? []),
       parentName: gym.parent?.name ?? null,
       currentOccupancy,
       aforoActual: currentOccupancy,
-      imagenUrl:
-        'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?q=80&w=1000&auto=format&fit=crop',
-      rating: Number((Math.random() * (5.0 - 4.0) + 4.0).toFixed(1)),
-      resenasCount: Math.floor(Math.random() * 500) + 50,
-      servicios: ['Musculación', 'Cardio', 'Zumba'],
-      beneficios: ['Duchas', 'AC', 'Estacionamiento'],
-      telefono: '+591 3 3456789',
+      servicios: activeServices,
     };
   }
 

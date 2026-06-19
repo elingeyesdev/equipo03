@@ -305,7 +305,9 @@ export class UsersService {
       );
     }
 
-    Object.assign(profile, profileData);
+    for (const [key, value] of Object.entries(profileData)) {
+      if (value !== undefined) (profile as any)[key] = value;
+    }
     if (birthDate !== undefined) profile.dateOfBirth = new Date(birthDate);
 
     let savedProfile: UserProfile;

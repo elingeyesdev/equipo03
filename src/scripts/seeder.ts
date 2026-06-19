@@ -344,12 +344,13 @@ async function runSeed() {
   const exerciseRepo = qr.manager.getRepository(ExerciseCatalog);
   const actSchedRepo = qr.manager.getRepository(GymActivitySchedule);
 
-  // Obtener instructores para asignar a las clases guiadas
+  // Obtener instructores para asignar a las clases guiadas (INSTRUCTOR + ENTRENADOR)
   const instructorRoleId = roleByName('INSTRUCTOR').id;
+  const entrenadorRoleId = roleByName('ENTRENADOR').id;
   const instructors = await urRepo.find({
-    where: { roleId: instructorRoleId },
+    where: [{ roleId: instructorRoleId }, { roleId: entrenadorRoleId }],
     relations: ['user']
-  }).then(urs => urs.map(ur => ur.user));
+  }).then(urs => urs.map(ur => ur.user).filter(Boolean));
 
   const serviceDefinitions = [
     { name: 'Musculación Libre', desc: 'Acceso a todas las máquinas de fuerza y peso libre. Entrena a tu ritmo.', isFreeAccess: true, duration: undefined },
@@ -395,28 +396,41 @@ async function runSeed() {
     }));
 
     // Si NO es libre, requiere horarios (GymActivitySchedule)
+    // REGLA: 4 horarios por actividad con días en nombre COMPLETO (DayOfWeek del frontend)
     if (!def.isFreeAccess && instructors.length > 0) {
-      const instructor = instructors[i % instructors.length];
       const schedulesToCreate: GymActivitySchedule[] = [];
-      const days = i % 2 === 0 ? ['LUN', 'MIE', 'VIE'] : ['MAR', 'JUE'];
-      
-      const startHour = 8 + (i % 12); // Horarios entre 08:00 y 19:00
-      const startTime = `${startHour.toString().padStart(2, '0')}:00:00`;
-      
-      const duration = def.duration || 60;
-      const endHour = startHour + Math.floor(duration / 60);
-      const endMin = duration % 60;
-      const endTime = `${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}:00`;
 
+      // Dos bloques horarios distintos por actividad (mañana y tarde)
+      const duration = def.duration || 60;
+      const slots = [
+        { startHour: 8  + (i % 4) },  // turno mañana  08:00–12:00
+        { startHour: 16 + (i % 4) },  // turno tarde   16:00–20:00
+      ];
+
+      // 4 días distintos usando nombre COMPLETO para que coincida con DayOfWeek del frontend
+      const allDayGroups: string[][] = [
+        ['LUNES', 'MIERCOLES', 'VIERNES', 'SABADO'],
+        ['MARTES', 'JUEVES',   'SABADO',  'DOMINGO'],
+      ];
+      const days = allDayGroups[i % 2];
+
+      let slotIdx = 0;
       for (const d of days) {
+        const slot = slots[slotIdx % slots.length];
+        slotIdx++;
+        const startH = Math.min(slot.startHour, 19); // tope 19:00
+        const endH   = Math.min(startH + Math.floor(duration / 60), 22);
+        const endM   = duration % 60;
+        const instructor = instructors[(i + slotIdx) % instructors.length];
+
         schedulesToCreate.push(actSchedRepo.create({
           gymActivityId: activity.id,
-          instructorId: instructor.id,
-          dayOfWeek: d,
-          startTime: startTime,
-          endTime: endTime,
-          maxAttendees: 15 + (i % 10), // Cupos entre 15 y 24
-          isRecurring: true
+          instructorId:  instructor.id,
+          dayOfWeek:     d,
+          startTime:     `${String(startH).padStart(2, '0')}:00:00`,
+          endTime:       `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}:00`,
+          maxAttendees:  15 + (i % 10), // Cupos entre 15 y 24
+          isRecurring:   true,
         }));
       }
       await actSchedRepo.save(schedulesToCreate);
@@ -425,76 +439,76 @@ async function runSeed() {
 
   // ── Catálogo de ejercicios (69 ejercicios con video URLs) ──────────────────
   const exercises = [
-    { name: 'Press de Banca Plano',                 muscleGroup: 'Pectorales',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra olímpica, banco plano',         videoUrl: 'https://www.youtube.com/shorts/_XvyWBUeJwU' },
-    { name: 'Press de Banca Inclinado',              muscleGroup: 'Pectorales',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra olímpica, banco inclinado',     videoUrl: 'https://www.youtube.com/shorts/9IrOq4WapSQ' },
-    { name: 'Aperturas con Mancuernas',              muscleGroup: 'Pectorales',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas, banco plano',             videoUrl: 'https://www.youtube.com/shorts/UgmYbrytasw' },
-    { name: 'Fondos en Paralelas',                   muscleGroup: 'Pectorales',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Paralelas',                           videoUrl: 'https://www.youtube.com/shorts/ZtONmh5a_fU' },
-    { name: 'Crossover en Polea',                    muscleGroup: 'Pectorales',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea alta',                          videoUrl: 'https://www.youtube.com/shorts/Jokaz7dBJNg' },
-    { name: 'Push-ups (Flexiones)',                  muscleGroup: 'Pectorales',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: '',                                    videoUrl: 'https://www.youtube.com/shorts/-m9buxRuWEc' },
-    { name: 'Jalón al Pecho',                        muscleGroup: 'Dorsales',      category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea alta',                          videoUrl: 'https://www.youtube.com/shorts/trZQjegcRx0' },
-    { name: 'Remo con Barra',                        muscleGroup: 'Dorsales',      category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra',                               videoUrl: 'https://www.youtube.com/shorts/pegqZPBqK_k' },
-    { name: 'Remo con Mancuerna',                    muscleGroup: 'Dorsales',      category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuerna, banco',                    videoUrl: 'https://www.youtube.com/shorts/H8jf3DwlIlo' },
-    { name: 'Dominadas (Pull-ups)',                  muscleGroup: 'Dorsales',      category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'AVANZADO',   equipmentRequired: 'Barra dominadas',                     videoUrl: 'https://www.youtube.com/shorts/cr5KmVftdbE' },
-    { name: 'Remo en Polea Baja',                    muscleGroup: 'Dorsales',      category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea baja',                          videoUrl: 'https://www.youtube.com/shorts/8QuMq1GMMng' },
-    { name: 'Pullover con Mancuerna',                muscleGroup: 'Dorsales',      category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Mancuerna, banco',                    videoUrl: 'https://www.youtube.com/shorts/jCV5t9Cy4hI' },
-    { name: 'Press Militar con Barra',               muscleGroup: 'Hombros',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra',                               videoUrl: 'https://www.youtube.com/shorts/O8Z0gPBh4j8' },
-    { name: 'Press de Hombros con Mancuernas',       muscleGroup: 'Hombros',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas',                          videoUrl: 'https://www.youtube.com/shorts/2D0TyoHv_EY' },
-    { name: 'Elevaciones Laterales',                 muscleGroup: 'Hombros',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas',                          videoUrl: 'https://www.youtube.com/shorts/tGfZu2dwLXo' },
-    { name: 'Elevaciones Frontales',                 muscleGroup: 'Hombros',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas',                          videoUrl: 'https://www.youtube.com/shorts/h9xfpTrAvkE' },
-    { name: 'Vuelos Posteriores',                    muscleGroup: 'Hombros',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas',                          videoUrl: 'https://www.youtube.com/shorts/tt4cUiD8hR8' },
-    { name: 'Curl de Bíceps con Barra',              muscleGroup: 'Bíceps',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Barra',                               videoUrl: 'https://www.youtube.com/shorts/3v4Zc7iujIk' },
-    { name: 'Curl con Mancuernas Alterno',           muscleGroup: 'Bíceps',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas',                          videoUrl: 'https://www.youtube.com/shorts/FHY_2t7R714' },
-    { name: 'Curl en Polea Baja',                    muscleGroup: 'Bíceps',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea baja',                          videoUrl: 'https://www.youtube.com/shorts/W0Wz4wXIIrQ' },
-    { name: 'Curl Martillo',                         muscleGroup: 'Bíceps',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas',                          videoUrl: 'https://www.youtube.com/shorts/NyW2fT2gQhM' },
-    { name: 'Curl Concentrado',                      muscleGroup: 'Bíceps',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuerna',                           videoUrl: 'https://www.youtube.com/shorts/cHxRJdSVIkA' },
-    { name: 'Press Francés',                         muscleGroup: 'Tríceps',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra EZ, banco',                     videoUrl: 'https://www.youtube.com/shorts/O-vNLrJDTTM' },
-    { name: 'Extensiones en Polea Alta',             muscleGroup: 'Tríceps',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea alta',                          videoUrl: 'https://www.youtube.com/shorts/aHfbuBf1TJk' },
-    { name: 'Extensiones con Mancuerna sobre la Cabeza', muscleGroup: 'Tríceps',   category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuerna',                           videoUrl: 'https://www.youtube.com/shorts/8FNGBJUHfsA' },
-    { name: 'Patada de Tríceps',                     muscleGroup: 'Tríceps',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuerna',                           videoUrl: 'https://www.youtube.com/shorts/3Bv1n7-DN7c' },
-    { name: 'Fondos para Tríceps',                   muscleGroup: 'Tríceps',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Banco o silla',                       videoUrl: 'https://www.youtube.com/shorts/ZtONmh5a_fU' },
-    { name: 'Sentadilla con Barra (Back Squat)',      muscleGroup: 'Cuádriceps',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra, rack',                         videoUrl: 'https://www.youtube.com/shorts/H5VYU6t_w9o' },
-    { name: 'Sentadilla Frontal (Front Squat)',       muscleGroup: 'Cuádriceps',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'AVANZADO',   equipmentRequired: 'Barra, rack',                         videoUrl: 'https://www.youtube.com/shorts/r6Z_h_WAX5o' },
-    { name: 'Prensa de Piernas',                     muscleGroup: 'Cuádriceps',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina prensa',                      videoUrl: 'https://www.youtube.com/shorts/MDtA7bI8uE4' },
-    { name: 'Zancadas (Lunges)',                      muscleGroup: 'Cuádriceps',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas o cuerpo',                 videoUrl: 'https://www.youtube.com/shorts/_lSFEA3uYY0' },
-    { name: 'Sentadilla Búlgara',                    muscleGroup: 'Cuádriceps',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Mancuernas, banco',                   videoUrl: 'https://www.youtube.com/shorts/lG3MsPmEQQk' },
-    { name: 'Extensión de Cuádriceps',               muscleGroup: 'Cuádriceps',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina de extensión',                videoUrl: 'https://www.youtube.com/shorts/N32sIi1ktv4' },
-    { name: 'Peso Muerto (Deadlift)',                 muscleGroup: 'Isquiotibiales',category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'AVANZADO',   equipmentRequired: 'Barra',                               videoUrl: 'https://www.youtube.com/shorts/ZaTM37cfiDs' },
-    { name: 'Peso Muerto Rumano',                    muscleGroup: 'Isquiotibiales',category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra o mancuernas',                  videoUrl: 'https://www.youtube.com/shorts/8tTKm-3wX5s' },
-    { name: 'Curl de Piernas (Máquina)',              muscleGroup: 'Isquiotibiales',category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina curl',                        videoUrl: 'https://www.youtube.com/shorts/sy_uiKaFtFA' },
-    { name: 'Buenos Días (Good Mornings)',            muscleGroup: 'Isquiotibiales',category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra',                               videoUrl: 'https://www.youtube.com/shorts/yihU2gFswpk' },
-    { name: 'Elevación de Gemelos de Pie',           muscleGroup: 'Gemelos',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina o libre',                     videoUrl: 'https://www.youtube.com/shorts/yQZDGjL-xT4' },
-    { name: 'Elevación de Gemelos Sentado',          muscleGroup: 'Gemelos',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina de gemelos',                  videoUrl: 'https://www.youtube.com/shorts/4f_-CJVbyxg' },
-    { name: 'Crunch Abdominal',                      muscleGroup: 'Core',          category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: '',                                    videoUrl: 'https://www.youtube.com/shorts/11iRiN7Sb5Q' },
-    { name: 'Plancha (Plank)',                       muscleGroup: 'Core',          category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: '',                                    videoUrl: 'https://www.youtube.com/shorts/hoeNgjheDHk' },
-    { name: 'Elevación de Piernas Colgado',          muscleGroup: 'Core',          category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra dominadas',                     videoUrl: 'https://www.youtube.com/shorts/WFAziRYp2bg' },
-    { name: 'Russian Twist',                         muscleGroup: 'Core',          category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Disco o pelota',                      videoUrl: 'https://www.youtube.com/shorts/u0-X63Fq7LU' },
-    { name: 'Ab Wheel (Rueda Abdominal)',             muscleGroup: 'Core',          category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Rueda abdominal',                     videoUrl: 'https://www.youtube.com/shorts/WXGBYjIOcN4' },
-    { name: 'Crunches en Polea',                     muscleGroup: 'Core',          category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea alta',                          videoUrl: 'https://www.youtube.com/shorts/dkGwcfo9zto' },
-    { name: 'Correr en Cinta',                       muscleGroup: 'Cardio',        category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'BASICO',     equipmentRequired: 'Cinta de correr',                     videoUrl: 'https://www.youtube.com/shorts/S3N5cv5iKI8' },
-    { name: 'Bicicleta Estática',                    muscleGroup: 'Cardio',        category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'BASICO',     equipmentRequired: 'Bicicleta estática',                  videoUrl: 'https://www.youtube.com/shorts/z99qyGHnFLI' },
-    { name: 'Elíptica',                              muscleGroup: 'Cardio',        category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina elíptica',                    videoUrl: 'https://www.youtube.com/shorts/dBMotc3AiVc' },
-    { name: 'Remo en Máquina (Rowing)',               muscleGroup: 'Cardio',        category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Máquina de remo',                     videoUrl: 'https://www.youtube.com/shorts/978LzxkqJ0M' },
-    { name: 'Caminata Rápida',                       muscleGroup: 'Cardio',        category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'BASICO',     equipmentRequired: 'Cinta o exterior',                    videoUrl: 'https://www.youtube.com/shorts/17fJGOV6tG4' },
-    { name: 'Caminata con Inclinación Progresiva',   muscleGroup: 'Cardio',        category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'BASICO',     equipmentRequired: 'Cinta de correr',                     videoUrl: 'https://www.youtube.com/shorts/XBOX7qPKrIs' },
-    { name: 'Sprint en Cinta',                       muscleGroup: 'Cardio',        category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Cinta de correr',                     videoUrl: 'https://www.youtube.com/shorts/Tl_qu05p3R8' },
-    { name: 'Cycling Intervals',                     muscleGroup: 'Cardio',        category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Bicicleta estática',                  videoUrl: 'https://www.youtube.com/shorts/6c_sfPfNvnc' },
-    { name: 'Burpees',                               muscleGroup: 'Funcional',     category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL',difficultyLevel: 'INTERMEDIO', equipmentRequired: '',                                    videoUrl: 'https://www.youtube.com/shorts/RevoEOa_Esw' },
-    { name: 'Box Jump (Salto al Cajón)',              muscleGroup: 'Funcional',     category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL',difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Cajón pliométrico',                   videoUrl: 'https://www.youtube.com/shorts/Z9Vw6MxOHP8' },
-    { name: 'Kettlebell Swing',                      muscleGroup: 'Funcional',     category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL',difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Kettlebell',                          videoUrl: 'https://www.youtube.com/shorts/8tTKm-3wX5s' },
-    { name: 'Wall Ball',                             muscleGroup: 'Funcional',     category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL',difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Balón medicinal, pared',              videoUrl: 'https://www.youtube.com/shorts/oPtoE61Oc04' },
-    { name: 'Slam Ball',                             muscleGroup: 'Funcional',     category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL',difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Slam ball',                           videoUrl: 'https://www.youtube.com/shorts/uuIJroNfvdQ' },
-    { name: 'Tire Flip (Volteo de Llanta)',           muscleGroup: 'Funcional',     category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL',difficultyLevel: 'AVANZADO',   equipmentRequired: 'Llanta',                              videoUrl: 'https://www.youtube.com/shorts/Zjt3RcaLd3Y' },
-    { name: 'Tabata Squat',                          muscleGroup: 'HIIT',          category: 'FUNCIONAL', exerciseType: 'HIIT',      difficultyLevel: 'INTERMEDIO', equipmentRequired: '',                                    videoUrl: 'https://www.youtube.com/shorts/F3oJ0xomHDw' },
-    { name: 'Tabata Push-ups',                       muscleGroup: 'HIIT',          category: 'FUNCIONAL', exerciseType: 'HIIT',      difficultyLevel: 'INTERMEDIO', equipmentRequired: '',                                    videoUrl: 'https://www.youtube.com/shorts/RIgmkSMbM4E' },
-    { name: 'Mountain Climbers',                     muscleGroup: 'HIIT',          category: 'FUNCIONAL', exerciseType: 'HIIT',      difficultyLevel: 'BASICO',     equipmentRequired: '',                                    videoUrl: 'https://www.youtube.com/shorts/EdeBTHMFLKY' },
-    { name: 'Jump Rope (Saltar la Cuerda)',           muscleGroup: 'HIIT',          category: 'FUNCIONAL', exerciseType: 'HIIT',      difficultyLevel: 'BASICO',     equipmentRequired: 'Cuerda de saltar',                    videoUrl: 'https://www.youtube.com/shorts/OPd9NF1Xpl0' },
-    { name: 'Estiramiento de Cuádriceps',            muscleGroup: 'Movilidad',     category: 'FUNCIONAL', exerciseType: 'MOBILITY',  difficultyLevel: 'BASICO',     equipmentRequired: '',                                    videoUrl: 'https://www.youtube.com/shorts/Ztwz8rrDShk' },
-    { name: 'Hip Flexor Stretch',                    muscleGroup: 'Movilidad',     category: 'FUNCIONAL', exerciseType: 'MOBILITY',  difficultyLevel: 'BASICO',     equipmentRequired: '',                                    videoUrl: 'https://www.youtube.com/shorts/41ReSOu0dh4' },
-    { name: "World's Greatest Stretch",              muscleGroup: 'Movilidad',     category: 'FUNCIONAL', exerciseType: 'MOBILITY',  difficultyLevel: 'INTERMEDIO', equipmentRequired: '',                                    videoUrl: 'https://www.youtube.com/shorts/PE-UuERblwA' },
-    { name: 'Cat-Cow Stretch',                       muscleGroup: 'Movilidad',     category: 'FUNCIONAL', exerciseType: 'MOBILITY',  difficultyLevel: 'BASICO',     equipmentRequired: '',                                    videoUrl: 'https://www.youtube.com/shorts/rbuptYr2CGM' },
-    { name: 'Pigeon Pose',                           muscleGroup: 'Movilidad',     category: 'FUNCIONAL', exerciseType: 'MOBILITY',  difficultyLevel: 'BASICO',     equipmentRequired: '',                                    videoUrl: 'https://www.youtube.com/shorts/UlyMK4MJ1v4' },
-    { name: 'Shoulder Stretch',                      muscleGroup: 'Movilidad',     category: 'FUNCIONAL', exerciseType: 'MOBILITY',  difficultyLevel: 'BASICO',     equipmentRequired: '',                                    videoUrl: 'https://www.youtube.com/shorts/PczacMV5HTw' },
-  ];
+    { name: 'Press de Banca Plano',                muscleGroup: 'Pectorales',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra olímpica, banco plano',        youtubeVideoId: '48L0oQApm_0' },
+    { name: 'Press de Banca Inclinado',            muscleGroup: 'Pectorales',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra olímpica, banco inclinado',    youtubeVideoId: 'TAH8RxOS0VI' },
+    { name: 'Aperturas con Mancuernas',            muscleGroup: 'Pectorales',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas, banco plano',            youtubeVideoId: '48L0oQApm_0' },
+    { name: 'Fondos en Paralelas',                 muscleGroup: 'Pectorales',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Paralelas',                         youtubeVideoId: 'TAH8RxOS0VI' },
+    { name: 'Crossover en Polea',                  muscleGroup: 'Pectorales',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea alta',                         youtubeVideoId: '48L0oQApm_0' },
+    { name: 'Push-ups (Flexiones)',                muscleGroup: 'Pectorales',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: '',                                    youtubeVideoId: 'TAH8RxOS0VI' },
+    { name: 'Jalón al Pecho',                      muscleGroup: 'Dorsales',      category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea alta',                         youtubeVideoId: 'tIoFoKz0aWs' },
+    { name: 'Remo con Barra',                      muscleGroup: 'Dorsales',      category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra',                               youtubeVideoId: 'tIoFoKz0aWs' },
+    { name: 'Remo con Mancuerna',                  muscleGroup: 'Dorsales',      category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuerna, banco',                    youtubeVideoId: 'tIoFoKz0aWs' },
+    { name: 'Dominadas (Pull-ups)',                muscleGroup: 'Dorsales',      category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'AVANZADO',   equipmentRequired: 'Barra dominadas',                     youtubeVideoId: 'MPbRERVWkbg' },
+    { name: 'Remo en Polea Baja',                  muscleGroup: 'Dorsales',      category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea baja',                         youtubeVideoId: 'tIoFoKz0aWs' },
+    { name: 'Pullover con Mancuerna',              muscleGroup: 'Dorsales',      category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Mancuerna, banco',                    youtubeVideoId: 'tIoFoKz0aWs' },
+    { name: 'Press Militar con Barra',             muscleGroup: 'Hombros',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra',                               youtubeVideoId: 'CpvyRFjbgow' },
+    { name: 'Press de Hombros con Mancuernas',     muscleGroup: 'Hombros',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas',                         youtubeVideoId: 'IuR427toLXE' },
+    { name: 'Elevaciones Laterales',               muscleGroup: 'Hombros',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas',                         youtubeVideoId: 'UEzs_TIAOnk' },
+    { name: 'Elevaciones Frontales',               muscleGroup: 'Hombros',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas',                         youtubeVideoId: 'CpvyRFjbgow' },
+    { name: 'Vuelos Posteriores',                  muscleGroup: 'Hombros',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas',                         youtubeVideoId: 'IuR427toLXE' },
+    { name: 'Curl de Bíceps con Barra',            muscleGroup: 'Bíceps',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Barra',                               youtubeVideoId: 'LrXGP_Tda-A' },
+    { name: 'Curl con Mancuernas Alterno',         muscleGroup: 'Bíceps',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas',                         youtubeVideoId: 'WrpQYs_n_Pw' },
+    { name: 'Curl en Polea Baja',                  muscleGroup: 'Bíceps',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea baja',                         youtubeVideoId: 'Rr4UZ-xYfzg' },
+    { name: 'Curl Martillo',                       muscleGroup: 'Bíceps',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas',                         youtubeVideoId: 'LrXGP_Tda-A' },
+    { name: 'Curl Concentrado',                    muscleGroup: 'Bíceps',        category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuerna',                          youtubeVideoId: 'WrpQYs_n_Pw' },
+    { name: 'Press Francés',                       muscleGroup: 'Tríceps',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra EZ, banco',                    youtubeVideoId: 'emnTk9VixDA' },
+    { name: 'Extensiones en Polea Alta',           muscleGroup: 'Tríceps',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea alta',                         youtubeVideoId: 'Krfjkf98XUQ' },
+    { name: 'Extensiones con Mancuerna sobre la Cabeza', muscleGroup: 'Tríceps', category: 'FUERZA',  exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuerna',                          youtubeVideoId: 'qY1UeoXn4sM' },
+    { name: 'Patada de Tríceps',                   muscleGroup: 'Tríceps',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuerna',                          youtubeVideoId: 'Krfjkf98XUQ' },
+    { name: 'Fondos para Tríceps',                 muscleGroup: 'Tríceps',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Banco o silla',                      youtubeVideoId: 'emnTk9VixDA' },
+    { name: 'Sentadilla con Barra (Back Squat)',   muscleGroup: 'Cuádriceps',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra, rack',                        youtubeVideoId: 'l3m4FnO1GQk' },
+    { name: 'Sentadilla Frontal (Front Squat)',    muscleGroup: 'Cuádriceps',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'AVANZADO',   equipmentRequired: 'Barra, rack',                        youtubeVideoId: '7xeLHxobaWs' },
+    { name: 'Prensa de Piernas',                   muscleGroup: 'Cuádriceps',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina prensa',                     youtubeVideoId: 'l3m4FnO1GQk' },
+    { name: 'Zancadas (Lunges)',                   muscleGroup: 'Cuádriceps',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Mancuernas o cuerpo',                youtubeVideoId: '7xeLHxobaWs' },
+    { name: 'Sentadilla Búlgara',                  muscleGroup: 'Cuádriceps',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Mancuernas, banco',                  youtubeVideoId: 'l3m4FnO1GQk' },
+    { name: 'Extensión de Cuádriceps',             muscleGroup: 'Cuádriceps',    category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina de extensión',               youtubeVideoId: '7xeLHxobaWs' },
+    { name: 'Peso Muerto (Deadlift)',              muscleGroup: 'Isquiotibiales',category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'AVANZADO',   equipmentRequired: 'Barra',                               youtubeVideoId: 'K2tRdc8_JBQ' },
+    { name: 'Peso Muerto Rumano',                  muscleGroup: 'Isquiotibiales',category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra o mancuernas',                 youtubeVideoId: '0XL4cZR2Ink' },
+    { name: 'Curl de Piernas (Máquina)',           muscleGroup: 'Isquiotibiales',category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina curl',                       youtubeVideoId: 'K2tRdc8_JBQ' },
+    { name: 'Buenos Días (Good Mornings)',         muscleGroup: 'Isquiotibiales',category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra',                               youtubeVideoId: '0XL4cZR2Ink' },
+    { name: 'Elevación de Gemelos de Pie',         muscleGroup: 'Gemelos',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina o libre',                    youtubeVideoId: 'K2tRdc8_JBQ' },
+    { name: 'Elevación de Gemelos Sentado',        muscleGroup: 'Gemelos',       category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina de gemelos',                 youtubeVideoId: '0XL4cZR2Ink' },
+    { name: 'Crunch Abdominal',                    muscleGroup: 'Core',          category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: '',                                    youtubeVideoId: 'yH21VMyM-AQ' },
+    { name: 'Plancha (Plank)',                     muscleGroup: 'Core',          category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: '',                                    youtubeVideoId: '5GnLgqGIYOM' },
+    { name: 'Elevación de Piernas Colgado',        muscleGroup: 'Core',          category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Barra dominadas',                    youtubeVideoId: 'yH21VMyM-AQ' },
+    { name: 'Russian Twist',                       muscleGroup: 'Core',          category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Disco o pelota',                     youtubeVideoId: '5GnLgqGIYOM' },
+    { name: 'Ab Wheel (Rueda Abdominal)',          muscleGroup: 'Core',          category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Rueda abdominal',                    youtubeVideoId: 'yH21VMyM-AQ' },
+    { name: 'Crunches en Polea',                   muscleGroup: 'Core',          category: 'FUERZA',    exerciseType: 'STRENGTH',  difficultyLevel: 'BASICO',     equipmentRequired: 'Polea alta',                         youtubeVideoId: '5GnLgqGIYOM' },
+    { name: 'Correr en Cinta',                     muscleGroup: 'Cardio',        category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'BASICO',     equipmentRequired: 'Cinta de correr',                    youtubeVideoId: '558gGuArShk' },
+    { name: 'Bicicleta Estática',                  muscleGroup: 'Cardio',        category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'BASICO',     equipmentRequired: 'Bicicleta estática',                 youtubeVideoId: 'isRKgI3OOPM' },
+    { name: 'Elíptica',                            muscleGroup: 'Cardio',        category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'BASICO',     equipmentRequired: 'Máquina elíptica',                   youtubeVideoId: '558gGuArShk' },
+    { name: 'Remo en Máquina (Rowing)',            muscleGroup: 'Cardio',        category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Máquina de remo',                    youtubeVideoId: 'tIoFoKz0aWs' },
+    { name: 'Caminata Rápida',                     muscleGroup: 'Cardio',        category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'BASICO',     equipmentRequired: 'Cinta o exterior',                   youtubeVideoId: '558gGuArShk' },
+    { name: 'Caminata con Inclinación Progresiva', muscleGroup: 'Cardio',        category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'BASICO',     equipmentRequired: 'Cinta de correr',                    youtubeVideoId: 'isRKgI3OOPM' },
+    { name: 'Sprint en Cinta',                     muscleGroup: 'Cardio',        category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Cinta de correr',                    youtubeVideoId: '558gGuArShk' },
+    { name: 'Cycling Intervals',                   muscleGroup: 'Cardio',        category: 'CARDIO',    exerciseType: 'CARDIO',    difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Bicicleta estática',                 youtubeVideoId: 'isRKgI3OOPM' },
+    { name: 'Burpees',                             muscleGroup: 'Funcional',     category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL',difficultyLevel: 'INTERMEDIO', equipmentRequired: '',                                    youtubeVideoId: '558gGuArShk' },
+    { name: 'Box Jump (Salto al Cajón)',           muscleGroup: 'Funcional',     category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL',difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Cajón pliométrico',                  youtubeVideoId: 'isRKgI3OOPM' },
+    { name: 'Kettlebell Swing',                    muscleGroup: 'Funcional',     category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL',difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Kettlebell',                         youtubeVideoId: '0XL4cZR2Ink' },
+    { name: 'Wall Ball',                           muscleGroup: 'Funcional',     category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL',difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Balón medicinal, pared',             youtubeVideoId: '558gGuArShk' },
+    { name: 'Slam Ball',                           muscleGroup: 'Funcional',     category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL',difficultyLevel: 'INTERMEDIO', equipmentRequired: 'Slam ball',                          youtubeVideoId: 'isRKgI3OOPM' },
+    { name: 'Tire Flip (Volteo de Llanta)',        muscleGroup: 'Funcional',     category: 'FUNCIONAL', exerciseType: 'FUNCTIONAL',difficultyLevel: 'AVANZADO',   equipmentRequired: 'Llanta',                               youtubeVideoId: 'K2tRdc8_JBQ' },
+    { name: 'Tabata Squat',                        muscleGroup: 'HIIT',          category: 'FUNCIONAL', exerciseType: 'HIIT',      difficultyLevel: 'INTERMEDIO', equipmentRequired: '',                                    youtubeVideoId: 'l3m4FnO1GQk' },
+    { name: 'Tabata Push-ups',                     muscleGroup: 'HIIT',          category: 'FUNCIONAL', exerciseType: 'HIIT',      difficultyLevel: 'INTERMEDIO', equipmentRequired: '',                                    youtubeVideoId: 'TAH8RxOS0VI' },
+    { name: 'Mountain Climbers',                   muscleGroup: 'HIIT',          category: 'FUNCIONAL', exerciseType: 'HIIT',      difficultyLevel: 'BASICO',     equipmentRequired: '',                                    youtubeVideoId: 'yH21VMyM-AQ' },
+    { name: 'Jump Rope (Saltar la Cuerda)',        muscleGroup: 'HIIT',          category: 'FUNCIONAL', exerciseType: 'HIIT',      difficultyLevel: 'BASICO',     equipmentRequired: 'Cuerda de saltar',                   youtubeVideoId: 'isRKgI3OOPM' },
+    { name: 'Estiramiento de Cuádriceps',          muscleGroup: 'Movilidad',     category: 'FUNCIONAL', exerciseType: 'MOBILITY',  difficultyLevel: 'BASICO',     equipmentRequired: '',                                    youtubeVideoId: 'l3m4FnO1GQk' },
+    { name: 'Hip Flexor Stretch',                  muscleGroup: 'Movilidad',     category: 'FUNCIONAL', exerciseType: 'MOBILITY',  difficultyLevel: 'BASICO',     equipmentRequired: '',                                    youtubeVideoId: '0XL4cZR2Ink' },
+    { name: "World's Greatest Stretch",            muscleGroup: 'Movilidad',     category: 'FUNCIONAL', exerciseType: 'MOBILITY',  difficultyLevel: 'INTERMEDIO', equipmentRequired: '',                                    youtubeVideoId: '5GnLgqGIYOM' },
+    { name: 'Cat-Cow Stretch',                     muscleGroup: 'Movilidad',     category: 'FUNCIONAL', exerciseType: 'MOBILITY',  difficultyLevel: 'BASICO',     equipmentRequired: '',                                    youtubeVideoId: 'yH21VMyM-AQ' },
+    { name: 'Pigeon Pose',                         muscleGroup: 'Movilidad',     category: 'FUNCIONAL', exerciseType: 'MOBILITY',  difficultyLevel: 'BASICO',     equipmentRequired: '',                                    youtubeVideoId: '0XL4cZR2Ink' },
+    { name: 'Shoulder Stretch',                    muscleGroup: 'Movilidad',     category: 'FUNCIONAL', exerciseType: 'MOBILITY',  difficultyLevel: 'BASICO',     equipmentRequired: '',                                    youtubeVideoId: 'CpvyRFjbgow' }
+];
 
   for (const ex of exercises) {
     await exerciseRepo.save(exerciseRepo.create({ ...ex, isActive: true }));

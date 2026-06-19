@@ -39,8 +39,8 @@ export class ExerciseCatalog {
   @Column({ type: 'varchar', length: 30, name: 'difficulty_level' })
   difficultyLevel!: string;
 
-  @Column({ type: 'varchar', length: 500, name: 'video_url', nullable: true })
-  videoUrl!: string;
+  @Column({ type: 'varchar', length: 20, name: 'youtube_video_id', nullable: true })
+  youtubeVideoId!: string | null;
 
   @Column({ type: 'varchar', length: 500, name: 'image_url', nullable: true })
   imageUrl!: string;

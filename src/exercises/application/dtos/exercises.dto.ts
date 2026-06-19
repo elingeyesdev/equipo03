@@ -39,10 +39,10 @@ export class CreateExerciseDto {
   @IsString()
   difficultyLevel!: string;
 
-  @ApiPropertyOptional({ example: 'https://youtube.com/watch?v=example' })
+  @ApiPropertyOptional({ example: 'dQw4w9WgXcQ', description: 'YouTube video ID (11 chars)' })
   @IsOptional()
   @IsString()
-  videoUrl?: string;
+  youtubeVideoId?: string;
 
   @ApiPropertyOptional({ example: 'https://images.example.com/bench-press.jpg' })
   @IsOptional()
@@ -81,10 +81,10 @@ export class UpdateExerciseDto {
   @IsString()
   difficultyLevel?: string;
 
-  @ApiPropertyOptional({ example: 'https://www.youtube.com/shorts/abc123' })
+  @ApiPropertyOptional({ example: 'dQw4w9WgXcQ', description: 'YouTube video ID (11 chars)' })
   @IsOptional()
   @IsString()
-  videoUrl?: string;
+  youtubeVideoId?: string;
 
   @ApiPropertyOptional({ example: false })
   @IsOptional()

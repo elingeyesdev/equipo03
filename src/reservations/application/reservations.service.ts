@@ -1029,20 +1029,15 @@ export class ReservationsService {
   async checkInByToken(
     token: string,
   ): Promise<{ reservation: Reservation; checkIn: CheckIn }> {
-    const { role, userId, gymId: tokenGymId } = this.getAuthUser();
-    const roleUp = role?.toUpperCase();
+    const { userId, gymId: tokenGymId } = this.getAuthUser();
+    const level = (this.request.user as any)?.level ?? 0;
 
-    if (
-      roleUp !== 'GERENTE' &&
-      roleUp !== 'RECEPCIONISTA' &&
-      roleUp !== 'SUPER_ADMIN'
-    ) {
+    if (level < 4) {
       throw new ForbiddenException(
-        'Solo GERENTE, RECEPCIONISTA o SUPER_ADMIN pueden registrar ingresos.',
+        'No tienes permisos para registrar ingresos.',
       );
     }
 
-    // ── 1. Verificar JWT — lanza JsonWebTokenError / TokenExpiredError si inválido ──
     let payload: { sub: number; gymId: number; type?: string };
     try {
       payload = this.jwtService.verify<{
@@ -1052,58 +1047,70 @@ export class ReservationsService {
       }>(token);
     } catch {
       throw new BadRequestException(
-        'QR inválido o expirado. Solicita uno nuevo desde la app.',
+        'El código QR es inválido o ha expirado. El cliente debe generar uno nuevo desde la app.',
       );
     }
 
     if (payload.type !== 'QR_CHECK_IN') {
-      throw new BadRequestException('El token no es un QR de check-in.');
+      throw new BadRequestException('Este código QR no corresponde a una reserva.');
     }
 
     const reservationId = Number(payload.sub);
 
-    // ── 2. Calcular HOY en UTC (YYYY-MM-DD) antes de abrir la transacción ────
-    const todayUtc = new Date().toISOString().slice(0, 10);
+    const BOT_OFFSET = -4;
+    const now = new Date();
+    const localMs = now.getTime() + BOT_OFFSET * 3600_000;
+    const local = new Date(localMs);
+    const todayLocal = local.toISOString().slice(0, 10);
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      // ── 3. Lock pesimista por ID extraído del JWT (no por qrToken estático) ──
       const locked = await queryRunner.manager.findOne(Reservation, {
         where: { id: reservationId },
         lock: { mode: 'pessimistic_write' },
       });
 
       if (!locked) {
-        throw new NotFoundException('Reserva no encontrada.');
+        throw new NotFoundException('La reserva asociada a este QR no existe o fue eliminada.');
       }
 
-      // ── 4. Cargar relaciones con la fila ya bloqueada ─────────────────────
       const reservation = await queryRunner.manager.findOne(Reservation, {
         where: { id: locked.id },
-        relations: ['gymActivitySchedule', 'gymActivitySchedule.gymActivity'],
+        relations: ['gymActivitySchedule', 'gymActivitySchedule.gymActivity', 'user', 'user.profile'],
       });
 
       if (!reservation) {
-        throw new NotFoundException('Reserva no encontrada.');
+        throw new NotFoundException('La reserva asociada a este QR no existe.');
       }
 
-      // ── 5. Validación de FECHA: la reserva debe ser para HOY ──────────────
       const reservationDateStr =
         reservation.reservationDate instanceof Date
           ? reservation.reservationDate.toISOString().slice(0, 10)
           : String(reservation.reservationDate).slice(0, 10);
 
-      if (reservationDateStr !== todayUtc) {
+      const clientName = reservation.user?.profile
+        ? `${reservation.user.profile.firstName ?? ''} ${reservation.user.profile.lastName ?? ''}`.trim()
+        : `Usuario #${reservation.userId}`;
+      const startTime = reservation.startTime ? String(reservation.startTime).substring(0, 5) : '';
+      const endTime = reservation.endTime ? String(reservation.endTime).substring(0, 5) : '';
+      const timeRange = startTime && endTime ? `${startTime} - ${endTime}` : '';
+
+      if (reservationDateStr < todayLocal) {
         throw new BadRequestException(
-          'La reserva no es válida para el día de hoy.',
+          `Esta reserva era para el ${reservationDateStr}${timeRange ? ` (${timeRange})` : ''} y ya expiró. No se puede hacer check-in de reservas pasadas.`,
         );
       }
 
-      // ── 6. Validación de sucursal/marca estricta (anti-fraude cruzado) ──────
-      if (roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA') {
+      if (reservationDateStr > todayLocal) {
+        throw new BadRequestException(
+          `Esta reserva es para el ${reservationDateStr}${timeRange ? ` (${timeRange})` : ''}. El check-in solo se puede realizar el día de la reserva.`,
+        );
+      }
+
+      if (level >= 4 && level < 10) {
         const reservationGymId =
           reservation.gymId ??
           reservation.gymActivitySchedule?.gymActivity?.gymId ??
@@ -1111,16 +1118,20 @@ export class ReservationsService {
         const hasAccess = await this.gymBelongsToManager(reservationGymId);
         if (!hasAccess) {
           throw new ForbiddenException(
-            'El QR pertenece a una sucursal de otra marca.',
+            'Esta reserva pertenece a otra sucursal. Solo puedes hacer check-in de reservas de tu sucursal o marca.',
           );
         }
       }
 
-      // ── 7. Verificar estado DENTRO del lock (anti race condition) ──────────
+      const statusMap: Record<string, string> = {
+        COMPLETADA: `El cliente ${clientName} ya completó el check-in de esta reserva.`,
+        USADA: `Esta reserva ya fue utilizada por ${clientName}.`,
+        CANCELADA: `Esta reserva fue cancelada por ${clientName}.`,
+        CANCELLED: `Esta reserva fue cancelada.`,
+      };
       if (reservation.status !== 'CONFIRMADA') {
-        throw new BadRequestException(
-          `Estado '${reservation.status}'. Solo se puede hacer check-in de reservas CONFIRMADA.`,
-        );
+        const msg = statusMap[reservation.status] ?? `Esta reserva tiene estado "${reservation.status}" y no se puede procesar.`;
+        throw new BadRequestException(msg);
       }
 
       // ── 8. Mutación atómica ────────────────────────────────────────────────

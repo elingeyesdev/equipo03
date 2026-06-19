@@ -182,10 +182,6 @@ export class ActivitiesService {
     return s;
   }
 
-  /**
-   * Crea un horario para una actividad: valida instructor con rol permitido,
-   * solapamiento de instructor en mismo día/hora y (si hay filas) horario del gimnasio.
-   */
   async createSchedule(
     activityId: number,
     dto: CreateActivityScheduleDto,
@@ -258,7 +254,6 @@ export class ActivitiesService {
     }
   }
 
-  /** Si la sede tiene filas en `gym_schedules`, la clase debe caer dentro de al menos una ventana no festiva. */
   private async assertWithinGymOpeningHours(
     gymId: number,
     dayOfWeek: DayOfWeek,
@@ -295,10 +290,12 @@ export class ActivitiesService {
   }
 
   async findSchedulesByActivity(gymActivityId: number) {
-    await this.assertActivityInManagerScope(gymActivityId);
+    // No aplicamos scope de gerente aquí: cualquier usuario autenticado
+    // puede consultar los horarios de una actividad (la pantalla de reserva los necesita).
     return this.schedRepo.find({
       where: { gymActivityId },
-      relations: ['instructor'],
+      relations: ['instructor', 'instructor.profile'],
+      order: { dayOfWeek: 'ASC', startTime: 'ASC' },
     });
   }
 

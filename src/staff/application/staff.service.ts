@@ -719,29 +719,6 @@ export class StaffService {
       );
     }
 
-    // Determine advisor role and enforce 1-per-role limit
-    const roleRows = await this.advisorRepo.manager.query<{ role_name: string }[]>(
-      `SELECT UPPER(r.name) as role_name FROM user_roles ur
-       JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = $1 LIMIT 1`,
-      [advisorId],
-    );
-    const roleName = roleRows?.[0]?.role_name ?? '';
-
-    const limitRows = await this.advisorRepo.manager.query<{ cnt: string }[]>(
-      `SELECT COUNT(*) as cnt FROM client_advisors ca
-       JOIN user_roles ur ON ur.user_id = ca.advisor_id
-       JOIN roles r ON r.id = ur.role_id
-       WHERE ca.client_id = $1 AND UPPER(r.name) = $2 AND ca.status IN ('PENDING', 'ACTIVE')`,
-      [clientId, roleName],
-    );
-
-    if (parseInt(limitRows?.[0]?.cnt ?? '0') >= 1) {
-      const label = roleName === 'ENTRENADOR' ? 'entrenador' : 'nutricionista';
-      throw new ConflictException(
-        `Ya tienes un ${label} activo o con solicitud pendiente. Cancela la asesoría actual antes de solicitar una nueva.`,
-      );
-    }
-
     if (existing) {
       // REJECTED or CANCELLED — allow re-request
       existing.status = 'PENDING';
