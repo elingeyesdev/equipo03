@@ -3,7 +3,7 @@ import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
 import { DB_ROLES, ROLE_ID_TO_NAME } from '../../config/rbac.constants';
-import { ModalOverlay, ConfirmModal, panelStyle, RecordDetailModal, DetailField } from './Shared/DashboardShared';
+import { ModalOverlay, ConfirmModal, panelStyle, RecordDetailModal, DetailField, guardClose } from './Shared/DashboardShared';
 import type { GymDto, UserDto } from './Shared/DashboardTypes';
 import { Eye, Edit, Trash2, Plus, Clock, Building2 } from 'lucide-react';
 
@@ -140,10 +140,12 @@ const StaffScheduleModal = ({
   // gymId → dayOfWeek → DaySchedule
   const [schedules, setSchedules] = useState<Record<number, Record<number, DaySchedule>>>({});
   const [loading, setLoading]     = useState(false);
+  const [touched, setTouched]     = useState(false);
   const [saving,  setSaving]      = useState(false);
 
   useEffect(() => {
     if (!isOpen || !employee) return;
+    setTouched(false);
     setActiveGymId(gyms[0]?.id ?? null);
 
     const init: Record<number, Record<number, DaySchedule>> = {};
@@ -261,7 +263,7 @@ const StaffScheduleModal = ({
   const employeeName = [employee?.profile?.firstName, employee?.profile?.lastName].filter(Boolean).join(' ') || employee?.email || '';
 
   return (
-    <ModalOverlay onClose={onClose}>
+    <ModalOverlay onClose={onClose} isDirty={touched} onFormChange={() => setTouched(true)}>
       <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-0.5">Horarios Laborales</h2>
       <p className="text-sm text-slate-500 dark:text-gray-400 mb-4">{employeeName}</p>
 
@@ -362,7 +364,7 @@ const StaffScheduleModal = ({
       <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100 dark:border-gray-800 flex-shrink-0">
         <button
           className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-bg-deep rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent"
-          onClick={onClose}
+          onClick={() => guardClose(touched, onClose)}
         >
           Cancelar
         </button>
@@ -403,10 +405,11 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
 
   const [formData, setFormData] = useState({
     firstName: '', lastName: '', email: '', password: '', phone: '',
-    phonePrefix: '+591', phoneNumber: '', ci: '',
+    phonePrefix: '+591', phoneNumber: '', ci: '', gender: '' as string,
     roleId: DB_ROLES.USER as number, gymIds: [] as number[], isActive: true,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [gyms, setGyms] = useState<GymDto[]>([]);
   const [loadingGyms, setLoadingGyms] = useState(false);
@@ -445,6 +448,8 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
   // ── Poblar formulario al abrir ─────────────────────────────────────────────────
   useEffect(() => {
     if (!isOpen) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTouched(false);
     if (userToEdit) {
       const gymsFromRoles = (userToEdit.userRoles ?? [])
         .map(ur => ur.gym)
@@ -459,6 +464,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
         phonePrefix: prefix,
         phoneNumber: number,
         ci:          userToEdit.profile?.ci ?? '',
+        gender:      (userToEdit.profile as Record<string, unknown>)?.gender as string ?? '',
         email:       userToEdit.email ?? '',
         password:    '',
         roleId:      Number(userToEdit.userRoles?.[0]?.roleId) || DB_ROLES.USER,
@@ -466,36 +472,40 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
         isActive:    userToEdit.isActive ?? true,
       });
     } else {
-      setFormData({ firstName: '', lastName: '', email: '', password: '', phone: '', phonePrefix: '+591', phoneNumber: '', ci: '', roleId: DB_ROLES.USER, gymIds: [], isActive: true });
+      setFormData({ firstName: '', lastName: '', email: '', password: '', phone: '', phonePrefix: '+591', phoneNumber: '', ci: '', gender: '', roleId: DB_ROLES.USER, gymIds: [], isActive: true });
     }
-    setSelectedSede(sedeIdDelGerente || '');
-    setSelectedMarcaId(sedeIdDelGerente ?? '');
+    if (sedeIdDelGerente) {
+      setSelectedSede(sedeIdDelGerente);
+      setSelectedMarcaId(sedeIdDelGerente);
+    } else {
+      setSelectedSede('');
+      setSelectedMarcaId('');
+    }
   }, [userToEdit, isOpen, sedeIdDelGerente]);
 
-  // ── Pre-poblar selectedSede al editar un GERENTE (espera que gyms cargue) ─────
+  // ── Pre-poblar marca y sucursal al editar (espera que gyms cargue) ──────────
   useEffect(() => {
-    if (!isOpen || !userToEdit || formData.roleId !== DB_ROLES.GERENTE || !gyms.length) return;
-    const sucursalId = formData.gymIds[0];
-    if (!sucursalId) return;
-    const sucursal = gyms.find(g => g.id === sucursalId);
-    const sedeId   = sucursal?.parentId ?? sucursal?.parent?.id;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (sedeId) setSelectedSede(sedeId);
-  }, [gyms, formData.gymIds, formData.roleId, isOpen, userToEdit]);
-
-  // ── Pre-poblar selectedMarcaId al editar staff multi-sede ─────────────────────
-  useEffect(() => {
-    if (!isOpen || !gyms.length) return;
+    if (!isOpen || !userToEdit || !gyms.length) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (sedeIdDelGerente) { setSelectedMarcaId(sedeIdDelGerente); return; }
-    if (!userToEdit) return;
-    const roleName = roleOptions.find(r => r.id === formData.roleId)?.name ?? '';
-    if (!SEDE_ROLE_NAMES.has(roleName) || roleName === 'GERENTE') return;
+
     const firstGymId = formData.gymIds[0];
     if (!firstGymId) return;
     const firstGym = gyms.find(g => g.id === firstGymId);
-    const marcaId  = firstGym?.parentId ?? firstGym?.parent?.id;
-    if (marcaId) setSelectedMarcaId(marcaId);
+    if (!firstGym) return;
+
+    const roleName = roleOptions.find(r => r.id === formData.roleId)?.name ?? '';
+
+    if (roleName === 'GERENTE') {
+      if (firstGym.parentId ?? firstGym.parent?.id) {
+        setSelectedSede(firstGym.parentId ?? firstGym.parent?.id ?? '');
+      } else {
+        setSelectedSede(firstGym.id);
+      }
+    } else {
+      const marcaId = firstGym.parentId ?? firstGym.parent?.id;
+      if (marcaId) setSelectedMarcaId(marcaId);
+    }
   }, [isOpen, sedeIdDelGerente, gyms, formData.gymIds, formData.roleId, userToEdit, roleOptions]);
 
   // ── Restaurar marca del Gerente/Recepcionista si se limpió al cambiar de rol ──
@@ -574,7 +584,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
   const labelCls = "block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1 mt-3";
 
   return (
-    <ModalOverlay onClose={onClose}>
+    <ModalOverlay onClose={onClose} isDirty={touched} onFormChange={() => setTouched(true)}>
       <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
         {userToEdit ? 'Editar Usuario' : 'Nuevo Usuario'}
       </h2>
@@ -634,6 +644,20 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
           maxLength={20}
         />
         {errors.ci && <span className="text-red-500 text-xs mt-1 block">{errors.ci}</span>}
+
+        <label className={labelCls}>
+          Género <span className="text-slate-400 dark:text-gray-500 font-normal text-xs">— opcional</span>
+        </label>
+        <select
+          className={inputCls()}
+          value={formData.gender}
+          onChange={e => setFormData({ ...formData, gender: e.target.value })}
+        >
+          <option value="">Sin especificar</option>
+          <option value="MALE">Masculino</option>
+          <option value="FEMALE">Femenino</option>
+          <option value="OTHER">Otro</option>
+        </select>
 
         <label className={labelCls}>Correo Electrónico</label>
         <input
@@ -841,7 +865,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
       </div>
 
       <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100 dark:border-gray-800 flex-shrink-0">
-        <button className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-bg-deep rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent" onClick={onClose}>Cancelar</button>
+        <button className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-bg-deep rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent" onClick={() => guardClose(touched, onClose)}>Cancelar</button>
         <button className="px-4 py-2 bg-brand-celeste text-black font-medium rounded-lg border-0 cursor-pointer" onClick={() => {
           if (!validateForm()) return;
           if (isGerente || isRecepcionista) {
@@ -1047,6 +1071,7 @@ export const UsuariosView = () => {
         // Solo envía phone/ci si tienen valor (campos opcionales)
         ...(formData.phone?.trim() ? { phone: formData.phone.trim() } : {}),
         ...(formData.ci?.trim()    ? { ci:    formData.ci.trim()    } : {}),
+        ...(formData.gender        ? { gender: formData.gender }      : {}),
         roleId:    Number(formData.roleId),
         gymIds: (([DB_ROLES.SUPER_ADMIN, DB_ROLES.CLIENTE, DB_ROLES.USER] as number[]).includes(Number(formData.roleId)))
           ? []
@@ -1269,35 +1294,69 @@ export const UsuariosView = () => {
                         <span style={{ color: '#8E8E93', fontSize: '0.82rem' }}>Sin asignar</span>
                       )}
                     </td>
-                    <td style={{ padding: '0.6rem', color: u.isActive ? '#00E5A3' : '#FF5E00' }}>
-                      {u.isActive ? 'ACTIVO' : 'INACTIVO'}
+                    <td style={{ padding: '0.6rem' }}>
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                        padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700,
+                        background: u.isActive ? 'rgba(0,229,163,0.12)' : 'rgba(255,94,0,0.12)',
+                        color: u.isActive ? '#00E5A3' : '#FF5E00',
+                        border: `1px solid ${u.isActive ? 'rgba(0,229,163,0.3)' : 'rgba(255,94,0,0.3)'}`,
+                      }}>
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: u.isActive ? '#00E5A3' : '#FF5E00', flexShrink: 0 }} />
+                        {u.isActive ? 'Activo' : 'Inactivo'}
+                      </span>
                     </td>
                     <td style={{ padding: '0.6rem', textAlign: 'center' }}>
-                      <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
-                        <button onClick={() => setViewingUser(u)}
-                          className="bg-brand-celeste text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1">
-                          <Eye size={13} />
-                          Detalle
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'center', alignItems: 'center' }}>
+                        {/* Ver detalle */}
+                        <button
+                          onClick={() => setViewingUser(u)}
+                          title="Ver detalle"
+                          style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(56,189,248,0.12)', color: '#38BDF8', transition: 'background 0.15s' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.26)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.12)'; }}
+                        >
+                          <Eye size={15} />
                         </button>
+
+                        {/* Horarios (solo personal de sede) */}
                         {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE' || user?.role === 'RECEPCIONISTA') && SEDE_ROLE_NAMES.has(roleNameRaw) && roleNameRaw !== 'GERENTE' && roleNameRaw !== 'RECEPCIONISTA' && (
-                          <button onClick={() => setSchedulingUser(u)}
-                            className="bg-brand-green text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1">
-                            <Clock size={13} />
-                            Horarios
+                          <button
+                            onClick={() => setSchedulingUser(u)}
+                            title="Gestionar horarios"
+                            style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,229,163,0.12)', color: '#00E5A3', transition: 'background 0.15s' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,229,163,0.26)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,229,163,0.12)'; }}
+                          >
+                            <Clock size={15} />
                           </button>
                         )}
-                        {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE' || user?.role === 'RECEPCIONISTA') && (<>
-                          <button onClick={() => { setUserToEdit(u); setIsModalOpen(true); }}
-                            className="bg-brand-celeste text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1">
-                            <Edit size={13} />
-                            Editar
+
+                        {/* Editar */}
+                        {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE' || user?.role === 'RECEPCIONISTA') && (
+                          <button
+                            onClick={() => { setUserToEdit(u); setIsModalOpen(true); }}
+                            title="Editar usuario"
+                            style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(56,189,248,0.12)', color: '#38BDF8', transition: 'background 0.15s' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.26)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.12)'; }}
+                          >
+                            <Edit size={15} />
                           </button>
-                          <button onClick={() => setDeleteConfirmUser(u)}
-                            className="bg-transparent text-gray-500 dark:text-text-muted px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1">
-                            <Trash2 size={13} />
-                            Eliminar
+                        )}
+
+                        {/* Eliminar */}
+                        {user?.role === 'SUPER_ADMIN' && (
+                          <button
+                            onClick={() => setDeleteConfirmUser(u)}
+                            title="Eliminar usuario"
+                            style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: '#6b7280', transition: 'background 0.15s, color 0.15s' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = '#ef4444'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#6b7280'; }}
+                          >
+                            <Trash2 size={15} />
                           </button>
-                        </>)}
+                        )}
                       </div>
                     </td>
                   </tr>

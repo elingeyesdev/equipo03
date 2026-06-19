@@ -54,25 +54,24 @@ const SPORT_CATEGORY: Record<string, FilterKey> = {
 
 // ── Extracción defensiva de sede y ejercicio ──────────────────────────────────
 const getLocationText = (session: WorkoutSession): string => {
-  const s       = session as any;
-  const gymObj  = s.gym ?? {};
-  const gymName = gymObj.name ?? s.gym_name ?? s.gymName;
-  const brandName = gymObj.parent?.name ?? s.brand_name ?? s.brandName;
-  if (!gymName) return 'Sede no registrada';
-  return brandName && brandName !== gymName ? `${brandName} - ${gymName}` : gymName;
+  if (session.locationText) return session.locationText;
+  const s = session as any;
+  const gymName = session.gym?.name ?? s.gymName;
+  const brandName = session.gym?.brand?.name ?? s.brandName;
+  if (!gymName) return 'Fuera de sucursal';
+  return brandName ? `${brandName} — ${gymName}` : gymName;
 };
 
 const getActivityText = (session: WorkoutSession): string => {
-  const s         = session as any;
-  const firstSet  = (session.sets?.[0] ?? {}) as any;
-  const exerciseName =
-    firstSet.exercise?.name ??
-    firstSet.routineExercise?.exercise?.name ??
-    firstSet.exerciseName ??
-    s.exercise_name ??
-    s.exerciseName;
-  const routineName = session.routine?.name ?? s.routine_name;
-  return exerciseName ?? routineName ?? s.sport_type ?? s.sportType ?? 'Actividad Desconocida';
+  if (session.routineName) return session.routineName;
+  if (session.activityText) return session.activityText;
+  const s = session as any;
+  const firstSet = (session.sets?.[0] ?? {}) as any;
+  return firstSet.exercise?.name
+    ?? firstSet.exerciseName
+    ?? session.routine?.name
+    ?? s.sportType
+    ?? 'Entrenamiento libre';
 };
 
 const formatDate = (iso: string): string => {

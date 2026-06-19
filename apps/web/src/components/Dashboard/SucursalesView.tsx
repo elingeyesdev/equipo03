@@ -11,7 +11,7 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
 L.Icon.Default.mergeOptions({ iconUrl: markerIcon, iconRetinaUrl: markerIcon2x, shadowUrl: markerShadow });
-import { ModalOverlay, ConfirmModal, panelStyle, RecordDetailModal, DetailField } from './Shared/DashboardShared';
+import { ModalOverlay, ConfirmModal, panelStyle, RecordDetailModal, DetailField, guardClose } from './Shared/DashboardShared';
 import type { GymDto, GymScheduleDto } from './Shared/DashboardTypes';
 import { Eye, Edit, Trash2 } from 'lucide-react';
 
@@ -31,8 +31,9 @@ const TimeSelect = ({ value, onChange, disabled = false }: {
     border: 'none', padding: '0.5rem 0.4rem',
     fontSize: '0.9rem', fontFamily: 'monospace', fontWeight: 600,
     cursor: disabled ? 'not-allowed' : 'pointer',
-    outline: 'none', appearance: 'none', WebkitAppearance: 'none',
+    outline: 'none',
     textAlign: 'center' as const,
+    colorScheme: 'dark',
   };
 
   return (
@@ -44,11 +45,11 @@ const TimeSelect = ({ value, onChange, disabled = false }: {
       width: '100%',
     }}>
       <select value={h} onChange={e => !disabled && onChange(`${e.target.value}:${m}`)} disabled={disabled} style={sel}>
-        {HOURS_24_S.map(hh => <option key={hh} value={hh}>{hh}</option>)}
+        {HOURS_24_S.map(hh => <option key={hh} value={hh} style={{ background: '#1C1C1E', color: '#E5E5EA' }}>{hh}</option>)}
       </select>
       <span style={{ color: '#8E8E93', fontWeight: 700, fontSize: '0.9rem', userSelect: 'none' }}>:</span>
       <select value={m} onChange={e => !disabled && onChange(`${h}:${e.target.value}`)} disabled={disabled} style={sel}>
-        {MINUTES_15_S.map(mm => <option key={mm} value={mm}>{mm}</option>)}
+        {MINUTES_15_S.map(mm => <option key={mm} value={mm} style={{ background: '#1C1C1E', color: '#E5E5EA' }}>{mm}</option>)}
       </select>
     </div>
   );
@@ -107,6 +108,7 @@ const SucursalModal = ({ isOpen, onClose, role, sucursalToEdit, onSave, parentGy
   const canEditMachineCapacity = ['SUPER_ADMIN', 'GERENTE'].includes(role);
   const [showMap, setShowMap] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState(false);
   const [formData, setFormData] = useState({
     name: '', 
     description: '',
@@ -153,6 +155,7 @@ const SucursalModal = ({ isOpen, onClose, role, sucursalToEdit, onSave, parentGy
       document.body.style.overflow = 'hidden';
       document.body.setAttribute('data-modal-open', 'true');
       setShowMap(false);
+      setTouched(false);
       setFormData({
         name: '',
         description: '',
@@ -241,7 +244,7 @@ const SucursalModal = ({ isOpen, onClose, role, sucursalToEdit, onSave, parentGy
   const labelCls2 = "block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1 mt-3";
 
   return (
-    <ModalOverlay onClose={onClose}>
+    <ModalOverlay onClose={onClose} isDirty={touched} onFormChange={() => setTouched(true)}>
       <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">
         {sucursalToEdit ? 'Editar Sucursal' : 'Nueva Sucursal'}
       </h2>
@@ -452,7 +455,7 @@ const SucursalModal = ({ isOpen, onClose, role, sucursalToEdit, onSave, parentGy
           <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100 dark:border-gray-800 flex-shrink-0">
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => guardClose(touched, onClose)}
               className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-bg-deep rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent"
             >
               Cancelar
@@ -606,13 +609,14 @@ export const SucursalesView = () => {
   const handleSaveSucursal = async (formData: SucursalFormData) => {
     try {
       const payload: {
-        name: string; description: string; maxCapacity: number; parentId: number | null;
+        name: string; description: string; maxCapacity: number; machineCapacity: number; parentId: number | null;
         location: { address: string; city: string; latitude: number; longitude: number };
         schedules?: ScheduleFormEntry[];
       } = {
         name: formData.name,
         description: formData.description || formData.address,
         maxCapacity: Number(formData.maxCapacity) || 0,
+        machineCapacity: Number(formData.machineCapacity) || 0,
         parentId: Number(formData.parentId) || null,
         location: {
           address: formData.address || '',
@@ -812,13 +816,19 @@ export const SucursalesView = () => {
                   </td>
                   <td style={{ padding: '0.6rem' }}>{g.maxCapacity ?? '-'}</td>
                   <td style={{ padding: '0.6rem' }}>
-                    <span style={{ color: g.isActive ? '#00E5A3' : '#FF5E00' }}>
-                      {g.isActive ? 'ACTIVA' : 'INACTIVA'}
-                    </span>
-                    <span style={{ color: '#8E8E93' }}>{g.isOpen ? ' | ABIERTA' : ' | CERRADA'}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, background: g.isActive ? 'rgba(0,229,163,0.12)' : 'rgba(255,94,0,0.12)', color: g.isActive ? '#00E5A3' : '#FF5E00', border: `1px solid ${g.isActive ? 'rgba(0,229,163,0.3)' : 'rgba(255,94,0,0.3)'}` }}>
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: g.isActive ? '#00E5A3' : '#FF5E00', flexShrink: 0 }} />
+                        {g.isActive ? 'Activa' : 'Inactiva'}
+                      </span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, background: g.isOpen ? 'rgba(56,189,248,0.12)' : 'rgba(99,99,102,0.12)', color: g.isOpen ? '#38BDF8' : '#8E8E93', border: `1px solid ${g.isOpen ? 'rgba(56,189,248,0.3)' : 'rgba(99,99,102,0.3)'}` }}>
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: g.isOpen ? '#38BDF8' : '#8E8E93', flexShrink: 0 }} />
+                        {g.isOpen ? 'Abierta' : 'Cerrada'}
+                      </span>
+                    </div>
                   </td>
                   <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: 6, justifyContent: 'center', alignItems: 'center' }}>
                       <button
                         onClick={async () => {
                           try {
@@ -828,27 +838,32 @@ export const SucursalesView = () => {
                             setViewingSucursal(g);
                           }
                         }}
-                        className="bg-brand-celeste text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1"
                         title="Ver detalles de la sucursal"
+                        style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(56,189,248,0.12)', color: '#38BDF8', transition: 'background 0.15s' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.26)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.12)'; }}
                       >
-                        <Eye size={12} />
-                        Detalle
+                        <Eye size={15} />
                       </button>
                       {user.role === 'SUPER_ADMIN' && (
                         <>
                           <button
                             onClick={() => handleEditSucursal(g)}
-                            className="bg-brand-celeste text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1"
+                            title="Editar sucursal"
+                            style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(56,189,248,0.12)', color: '#38BDF8', transition: 'background 0.15s' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.26)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.12)'; }}
                           >
-                            <Edit size={12} />
-                            Editar
+                            <Edit size={15} />
                           </button>
                           <button
                             onClick={() => handleDeleteSucursal(g)}
-                            className="bg-transparent text-gray-500 dark:text-text-muted px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1"
+                            title="Eliminar sucursal"
+                            style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: '#6b7280', transition: 'background 0.15s, color 0.15s' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = '#ef4444'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#6b7280'; }}
                           >
-                            <Trash2 size={12} />
-                            Eliminar
+                            <Trash2 size={15} />
                           </button>
                         </>
                       )}

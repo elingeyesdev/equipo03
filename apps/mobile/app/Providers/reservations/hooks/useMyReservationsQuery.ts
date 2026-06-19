@@ -3,11 +3,9 @@ import { reservationApi } from '../api/reservation.api';
 import { UserReservation } from '../api/reservation.types';
 import { useAuth } from '../../../Shared/hooks/useAuth';
 
-const CLIENT_ROLES = new Set(['USER', 'CLIENTE']);
-
 export const useMyReservationsQuery = (refetchInterval?: number) => {
   const { user } = useAuth();
-  const isCliente = CLIENT_ROLES.has(user?.role?.toUpperCase() ?? '');
+  const isCliente = ((user as any)?.level ?? 0) <= 2;
 
   return useQuery<UserReservation[]>({
     queryKey: ['my-reservations', user?.userId],

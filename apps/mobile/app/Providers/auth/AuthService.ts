@@ -78,12 +78,24 @@ export class AuthService {
 
       const extractedGymId: string | undefined = userData?.gymId ?? undefined;
 
+      // Extraer level del payload del JWT (campo incluido por el backend en buildJwtPayload)
+      // Permite que roles personalizados (ej: CLIENTE2, DEPORTISTA) sean enrutados
+      // correctamente por nivel jerárquico en lugar de nombre de rol
+      let extractedLevel = 0;
+      try {
+        const base64Url = jwtToken.trim().split('.')[1];
+        const base64    = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jwtPayload = JSON.parse(atob(base64));
+        extractedLevel = jwtPayload?.level ?? 0;
+      } catch {}
+
       // userId del objeto user del backend
       const userId = userData?.id;
       const autenticacionContext: AutenticacionContext = {
         userId,
         role: extractedRole,
         gymId: extractedGymId,
+        level: extractedLevel,
       };
 
       // Guardar en SecureStore (encriptado)
@@ -99,23 +111,24 @@ export class AuthService {
   /**
    * Realiza registro de un nuevo cliente público contra el backend
    */
-  static async register(name: string, email: string, password: string, phone?: string): Promise<{
+  static async register(name: string, email: string, password: string, phone?: string, gender?: string): Promise<{
     success: boolean;
     error?: string;
   }> {
     try {
 
-      // Mapear 'name' a 'firstName' y 'lastName', y omitir 'phone' según el contrato exacto del backend NestJS
       const parts = String(name || '').trim().split(' ');
       const firstName = parts[0] || '';
       const lastName = parts.slice(1).join(' ') || '-';
 
-      const payload = {
+      const payload: Record<string, string> = {
         firstName,
         lastName,
         email: String(email || '').trim().toLowerCase(),
         password: String(password || ''),
       };
+      if (phone?.trim()) payload.phone = phone.trim();
+      if (gender) payload.gender = gender;
 
       const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
         method: 'POST',
@@ -145,7 +158,7 @@ export class AuthService {
       return { success: true };
     } catch (error: any) {
       const errorMsg = error?.message || 'Error de conexión con el servidor';
-      console.error('[AuthService] Error en register:', errorMsg);
+      console.warn('[AuthService] Error en register:', errorMsg);
       return { success: false, error: errorMsg };
     }
   }
@@ -208,7 +221,7 @@ export class AuthService {
       const stored = await SecureStore.getItemAsync(AUTH_STORAGE_KEY);
       return stored ? JSON.parse(stored) : null;
     } catch (e) {
-      console.error('[AuthService] Error recuperando usuario:', e);
+      console.warn('[AuthService] Error recuperando usuario:', e);
       return null;
     }
   }
@@ -220,7 +233,7 @@ export class AuthService {
     try {
       return await SecureStore.getItemAsync(TOKEN_STORAGE_KEY);
     } catch (e) {
-      console.error('[AuthService] Error recuperando token:', e);
+      console.warn('[AuthService] Error recuperando token:', e);
       return null;
     }
   }
@@ -233,7 +246,7 @@ export class AuthService {
       await SecureStore.deleteItemAsync(AUTH_STORAGE_KEY);
       await SecureStore.deleteItemAsync(TOKEN_STORAGE_KEY);
     } catch (e) {
-      console.error('[AuthService] Error en logout:', e);
+      console.warn('[AuthService] Error en logout:', e);
     }
   }
 

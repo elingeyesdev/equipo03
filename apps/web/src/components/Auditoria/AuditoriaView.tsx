@@ -209,10 +209,19 @@ const AccesosPanel = () => {
     const currentPage = (resetPage || timeFilterActive) ? 1 : page;
     const limit = timeFilterActive ? 1000 : 20;
 
-    // Gerente: Restringir a sucursal asociada a la cuenta del gerente
-    const selectedGymId = user.role === 'GERENTE' ? (user.gymId || undefined) : (filtroSede || undefined);
+    const level = user.level ?? 0;
+    const selectedGymId = level >= 4 && level < 10
+      ? (user.gymId || (user.brandId ? String(user.brandId) : undefined))
+      : (filtroSede || undefined);
 
-    const result = await consultarAccesosUseCase.execute(user, {
+    const authCtx = {
+      ...user,
+      userId: String(user.userId),
+      brandId: user.brandId ? String(user.brandId) : undefined,
+      level,
+    };
+
+    const result = await consultarAccesosUseCase.execute(authCtx, {
       gymId:  selectedGymId,
       estado: filtroEstado || undefined,
       page:   currentPage,
@@ -402,8 +411,14 @@ const AccesosPanel = () => {
           )}
 
           {hasMore && (
-            <div className="pagination">
-              <button onClick={() => setPage(p => p + 1)} disabled={loading} className="btn-load-more">
+            <div className="flex justify-center px-4 py-6 border-t border-slate-100 dark:border-gray-800">
+              <button
+                onClick={() => setPage(p => p + 1)}
+                disabled={loading}
+                className="bg-transparent text-brand-celeste border border-brand-celeste px-6 py-2 rounded-full font-semibold text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'rgba(56,189,248,0.1)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+              >
                 {loading ? 'Cargando...' : 'Cargar más resultados'}
               </button>
             </div>

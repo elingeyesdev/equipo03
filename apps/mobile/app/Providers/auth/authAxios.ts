@@ -23,5 +23,7 @@ authAxios.interceptors.request.use(
 );
 
 attach401Guard(authAxios);
+import { attachOfflineInterceptor } from '../offline/offlineInterceptor';
+attachOfflineInterceptor(authAxios);
 
 export default authAxios;

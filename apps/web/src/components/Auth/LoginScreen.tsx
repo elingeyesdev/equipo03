@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import './LoginScreen.css';
@@ -107,10 +107,13 @@ export const LoginScreen = () => {
       </div>
 
       <nav className="landing-navbar">
-        <div className="navbar-logo">GymSync <span>Pro</span></div>
+        <div>
+          <div className="navbar-logo">GymSync <span>Pro</span></div>
+          <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '5px 14px', borderRadius: 6, background: 'rgba(255,255,255,0.1)', color: '#fff', textDecoration: 'none', fontSize: 12, fontWeight: 600 }}>← Inicio</Link>
+        </div>
         <AnimatePresence>
           {!showLogin && (
-            <motion.button 
+            <motion.button
               className="btn-ghost-cyan"
               onClick={() => setShowLogin(true)}
               initial={{ opacity: 0, x: 20 }}

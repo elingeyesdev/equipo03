@@ -55,7 +55,7 @@ export const MapScreenView: React.FC<MapScreenViewProps> = ({
 }) => {
   const { user } = useAuth();
   const insets   = useSafeAreaInsets();
-  const isGerente = user?.role === 'GERENTE';
+  const isGerente = ((user as any)?.level ?? 0) >= 5;
 
   const mapRef = useRef<LeafletMapHandle>(null);
 

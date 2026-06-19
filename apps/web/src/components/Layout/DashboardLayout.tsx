@@ -35,10 +35,8 @@ export const DashboardLayout = () => {
   }
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
-  const handleLogout = () => {
-    logout();
-    localStorage.removeItem('gymsync_user');
-    sessionStorage.clear();
+  const handleLogout = async () => {
+    await logout();
     navigate('/login', { replace: true });
   };
 
@@ -50,7 +48,7 @@ export const DashboardLayout = () => {
   const initials   = `${fName.charAt(0)}${lName ? lName.charAt(0) : ''}`.toUpperCase();
   const displayName = lName ? `${fName} ${lName}` : fName;
 
-  const visibleRoutes = getRoutesForRole(user?.role);
+  const visibleRoutes = getRoutesForRole(user?.role, user?.level);
 
   return (
     <div className="flex h-screen w-full bg-gray-100 text-gray-900 dark:bg-bg-deep dark:text-text-main overflow-hidden font-sans">
@@ -151,8 +149,13 @@ export const DashboardLayout = () => {
               </div>
               <div className="hidden md:flex flex-col leading-tight">
                 <span className="text-sm font-semibold text-gray-900 dark:text-text-main">{displayName}</span>
-                <span className="text-xs text-gray-500 dark:text-text-muted uppercase tracking-wide">
-                  {user?.role}{user?.gymName ? ` · ${user.gymName}` : ''}
+                <span className="text-xs text-gray-500 dark:text-text-muted tracking-wide">
+                  {user?.role}
+                  {user?.brandName
+                    ? ` · ${user.brandName}${user.gymName ? ` — ${user.gymName}` : ''}`
+                    : user?.gymName
+                      ? ` · ${user.gymName}`
+                      : (user?.level ?? 0) >= 4 ? ' · Sin sucursal asignada' : ''}
                 </span>
               </div>
             </div>

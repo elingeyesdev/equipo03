@@ -311,8 +311,22 @@ export const ScheduleSelectionScreen = ({ route, navigation }: Props) => {
     : null;
 
   // Bloques de la actividad programada que corresponden al día elegido
+  // Comparación normalizada: acepta tanto nombre completo (LUNES) como abreviación (LUN)
+  const DOW_ALIASES: Record<string, string[]> = {
+    LUNES:     ['LUNES', 'LUN'],
+    MARTES:    ['MARTES', 'MAR'],
+    MIERCOLES: ['MIERCOLES', 'MIE'],
+    JUEVES:    ['JUEVES', 'JUE'],
+    VIERNES:   ['VIERNES', 'VIE'],
+    SABADO:    ['SABADO', 'SAB'],
+    DOMINGO:   ['DOMINGO', 'DOM'],
+  };
   const daySchedules = selectedActivity && !selectedActivity.isFreeAccess && selectedDOW
-    ? getScheds(selectedActivity).filter((sc: any) => (sc.dayOfWeek ?? '').toUpperCase() === selectedDOW)
+    ? getScheds(selectedActivity).filter((sc: any) => {
+        const scDay = (sc.dayOfWeek ?? '').toUpperCase();
+        const aliases = DOW_ALIASES[selectedDOW] ?? [selectedDOW];
+        return aliases.includes(scDay);
+      })
     : [];
 
   const gymOpen    = isGymOpenAt(selectedDate ?? '', startTime, endTime, activities);
@@ -525,6 +539,15 @@ export const ScheduleSelectionScreen = ({ route, navigation }: Props) => {
                         <MaterialCommunityIcons name="account-group-outline" size={11} color={isSel ? Colors.secondary : Colors.textSoft} />
                         <Text style={[s.schedCap, isSel && s.schedCapSel]}>{sc.maxAttendees} cupos</Text>
                       </View>
+                      {/* Nombre del instructor */}
+                      {(sc.instructor?.profile?.firstName || sc.instructor?.profile?.lastName) && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 }}>
+                          <MaterialCommunityIcons name="account-outline" size={11} color={isSel ? Colors.secondary : Colors.textSoft} />
+                          <Text style={[s.schedCap, isSel && s.schedCapSel]} numberOfLines={1}>
+                            {[sc.instructor?.profile?.firstName, sc.instructor?.profile?.lastName].filter(Boolean).join(' ')}
+                          </Text>
+                        </View>
+                      )}
                       {isSel && (
                         <MaterialCommunityIcons name="check-circle" size={16} color={Colors.secondary} style={{ marginTop: 4 }} />
                       )}

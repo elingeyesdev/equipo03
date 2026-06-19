@@ -75,6 +75,7 @@ export const RegisterScreen = () => {
   const [phone,        setPhone]        = useState('');
   const [ci,           setCi]           = useState('');
   const [email,        setEmail]        = useState('');
+  const [gender,       setGender]       = useState('');
   const [password,     setPassword]     = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
@@ -124,7 +125,14 @@ export const RegisterScreen = () => {
       // desde el panel Usuarios → "Nuevo Usuario".
       await apiClient.post(
         '/auth/register',
-        { firstName, lastName, email: email.trim().toLowerCase(), password, phone: phone.trim(), ci: ci.trim() },
+        {
+          firstName, lastName,
+          email: email.trim().toLowerCase(),
+          password,
+          phone: phone.trim(),
+          ci: ci.trim(),
+          ...(gender ? { gender } : {}),
+        },
         { _skipErrorToast: true } as any,
       );
 
@@ -158,7 +166,10 @@ export const RegisterScreen = () => {
       </div>
 
       <nav className="landing-navbar">
-        <div className="navbar-logo">GymSync <span>Pro</span></div>
+        <div>
+          <div className="navbar-logo">GymSync <span>Pro</span></div>
+          <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '5px 14px', borderRadius: 6, background: 'rgba(255,255,255,0.1)', color: '#fff', textDecoration: 'none', fontSize: 12, fontWeight: 600 }}>← Inicio</Link>
+        </div>
         <Link to="/login" className="btn-ghost-cyan">Iniciar Sesión</Link>
       </nav>
 
@@ -265,6 +276,22 @@ export const RegisterScreen = () => {
                       placeholder="Carnet de Identidad (CI)" required className={inputCls(!!errors.ci)} />
                   </div>
                   {errors.ci && <span className="field-error-text">{errors.ci}</span>}
+                </div>
+
+                {/* Género */}
+                <div className="form-field">
+                  <label className="text-xs text-slate-500 dark:text-gray-400 mb-1 block">Género — opcional</label>
+                  <select
+                    value={gender}
+                    onChange={e => setGender(e.target.value)}
+                    className={inputCls(false)}
+                    style={{ paddingLeft: '0.75rem' }}
+                  >
+                    <option value="">Sin especificar</option>
+                    <option value="MALE">Masculino</option>
+                    <option value="FEMALE">Femenino</option>
+                    <option value="OTHER">Otro</option>
+                  </select>
                 </div>
 
                 {/* Email */}

@@ -54,23 +54,23 @@ export const ReservasView = () => {
       const raw: any[] = Array.isArray(data) ? data : data?.data ?? [];
 
       // Mapa id → nombre de todas las entidades (sedes y sucursales)
-      const allByIdName = new Map<number, string>(raw.map((g: any) => [g.id, g.name]));
+      const allByIdName = new Map<number, string>(raw.map(g => [g.id, g.name]));
 
-      // Sedes (marcas): maxCapacity === 0
+      // Marcas: sin parentId (raíz de la jerarquía)
       const sedesMap = new Map<number, string>(
-        raw.filter((g: any) => (g.maxCapacity ?? 0) === 0).map((g: any) => [g.id, g.name])
+        raw.filter(g => !g.parentId).map(g => [g.id, g.name])
       );
 
-      // Sucursales: maxCapacity > 0
+      // Sucursales: tienen parentId (pertenecen a una marca)
       const sucursalesData = raw
-        .filter((g: any) => (g.maxCapacity ?? 0) > 0)
-        .sort((a: any, b: any) => a.name.localeCompare(b.name));
+        .filter(g => !!g.parentId)
+        .sort((a, b) => a.name.localeCompare(b.name));
 
-      setSucursales(sucursalesData.map((g: any) => ({ id: g.id, name: g.name })));
+      setSucursales(sucursalesData.map(g => ({ id: g.id, name: g.name })));
 
       // Construir mapa gymId → { sucursalName, sedeName }
       const infoMap = new Map<number, { sucursalName: string; sedeName: string }>();
-      sucursalesData.forEach((g: any) => {
+      sucursalesData.forEach(g => {
         const parentId = g.parentId ?? g.parent?.id;
         infoMap.set(g.id, {
           sucursalName: g.name,
@@ -87,9 +87,11 @@ export const ReservasView = () => {
       ? Number(user.gymId)
       : (filterGym ? Number(filterGym) : undefined);
 
-    // Solo se envía gymId al backend — estado y fecha se filtran client-side
+    // HOY se filtra client-side (por fecha); el resto se delega al backend con ?status=
+    const statusParam = (filterStatus && filterStatus !== 'HOY') ? filterStatus : undefined;
     const data = await reservationsApi.getReservations({
       gymId: selectedGymId,
+      status: statusParam,
     });
     let sorted = [...data].sort((a, b) =>
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -107,7 +109,7 @@ export const ReservasView = () => {
     setReservations(sorted);
     setLoading(false);
     setCurrentPage(1);
-  }, [filterGym, isGerente, isCliente, user]);
+  }, [filterStatus, filterGym, isGerente, isCliente, user]);
 
   // Se dispara automáticamente cuando filterStatus, filterGym u otro dep cambia
   // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -391,12 +393,26 @@ export const ReservasView = () => {
 
             {/* ── Pager ── */}
             {totalPages > 1 && (
-              <div className="pager">
-                <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="pager-btn">
+              <div className="flex justify-center items-center gap-5 px-4 py-4 border-t border-slate-100 dark:border-gray-800 bg-white dark:bg-bg-surface">
+                <button
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(p => p - 1)}
+                  className="text-sm bg-white dark:bg-bg-deep border border-gray-200 dark:border-gray-700 text-slate-700 dark:text-white px-4 py-2 rounded-md cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                  onMouseEnter={e => { if (!e.currentTarget.disabled) { e.currentTarget.style.borderColor = '#FF5E00'; e.currentTarget.style.color = '#FF5E00'; } }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = ''; e.currentTarget.style.color = ''; }}
+                >
                   Anterior
                 </button>
-                <span className="pager-info">Página <strong>{currentPage}</strong> de {totalPages}</span>
-                <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="pager-btn">
+                <span className="text-slate-500 dark:text-gray-400 text-sm">
+                  Página <strong className="text-slate-900 dark:text-white">{currentPage}</strong> de {totalPages}
+                </span>
+                <button
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(p => p + 1)}
+                  className="text-sm bg-white dark:bg-bg-deep border border-gray-200 dark:border-gray-700 text-slate-700 dark:text-white px-4 py-2 rounded-md cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                  onMouseEnter={e => { if (!e.currentTarget.disabled) { e.currentTarget.style.borderColor = '#FF5E00'; e.currentTarget.style.color = '#FF5E00'; } }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = ''; e.currentTarget.style.color = ''; }}
+                >
                   Siguiente
                 </button>
               </div>

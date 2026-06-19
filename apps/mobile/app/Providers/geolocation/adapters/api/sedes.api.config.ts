@@ -32,7 +32,7 @@ export const createSedesApiClient = (): AxiosInstance => {
         if (token && config.headers) {
           config.headers.Authorization = `Bearer ${token}`;
           if (Env.isDevelopment) {
-            console.log(`[Sedes API] Bearer token inyectado en request`);
+            // token injected
           }
         } else {
           if (Env.isDevelopment) {
@@ -40,11 +40,11 @@ export const createSedesApiClient = (): AxiosInstance => {
           }
         }
       } catch (e) {
-        console.error('[Sedes API] Error recuperando token:', e);
+        console.warn('[Sedes API] Error recuperando token:', e);
       }
 
       if (Env.isDevelopment) {
-        console.log(`[Sedes API] ${config.method?.toUpperCase()} ${config.url}`, config.params);
+        // request logged by dev tools
       }
       return config;
     },
@@ -69,12 +69,12 @@ export const createSedesApiClient = (): AxiosInstance => {
     },
     (error) => {
       if (Env.isDevelopment) {
-        console.error('[Sedes API Error]', error.message);
+        console.warn('[Sedes API Error]', error.message);
         if (error.response?.status === 401) {
-          console.error('[Sedes API] Error 401 Unauthorized - Token inválido o expirado');
+          console.warn('[Sedes API] Error 401 Unauthorized - Token inválido o expirado');
         }
         if (error.response?.status === 403) {
-          console.error('[Sedes API] Error 403 Forbidden - No autorizado para este recurso');
+          console.warn('[Sedes API] Error 403 Forbidden - No autorizado para este recurso');
         }
       }
       return Promise.reject(error);
@@ -83,6 +83,9 @@ export const createSedesApiClient = (): AxiosInstance => {
 
   // ── Interceptor global 401 → alerta + logout + redirect al login ─────────────
   attach401Guard(client);
+
+  const { attachOfflineInterceptor } = require('../../../offline/offlineInterceptor');
+  attachOfflineInterceptor(client);
 
   return client;
 };

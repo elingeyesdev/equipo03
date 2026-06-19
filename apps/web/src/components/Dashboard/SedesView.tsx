@@ -4,7 +4,7 @@ import { Navigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
-import { ModalOverlay, ConfirmModal, panelStyle } from './Shared/DashboardShared';
+import { ModalOverlay, ConfirmModal, panelStyle, guardClose } from './Shared/DashboardShared';
 import type { GymDto, GymScheduleDto, UserDto, CheckinDto, ScheduleEntry } from './Shared/DashboardTypes';
 import { Edit, Trash2, Building2 } from 'lucide-react';
 
@@ -13,7 +13,10 @@ const DESC_MAX = 180;
 const MarcaModal = ({ isOpen, onClose, marcaToEdit, onSave, existingGyms = [] }: any) => {
   const [formData, setFormData] = useState({ name: '', description: '' });
   const [errors, setErrors]     = useState<Record<string, string>>({});
+  const [touched, setTouched]   = useState(false);
   const textareaRef             = React.useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => { setTouched(false); }, [isOpen]);
 
   /* Auto-resize textarea */
   const autoResize = () => {
@@ -74,7 +77,7 @@ const MarcaModal = ({ isOpen, onClose, marcaToEdit, onSave, existingGyms = [] }:
   const labelCls = "text-xs font-semibold text-slate-500 dark:text-gray-500 uppercase tracking-wide";
 
   return (
-    <ModalOverlay onClose={onClose}>
+    <ModalOverlay onClose={onClose} isDirty={touched} onFormChange={() => setTouched(true)}>
       <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">
         {marcaToEdit ? 'Editar Marca' : 'Nueva Marca'}
       </h2>
@@ -124,7 +127,7 @@ const MarcaModal = ({ isOpen, onClose, marcaToEdit, onSave, existingGyms = [] }:
 
         {/* Botones */}
         <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-gray-800">
-          <button type="button" onClick={onClose}
+          <button type="button" onClick={() => guardClose(touched, onClose)}
             className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-bg-deep rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent">
             Cancelar
           </button>
@@ -244,30 +247,17 @@ export const SedesView = () => {
         };
       }
 
-      console.log(`[Security Check]: Ejecutando acción para Rol ${user?.role} con Scope Gym ${user?.gymId || 'Global'}`);
-      console.log(`[Final Contract]: Enviando payload a /gyms -> ${JSON.stringify(payload)}`);
-
       if (sedeToEdit) {
-        // 1ª Petición: Actualizar identidad del gym
         await apiClient.put(`/gyms/${sedeToEdit.id}`, payload);
-
-        setGyms(prev => prev.map(g => g.id === sedeToEdit.id
-          ? { ...g, name: formData.name, description: formData.description || '' }
-          : g
-        ));
+        await cargarSedes();
       } else {
-        const res = await apiClient.post('/gyms', payload);
-        const newSede = res.data?.id ? res.data : { id: res.data?.data?.id || Date.now(), ...payload };
-        setGyms(prev => [...prev, newSede]);
+        await apiClient.post('/gyms', payload);
+        await cargarSedes();
       }
 
       setIsModalOpen(false);
-    } catch (err: any) {
-      console.error('[Debug] Error completo del servidor en handleSaveSede:', JSON.stringify(err?.response?.data, null, 2));
-      if (err?.response?.status === 400) {
-        console.error('[API Error 400] Arreglo de validaciones:', err?.response?.data?.message || err?.response?.data);
-      }
-      // api.config.ts maneja el toast
+    } catch {
+      // El interceptor de apiClient maneja el toast de error
     }
   };
 
@@ -363,14 +353,14 @@ export const SedesView = () => {
                     </span>
                   </td>
                   <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', alignItems: 'center' }}>
-                      {/* ── Botón info (siempre visible) ── */}
+                    <div style={{ display: 'flex', gap: 6, justifyContent: 'center', alignItems: 'center' }}>
                       <button
                         title="Ver información"
                         onClick={() => setInfoSede(g)}
-                        className="bg-brand-celeste text-black px-2 py-1 rounded cursor-pointer inline-flex items-center"
+                        style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(56,189,248,0.12)', color: '#38BDF8', transition: 'background 0.15s' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.26)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.12)'; }}
                       >
-                        {/* SVG info circle */}
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                           <circle cx="12" cy="12" r="10"/>
                           <line x1="12" y1="16" x2="12" y2="12"/>
@@ -381,17 +371,21 @@ export const SedesView = () => {
                       {user.role === 'SUPER_ADMIN' && (<>
                         <button
                           onClick={() => handleEditSede(g)}
-                          className="bg-brand-celeste text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1"
+                          title="Editar marca"
+                          style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(56,189,248,0.12)', color: '#38BDF8', transition: 'background 0.15s' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.26)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.12)'; }}
                         >
-                          <Edit size={12} />
-                          Editar
+                          <Edit size={15} />
                         </button>
                         <button
                           onClick={() => handleDeleteSede(g)}
-                          className="bg-transparent text-gray-500 dark:text-text-muted px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1"
+                          title="Eliminar marca"
+                          style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: '#6b7280', transition: 'background 0.15s, color 0.15s' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = '#ef4444'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#6b7280'; }}
                         >
-                          <Trash2 size={12} />
-                          Eliminar
+                          <Trash2 size={15} />
                         </button>
                       </>)}
                     </div>

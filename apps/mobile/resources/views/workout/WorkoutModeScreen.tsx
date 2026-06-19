@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SectionList, ActivityIndicator } from 'react-native';
+import {
+  View, Text, TouchableOpacity, StyleSheet, ScrollView,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -12,66 +15,120 @@ export type TrackingType =
   | 'DISTANCE_TIME'
   | 'ASSISTED_WEIGHT';
 
-type Exercise = { id: number; name: string; rateKey: string; trackingType: TrackingType };
-type Section  = { category: string; icon: string; color: string; data: Exercise[] };
-
-const CategoryMeta: Record<string, { icon: string; color: string; defaultRateKey: string; defaultTracking: TrackingType }> = {
-  'Pecho':   { icon: 'arm-flex-outline',  color: '#e94560', defaultRateKey: 'FUERZA',       defaultTracking: 'PESO_REPS' },
-  'Pierna':  { icon: 'run-fast',          color: '#9b5de5', defaultRateKey: 'FUERZA',       defaultTracking: 'PESO_REPS' },
-  'Espalda': { icon: 'rowing',            color: '#06d6a0', defaultRateKey: 'FUERZA',       defaultTracking: 'PESO_REPS' },
-  'Hombro':  { icon: 'weight-lifter',     color: '#0077b6', defaultRateKey: 'FUERZA',       defaultTracking: 'PESO_REPS' },
-  'Brazo':   { icon: 'arm-flex',          color: '#ffd166', defaultRateKey: 'FUERZA',       defaultTracking: 'PESO_REPS' },
-  'Cardio':  { icon: 'run',               color: '#f05b22', defaultRateKey: 'CARDIO',       defaultTracking: 'DISTANCE_TIME' },
-  'HIIT':    { icon: 'lightning-bolt',    color: '#ef476f', defaultRateKey: 'HIIT',         defaultTracking: 'BODYWEIGHT_REPS' },
-  'Core':    { icon: 'yoga',              color: '#00b4d8', defaultRateKey: 'FLEXIBILIDAD', defaultTracking: 'BODYWEIGHT_REPS' },
-  'Fondos':  { icon: 'human-handsup',     color: '#48cae4', defaultRateKey: 'FUERZA',       defaultTracking: 'BODYWEIGHT_REPS' },
+type ExerciseItem = {
+  id:           number;
+  name:         string;
+  muscleGroup:  string;
+  category:     string;
+  exerciseType: string;
+  trackingType: TrackingType;
+  youtubeVideoId?: string | null;
 };
 
+type SubGroup = {
+  title: string;
+  icon:  string;
+  color: string;
+  data:  ExerciseItem[];
+};
+
+// ── Category meta ──────────────────────────────────────────────────────────────
+const CATEGORY_META: Record<string, { label: string; icon: string; color: string }> = {
+  FUERZA:    { label: 'Fuerza e Hipertrofia', icon: 'dumbbell',        color: '#38BDF8' },
+  CARDIO:    { label: 'Cardio',               icon: 'run',             color: '#FF5E00' },
+  FUNCIONAL: { label: 'Funcional y Potencia', icon: 'lightning-bolt',  color: '#00E5A3' },
+};
+
+const MUSCLE_META: Record<string, { icon: string; color: string }> = {
+  Pectorales:     { icon: 'arm-flex-outline', color: '#38BDF8' },
+  Dorsales:       { icon: 'rowing',           color: '#00E5A3' },
+  Hombros:        { icon: 'weight-lifter',    color: '#FF5E00' },
+  'Bíceps':       { icon: 'arm-flex',         color: '#38BDF8' },
+  'Tríceps':      { icon: 'dumbbell',         color: '#FF5E00' },
+  'Cuádriceps':   { icon: 'run-fast',         color: '#00E5A3' },
+  Isquiotibiales: { icon: 'human-male',       color: '#FF5E00' },
+  Gemelos:        { icon: 'walk',             color: '#38BDF8' },
+  Core:           { icon: 'yoga',             color: '#00E5A3' },
+  Cardio:         { icon: 'run',              color: '#FF5E00' },
+  Funcional:      { icon: 'crosshairs',       color: '#38BDF8' },
+  HIIT:           { icon: 'lightning-bolt',   color: '#FF5E00' },
+  Movilidad:      { icon: 'human',            color: '#00E5A3' },
+};
+
+const TRACKING_MAP: Record<string, TrackingType> = {
+  STRENGTH:  'PESO_REPS',
+  FUNCTIONAL:'BODYWEIGHT_REPS',
+  CARDIO:    'DISTANCE_TIME',
+  HIIT:      'BODYWEIGHT_REPS',
+  MOBILITY:  'TIME_BASED',
+};
+
+const CATEGORY_ORDER = ['FUERZA', 'CARDIO', 'FUNCIONAL'];
+
+// ── Component ─────────────────────────────────────────────────────────────────
 export const WorkoutModeScreen = () => {
   const navigation = useNavigation<any>();
-  const [sections, setSections] = useState<Section[]>([]);
-  const [loading, setLoading]   = useState(true);
+  const [sections,  setSections]  = useState<{ categoryKey: string; subGroups: SubGroup[] }[]>([]);
+  const [expanded,  setExpanded]  = useState<Record<string, boolean>>({});
+  const [loading,   setLoading]   = useState(true);
 
   useEffect(() => {
     const fetchCatalog = async () => {
       try {
-        const exercises = await trainingApi.getExercises();
-        
-        const groups: Record<string, Exercise[]> = {};
-        
-        exercises.forEach((ex: any) => {
-          const groupName = ex.muscleGroup || 'Otro';
-          if (!groups[groupName]) groups[groupName] = [];
-          
-          const meta = CategoryMeta[groupName] || { defaultRateKey: 'FUERZA', defaultTracking: 'PESO_REPS' };
-          
-          groups[groupName].push({
-            id: ex.id,
-            name: ex.name,
-            rateKey: meta.defaultRateKey,
-            trackingType: meta.defaultTracking,
+        const raw: any[] = await trainingApi.getExercises();
+
+        // Group: category → muscleGroup → exercises
+        const tree: Record<string, Record<string, ExerciseItem[]>> = {};
+        for (const ex of raw) {
+          const cat  = ex.category     ?? 'FUERZA';
+          const mg   = ex.muscleGroup  ?? 'Otro';
+          const et   = ex.exerciseType ?? 'STRENGTH';
+          if (!tree[cat])     tree[cat]    = {};
+          if (!tree[cat][mg]) tree[cat][mg] = [];
+          tree[cat][mg].push({
+            id:           ex.id,
+            name:         ex.name,
+            muscleGroup:  mg,
+            category:     cat,
+            exerciseType: et,
+            trackingType: TRACKING_MAP[et] ?? 'PESO_REPS',
+            youtubeVideoId: ex.youtubeVideoId ?? null,
+          });
+        }
+
+        const built = CATEGORY_ORDER
+          .filter(cat => tree[cat])
+          .map(cat => ({
+            categoryKey: cat,
+            subGroups: Object.entries(tree[cat]).map(([mg, items]) => {
+              const meta = MUSCLE_META[mg] ?? { icon: 'dumbbell', color: '#38BDF8' };
+              return { title: mg, icon: meta.icon, color: meta.color, data: items };
+            }),
+          }));
+
+        // Expand first category by default
+        const initExpanded: Record<string, boolean> = {};
+        built.forEach((c, ci) => {
+          c.subGroups.forEach((_, si) => {
+            initExpanded[`${ci}-${si}`] = ci === 0;
           });
         });
 
-        const parsedSections: Section[] = Object.keys(groups).map((category) => {
-          const meta = CategoryMeta[category] || { icon: 'dumbbell', color: '#888' };
-          return {
-            category,
-            icon: meta.icon,
-            color: meta.color,
-            data: groups[category],
-          };
-        });
-
-        setSections(parsedSections);
-      } catch (error) {
-        console.error('Error fetching catalog:', error);
+        setSections(built);
+        setExpanded(initExpanded);
+      } catch (err) {
+        console.warn('Error fetching catalog:', (err as Error)?.message);
       } finally {
         setLoading(false);
       }
     };
     fetchCatalog();
   }, []);
+
+  const toggleSubGroup = (catIdx: number, sgIdx: number) => {
+    const key = `${catIdx}-${sgIdx}`;
+    setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
+  };
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
@@ -83,48 +140,85 @@ export const WorkoutModeScreen = () => {
       </View>
 
       {loading ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color="#fff" />
+        <View style={s.center}>
+          <ActivityIndicator size="large" color="#38BDF8" />
         </View>
       ) : (
-        <SectionList
-          sections={sections}
-          keyExtractor={(item) => item.name}
-          stickySectionHeadersEnabled={false}
-          contentContainerStyle={s.list}
+        <ScrollView
           showsVerticalScrollIndicator={false}
-          renderSectionHeader={({ section }) => (
-            <View style={s.sectionHead}>
-              <MaterialCommunityIcons name={section.icon as any} size={16} color={section.color} />
-              <Text style={[s.sectionTitle, { color: section.color }]}>{section.category}</Text>
-            </View>
-          )}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={s.row}
-              activeOpacity={0.7}
-              onPress={() => navigation.navigate('WorkoutActive', {
-                sport:        item.rateKey,
-                exercise:     { id: item.id, name: item.name },
-                trackingType: item.trackingType,
-              })}
-            >
-              <Text style={s.rowLabel}>{item.name}</Text>
-              <MaterialCommunityIcons name="chevron-right" size={20} color="#333" />
-            </TouchableOpacity>
-          )}
-        />
+          contentContainerStyle={s.scroll}
+        >
+          {sections.map((catSection, catIdx) => {
+            const catMeta = CATEGORY_META[catSection.categoryKey] ?? { label: catSection.categoryKey, icon: 'dumbbell', color: '#38BDF8' };
+            return (
+              <View key={catSection.categoryKey}>
+                {/* Category header */}
+                <View style={s.catHeader}>
+                  <MaterialCommunityIcons name={catMeta.icon as any} size={18} color={catMeta.color} />
+                  <Text style={[s.catTitle, { color: catMeta.color }]}>{catMeta.label}</Text>
+                </View>
+
+                {catSection.subGroups.map((sg, sgIdx) => {
+                  const key      = `${catIdx}-${sgIdx}`;
+                  const isOpen   = expanded[key] ?? false;
+                  return (
+                    <View key={sg.title} style={s.subGroup}>
+                      {/* Subcategory header (tappable) */}
+                      <TouchableOpacity
+                        style={s.sgHeader}
+                        onPress={() => toggleSubGroup(catIdx, sgIdx)}
+                        activeOpacity={0.75}
+                      >
+                        <View style={[s.sgDot, { backgroundColor: sg.color }]} />
+                        <MaterialCommunityIcons name={sg.icon as any} size={14} color={sg.color} />
+                        <Text style={[s.sgTitle, { color: sg.color }]}>{sg.title}</Text>
+                        <Text style={s.sgCount}>{sg.data.length}</Text>
+                        <MaterialCommunityIcons
+                          name={isOpen ? 'chevron-up' : 'chevron-down'}
+                          size={16} color="#555"
+                        />
+                      </TouchableOpacity>
+
+                      {/* Exercise list */}
+                      {isOpen && sg.data.map(item => (
+                        <TouchableOpacity
+                          key={item.id}
+                          style={s.row}
+                          activeOpacity={0.7}
+                          onPress={() => navigation.navigate('WorkoutReady', {
+                            sport:        item.exerciseType,
+                            exercise:     { id: item.id, name: item.name },
+                            trackingType: item.trackingType,
+                            youtubeVideoId: item.youtubeVideoId,
+                          })}
+                        >
+                          <View style={[s.rowDot, { backgroundColor: sg.color + '22', borderColor: sg.color + '44' }]}>
+                            <MaterialCommunityIcons name={sg.icon as any} size={13} color={sg.color} />
+                          </View>
+                          <Text style={s.rowLabel}>{item.name}</Text>
+                          <MaterialCommunityIcons name="chevron-right" size={18} color="#333" />
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  );
+                })}
+              </View>
+            );
+          })}
+        </ScrollView>
       )}
     </SafeAreaView>
   );
 };
 
 const s = StyleSheet.create({
-  container:   { flex: 1, backgroundColor: '#0a0a0a' },
+  container: { flex: 1, backgroundColor: '#0a0a0a' },
+  center:    { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  scroll:    { paddingHorizontal: 16, paddingBottom: 48 },
 
   header: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 20, paddingVertical: 16, gap: 12,
+    paddingHorizontal: 16, paddingVertical: 14, gap: 12,
   },
   backBtn: {
     width: 40, height: 40, borderRadius: 12,
@@ -134,19 +228,36 @@ const s = StyleSheet.create({
   },
   headerTitle: { color: '#fff', fontSize: 20, fontWeight: '800' },
 
-  list: { paddingHorizontal: 20, paddingBottom: 40 },
-
-  sectionHead: {
+  catHeader: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     marginTop: 28, marginBottom: 10,
   },
-  sectionTitle: { fontSize: 13, fontWeight: '800', letterSpacing: 1 },
+  catTitle: { fontSize: 14, fontWeight: '900', letterSpacing: 0.5, flex: 1 },
+
+  subGroup: { marginBottom: 6 },
+
+  sgHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    backgroundColor: '#111', borderRadius: 12,
+    paddingVertical: 10, paddingHorizontal: 14,
+    borderWidth: 1, borderColor: '#1c1c1e',
+    marginBottom: 2,
+  },
+  sgDot:   { width: 6, height: 6, borderRadius: 3 },
+  sgTitle: { fontSize: 13, fontWeight: '700', flex: 1 },
+  sgCount: { color: '#444', fontSize: 11, fontWeight: '600', marginRight: 4 },
 
   row: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: '#111', borderRadius: 14,
-    paddingVertical: 16, paddingHorizontal: 18,
-    marginBottom: 8, borderWidth: 1, borderColor: '#1c1c1e',
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#0d0d0d', borderRadius: 10,
+    paddingVertical: 13, paddingHorizontal: 14,
+    marginBottom: 4, borderWidth: 1, borderColor: '#1a1a1a',
+    gap: 10,
   },
-  rowLabel: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  rowDot: {
+    width: 32, height: 32, borderRadius: 10,
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1,
+  },
+  rowLabel: { color: '#ddd', fontSize: 14, fontWeight: '600', flex: 1 },
 });

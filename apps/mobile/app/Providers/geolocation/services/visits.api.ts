@@ -38,6 +38,8 @@ visitsClient.interceptors.request.use(async (config) => {
 });
 
 attach401Guard(visitsClient);
+import { attachOfflineInterceptor } from '../../offline/offlineInterceptor';
+attachOfflineInterceptor(visitsClient);
 
 export const visitsApi = {
   postVisit: async (payload: VisitPayload): Promise<VisitRecord> => {

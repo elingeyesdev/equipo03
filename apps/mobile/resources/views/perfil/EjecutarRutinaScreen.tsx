@@ -1,15 +1,42 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TextInput,
-  TouchableOpacity, Alert, ActivityIndicator,
+  TouchableOpacity, Alert, ActivityIndicator, Dimensions, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { WebView } from 'react-native-webview';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import { Audio } from 'expo-av';
 import { ClientRoutine, ClientRoutineExercise } from '../../../app/Providers/staff/api/staff.api';
 import { trainingApi } from '../../../app/Providers/training/api/training.api';
+
+const SCREEN_W = Dimensions.get('window').width;
+const VIDEO_H  = Math.round((SCREEN_W - 32) * 9 / 16); // 16:9 dentro del padding
+
+
+const buildYoutubeHtml = (videoId: string): string => `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; overflow: hidden; }
+    iframe { width: 100%; height: 100vh; border: none; display: block; }
+  </style>
+</head>
+<body>
+  <iframe
+    src="https://www.youtube.com/embed/${videoId}?playsinline=1&controls=1&rel=0&modestbranding=1&fs=1"
+    frameborder="0"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    allowfullscreen
+  ></iframe>
+</body>
+</html>
+`;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -316,7 +343,24 @@ export const EjecutarRutinaScreen = () => {
 
   // ── READY phase ──────────────────────────────────────────────────────────────
   if (phase === 'ready') {
-    const isCardio = mode === 'cardio';
+    const isCardio  = mode === 'cardio';
+    const youtubeVideoId = (exercise.exercise as any)?.youtubeVideoId; // Assuming DTO type update in ClientRoutineExercise.exercise
+
+    const openInNativeYouTube = async (id: string) => {
+      const appUrl = `youtube://watch?v=${id}`;
+      const webUrl = `https://www.youtube.com/watch?v=${id}`;
+      try {
+        const supported = await Linking.canOpenURL(appUrl);
+        if (supported) {
+          await Linking.openURL(appUrl);
+        } else {
+          await Linking.openURL(webUrl);
+        }
+      } catch (err) {
+        Alert.alert('Error', 'No se pudo abrir YouTube.');
+      }
+    };
+
     return (
       <SafeAreaView style={s.safe} edges={['top']}>
         <View style={s.topBar}>
@@ -337,6 +381,33 @@ export const EjecutarRutinaScreen = () => {
           </View>
 
           <Text style={s.readyTitle}>¿Listo para entrenar?</Text>
+
+          {/* ── Demo video ── */}
+          {youtubeVideoId ? (
+            <View style={s.videoWrap}>
+              <View style={[s.videoLabel, { justifyContent: 'space-between' }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <MaterialCommunityIcons name="youtube" size={16} color="#FF5E00" />
+                  <Text style={s.videoLabelTxt}>Demo del ejercicio</Text>
+                </View>
+                <TouchableOpacity onPress={() => openInNativeYouTube(youtubeVideoId)}>
+                  <Text style={{ color: '#0A84FF', fontSize: 12, fontWeight: '600' }}>
+                    Abrir en YouTube
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <WebView
+                source={{ html: buildYoutubeHtml(youtubeVideoId), baseUrl: 'https://www.youtube.com' }}
+                style={[s.videoPlayer, { height: VIDEO_H }]}
+                originWhitelist={['*']}
+                allowsFullscreenVideo
+                mediaPlaybackRequiresUserAction
+                javaScriptEnabled
+                scrollEnabled={false}
+                allowsInlineMediaPlayback
+              />
+            </View>
+          ) : null}
 
           <View style={s.previewCard}>
             <View style={s.previewRow}>
@@ -525,10 +596,15 @@ const s = StyleSheet.create({
   progressTxt:  { color: '#444', fontSize: 11, textAlign: 'right', paddingRight: 16, paddingTop: 4 },
 
   // READY
-  readyContent: { padding: 20, paddingBottom: 100 },
+  readyContent: { padding: 16, paddingBottom: 100 },
   gymBadge:     { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20 },
   gymTxt:       { fontSize: 13, fontWeight: '600' },
   readyTitle:   { color: '#fff', fontSize: 22, fontWeight: '800', marginBottom: 16 },
+
+  videoWrap:     { borderRadius: 14, overflow: 'hidden', backgroundColor: '#0e0e0e', marginBottom: 16, borderWidth: 1, borderColor: '#1a1a1a' },
+  videoLabel:    { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 10, paddingBottom: 6 },
+  videoLabelTxt: { color: '#888', fontSize: 12, fontWeight: '600' },
+  videoPlayer:   { width: '100%', backgroundColor: '#000' },
 
   previewCard:    { backgroundColor: '#0e0e0e', borderRadius: 14, padding: 16, marginBottom: 32, borderWidth: 1, borderColor: '#1a1a1a' },
   previewRow:     { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },

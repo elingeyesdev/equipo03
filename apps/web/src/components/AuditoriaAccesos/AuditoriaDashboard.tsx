@@ -24,10 +24,15 @@ export const AuditoriaDashboard: React.FC = () => {
     setErrorAcceso(null);
     const currentPage = resetPage ? 1 : page;
     
+    const level = user.level ?? 0;
+    const resolvedGymId = level >= 4 && level < 10
+      ? (user.gymId || (user.brandId ? String(user.brandId) : undefined))
+      : (filtroSede || undefined);
+
     const result = await consultarAccesosUseCase.execute(
-      user, 
+      { ...user, userId: String(user.userId), brandId: user.brandId ? String(user.brandId) : undefined, level },
       {
-        gymId: filtroSede || undefined,
+        gymId: resolvedGymId,
         estado: filtroEstado || undefined,
         page: currentPage,
         limit: 15

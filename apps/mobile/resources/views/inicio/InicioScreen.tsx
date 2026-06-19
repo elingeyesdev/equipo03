@@ -201,7 +201,7 @@ const ClientDashboard = () => {
         }
       }
     } catch (e) {
-      console.error('[InicioScreen] Error fetching sedes:', e);
+      console.warn('[InicioScreen] Error fetching sedes:', (e as Error)?.message);
       setErrorType('network');
     } finally {
       setLoading(false);
@@ -585,19 +585,12 @@ export const StaffInicioScreen = () => {
 
 export const InicioScreen = () => {
   const { user } = useAuth();
-  const role = (user?.role ?? '').toUpperCase();
+  const level = (user as any)?.level ?? 0;
 
-  if (role === 'GERENTE' || role === 'COORDINADOR') return <ManagerDashboard />;
-  if (role === 'PERSONAL_DE_LIMPIEZA') return (
-    <SafeAreaView style={ph.safe} edges={['top']}>
-      <View style={ph.center}>
-        <MaterialCommunityIcons name="broom" size={56} color="#666" />
-        <Text style={ph.title}>Panel de Limpieza</Text>
-      </View>
-    </SafeAreaView>
-  );
+  if (level >= 5) return <ManagerDashboard />;
 
-  // Fallback intocable para USER / CLIENTE / sin rol
+  if (level >= 1) return <ClientDashboard />;
+
   return <ClientDashboard />;
 };
 

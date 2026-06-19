@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
-import { ModalOverlay, ConfirmModal, panelStyle } from './Shared/DashboardShared';
+import { ModalOverlay, ConfirmModal, panelStyle, guardClose } from './Shared/DashboardShared';
 import { Eye, Edit, Trash2, Plus, X, Search, Dumbbell } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -76,9 +76,11 @@ const TemplateModal = ({
   const [search, setSearch]         = useState('');
   const [showDrop, setShowDrop]     = useState(false);
   const [saving, setSaving]         = useState(false);
+  const [touched, setTouched]       = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
+    setTouched(false);
     if (template) {
       setName(template.name);
       setDifficulty(template.difficultyLevel ?? 'FACIL');
@@ -159,7 +161,7 @@ const TemplateModal = ({
   const lbl = 'block text-[10px] font-bold text-slate-400 dark:text-gray-500 mb-1.5 uppercase tracking-widest';
 
   return (
-    <ModalOverlay onClose={onClose} maxWidth="620px">
+    <ModalOverlay onClose={onClose} maxWidth="620px" isDirty={touched} onFormChange={() => setTouched(true)}>
       {/* Header */}
       <div className="flex items-center justify-between mb-5 pb-4 border-b border-slate-100 dark:border-gray-800">
         <div>
@@ -303,7 +305,7 @@ const TemplateModal = ({
       <div className="flex justify-end gap-3 mt-5 pt-4 border-t border-slate-100 dark:border-gray-800">
         <button
           className="px-5 py-2.5 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-[#151528] rounded-xl font-medium border border-slate-200 dark:border-gray-700 cursor-pointer bg-transparent transition-colors text-sm"
-          onClick={onClose}
+          onClick={() => guardClose(touched, onClose)}
         >
           Cancelar
         </button>
@@ -460,17 +462,8 @@ export const RutinasView = () => {
         durationWeeks:   formData.durationWeeks,
         exercises:       formData.exercises,
       });
-      const updatedExercises: RoutineExerciseItem[] = formData.exercises.map((e: any) => ({
-        ...e,
-        exercise: allExercises.find(ex => ex.id === e.exerciseId),
-      }));
-      setTemplates(prev =>
-        prev.map(r =>
-          r.id === templateToEdit.id
-            ? { ...r, ...formData, exercises: updatedExercises }
-            : r,
-        ),
-      );
+      const refreshRes = await apiClient.get('/routines', { params: { isTemplate: 'true' } });
+      setTemplates(Array.isArray(refreshRes.data) ? refreshRes.data : []);
       toast.success('Plantilla actualizada.');
     } else {
       const res = await apiClient.post('/routines', {
@@ -589,26 +582,35 @@ export const RutinasView = () => {
                         </span>
                       </td>
                       <td style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>
-                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                        <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
                           <button
                             onClick={() => setViewingTemplate(t)}
-                            className="bg-brand-celeste text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1"
+                            title="Ver rutina"
+                            style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(56,189,248,0.12)', color: '#38BDF8', transition: 'background 0.15s' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.26)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.12)'; }}
                           >
-                            <Eye size={12} /> Ver
+                            <Eye size={15} />
                           </button>
                           {canWrite && (
                             <>
                               <button
                                 onClick={() => { setTemplateToEdit(t); setIsModalOpen(true); }}
-                                className="bg-brand-celeste text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1"
+                                title="Editar rutina"
+                                style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(56,189,248,0.12)', color: '#38BDF8', transition: 'background 0.15s' }}
+                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.26)'; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.12)'; }}
                               >
-                                <Edit size={12} /> Editar
+                                <Edit size={15} />
                               </button>
                               <button
                                 onClick={() => setDeleteTarget(t)}
-                                className="bg-transparent text-gray-500 dark:text-text-muted px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1"
+                                title="Eliminar rutina"
+                                style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: '#6b7280', transition: 'background 0.15s, color 0.15s' }}
+                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = '#ef4444'; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#6b7280'; }}
                               >
-                                <Trash2 size={12} /> Eliminar
+                                <Trash2 size={15} />
                               </button>
                             </>
                           )}

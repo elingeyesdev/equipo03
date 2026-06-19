@@ -32,6 +32,7 @@ import { CuadroDeMandoClienteScreen } from '../resources/views/inicio/CuadroDeMa
 
 // ── Workout (solo CLIENTE) ────────────────────────────────────────────────────
 import { WorkoutModeScreen }    from '../resources/views/workout/WorkoutModeScreen';
+import { WorkoutReadyScreen }   from '../resources/views/workout/WorkoutReadyScreen';
 import { WorkoutActiveScreen }  from '../resources/views/workout/WorkoutActiveScreen';
 import { WorkoutSummaryScreen } from '../resources/views/workout/WorkoutSummaryScreen';
 import { WorkoutHistoryScreen } from '../resources/views/workout/WorkoutHistoryScreen';
@@ -54,6 +55,7 @@ import { ResumenEjercicioScreen } from '../resources/views/perfil/ResumenEjercic
 import { SeguimientoScreen }       from '../resources/views/seguimiento/SeguimientoScreen';
 import { HistorialRutinaScreen }   from '../resources/views/seguimiento/HistorialRutinaScreen';
 import { RegistroEjercicioScreen } from '../resources/views/seguimiento/RegistroEjercicioScreen';
+import { MisAlumnosScreen }        from '../resources/views/inicio/MisAlumnosScreen';
 
 // ── Iconos de tabs ────────────────────────────────────────────────────────────
 const TAB_ICON: Record<string, string> = {
@@ -138,6 +140,11 @@ const ClienteStack = () => (
     <ClienteNav.Screen
       name="WorkoutMode"
       component={WorkoutModeScreen}
+      options={{ headerShown: false }}
+    />
+    <ClienteNav.Screen
+      name="WorkoutReady"
+      component={WorkoutReadyScreen}
       options={{ headerShown: false }}
     />
     <ClienteNav.Screen
@@ -258,6 +265,11 @@ const StaffStack = () => (
     <StaffNav.Screen
       name="RegistroEjercicio"
       component={RegistroEjercicioScreen}
+      options={{ headerShown: false }}
+    />
+    <StaffNav.Screen
+      name="MisAlumnos"
+      component={MisAlumnosScreen}
       options={{ headerShown: false }}
     />
   </StaffNav.Navigator>

@@ -4,7 +4,7 @@ import { Navigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
-import { ModalOverlay, ConfirmModal, panelStyle } from './Shared/DashboardShared';
+import { ModalOverlay, ConfirmModal, panelStyle, guardClose } from './Shared/DashboardShared';
 import type { GymDto, GymScheduleDto, UserDto, CheckinDto, ScheduleEntry } from './Shared/DashboardTypes';
 import { Edit, Trash2, Plus, Shield } from 'lucide-react';
 
@@ -31,6 +31,9 @@ const RoleModal = ({ isOpen, onClose, roleToEdit, onSave, roles }: any) => {
     isSystemRole: false,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState(false);
+
+  useEffect(() => { setTouched(false); }, [isOpen]);
 
   useEffect(() => {
     if (roleToEdit) {
@@ -90,14 +93,14 @@ const RoleModal = ({ isOpen, onClose, roleToEdit, onSave, roles }: any) => {
   const errStyle: CSSProperties = { color: '#ef4444', fontSize: '0.72rem', marginTop: '0.3rem' };
 
   return (
-    <ModalOverlay onClose={onClose}>
+    <ModalOverlay onClose={onClose} isDirty={touched} onFormChange={() => setTouched(true)}>
       {/* Header */}
       <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-gray-800 mb-4">
         <h2 className="text-lg font-bold text-slate-900 dark:text-white m-0">
           {roleToEdit ? 'Editar Rol' : 'Nuevo Rol'}
         </h2>
         <button
-          onClick={onClose}
+          onClick={() => guardClose(touched, onClose)}
           className="text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-gray-300 text-sm font-bold bg-slate-100 dark:bg-gray-800 px-2 py-1 rounded border-0 cursor-pointer transition-colors"
         >
           ✕
@@ -166,8 +169,6 @@ const RoleModal = ({ isOpen, onClose, roleToEdit, onSave, roles }: any) => {
           value={formData.hierarchyLevel}
           onChange={e => setFormData({ ...formData, hierarchyLevel: Number(e.target.value) })}
         >
-          <option value={10} className="bg-white dark:bg-[#151521] text-slate-900 dark:text-white">Máximo (10) — Super Administrador</option>
-          <option value={5} className="bg-white dark:bg-[#151521] text-slate-900 dark:text-white">Alto (5) — Gerentes / Coordinadores</option>
           <option value={4} className="bg-white dark:bg-[#151521] text-slate-900 dark:text-white">Medio-Alto (4) — Recepcionistas / Secretarios</option>
           <option value={3} className="bg-white dark:bg-[#151521] text-slate-900 dark:text-white">Medio (3) — Entrenadores / Nutricionistas</option>
           <option value={1} className="bg-white dark:bg-[#151521] text-slate-900 dark:text-white">Básico (1) — Usuarios / Clientes</option>
@@ -198,7 +199,7 @@ const RoleModal = ({ isOpen, onClose, roleToEdit, onSave, roles }: any) => {
       {/* Acciones */}
       <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-gray-800">
         <button
-          onClick={onClose}
+          onClick={() => guardClose(touched, onClose)}
           className="px-4 py-2 bg-slate-100 dark:bg-gray-800 hover:bg-slate-200 dark:hover:bg-gray-700 text-slate-700 dark:text-gray-300 text-sm font-semibold rounded-lg border-0 cursor-pointer transition-colors"
         >
           Cancelar
@@ -239,42 +240,17 @@ export const RolesView = () => {
 
   useEffect(() => {
     let mounted = true;
+    // Limpiar overrides locales obsoletos para que la BD sea la fuente de verdad
+    localStorage.removeItem('gymsync_local_roles');
+    localStorage.removeItem('gymsync_deleted_role_ids');
+    localStorage.removeItem('gymsync_edited_roles');
+
     const fetchRoles = async () => {
       try {
         setLoading(true);
         const res = await apiClient.get('/roles');
-        const dbRoles = Array.isArray(res.data) ? res.data : res.data?.data || [];
-        
-        // Cargar anulaciones locales
-        const localCreatedStr = localStorage.getItem('gymsync_local_roles');
-        const localCreated: RoleDto[] = localCreatedStr ? JSON.parse(localCreatedStr) : [];
-        
-        const localDeletedStr = localStorage.getItem('gymsync_deleted_role_ids');
-        const localDeleted: number[] = localDeletedStr ? JSON.parse(localDeletedStr) : [];
-        
-        const localEditedStr = localStorage.getItem('gymsync_edited_roles');
-        const localEdited: RoleDto[] = localEditedStr ? JSON.parse(localEditedStr) : [];
-
-        // Integrar cambios
-        let mergedRoles = [...dbRoles];
-        
-        // 1. Filtrar los eliminados
-        mergedRoles = mergedRoles.filter(r => !localDeleted.includes(r.id));
-        
-        // 2. Aplicar ediciones
-        mergedRoles = mergedRoles.map(r => {
-          const edited = localEdited.find(e => e.id === r.id);
-          return edited ? { ...r, ...edited } : r;
-        });
-        
-        // 3. Añadir nuevos
-        localCreated.forEach(newRole => {
-          if (!mergedRoles.some(r => r.id === newRole.id)) {
-            mergedRoles.push(newRole);
-          }
-        });
-
-        if (mounted) setRoles(mergedRoles);
+        const dbRoles: RoleDto[] = Array.isArray(res.data) ? res.data : res.data?.data || [];
+        if (mounted) setRoles(dbRoles);
       } catch (err) {
         if (mounted) setError('No se pudieron cargar los roles.');
       } finally {
@@ -294,51 +270,23 @@ export const RolesView = () => {
         isSystemRole: Boolean(formData.isSystemRole),
       };
 
-      console.log(`[Security Check]: SUPER_ADMIN gestionando Rol`);
-      console.log(`[Final Contract]: Enviando payload a /roles -> ${JSON.stringify(payload)}`);
-
       if (roleToEdit) {
-        // OPERACIÓN EDICIÓN: El backend no implementa PUT /roles/:id, por lo que se gestiona puramente de forma local
-        // para evitar de forma absoluta cualquier error de red 404 en la consola.
-        const localEditedStr = localStorage.getItem('gymsync_edited_roles');
-        const localEdited: RoleDto[] = localEditedStr ? JSON.parse(localEditedStr) : [];
-        const existingIdx = localEdited.findIndex(e => e.id === roleToEdit.id);
-        const updatedRole = { ...roleToEdit, ...payload };
-        
-        if (existingIdx >= 0) {
-          localEdited[existingIdx] = updatedRole;
-        } else {
-          localEdited.push(updatedRole);
-        }
-        localStorage.setItem('gymsync_edited_roles', JSON.stringify(localEdited));
-
-        setRoles(prev => prev.map(r => r.id === roleToEdit.id ? updatedRole : r));
-        toast.success(`Rol "${payload.name}" editado con éxito (Mapeo Local)`);
+        const res = await apiClient.patch(`/roles/${roleToEdit.id}`, payload);
+        const updated: RoleDto = res.data?.id ? res.data : { ...roleToEdit, ...payload };
+        setRoles(prev => prev.map(r => r.id === roleToEdit.id ? updated : r));
+        toast.success(`Rol "${payload.name}" actualizado con éxito`);
       } else {
-        // OPERACIÓN CREACIÓN: Intentamos en el backend, si falla por la secuencia de la BD usamos fallback local.
-        let newRole: RoleDto;
-        try {
-          const res = await apiClient.post('/roles', payload, { _skipErrorToast: true } as any);
-          newRole = res.data?.id ? res.data : { id: res.data?.data?.id || Date.now(), ...payload };
-          toast.success(`Rol "${payload.name}" creado con éxito en el servidor`);
-        } catch (err) {
-          console.warn('[Backend] POST /roles falló (secuencia duplicada), usando fallback local.');
-          newRole = { id: Date.now(), ...payload };
-          
-          const localCreatedStr = localStorage.getItem('gymsync_local_roles');
-          const localCreated: RoleDto[] = localCreatedStr ? JSON.parse(localCreatedStr) : [];
-          localCreated.push(newRole);
-          localStorage.setItem('gymsync_local_roles', JSON.stringify(localCreated));
-          toast.success(`Rol "${payload.name}" creado con éxito (Mapeo Local)`);
-        }
-
+        const res = await apiClient.post('/roles', payload);
+        const newRole: RoleDto = res.data?.id ? res.data : { id: res.data?.data?.id, ...payload };
         setRoles(prev => [...prev, newRole]);
+        toast.success(`Rol "${payload.name}" creado con éxito`);
       }
 
       setIsModalOpen(false);
       setRoleToEdit(null);
-    } catch (err) {
-      toast.error('Ocurrió un error al guardar el rol.');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message ?? err?.message ?? 'Ocurrió un error al guardar el rol.';
+      toast.error(msg);
     }
   };
 
@@ -350,27 +298,12 @@ export const RolesView = () => {
       return;
     }
     try {
-      // El backend no implementa DELETE /roles/:id, por lo que se gestiona puramente de forma local
-      // para evitar de forma absoluta cualquier error de red 404 en la consola.
-      const localDeletedStr = localStorage.getItem('gymsync_deleted_role_ids');
-      const localDeleted: number[] = localDeletedStr ? JSON.parse(localDeletedStr) : [];
-      if (!localDeleted.includes(deleteConfirm.id)) {
-        localDeleted.push(deleteConfirm.id);
-        localStorage.setItem('gymsync_deleted_role_ids', JSON.stringify(localDeleted));
-      }
-
-      // Remover de locales creados si existía
-      const localCreatedStr = localStorage.getItem('gymsync_local_roles');
-      if (localCreatedStr) {
-        const localCreated: RoleDto[] = JSON.parse(localCreatedStr);
-        const filtered = localCreated.filter(r => r.id !== deleteConfirm.id);
-        localStorage.setItem('gymsync_local_roles', JSON.stringify(filtered));
-      }
-
+      await apiClient.delete(`/roles/${deleteConfirm.id}`);
       setRoles(prev => prev.filter(r => r.id !== deleteConfirm.id));
       toast.success(`Rol "${deleteConfirm.name}" eliminado con éxito`);
-    } catch (err) {
-      toast.error('No se pudo eliminar el rol.');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message ?? 'No se pudo eliminar el rol.';
+      toast.error(msg);
     } finally {
       setDeleteConfirm(null);
     }
@@ -444,22 +377,25 @@ export const RolesView = () => {
               </div>
 
               {/* Acciones */}
-              <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                 <button
                   onClick={() => { setRoleToEdit(role); setIsModalOpen(true); }}
-                  className="bg-brand-celeste text-black px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1"
+                  title="Editar rol"
+                  style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(56,189,248,0.12)', color: '#38BDF8', transition: 'background 0.15s' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.26)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.12)'; }}
                 >
-                  <Edit size={13} />
-                  Editar
+                  <Edit size={15} />
                 </button>
                 <button
                   onClick={() => setDeleteConfirm(role)}
                   disabled={role.isSystemRole}
                   title={role.isSystemRole ? 'Los roles de sistema no pueden eliminarse' : 'Eliminar rol'}
-                  className={`bg-transparent border-0 px-3 py-1 rounded cursor-pointer text-xs font-semibold inline-flex items-center gap-1 ${role.isSystemRole ? 'text-gray-300 opacity-50 cursor-not-allowed' : 'text-gray-500 dark:text-text-muted'}`}
+                  style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: role.isSystemRole ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: role.isSystemRole ? '#d1d5db' : '#6b7280', opacity: role.isSystemRole ? 0.4 : 1, transition: 'background 0.15s, color 0.15s' }}
+                  onMouseEnter={e => { if (!role.isSystemRole) { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = '#ef4444'; } }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = role.isSystemRole ? '#d1d5db' : '#6b7280'; }}
                 >
-                  <Trash2 size={13} />
-                  Eliminar
+                  <Trash2 size={15} />
                 </button>
               </div>
             </div>

@@ -27,6 +27,8 @@ userClient.interceptors.request.use(
 );
 
 attach401Guard(userClient);
+import { attachOfflineInterceptor } from '../../offline/offlineInterceptor';
+attachOfflineInterceptor(userClient);
 
 export const userApi = {
   updatePushToken: async (token: string): Promise<{ registered: boolean }> => {

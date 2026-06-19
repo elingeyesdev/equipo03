@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
+import { HomePage } from './components/Home/HomePage';
 import { LoginScreen } from './components/Auth/LoginScreen';
 import { RegisterScreen } from './components/Auth/RegisterScreen';
 import { DashboardLayout } from './components/Layout/DashboardLayout';
@@ -27,6 +28,7 @@ export const AppRouter = () => {
           }}
         />
         <Routes>
+          <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginScreen />} />
           <Route path="/register" element={<RegisterScreen />} />
 
@@ -74,7 +76,7 @@ export const AppRouter = () => {
             <Route index element={<Navigate to="resumen" replace />} />
           </Route>
 
-          <Route path="*" element={<Navigate to="/dashboard/resumen" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
