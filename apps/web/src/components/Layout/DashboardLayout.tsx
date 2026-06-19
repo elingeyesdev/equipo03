@@ -36,7 +36,7 @@ export const DashboardLayout = () => {
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   const handleLogout = async () => {
-    await logout(); // limpia cookie en el backend + estado local
+    await logout();
     navigate('/login', { replace: true });
   };
 

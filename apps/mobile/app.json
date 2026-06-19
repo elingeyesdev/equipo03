@@ -16,7 +16,8 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "GymSync necesita tu ubicación para mostrarte las sedes de gimnasio más cercanas.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "GymSync necesita tu ubicación para mostrarte las sedes de gimnasio más cercanas."
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "GymSync necesita tu ubicación para mostrarte las sedes de gimnasio más cercanas.",
+        "LSApplicationQueriesSchemes": ["youtube", "youtube-app"]
       },
       "bundleIdentifier": "com.gymsync.equipo03"
     },
@@ -26,6 +27,18 @@
         "backgroundColor": "#1a1a2e"
       },
       "edgeToEdgeEnabled": true,
+      "queries": {
+        "intent": [
+          {
+            "action": "android.intent.action.VIEW",
+            "data": { "scheme": "youtube" }
+          },
+          {
+            "action": "android.intent.action.VIEW",
+            "data": { "scheme": "https", "host": "www.youtube.com" }
+          }
+        ]
+      },
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",

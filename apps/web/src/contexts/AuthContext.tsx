@@ -167,7 +167,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // Verificar sesión real con el backend (la cookie se envía automáticamente)
       try {
-        const res  = await apiClient.get('/auth/me');
+        const res  = await apiClient.get('/auth/me', { _skipErrorToast: true } as any);
         const data = res.data ?? {};
         const freshUser = buildUserFromMeResponse(data);
 

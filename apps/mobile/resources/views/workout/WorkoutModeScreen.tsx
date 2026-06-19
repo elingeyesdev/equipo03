@@ -22,6 +22,7 @@ type ExerciseItem = {
   category:     string;
   exerciseType: string;
   trackingType: TrackingType;
+  youtubeVideoId?: string | null;
 };
 
 type SubGroup = {
@@ -91,6 +92,7 @@ export const WorkoutModeScreen = () => {
             category:     cat,
             exerciseType: et,
             trackingType: TRACKING_MAP[et] ?? 'PESO_REPS',
+            youtubeVideoId: ex.youtubeVideoId ?? null,
           });
         }
 
@@ -183,10 +185,11 @@ export const WorkoutModeScreen = () => {
                           key={item.id}
                           style={s.row}
                           activeOpacity={0.7}
-                          onPress={() => navigation.navigate('WorkoutActive', {
+                          onPress={() => navigation.navigate('WorkoutReady', {
                             sport:        item.exerciseType,
                             exercise:     { id: item.id, name: item.name },
                             trackingType: item.trackingType,
+                            youtubeVideoId: item.youtubeVideoId,
                           })}
                         >
                           <View style={[s.rowDot, { backgroundColor: sg.color + '22', borderColor: sg.color + '44' }]}>

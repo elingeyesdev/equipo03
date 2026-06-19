@@ -13,7 +13,7 @@ const forceLogout = async () => {
   } finally {
     localStorage.removeItem('gymsync_user');
     sessionStorage.clear();
-    if (window.location.pathname !== '/login') {
+    if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
       window.location.href = '/login';
     }
   }
@@ -51,7 +51,7 @@ export const createApiClient = (): AxiosInstance => {
           const reqUrl = response.config?.url ?? '';
           if (body.statusCode === 403 || body.message?.includes('denegado')) {
             handleAccessDenied(body.message);
-          } else if (body.statusCode === 401 && !reqUrl.includes('/auth/login')) {
+          } else if (body.statusCode === 401 && !reqUrl.includes('/auth/login') && !reqUrl.includes('/auth/me')) {
             forceLogout();
           } else {
             toast.error(body.message || 'Error en la operación');
@@ -65,7 +65,7 @@ export const createApiClient = (): AxiosInstance => {
       return response;
     },
     (error) => {
-      const SILENT_ON_ERROR = ['/gyms/brands', '/roles', '/auth/login'];
+      const SILENT_ON_ERROR = ['/gyms/brands', '/roles', '/auth/login', '/auth/me'];
       const url = error.config?.url ?? '';
       if (
         error.config?._skipErrorToast ||

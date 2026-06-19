@@ -32,6 +32,7 @@ import { CuadroDeMandoClienteScreen } from '../resources/views/inicio/CuadroDeMa
 
 // ── Workout (solo CLIENTE) ────────────────────────────────────────────────────
 import { WorkoutModeScreen }    from '../resources/views/workout/WorkoutModeScreen';
+import { WorkoutReadyScreen }   from '../resources/views/workout/WorkoutReadyScreen';
 import { WorkoutActiveScreen }  from '../resources/views/workout/WorkoutActiveScreen';
 import { WorkoutSummaryScreen } from '../resources/views/workout/WorkoutSummaryScreen';
 import { WorkoutHistoryScreen } from '../resources/views/workout/WorkoutHistoryScreen';
@@ -139,6 +140,11 @@ const ClienteStack = () => (
     <ClienteNav.Screen
       name="WorkoutMode"
       component={WorkoutModeScreen}
+      options={{ headerShown: false }}
+    />
+    <ClienteNav.Screen
+      name="WorkoutReady"
+      component={WorkoutReadyScreen}
       options={{ headerShown: false }}
     />
     <ClienteNav.Screen

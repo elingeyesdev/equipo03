@@ -10,8 +10,11 @@ export interface SubscriptionStatus {
   isActive: boolean;
 }
 
-// Días de la semana tal como los almacena el backend (nombre completo en mayúsculas)
-export type DayOfWeek = 'LUNES' | 'MARTES' | 'MIERCOLES' | 'JUEVES' | 'VIERNES' | 'SABADO' | 'DOMINGO';
+// Días de la semana tal como los almacena el backend
+// Acepta tanto nombre completo (LUNES) como abreviación (LUN) por resiliencia
+export type DayOfWeek =
+  | 'LUNES'    | 'MARTES'  | 'MIERCOLES' | 'JUEVES' | 'VIERNES' | 'SABADO'    | 'DOMINGO'
+  | 'LUN'      | 'MAR'     | 'MIE'       | 'JUE'    | 'VIE'     | 'SAB'       | 'DOM';
 
 export interface GymActivitySchedule {
   id: number;
@@ -22,6 +25,15 @@ export interface GymActivitySchedule {
   endTime: string;
   maxAttendees: number;
   isRecurring: boolean;
+  // Instructor populado por el backend (via leftJoinAndSelect)
+  instructor?: {
+    id: number;
+    email?: string;
+    profile?: {
+      firstName?: string;
+      lastName?: string;
+    };
+  };
 }
 
 export interface GymActivity {

@@ -24,6 +24,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { AuthService } from '../../../app/Providers/auth/AuthService';
+import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
@@ -178,6 +179,7 @@ const styles = StyleSheet.create({
 
 export const RegisterScreen = () => {
   const navigation = useNavigation<any>();
+  const { login } = useAuth();
 
   // --- FORM STATE ---
   const [name, setName] = useState('');
@@ -274,11 +276,14 @@ export const RegisterScreen = () => {
       );
 
       if (response.success) {
-        Alert.alert(
-          'Registro Exitoso',
-          '¡Tu cuenta de cliente ha sido creada correctamente! Ya puedes iniciar sesión.',
-          [{ text: 'Aceptar', onPress: () => navigation.navigate('Login') }]
-        );
+        const loggedIn = await login(email, password);
+        if (!loggedIn) {
+          Alert.alert(
+            'Cuenta creada',
+            'Tu cuenta fue creada correctamente. Inicia sesión para continuar.',
+            [{ text: 'Aceptar', onPress: () => navigation.navigate('Login') }],
+          );
+        }
       } else {
         setApiError(response.error || 'No se pudo crear la cuenta.');
       }

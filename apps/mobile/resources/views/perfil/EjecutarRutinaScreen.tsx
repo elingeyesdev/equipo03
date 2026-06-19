@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TextInput,
-  TouchableOpacity, Alert, ActivityIndicator, Dimensions,
+  TouchableOpacity, Alert, ActivityIndicator, Dimensions, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -15,16 +15,6 @@ import { trainingApi } from '../../../app/Providers/training/api/training.api';
 const SCREEN_W = Dimensions.get('window').width;
 const VIDEO_H  = Math.round((SCREEN_W - 32) * 9 / 16); // 16:9 dentro del padding
 
-const getYoutubeVideoId = (url?: string | null): string | null => {
-  if (!url) return null;
-  const shorts = url.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]+)/);
-  if (shorts) return shorts[1];
-  const watch  = url.match(/[?&]v=([a-zA-Z0-9_-]+)/);
-  if (watch)  return watch[1];
-  const short  = url.match(/youtu\.be\/([a-zA-Z0-9_-]+)/);
-  if (short)  return short[1];
-  return null;
-};
 
 const buildYoutubeHtml = (videoId: string): string => `
 <!DOCTYPE html>
@@ -354,7 +344,22 @@ export const EjecutarRutinaScreen = () => {
   // ── READY phase ──────────────────────────────────────────────────────────────
   if (phase === 'ready') {
     const isCardio  = mode === 'cardio';
-    const videoId   = getYoutubeVideoId(exercise.exercise?.videoUrl);
+    const youtubeVideoId = (exercise.exercise as any)?.youtubeVideoId; // Assuming DTO type update in ClientRoutineExercise.exercise
+
+    const openInNativeYouTube = async (id: string) => {
+      const appUrl = `youtube://watch?v=${id}`;
+      const webUrl = `https://www.youtube.com/watch?v=${id}`;
+      try {
+        const supported = await Linking.canOpenURL(appUrl);
+        if (supported) {
+          await Linking.openURL(appUrl);
+        } else {
+          await Linking.openURL(webUrl);
+        }
+      } catch (err) {
+        Alert.alert('Error', 'No se pudo abrir YouTube.');
+      }
+    };
 
     return (
       <SafeAreaView style={s.safe} edges={['top']}>
@@ -378,14 +383,21 @@ export const EjecutarRutinaScreen = () => {
           <Text style={s.readyTitle}>¿Listo para entrenar?</Text>
 
           {/* ── Demo video ── */}
-          {videoId ? (
+          {youtubeVideoId ? (
             <View style={s.videoWrap}>
-              <View style={s.videoLabel}>
-                <MaterialCommunityIcons name="youtube" size={16} color="#FF5E00" />
-                <Text style={s.videoLabelTxt}>Demo del ejercicio</Text>
+              <View style={[s.videoLabel, { justifyContent: 'space-between' }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <MaterialCommunityIcons name="youtube" size={16} color="#FF5E00" />
+                  <Text style={s.videoLabelTxt}>Demo del ejercicio</Text>
+                </View>
+                <TouchableOpacity onPress={() => openInNativeYouTube(youtubeVideoId)}>
+                  <Text style={{ color: '#0A84FF', fontSize: 12, fontWeight: '600' }}>
+                    Abrir en YouTube
+                  </Text>
+                </TouchableOpacity>
               </View>
               <WebView
-                source={{ html: buildYoutubeHtml(videoId), baseUrl: 'https://www.youtube.com' }}
+                source={{ html: buildYoutubeHtml(youtubeVideoId), baseUrl: 'https://www.youtube.com' }}
                 style={[s.videoPlayer, { height: VIDEO_H }]}
                 originWhitelist={['*']}
                 allowsFullscreenVideo
