@@ -16,7 +16,7 @@ export const NAV_ROUTES: NavRoute[] = [
   { path: 'roles',       label: 'Roles',                  allowedRoles: ['SUPER_ADMIN'], minLevel: 10 },
   { path: 'mapa',        label: 'Mapa de Red',            allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA'], minLevel: 4 },
   { path: 'actividades', label: 'Catálogo de Servicios',  allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA'], minLevel: 4 },
-  { path: 'ejercicios',  label: 'Catálogo de Ejercicios', allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA'], minLevel: 4 },
+  { path: 'maquinas',    label: 'Inventario de Máquinas', allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA'], minLevel: 4 },
   { path: 'reservas',    label: 'Gestion de Reservas',    allowedRoles: ['SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA'], minLevel: 4 },
 ];
 

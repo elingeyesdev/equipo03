@@ -195,6 +195,7 @@ export type ClientRoutineExercise = {
   exercise: {
     id:            number;
     name:          string;
+    description?:  string | null;
     muscleGroup?:  string;
     category?:     string;
     exerciseType?: string;

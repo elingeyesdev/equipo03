@@ -424,7 +424,7 @@ export const EjecutarRutinaScreen = () => {
           visible={showDetail}
           exercise={{
             name: exercise.exercise?.name ?? 'Ejercicio',
-            description: (exercise.exercise as any)?.description,
+            description: exercise.exercise?.description,
             muscleGroup: exercise.exercise?.muscleGroup,
             category: exercise.exercise?.category,
             equipmentRequired: exercise.exercise?.equipmentRequired,
