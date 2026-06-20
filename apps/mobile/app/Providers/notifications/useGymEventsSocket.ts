@@ -74,7 +74,7 @@ export function useGymEventsSocket(): void {
 
   const role = user?.role?.toUpperCase() ?? '';
   const level = getLevel(user);
-  const shouldConnect = isAuthenticated && level >= 3;
+  const shouldConnect = isAuthenticated && level >= 1;
 
   useEffect(() => {
     if (!shouldConnect) {
@@ -137,6 +137,29 @@ export function useGymEventsSocket(): void {
             queryClient.invalidateQueries({ queryKey: ['trainer-client-sessions', userId] });
           }
           queryClient.invalidateQueries({ queryKey: ['trainer-client-sessions'] });
+        });
+      }
+
+      const advisoryEvents = ['advisory_request', 'advisory_accepted', 'advisory_rejected', 'advisory_cancelled'];
+      for (const evt of advisoryEvents) {
+        socket.on(evt, async (payload: any) => {
+          queryClient.invalidateQueries({ queryKey: ['staff-requests'] });
+          queryClient.invalidateQueries({ queryKey: ['staff-catalog'] });
+          queryClient.invalidateQueries({ queryKey: ['advisor-requests'] });
+          queryClient.invalidateQueries({ queryKey: ['active-clients'] });
+          if (payload?.message) {
+            await Notifications.scheduleNotificationAsync({
+              content: {
+                title: evt.includes('request') ? 'Solicitud de Asesoría'
+                  : evt.includes('accepted') ? 'Asesoría Aceptada'
+                  : evt.includes('rejected') ? 'Solicitud Rechazada'
+                  : 'Asesoría Cancelada',
+                body: payload.message,
+                sound: 'default',
+              },
+              trigger: null,
+            });
+          }
         });
       }
     };

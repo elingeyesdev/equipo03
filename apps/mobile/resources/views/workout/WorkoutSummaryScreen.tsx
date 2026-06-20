@@ -22,12 +22,8 @@ export const WorkoutSummaryScreen = () => {
 
   const isStrength = sport !== 'CARDIO' && sport !== 'HIIT';
 
-  const totalVolume = isStrength
-    ? series.reduce((acc: number, s: Serie) => {
-        const kg   = parseFloat(s.peso) || 0;
-        const reps = parseInt(s.reps, 10) || 0;
-        return acc + kg * reps;
-      }, 0)
+  const maxWeight = isStrength
+    ? Math.max(0, ...series.map(s => parseFloat(s.peso) || 0))
     : 0;
 
   const displayName = (exerciseName ?? String(sport).toUpperCase()) as string;
@@ -59,11 +55,11 @@ export const WorkoutSummaryScreen = () => {
             <Text style={s.statLabel}>kcal quemadas</Text>
           </View>
 
-          {isStrength && (
+          {isStrength && maxWeight > 0 && (
             <View style={[s.statCard, s.statCardWide]}>
               <MaterialCommunityIcons name="weight-lifter" size={22} color="#9b5de5" />
-              <Text style={s.statValue}>{totalVolume.toFixed(0)} kg</Text>
-              <Text style={s.statLabel}>Volumen total</Text>
+              <Text style={s.statValue}>{maxWeight.toFixed(0)} kg</Text>
+              <Text style={s.statLabel}>Peso Máximo</Text>
             </View>
           )}
         </View>

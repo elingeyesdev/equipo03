@@ -49,9 +49,9 @@ export const MisDatosPersonalesScreen = () => {
   const [experienceLevel,    setExperienceLevel]    = useState<ExperienceLevel>(
     (pm?.experienceLevel ?? 'PRINCIPIANTE') as ExperienceLevel
   );
-  const [birthDate,          setBirthDate]          = useState<string>(p?.birthDate ?? pm?.birthDate ?? '');
-  const [showDateModal,      setShowDateModal]      = useState(false);
-  const [dateInput,          setDateInput]          = useState<string>('');
+  const [age,                setAge]                = useState<string>(
+    p?.age != null ? String(p.age) : (p?.birthDate ? String(calculateAge(p.birthDate)) : '')
+  );
 
   // IMC reactivo (solo lectura)
   const imcResult   = calculateIMC(Number(weightKg), Number(heightCm));
@@ -62,6 +62,7 @@ export const MisDatosPersonalesScreen = () => {
   const [isKeyboardVisible,  setKeyboardVisible]    = useState(false);
   const [isFetching,         setIsFetching]         = useState(!p);
   const [savingSection,      setSavingSection]      = useState<SavingSection>(null);
+  const [errors,             setErrors]             = useState<Record<string, string>>({});
 
 
   // ── Teclado ──────────────────────────────────────────────────────────────────
@@ -88,7 +89,8 @@ export const MisDatosPersonalesScreen = () => {
     setBodyFatPercentage(String(metrics.bodyFatPercentage ?? ''));
     setWaistCm(String(metrics.waistCm           ?? ''));
     setExperienceLevel((metrics.experienceLevel  ?? 'PRINCIPIANTE') as ExperienceLevel);
-    setBirthDate(prof.birthDate ?? metrics.birthDate ?? '');
+    const serverAge = prof.age ?? metrics.age;
+    if (serverAge != null) setAge(String(serverAge));
   }, [user]);
 
   // ── Hidratación desde GET /api/auth/me ───────────────────────────────────────
@@ -113,7 +115,8 @@ export const MisDatosPersonalesScreen = () => {
         setBodyFatPercentage(String(metrics.bodyFatPercentage ?? ''));
         setWaistCm(String(metrics.waistCm           ?? ''));
         setExperienceLevel((metrics.experienceLevel  ?? 'PRINCIPIANTE') as ExperienceLevel);
-        setBirthDate(prof.birthDate ?? metrics.birthDate ?? '');
+        const serverAge = prof.age ?? metrics.age;
+    if (serverAge != null) setAge(String(serverAge));
       } catch (err: any) {
         const status = err?.response?.status;
         if (status === 401) return; // manejado por axios401Guard
@@ -148,13 +151,13 @@ export const MisDatosPersonalesScreen = () => {
           if (m?.weightKg != null) setWeightKg(m.weightKg.toString());
         }
 
-        // 2. Altura y fecha de nacimiento vienen de /users/me
+        // 2. Altura y edad vienen de /users/me
         if (profileRes.status === 'fulfilled') {
           const raw     = profileRes.value.data?.data ?? profileRes.value.data;
           const profile = raw?.profile ?? raw;
           if (profile?.heightCm != null) setHeightCm(profile.heightCm.toString());
-          const dob = profile?.dateOfBirth ?? profile?.birthDate ?? raw?.dateOfBirth ?? raw?.birthDate;
-          if (dob) setBirthDate(dob);
+          const serverAge = profile?.age ?? raw?.age;
+          if (serverAge != null) setAge(String(serverAge));
         }
       } catch {
         // silencioso — los datos del auth/me ya hidrataron el estado
@@ -197,11 +200,20 @@ export const MisDatosPersonalesScreen = () => {
   const handleSaveMetrics = async () => {
     const parsedWeight = parseFloat(weightKg);
     const parsedHeight = parseInt(heightCm, 10);
+    const newErrors: Record<string, string> = {};
 
-    if (isNaN(parsedWeight) || isNaN(parsedHeight)) {
-      Alert.alert('Datos inválidos', 'Debes ingresar valores numéricos válidos para peso y altura.');
+    if (isNaN(parsedWeight) || parsedWeight <= 0) {
+      newErrors.weight = 'Solo números permitidos';
+    }
+    if (isNaN(parsedHeight) || parsedHeight <= 0) {
+      newErrors.height = 'Solo números permitidos';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
+    setErrors({});
 
     setSavingSection('metrics');
     try {
@@ -211,10 +223,18 @@ export const MisDatosPersonalesScreen = () => {
         heightCm: parsedHeight,
       });
 
-      // Actualizar birthDate en el perfil si cambió
-      if (birthDate) {
-        await patchProfile({ birthDate }).catch(() => null);
+      const parsedAge = parseInt(age, 10);
+      if (parsedAge > 0) {
+        await patchProfile({ age: parsedAge }).catch(() => null);
       }
+
+      updateProfile({
+        age: parsedAge > 0 ? parsedAge : undefined,
+        physicalMetrics: {
+          weightKg: parsedWeight,
+          heightCm: parsedHeight,
+        }
+      });
 
       // Solo apaga edición si el servidor respondió OK — sin limpiar valores
       setIsEditing(false);
@@ -225,22 +245,6 @@ export const MisDatosPersonalesScreen = () => {
     } finally {
       setSavingSection(null);
     }
-  };
-
-  // ── Guardar fecha desde modal ─────────────────────────────────────────────────
-  const confirmBirthDate = () => {
-    // Acepta DD/MM/YYYY → convierte a YYYY-MM-DD para el backend
-    const parts = dateInput.trim().split('/');
-    if (parts.length === 3) {
-      const [dd, mm, yyyy] = parts;
-      const iso = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
-      if (!isNaN(Date.parse(iso))) {
-        setBirthDate(iso);
-        setShowDateModal(false);
-        return;
-      }
-    }
-    Alert.alert('Fecha inválida', 'Usa el formato DD/MM/AAAA');
   };
 
   // ── Guardar condiciones médicas ───────────────────────────────────────────────
@@ -398,14 +402,34 @@ export const MisDatosPersonalesScreen = () => {
                 <View style={[s.field, s.metricHalf]}>
                   <Text style={s.label}>PESO (kg)</Text>
                   {isEditing
-                    ? <NumericInput style={s.input} value={weightKg} onChangeText={setWeightKg} placeholder="0.0" placeholderTextColor="#B0B0B0" />
+                    ? <>
+                        <NumericInput 
+                          style={[s.input, errors.weight && { borderColor: '#FF3B30' }]} 
+                          value={weightKg} 
+                          onChangeText={(v) => { setWeightKg(v); if(errors.weight) setErrors(e => ({...e, weight: ''})); }} 
+                          placeholder="0.0" 
+                          placeholderTextColor="#B0B0B0" 
+                          keyboardType="decimal-pad" 
+                        />
+                        {!!errors.weight && <Text style={{ color: '#FF3B30', fontSize: 12, marginTop: 4 }}>{errors.weight}</Text>}
+                      </>
                     : <View style={s.metricCard}><Text style={s.metricCardValue}>{weightKg || '—'}</Text></View>
                   }
                 </View>
                 <View style={[s.field, s.metricHalf]}>
                   <Text style={s.label}>ALTURA (cm)</Text>
                   {isEditing
-                    ? <NumericInput style={s.input} value={heightCm} onChangeText={setHeightCm} placeholder="0" placeholderTextColor="#B0B0B0" />
+                    ? <>
+                        <NumericInput 
+                          style={[s.input, errors.height && { borderColor: '#FF3B30' }]} 
+                          value={heightCm} 
+                          onChangeText={(v) => { setHeightCm(v); if(errors.height) setErrors(e => ({...e, height: ''})); }} 
+                          placeholder="0" 
+                          placeholderTextColor="#B0B0B0" 
+                          keyboardType="numeric" 
+                        />
+                        {!!errors.height && <Text style={{ color: '#FF3B30', fontSize: 12, marginTop: 4 }}>{errors.height}</Text>}
+                      </>
                     : <View style={s.metricCard}><Text style={s.metricCardValue}>{heightCm || '—'}</Text></View>
                   }
                 </View>
@@ -413,29 +437,23 @@ export const MisDatosPersonalesScreen = () => {
 
               {/* Fila 2: Edad + IMC */}
               <View style={s.metricsRow}>
-                {/* Edad — abre modal de fecha */}
                 <View style={[s.field, s.metricHalf]}>
                   <Text style={s.label}>EDAD</Text>
-                  <TouchableOpacity
-                    style={[s.metricCard, isEditing && s.metricCardEditable]}
-                    onPress={() => {
-                      if (!isEditing) return;
-                      // Pre-carga fecha existente en formato DD/MM/YYYY
-                      if (birthDate) {
-                        const [yyyy, mm, dd] = birthDate.split('-');
-                        setDateInput(`${dd}/${mm}/${yyyy}`);
-                      } else {
-                        setDateInput('');
-                      }
-                      setShowDateModal(true);
-                    }}
-                    activeOpacity={isEditing ? 0.7 : 1}
-                  >
-                    <Text style={s.metricCardValue}>{calculateAge(birthDate)}</Text>
-                    {isEditing && (
-                      <MaterialCommunityIcons name="calendar-edit" size={14} color="#555" style={{ marginTop: 4 }} />
-                    )}
-                  </TouchableOpacity>
+                  {isEditing ? (
+                    <TextInput
+                      style={[s.input, { textAlign: 'center', fontSize: 18, fontWeight: '700' }]}
+                      value={age}
+                      onChangeText={v => setAge(v.replace(/[^0-9]/g, ''))}
+                      keyboardType="numeric"
+                      maxLength={3}
+                      placeholder="Ej: 25"
+                      placeholderTextColor="#555"
+                    />
+                  ) : (
+                    <View style={s.metricCard}>
+                      <Text style={s.metricCardValue}>{age || '-'}</Text>
+                    </View>
+                  )}
                 </View>
 
                 {/* IMC — solo lectura */}
@@ -464,33 +482,7 @@ export const MisDatosPersonalesScreen = () => {
             </View>
           )}
 
-          {/* ── Modal de fecha de nacimiento ── */}
-          <Modal visible={showDateModal} transparent animationType="fade">
-            <View style={s.modalOverlay}>
-              <View style={s.modalBox}>
-                <Text style={s.modalTitle}>Fecha de Nacimiento</Text>
-                <Text style={s.modalHint}>Formato: DD/MM/AAAA</Text>
-                <TextInput
-                  style={s.modalInput}
-                  value={dateInput}
-                  onChangeText={setDateInput}
-                  placeholder="15/06/1995"
-                  placeholderTextColor="#555"
-                  keyboardType="numbers-and-punctuation"
-                  maxLength={10}
-                  autoFocus
-                />
-                <View style={s.modalActions}>
-                  <TouchableOpacity style={s.modalCancel} onPress={() => setShowDateModal(false)}>
-                    <Text style={s.modalCancelTxt}>Cancelar</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={s.modalConfirm} onPress={confirmBirthDate}>
-                    <Text style={s.modalConfirmTxt}>Guardar</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </Modal>
+          {/* Modal de fecha eliminado — ahora se usa input directo de edad */}
 
           {/* ── Condiciones Médicas ── */}
           <View style={s.section}>

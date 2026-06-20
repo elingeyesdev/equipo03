@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useState } from 'react';
+import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -29,6 +29,7 @@ type MapScreenViewProps = {
   loading:         boolean;
   error:           string | null;
   isListView:      boolean;
+  focusSedeId?:    string | number | null;
   onToggleListView: () => void;
   onMarkerPress:   (sede: Sede) => void;
   onModalClose:    () => void;
@@ -45,6 +46,7 @@ export const MapScreenView: React.FC<MapScreenViewProps> = ({
   loading,
   error,
   isListView,
+  focusSedeId,
   onToggleListView,
   onMarkerPress,
   onModalClose,
@@ -61,6 +63,14 @@ export const MapScreenView: React.FC<MapScreenViewProps> = ({
 
   const [filterVisible, setFilterVisible] = useState(false);
   const [toastConfig, setToastConfig]     = useState<{ message: string; type: 'error' | 'success'; key: number } | null>(null);
+
+  useEffect(() => {
+    if (selectedSede?.coordenadas && mapRef.current) {
+      setTimeout(() => {
+        mapRef.current?.flyTo(selectedSede.coordenadas.latitude, selectedSede.coordenadas.longitude, 16);
+      }, 400);
+    }
+  }, [selectedSede?.id?.value]);
 
   const showToast = (message: string, type: 'error' | 'success' = 'error') => {
     setToastConfig({ message, type, key: Date.now() });
@@ -223,7 +233,11 @@ export const MapScreenView: React.FC<MapScreenViewProps> = ({
             sede={selectedSede}
             distancia={selectedSedeDistancia}
             visible={!!selectedSede}
-            onClose={onModalClose}
+            onClose={() => {
+              const sedeId = selectedSede.id.value;
+              onModalClose();
+              if (mapRef.current) mapRef.current.pulseMarker(sedeId, 4000);
+            }}
             onNavigate={() => onNavigate(selectedSede)}
             onReserve={isGerente ? undefined : () => onReserve(selectedSede)}
             isAdmin={isGerente}

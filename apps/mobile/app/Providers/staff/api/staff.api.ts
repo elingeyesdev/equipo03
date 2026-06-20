@@ -195,10 +195,14 @@ export type ClientRoutineExercise = {
   exercise: {
     id:            number;
     name:          string;
+    description?:  string | null;
     muscleGroup?:  string;
     category?:     string;
     exerciseType?: string;
+    logType?:      'WEIGHT_REPS' | 'REPS_ONLY' | 'TIME_DISTANCE' | 'TIME_ONLY';
     youtubeVideoId?: string | null;
+    imageUrl?: string | null;
+    equipmentRequired?: string | null;
   };
 };
 

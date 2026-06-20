@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -423,6 +423,7 @@ export const CuadroDeMandoClienteScreen: React.FC = () => {
   const [loading,           setLoading]           = useState(true);
   const [exporting,         setExporting]         = useState(false);
   const [isExportModalVisible, setExportModalVisible] = useState(false);
+  const [selectedMetric, setSelectedMetric] = useState<{title: string, value: string, description: string} | null>(null);
   const [exportRange,   setExportRange]   = useState<'HOY' | '7_DIAS' | '30_DIAS' | '1_AÑO' | 'CUSTOM'>('30_DIAS');
   const [customStart,    setCustomStart]    = useState<Date>(new Date(Date.now() - 30 * 86400_000));
   const [customEnd,      setCustomEnd]      = useState<Date>(new Date());
@@ -463,13 +464,51 @@ export const CuadroDeMandoClienteScreen: React.FC = () => {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   // ── Estadísticas de resumen ────────────────────────────────────────────────
-  const completed  = sessions.filter(s => s.status === 'COMPLETED' || s.status === 'COMPLETADA');
-  const totalSecs  = completed.reduce((a, s) => a + (s.durationSeconds ?? 0), 0);
-  const totalCal   = completed.reduce((a, s) => a + (s.caloriesBurned  ?? 0), 0);
-  const totalMins  = Math.round(totalSecs / 60);
+  const { totalSesiones, totalMinutos, totalKcal, volumenTotal, lastWeight } = useMemo(() => {
+    if (!sessions || sessions.length === 0) {
+      const w = metrics && metrics.length > 0 
+        ? [...metrics].reverse().find(m => m.weightKg != null)?.weightKg 
+        : undefined;
+      return { totalSesiones: 0, totalMinutos: 0, totalKcal: 0, volumenTotal: 0, lastWeight: w };
+    }
 
-  // Último peso registrado
-  const lastWeight = [...metrics].reverse().find(m => m.weightKg != null)?.weightKg;
+    const completed = sessions; // Arreglo global con todas las rutinas (libres y asignadas)
+    const tSecs = completed.reduce((acc, s) => acc + (s.durationSeconds ?? 0), 0);
+    const tKcal = completed.reduce((acc, s) => acc + (s.caloriesBurned ?? 0), 0);
+    
+    // Volumen Total: Suma de (peso * reps)
+    let vol = 0;
+    completed.forEach(s => {
+      // Estructura 1
+      (s as any).exercises?.forEach((ex: any) => {
+        ex.sets?.forEach((set: any) => {
+          const kg = Number(set.weight_used_kg ?? set.weightUsedKg ?? 0);
+          const reps = Number(set.reps_completed ?? set.repsCompleted ?? 0);
+          if (!isNaN(kg) && !isNaN(reps)) {
+            vol += kg * reps;
+          }
+        });
+      });
+      // Estructura 2 (fallback)
+      (s.sets ?? []).forEach((set: any) => {
+        const kg = Number(set.weightUsedKg ?? 0);
+        const reps = Number(set.repsCompleted ?? 0);
+        if (!isNaN(kg) && !isNaN(reps)) {
+          vol += kg * reps;
+        }
+      });
+    });
+
+    const w = [...metrics].reverse().find(m => m.weightKg != null)?.weightKg;
+
+    return {
+      totalSesiones: completed.length,
+      totalMinutos: Math.round(tSecs / 60),
+      totalKcal: tKcal,
+      volumenTotal: vol,
+      lastWeight: w,
+    };
+  }, [sessions, metrics]);
 
   // ── Exportar PDF ──────────────────────────────────────────────────────────
   const generatePDF = useCallback(async () => {
@@ -656,27 +695,47 @@ export const CuadroDeMandoClienteScreen: React.FC = () => {
 
         {/* ── Stats resumen ────────────────────────────────────────────────── */}
         <View style={s.statsRow}>
-          <View style={s.statCard}>
+          <TouchableOpacity 
+            style={s.statCard}
+            onPress={() => setSelectedMetric({ title: 'Sesiones', value: totalSesiones.toString(), description: 'Total de rutinas completadas, incluyendo entrenamientos libres y asignados.' })}
+          >
             <Feather name="check-circle" size={16} color={C.green} />
-            <Text style={s.statVal}>{completed.length}</Text>
+            <Text style={s.statVal}>{totalSesiones}</Text>
             <Text style={s.statLbl}>Sesiones</Text>
-          </View>
-          <View style={[s.statCard, { borderColor: C.celeste + '55' }]}>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[s.statCard, { borderColor: C.celeste + '55' }]}
+            onPress={() => setSelectedMetric({ title: 'Minutos', value: totalMinutos.toString(), description: 'Tiempo total activo de entrenamiento.' })}
+          >
             <Feather name="clock" size={16} color={C.celeste} />
-            <Text style={s.statVal}>{totalMins}</Text>
+            <Text style={s.statVal}>{totalMinutos}</Text>
             <Text style={s.statLbl}>Minutos</Text>
-          </View>
-          <View style={s.statCard}>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={s.statCard}
+            onPress={() => setSelectedMetric({ title: 'Calorías', value: totalKcal.toFixed(0), description: 'Calorías estimadas quemadas durante tus sesiones.' })}
+          >
             <Feather name="zap" size={16} color={C.primary} />
-            <Text style={s.statVal}>{totalCal}</Text>
+            <Text style={s.statVal}>{totalKcal.toFixed(0)}</Text>
             <Text style={s.statLbl}>kcal</Text>
-          </View>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[s.statCard, { borderColor: C.green + '55' }]}
+            onPress={() => setSelectedMetric({ title: 'Vol. Total', value: volumenTotal.toFixed(0), description: 'Suma de todos los kilogramos levantados (peso × repeticiones) en tu historial. Ideal para medir tu carga de trabajo.' })}
+          >
+            <Feather name="layers" size={16} color={C.green} />
+            <Text style={s.statVal}>{volumenTotal.toFixed(0)}</Text>
+            <Text style={s.statLbl}>Vol. Total</Text>
+          </TouchableOpacity>
           {lastWeight != null && (
-            <View style={[s.statCard, { borderColor: '#FF5E0055' }]}>
+            <TouchableOpacity 
+              style={[s.statCard, { borderColor: '#FF5E0055' }]}
+              onPress={() => setSelectedMetric({ title: 'Peso', value: lastWeight.toString(), description: 'Tu peso corporal actual registrado.' })}
+            >
               <Feather name="user" size={16} color={C.primary} />
               <Text style={s.statVal}>{lastWeight}</Text>
               <Text style={s.statLbl}>kg</Text>
-            </View>
+            </TouchableOpacity>
           )}
         </View>
 
@@ -868,6 +927,22 @@ export const CuadroDeMandoClienteScreen: React.FC = () => {
               <Text style={m.cancelTxt}>Cancelar</Text>
             </TouchableOpacity>
           </View>
+        </View>
+      </Modal>
+
+      {/* ── Modal: explicación de métrica ──────────────────────────────────────── */}
+      <Modal animationType="fade" transparent visible={!!selectedMetric} onRequestClose={() => setSelectedMetric(null)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+          {selectedMetric && (
+            <View style={{ backgroundColor: '#1E1E1E', borderRadius: 16, padding: 24, width: '100%', alignItems: 'center' }}>
+              <Text style={{ color: '#FFFFFF', fontSize: 20, fontWeight: '800', marginBottom: 8 }}>{selectedMetric.title}</Text>
+              <Text style={{ color: '#FF5E00', fontSize: 32, fontWeight: '900', marginBottom: 16 }}>{selectedMetric.value}</Text>
+              <Text style={{ color: '#CCCCCC', fontSize: 14, textAlign: 'center', lineHeight: 22, marginBottom: 24 }}>{selectedMetric.description}</Text>
+              <TouchableOpacity onPress={() => setSelectedMetric(null)} style={{ backgroundColor: '#333333', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8 }}>
+                <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '600' }}>Cerrar</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </Modal>
 

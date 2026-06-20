@@ -61,7 +61,6 @@ export const PerfilMenuScreen = () => {
   const [pickerVisible,     setPickerVisible]     = useState(false);
   const [savingAvatar,      setSavingAvatar]      = useState(false);
 
-  // ── Guardar avatar inmediatamente al elegir ──────────────────────────────────
   const handleAvatarSelect = async (icon: string) => {
     const prev = localAvatar;
     setLocalAvatar(icon);

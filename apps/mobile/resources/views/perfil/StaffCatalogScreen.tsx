@@ -62,16 +62,17 @@ const StaffCard = ({
 }: {
   entry:            StaffCatalogEntry;
   alreadyRequested: boolean;
-  onRequest:        (id: number) => void;
+  onRequest:        (advisorName: string) => void;
 }) => {
   const [loading, setLoading] = useState(false);
+  const displayName = resolveDisplayName(entry);
 
   const handlePress = async () => {
     if (alreadyRequested || loading) return;
     setLoading(true);
     try {
       await staffApi.requestAdvisor(entry.id);
-      onRequest(entry.id);
+      onRequest(displayName);
     } catch (err: unknown) {
       const msg = (err as any)?.response?.data?.message
         ?? (err instanceof Error ? err.message : null)
@@ -89,7 +90,7 @@ const StaffCard = ({
       </View>
 
       <View style={s.info}>
-        <Text style={s.name} numberOfLines={1}>{resolveDisplayName(entry)}</Text>
+        <Text style={s.name} numberOfLines={1}>{displayName}</Text>
         <View style={s.metaRow}>
           <MaterialCommunityIcons name="shield-star-outline" size={12} color="#38BDF8" />
           <Text style={s.metaText}>{resolveRole(entry)}</Text>
@@ -165,14 +166,16 @@ const RequestCard = ({
       <View style={s.reqFooter}>
         <MaterialCommunityIcons name="calendar-outline" size={12} color="#444" />
         <Text style={s.reqDate}>Enviada el {fmtDate(item.createdAt)}</Text>
-        {item.status === 'ACTIVE' && (
+        {(item.status === 'ACTIVE' || item.status === 'PENDING') && (
           <TouchableOpacity
             style={s.cancelBtn}
             activeOpacity={0.8}
             onPress={() => onCancel(item.id)}
           >
             <MaterialCommunityIcons name="cancel" size={12} color="#EF4444" />
-            <Text style={s.cancelBtnTxt}>Cancelar asesoría</Text>
+            <Text style={s.cancelBtnTxt}>
+              {item.status === 'PENDING' ? 'Retirar solicitud' : 'Cancelar asesoría'}
+            </Text>
           </TouchableOpacity>
         )}
       </View>
@@ -207,7 +210,11 @@ export const StaffCatalogScreen = () => {
     staleTime: 30_000,
   });
 
-  // IDs of advisors with active/pending requests (to disable the button)
+  const hasActiveOrPending = useMemo(
+    () => myRequests.some(r => r.status === 'PENDING' || r.status === 'ACTIVE'),
+    [myRequests],
+  );
+
   const requestedAdvisorIds = useMemo(
     () => new Set(
       myRequests
@@ -217,38 +224,51 @@ export const StaffCatalogScreen = () => {
     [myRequests],
   );
 
-  const handleRequest = () => {
+  const handleRequest = (advisorName: string) => {
     refetchReqs();
     queryClient.invalidateQueries({ queryKey: ['my-advisor-requests'] });
+    Alert.alert(
+      'Solicitud enviada',
+      `Tu solicitud de asesoramiento fue enviada a ${advisorName}. Puedes ver el estado o retirarla desde "Mis Solicitudes".`,
+      [
+        { text: 'Ver solicitudes', onPress: () => setActiveTab('requests') },
+        { text: 'OK' },
+      ],
+    );
   };
 
   const handleCancel = (id: number) => {
-    Alert.alert(
-      'Cancelar asesoría',
-      '¿Estás seguro de que deseas cancelar esta asesoría? Se eliminarán tu plan nutricional y rutina asignada.',
-      [
-        { text: 'No cancelar', style: 'cancel' },
-        {
-          text: 'Sí, cancelar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await staffApi.cancelAdvisorship(id);
-              await refetchReqs();
-              queryClient.invalidateQueries({ queryKey: ['my-advisor-requests'] });
-              queryClient.invalidateQueries({ queryKey: ['my-plan'] });
-              queryClient.invalidateQueries({ queryKey: ['my-routines'] });
-              queryClient.invalidateQueries({ queryKey: ['staff-catalog'] });
-            } catch (err: unknown) {
-              const msg = (err as any)?.response?.data?.message
-                ?? (err instanceof Error ? err.message : null)
-                ?? 'No se pudo cancelar la asesoría.';
-              Alert.alert('Error', msg);
-            }
-          },
+    const req = myRequests.find(r => r.id === id);
+    const advisorName = req?.advisorName ?? 'este asesor';
+    const isPending = req?.status === 'PENDING';
+
+    const title = isPending ? 'Retirar solicitud' : 'Cancelar asesoría';
+    const message = isPending
+      ? `Mandaste una solicitud de asesoramiento al entrenador ${advisorName}. ¿Quieres cancelarla?`
+      : `¿Estás seguro de cancelar la asesoría con ${advisorName}? Se eliminarán tu plan nutricional y rutina asignada.`;
+
+    Alert.alert(title, message, [
+      { text: 'No', style: 'cancel' },
+      {
+        text: isPending ? 'Sí, retirar' : 'Sí, cancelar',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await staffApi.cancelAdvisorship(id);
+            await refetchReqs();
+            queryClient.invalidateQueries({ queryKey: ['my-advisor-requests'] });
+            queryClient.invalidateQueries({ queryKey: ['my-plan'] });
+            queryClient.invalidateQueries({ queryKey: ['my-routines'] });
+            queryClient.invalidateQueries({ queryKey: ['staff-catalog'] });
+          } catch (err: unknown) {
+            const msg = (err as any)?.response?.data?.message
+              ?? (err instanceof Error ? err.message : null)
+              ?? 'No se pudo completar la operación.';
+            Alert.alert('Error', msg);
+          }
         },
-      ],
-    );
+      },
+    ]);
   };
 
   const pendingCount = myRequests.filter(r => r.status === 'PENDING').length;
@@ -333,7 +353,7 @@ export const StaffCatalogScreen = () => {
               renderItem={({ item }) => (
                 <StaffCard
                   entry={item}
-                  alreadyRequested={requestedAdvisorIds.has(item.id)}
+                  alreadyRequested={hasActiveOrPending || requestedAdvisorIds.has(item.id)}
                   onRequest={handleRequest}
                 />
               )}

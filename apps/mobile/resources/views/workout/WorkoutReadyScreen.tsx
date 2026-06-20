@@ -1,67 +1,36 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions, ScrollView, Linking, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { WebView } from 'react-native-webview';
-
-const SCREEN_W = Dimensions.get('window').width;
-const VIDEO_H  = Math.round((SCREEN_W - 32) * 9 / 16);
-
-
-const buildYoutubeHtml = (videoId: string): string => `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #000; overflow: hidden; }
-    iframe { width: 100%; height: 100vh; border: none; display: block; }
-  </style>
-</head>
-<body>
-  <iframe
-    src="https://www.youtube.com/embed/${videoId}?playsinline=1&controls=1&rel=0&modestbranding=1&fs=1"
-    frameborder="0"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-    allowfullscreen
-  ></iframe>
-</body>
-</html>
-`;
+import { ExerciseDetailModal } from '../../components/ExerciseDetailModal';
 
 type RouteParams = {
-  exercise: { id: number; name: string };
+  exercise: { id: number; name: string; equipmentRequired?: string; muscleGroup?: string; description?: string; };
   sport: string;
   trackingType: string;
-  videoUrl?: never; // Obsolete
   youtubeVideoId?: string | null;
+  imageUrl?: string | null;
+};
+
+const getExerciseCover = (imageUrl?: string | null, equipment: string = '') => {
+  if (imageUrl) return imageUrl;
+  const eq = equipment.toLowerCase();
+  if (eq.includes('mancuerna')) return 'https://images.pexels.com/photos/3289711/pexels-photo-3289711.jpeg?auto=compress&cs=tinysrgb&w=600';
+  if (eq.includes('barra')) return 'https://images.pexels.com/photos/949126/pexels-photo-949126.jpeg?auto=compress&cs=tinysrgb&w=600';
+  if (eq.includes('polea') || eq.includes('máquina') || eq.includes('prensa')) return 'https://images.pexels.com/photos/1954524/pexels-photo-1954524.jpeg?auto=compress&cs=tinysrgb&w=600';
+  if (eq.includes('cinta') || eq.includes('bicicleta') || eq.includes('cardio')) return 'https://images.pexels.com/photos/3768916/pexels-photo-3768916.jpeg?auto=compress&cs=tinysrgb&w=600';
+  if (eq.includes('kettlebell') || eq.includes('pesa rusa')) return 'https://images.pexels.com/photos/221247/pexels-photo-221247.jpeg?auto=compress&cs=tinysrgb&w=600';
+  return 'https://images.pexels.com/photos/841130/pexels-photo-841130.jpeg?auto=compress&cs=tinysrgb&w=600';
 };
 
 export const WorkoutReadyScreen = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { exercise, sport, trackingType, youtubeVideoId } = route.params as RouteParams;
+  const { exercise, sport, trackingType, youtubeVideoId, imageUrl: exerciseImageUrl } = route.params as RouteParams;
+  const [showDetail, setShowDetail] = useState(false);
 
-  const openInNativeYouTube = async (id: string) => {
-    const appUrl = `youtube://watch?v=${id}`;
-    const webUrl = `https://www.youtube.com/watch?v=${id}`;
-    try {
-      const supported = await Linking.canOpenURL(appUrl);
-      if (supported) {
-        await Linking.openURL(appUrl);
-      } else {
-        await Linking.openURL(webUrl);
-      }
-    } catch (err) {
-      Alert.alert('Error', 'No se pudo abrir YouTube.');
-    }
-  };
-
-  const handleStart = () => {
-    navigation.replace('WorkoutActive', { exercise, sport, trackingType });
-  };
+  const coverUri = getExerciseCover(exerciseImageUrl, exercise?.equipmentRequired);
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -77,51 +46,50 @@ export const WorkoutReadyScreen = () => {
 
         <Text style={s.readyTitle}>¿Listo para entrenar?</Text>
 
-        {/* Video */}
-        {youtubeVideoId ? (
-          <View style={s.videoWrap}>
-            <View style={[s.videoLabel, { justifyContent: 'space-between' }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <MaterialCommunityIcons name="youtube" size={16} color="#FF5E00" />
-                <Text style={s.videoLabelTxt}>Demo del ejercicio</Text>
-              </View>
-              <TouchableOpacity onPress={() => openInNativeYouTube(youtubeVideoId)}>
-                <Text style={{ color: '#0A84FF', fontSize: 12, fontWeight: '600' }}>
-                  Abrir en YouTube
-                </Text>
-              </TouchableOpacity>
-            </View>
-            <WebView
-              source={{ html: buildYoutubeHtml(youtubeVideoId), baseUrl: 'https://www.youtube.com' }}
-              style={[s.videoPlayer, { height: VIDEO_H }]}
-              allowsFullscreenVideo
-              javaScriptEnabled
-              scrollEnabled={false}
-              originWhitelist={['*']}
-            />
+        {/* Hero cover */}
+        <View style={s.heroWrap}>
+          <Image source={{ uri: coverUri }} style={s.heroImage} />
+          <View style={s.heroOverlay}>
+            <Text style={s.heroName}>{exercise.name}</Text>
+            <Text style={s.heroSport}>{sport}</Text>
           </View>
-        ) : (
-          <View style={s.noVideo}>
-            <MaterialCommunityIcons name="video-off-outline" size={32} color="#333" />
-            <Text style={s.noVideoTxt}>Sin video disponible</Text>
-          </View>
-        )}
+        </View>
+
+        {/* Detalle técnico */}
+        <TouchableOpacity style={s.detailBtn} activeOpacity={0.75} onPress={() => setShowDetail(true)}>
+          <MaterialCommunityIcons name="information-outline" size={18} color="#FF5E00" />
+          <Text style={s.detailBtnText}>Ver detalle técnico</Text>
+          <MaterialCommunityIcons name="chevron-right" size={18} color="#555" />
+        </TouchableOpacity>
 
         {/* Exercise info */}
         <View style={s.infoCard}>
           <MaterialCommunityIcons name="dumbbell" size={20} color="#FF5E00" />
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={s.infoName}>{exercise.name}</Text>
-            <Text style={s.infoType}>{sport}</Text>
+            <Text style={s.infoType}>{exercise.equipmentRequired || 'Peso corporal'}</Text>
           </View>
         </View>
 
         {/* Start button */}
-        <TouchableOpacity style={s.startBtn} activeOpacity={0.8} onPress={handleStart}>
+        <TouchableOpacity style={s.startBtn} activeOpacity={0.8} onPress={() => navigation.replace('WorkoutActive', { exercise, sport, trackingType })}>
           <MaterialCommunityIcons name="play-circle-outline" size={22} color="#fff" />
           <Text style={s.startBtnTxt}>Iniciar</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <ExerciseDetailModal
+        visible={showDetail}
+        exercise={{
+          name: exercise.name,
+          description: exercise.description,
+          muscleGroup: exercise.muscleGroup,
+          equipmentRequired: exercise.equipmentRequired,
+          imageUrl: exerciseImageUrl,
+          youtubeVideoId: youtubeVideoId,
+        }}
+        onClose={() => setShowDetail(false)}
+      />
     </SafeAreaView>
   );
 };
@@ -133,12 +101,13 @@ const s = StyleSheet.create({
   backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#1C1C1E', justifyContent: 'center', alignItems: 'center' },
   headerTitle: { flex: 1, textAlign: 'center', color: '#fff', fontSize: 16, fontWeight: '700' },
   readyTitle: { color: '#fff', fontSize: 24, fontWeight: '800', marginBottom: 16 },
-  videoWrap: { backgroundColor: '#1C1C1E', borderRadius: 14, overflow: 'hidden', marginBottom: 16, borderWidth: 1, borderColor: '#2A2A2C' },
-  videoLabel: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 12, paddingBottom: 8 },
-  videoLabelTxt: { color: '#888', fontSize: 13 },
-  videoPlayer: { width: '100%', backgroundColor: '#000' },
-  noVideo: { backgroundColor: '#1C1C1E', borderRadius: 14, padding: 40, alignItems: 'center', gap: 8, marginBottom: 16 },
-  noVideoTxt: { color: '#555', fontSize: 13 },
+  heroWrap: { borderRadius: 14, overflow: 'hidden', marginBottom: 12, height: 200, backgroundColor: '#111' },
+  heroImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+  heroOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 16, paddingVertical: 14, backgroundColor: 'rgba(0,0,0,0.55)' },
+  heroName: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  heroSport: { color: '#a0a0a0', fontSize: 12, fontWeight: '600', marginTop: 2 },
+  detailBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1C1C1E', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 12, borderWidth: 1, borderColor: '#2A2A2C', gap: 8 },
+  detailBtnText: { flex: 1, color: '#ccc', fontSize: 14, fontWeight: '600' },
   infoCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1C1C1E', borderRadius: 14, padding: 16, marginBottom: 24, borderWidth: 1, borderColor: '#2A2A2C' },
   infoName: { color: '#fff', fontSize: 16, fontWeight: '700' },
   infoType: { color: '#888', fontSize: 13, marginTop: 2 },

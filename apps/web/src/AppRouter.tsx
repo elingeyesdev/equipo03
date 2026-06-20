@@ -11,6 +11,8 @@ import { ResumenView, UsuariosView, SedesView, SucursalesView, RolesView, MapaVi
 import { RoleGuard } from './components/Auth/RoleGuard';
 import { MedidasPlaceholder } from './components/Dashboard/Placeholders';
 import { ReservasView } from './components/Reservas/ReservasView';
+import { MachineInventoryScreen } from './pages/dashboard/MachineInventoryScreen';
+import { ExerciseLibraryScreen } from './pages/dashboard/ExerciseLibraryScreen';
 
 export const AppRouter = () => {
   return (
@@ -63,6 +65,14 @@ export const AppRouter = () => {
 
             <Route path="actividades" element={
               <RoleGuard routePath="actividades"><ActividadesView /></RoleGuard>
+            } />
+
+            <Route path="maquinas" element={
+              <RoleGuard routePath="maquinas"><MachineInventoryScreen /></RoleGuard>
+            } />
+
+            <Route path="biblioteca-ejercicios" element={
+              <RoleGuard routePath="biblioteca-ejercicios"><ExerciseLibraryScreen /></RoleGuard>
             } />
 
             <Route path="reservas" element={

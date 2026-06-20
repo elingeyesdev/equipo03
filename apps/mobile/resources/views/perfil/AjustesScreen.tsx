@@ -60,7 +60,6 @@ export const AjustesScreen = () => {
         return;
       }
 
-      // 2. Obtener Expo Push Token
       const projectId =
         (Constants.expoConfig?.extra as any)?.eas?.projectId ??
         (Constants as any).easConfig?.projectId;
@@ -70,7 +69,6 @@ export const AjustesScreen = () => {
       );
       const expoPushToken = tokenResult.data;
 
-      // 3. Enviar token al backend
       await userApi.updatePushToken(expoPushToken);
 
       Alert.alert('✅ Notificaciones activadas', 'Recibirás alertas cuando se confirmen tus reservas.');

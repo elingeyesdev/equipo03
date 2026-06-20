@@ -144,12 +144,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const updateProfile = (data: any) => {
-    if (user) {
-      setUser({
-        ...user,
-        ...(({ profile: { ...((user as any).profile || {}), ...data } }) as any),
-      });
-    }
+    setUser((prev: any) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        profile: {
+          ...(prev.profile || {}),
+          ...data,
+          physicalMetrics: {
+            ...(prev.profile?.physicalMetrics || {}),
+            ...(data.physicalMetrics || {}),
+          }
+        },
+      };
+    });
   };
 
   const clearError = () => {

@@ -23,6 +23,9 @@ type ExerciseItem = {
   exerciseType: string;
   trackingType: TrackingType;
   youtubeVideoId?: string | null;
+  imageUrl?: string | null;
+  description?: string | null;
+  equipmentRequired?: string | null;
 };
 
 type SubGroup = {
@@ -93,6 +96,9 @@ export const WorkoutModeScreen = () => {
             exerciseType: et,
             trackingType: TRACKING_MAP[et] ?? 'PESO_REPS',
             youtubeVideoId: ex.youtubeVideoId ?? null,
+            imageUrl: ex.imageUrl ?? null,
+            description: ex.description ?? null,
+            equipmentRequired: ex.equipmentRequired ?? null,
           });
         }
 
@@ -187,9 +193,10 @@ export const WorkoutModeScreen = () => {
                           activeOpacity={0.7}
                           onPress={() => navigation.navigate('WorkoutReady', {
                             sport:        item.exerciseType,
-                            exercise:     { id: item.id, name: item.name },
+                            exercise:     { id: item.id, name: item.name, muscleGroup: item.muscleGroup, equipmentRequired: item.equipmentRequired ?? '', description: item.description ?? '' },
                             trackingType: item.trackingType,
                             youtubeVideoId: item.youtubeVideoId,
+                            imageUrl: item.imageUrl,
                           })}
                         >
                           <View style={[s.rowDot, { backgroundColor: sg.color + '22', borderColor: sg.color + '44' }]}>

@@ -1,58 +1,31 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TextInput,
-  TouchableOpacity, Alert, ActivityIndicator, Dimensions, Linking,
+  TouchableOpacity, Alert, ActivityIndicator, Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { WebView } from 'react-native-webview';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import { Audio } from 'expo-av';
 import { ClientRoutine, ClientRoutineExercise } from '../../../app/Providers/staff/api/staff.api';
 import { trainingApi } from '../../../app/Providers/training/api/training.api';
+import { ExerciseDetailModal } from '../../components/ExerciseDetailModal';
 
-const SCREEN_W = Dimensions.get('window').width;
-const VIDEO_H  = Math.round((SCREEN_W - 32) * 9 / 16); // 16:9 dentro del padding
-
-
-const buildYoutubeHtml = (videoId: string): string => `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #000; overflow: hidden; }
-    iframe { width: 100%; height: 100vh; border: none; display: block; }
-  </style>
-</head>
-<body>
-  <iframe
-    src="https://www.youtube.com/embed/${videoId}?playsinline=1&controls=1&rel=0&modestbranding=1&fs=1"
-    frameborder="0"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-    allowfullscreen
-  ></iframe>
-</body>
-</html>
-`;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type ExMode = 'strength' | 'cardio';
+type LogType = 'WEIGHT_REPS' | 'REPS_ONLY' | 'TIME_DISTANCE' | 'TIME_ONLY';
 
 type SetRow = {
   setNumber:         number;
   totalSets:         number;
-  // strength
   repsRecommended:   string;
   weightRecommended: number;
   repsInput:         string;
   weightInput:       string;
-  // cardio
-  distanceInput:     string;   // meters
-  durationInput:     string;   // minutes
+  durationInput:     string;
+  speedInput:        string;
   done:              boolean;
 };
 
@@ -73,11 +46,11 @@ const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number) => 
 
 const GYM_RADIUS_KM = 0.2;
 
-const getExMode = (ex: ClientRoutineExercise): ExMode => {
-  const cat  = (ex.exercise?.category ?? '').toUpperCase();
-  const name = (ex.exercise?.name     ?? '').toUpperCase();
-  const cardioKws = ['CARDIO', 'AEROB', 'BICICLETA', 'CINTA', 'NATACION', 'TROTADORA', 'ELIPTICA', 'REMO'];
-  return cardioKws.some(k => cat.includes(k) || name.includes(k)) ? 'cardio' : 'strength';
+const getLogType = (ex: ClientRoutineExercise): LogType => {
+  if (ex.exercise?.logType) return ex.exercise.logType;
+  const cat = (ex.exercise?.category ?? '').toUpperCase();
+  if (cat.includes('CARDIO')) return 'TIME_DISTANCE';
+  return 'WEIGHT_REPS';
 };
 
 const buildSets = (ex: ClientRoutineExercise): SetRow[] => {
@@ -91,16 +64,31 @@ const buildSets = (ex: ClientRoutineExercise): SetRow[] => {
     weightRecommended: weight,
     repsInput:         reps.replace(/[^0-9]/g, ''),
     weightInput:       weight > 0 ? String(weight) : '0',
-    distanceInput:     '0',
     durationInput:     '0',
+    speedInput:        '0',
     done:              false,
   }));
 };
 
-const fmt = (secs: number) => {
-  const m = Math.floor(secs / 60).toString().padStart(2, '0');
-  const s = (secs % 60).toString().padStart(2, '0');
-  return `${m}:${s}`;
+const fmt = (ms: number) => {
+  const totalSec = Math.floor(ms / 1000);
+  const m = Math.floor(totalSec / 60).toString().padStart(2, '0');
+  const s = (totalSec % 60).toString().padStart(2, '0');
+  const msPart = Math.floor((ms % 1000) / 10).toString().padStart(2, '0');
+  return `${m}:${s}:${msPart}`;
+};
+
+const getExerciseCover = (imageUrl?: string | null, equipment: string = '') => {
+  if (imageUrl) return imageUrl;
+
+  const eq = equipment.toLowerCase();
+  if (eq.includes('mancuerna')) return 'https://images.pexels.com/photos/3289711/pexels-photo-3289711.jpeg?auto=compress&cs=tinysrgb&w=600';
+  if (eq.includes('barra')) return 'https://images.pexels.com/photos/949126/pexels-photo-949126.jpeg?auto=compress&cs=tinysrgb&w=600';
+  if (eq.includes('polea') || eq.includes('máquina') || eq.includes('prensa')) return 'https://images.pexels.com/photos/1954524/pexels-photo-1954524.jpeg?auto=compress&cs=tinysrgb&w=600';
+  if (eq.includes('cinta') || eq.includes('bicicleta') || eq.includes('cardio')) return 'https://images.pexels.com/photos/3768916/pexels-photo-3768916.jpeg?auto=compress&cs=tinysrgb&w=600';
+  if (eq.includes('kettlebell') || eq.includes('pesa rusa')) return 'https://images.pexels.com/photos/221247/pexels-photo-221247.jpeg?auto=compress&cs=tinysrgb&w=600';
+
+  return 'https://images.pexels.com/photos/841130/pexels-photo-841130.jpeg?auto=compress&cs=tinysrgb&w=600';
 };
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
@@ -110,7 +98,7 @@ export const EjecutarRutinaScreen = () => {
   const route      = useRoute<RouteProp<Record<string, RouteParams>, string>>();
   const { routine, exercise } = route.params;
 
-  const mode = getExMode(exercise);
+  const logType = getLogType(exercise);
 
   const [phase,     setPhase]     = useState<Phase>('detecting');
   const [gymId,     setGymId]     = useState<number | null>(null);
@@ -118,8 +106,10 @@ export const EjecutarRutinaScreen = () => {
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [sets,      setSets]      = useState<SetRow[]>(() => buildSets(exercise));
   const [cursor,    setCursor]    = useState(0);
-  const [elapsed,    setElapsed]   = useState(0);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const elapsed = Math.floor(elapsedMs / 1000);
   const [countdown,  setCountdown] = useState(3);
+  const [showDetail, setShowDetail] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── GPS ─────────────────────────────────────────────────────────────────────
@@ -169,8 +159,10 @@ export const EjecutarRutinaScreen = () => {
 
   useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
 
+  const startTimeRef = useRef<number>(0);
   const startTimer = useCallback(() => {
-    timerRef.current = setInterval(() => setElapsed(e => e + 1), 1000);
+    startTimeRef.current = Date.now();
+    timerRef.current = setInterval(() => setElapsedMs(Date.now() - startTimeRef.current), 50);
   }, []);
 
   // ── Countdown 3-2-1 antes de iniciar ─────────────────────────────────────────
@@ -206,7 +198,7 @@ export const EjecutarRutinaScreen = () => {
               const session = await trainingApi.startRoutineSession({
                 routineId: routine.id,
                 gymId,
-                sportType: mode === 'cardio' ? 'CARDIO' : 'MUSCULACION',
+                sportType: (logType === 'TIME_DISTANCE' || logType === 'TIME_ONLY') ? 'CARDIO' : 'MUSCULACION',
               });
               setSessionId(session.id);
               startTimer();
@@ -234,27 +226,25 @@ export const EjecutarRutinaScreen = () => {
   const handleCompleteSet = async () => {
     if (!sessionId) return;
     const set = sets[cursor];
+    const base = {
+      routineExerciseId: exercise.id,
+      exerciseId:        exercise.exercise?.id ?? undefined,
+      setNumber:         set.setNumber,
+    };
 
-    if (mode === 'cardio') {
-      const dist = parseInt(set.distanceInput) || 0;
-      const secs = Math.round((parseFloat(set.durationInput) || 0) * 60);
-      trainingApi.addSet(sessionId, {
-        routineExerciseId: exercise.id,
-        exerciseId:        exercise.exercise?.id ?? undefined,
-        setNumber:         set.setNumber,
-        distanceMeters:    dist,
-        durationSeconds:   secs,
-      }).catch(() => {});
-    } else {
-      const reps   = parseInt(set.repsInput) || 0;
-      const weight = parseFloat(set.weightInput) || 0;
-      trainingApi.addSet(sessionId, {
-        routineExerciseId: exercise.id,
-        exerciseId:        exercise.exercise?.id ?? undefined,
-        setNumber:         set.setNumber,
-        repsCompleted:     reps,
-        weightUsedKg:      weight,
-      }).catch(() => {});
+    switch (logType) {
+      case 'WEIGHT_REPS':
+        trainingApi.addSet(sessionId, { ...base, repsCompleted: parseInt(set.repsInput) || 0, weightUsedKg: parseFloat(set.weightInput) || 0 }).catch(() => {});
+        break;
+      case 'REPS_ONLY':
+        trainingApi.addSet(sessionId, { ...base, repsCompleted: parseInt(set.repsInput) || 0 }).catch(() => {});
+        break;
+      case 'TIME_DISTANCE':
+        trainingApi.addSet(sessionId, { ...base, durationSeconds: Math.round((parseFloat(set.durationInput) || 0) * 60), distanceMeters: Math.round((parseFloat(set.speedInput) || 0) * (parseFloat(set.durationInput) || 0) * 1000 / 60) }).catch(() => {});
+        break;
+      case 'TIME_ONLY':
+        trainingApi.addSet(sessionId, { ...base, durationSeconds: Math.round((parseFloat(set.durationInput) || 0) * 60) }).catch(() => {});
+        break;
     }
 
     const next = sets.map((s, i) => i === cursor ? { ...s, done: true } : s);
@@ -343,23 +333,8 @@ export const EjecutarRutinaScreen = () => {
 
   // ── READY phase ──────────────────────────────────────────────────────────────
   if (phase === 'ready') {
-    const isCardio  = mode === 'cardio';
-    const youtubeVideoId = (exercise.exercise as any)?.youtubeVideoId; // Assuming DTO type update in ClientRoutineExercise.exercise
-
-    const openInNativeYouTube = async (id: string) => {
-      const appUrl = `youtube://watch?v=${id}`;
-      const webUrl = `https://www.youtube.com/watch?v=${id}`;
-      try {
-        const supported = await Linking.canOpenURL(appUrl);
-        if (supported) {
-          await Linking.openURL(appUrl);
-        } else {
-          await Linking.openURL(webUrl);
-        }
-      } catch (err) {
-        Alert.alert('Error', 'No se pudo abrir YouTube.');
-      }
-    };
+    const isCardio = logType === 'TIME_DISTANCE' || logType === 'TIME_ONLY';
+    const coverUri = getExerciseCover(exercise.exercise?.imageUrl, exercise.exercise?.equipmentRequired);
 
     return (
       <SafeAreaView style={s.safe} edges={['top']}>
@@ -382,43 +357,28 @@ export const EjecutarRutinaScreen = () => {
 
           <Text style={s.readyTitle}>¿Listo para entrenar?</Text>
 
-          {/* ── Demo video ── */}
-          {youtubeVideoId ? (
-            <View style={s.videoWrap}>
-              <View style={[s.videoLabel, { justifyContent: 'space-between' }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <MaterialCommunityIcons name="youtube" size={16} color="#FF5E00" />
-                  <Text style={s.videoLabelTxt}>Demo del ejercicio</Text>
-                </View>
-                <TouchableOpacity onPress={() => openInNativeYouTube(youtubeVideoId)}>
-                  <Text style={{ color: '#0A84FF', fontSize: 12, fontWeight: '600' }}>
-                    Abrir en YouTube
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              <WebView
-                source={{ html: buildYoutubeHtml(youtubeVideoId), baseUrl: 'https://www.youtube.com' }}
-                style={[s.videoPlayer, { height: VIDEO_H }]}
-                originWhitelist={['*']}
-                allowsFullscreenVideo
-                mediaPlaybackRequiresUserAction
-                javaScriptEnabled
-                scrollEnabled={false}
-                allowsInlineMediaPlayback
-              />
+          {/* Hero cover */}
+          <View style={{ borderRadius: 14, overflow: 'hidden', marginBottom: 12, height: 200, backgroundColor: '#111' }}>
+            <Image source={{ uri: coverUri }} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
+            <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 16, paddingVertical: 14, backgroundColor: 'rgba(0,0,0,0.55)' }}>
+              <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800' }}>{exercise.exercise?.name ?? '—'}</Text>
+              <Text style={{ color: '#a0a0a0', fontSize: 12, fontWeight: '600', marginTop: 2 }}>{exercise.exercise?.muscleGroup ?? ''}</Text>
             </View>
-          ) : null}
+          </View>
 
+          {/* Detalle técnico */}
+          <TouchableOpacity
+            style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#1C1C1E', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 12, borderWidth: 1, borderColor: '#2A2A2C', gap: 8 }}
+            activeOpacity={0.75}
+            onPress={() => setShowDetail(true)}
+          >
+            <MaterialCommunityIcons name="information-outline" size={18} color="#FF5E00" />
+            <Text style={{ flex: 1, color: '#ccc', fontSize: 14, fontWeight: '600' }}>Ver detalle técnico</Text>
+            <MaterialCommunityIcons name="chevron-right" size={18} color="#555" />
+          </TouchableOpacity>
+
+          {/* Stats preview */}
           <View style={s.previewCard}>
-            <View style={s.previewRow}>
-              <MaterialCommunityIcons name="dumbbell" size={20} color="#f05b22" />
-              <Text style={s.previewExName}>{exercise.exercise?.name ?? '—'}</Text>
-              {isCardio && (
-                <View style={[s.typeBadge, { backgroundColor: '#60a5fa22' }]}>
-                  <Text style={[s.typeTxt, { color: '#60a5fa' }]}>Cardio</Text>
-                </View>
-              )}
-            </View>
             <View style={s.previewStats}>
               <View style={s.previewStat}>
                 <Text style={s.previewStatVal}>{exercise.setsRecommended}</Text>
@@ -459,6 +419,20 @@ export const EjecutarRutinaScreen = () => {
             <Text style={s.startTxt}>Iniciar</Text>
           </TouchableOpacity>
         </ScrollView>
+
+        <ExerciseDetailModal
+          visible={showDetail}
+          exercise={{
+            name: exercise.exercise?.name ?? 'Ejercicio',
+            description: exercise.exercise?.description,
+            muscleGroup: exercise.exercise?.muscleGroup,
+            category: exercise.exercise?.category,
+            equipmentRequired: exercise.exercise?.equipmentRequired,
+            imageUrl: exercise.exercise?.imageUrl,
+            youtubeVideoId: exercise.exercise?.youtubeVideoId,
+          }}
+          onClose={() => setShowDetail(false)}
+        />
       </SafeAreaView>
     );
   }
@@ -479,7 +453,7 @@ export const EjecutarRutinaScreen = () => {
           <MaterialCommunityIcons name="close" size={22} color="#888" />
         </TouchableOpacity>
         <Text style={s.topTitle} numberOfLines={1}>{exercise.exercise?.name ?? 'Ejercicio'}</Text>
-        <Text style={s.timerTxt}>{fmt(elapsed)}</Text>
+        <Text style={s.timerTxt}>{fmt(elapsedMs)}</Text>
       </View>
 
       {/* Progress bar */}
@@ -489,58 +463,56 @@ export const EjecutarRutinaScreen = () => {
       <Text style={s.progressTxt}>{doneSets} / {sets.length} series</Text>
 
       <ScrollView contentContainerStyle={s.activeContent}>
+        <Text style={{ color: '#888', fontSize: 12, fontStyle: 'italic', textAlign: 'center', marginBottom: 10, paddingHorizontal: 16, marginTop: 16 }}>
+          {logType === 'WEIGHT_REPS' ? 'Registra repeticiones y peso por serie.'
+           : logType === 'REPS_ONLY' ? 'Registra las repeticiones completadas.'
+           : logType === 'TIME_DISTANCE' ? 'Registra el tiempo y la velocidad.'
+           : 'Registra el tiempo de cada serie.'}
+        </Text>
         {/* Set card */}
         <View style={s.setCard}>
           <Text style={s.setCardTitle}>Serie {current.setNumber} de {current.totalSets}</Text>
 
-          {mode === 'strength' ? (
+          {logType === 'WEIGHT_REPS' ? (
             <View style={s.setRow}>
               <View style={s.setField}>
                 <Text style={s.setFieldLabel}>Repeticiones</Text>
                 <Text style={s.setFieldHint}>Rec: {current.repsRecommended}</Text>
-                <TextInput
-                  style={s.setInput}
-                  value={sets[cursor].repsInput}
-                  onChangeText={v => updateField('repsInput', v)}
-                  keyboardType="numeric"
-                  selectTextOnFocus
-                />
+                <TextInput style={s.setInput} value={sets[cursor].repsInput} onChangeText={v => updateField('repsInput', v)} keyboardType="numeric" selectTextOnFocus placeholder="0" placeholderTextColor="#333" />
               </View>
               <View style={s.setField}>
                 <Text style={s.setFieldLabel}>Peso (kg)</Text>
                 <Text style={s.setFieldHint}>Rec: {current.weightRecommended} kg</Text>
-                <TextInput
-                  style={s.setInput}
-                  value={sets[cursor].weightInput}
-                  onChangeText={v => updateField('weightInput', v)}
-                  keyboardType="decimal-pad"
-                  selectTextOnFocus
-                />
+                <TextInput style={s.setInput} value={sets[cursor].weightInput} onChangeText={v => updateField('weightInput', v)} keyboardType="decimal-pad" selectTextOnFocus placeholder="0" placeholderTextColor="#333" />
+              </View>
+            </View>
+          ) : logType === 'REPS_ONLY' ? (
+            <View style={s.setRow}>
+              <View style={s.setField}>
+                <Text style={s.setFieldLabel}>Repeticiones</Text>
+                <Text style={s.setFieldHint}>Rec: {current.repsRecommended}</Text>
+                <TextInput style={s.setInput} value={sets[cursor].repsInput} onChangeText={v => updateField('repsInput', v)} keyboardType="numeric" selectTextOnFocus placeholder="0" placeholderTextColor="#333" />
+              </View>
+            </View>
+          ) : logType === 'TIME_DISTANCE' ? (
+            <View style={s.setRow}>
+              <View style={s.setField}>
+                <Text style={s.setFieldLabel}>Tiempo (min)</Text>
+                <Text style={s.setFieldHint}> </Text>
+                <TextInput style={s.setInput} value={sets[cursor].durationInput} onChangeText={v => updateField('durationInput', v)} keyboardType="decimal-pad" selectTextOnFocus placeholder="0" placeholderTextColor="#333" />
+              </View>
+              <View style={s.setField}>
+                <Text style={s.setFieldLabel}>Velocidad (km/h)</Text>
+                <Text style={s.setFieldHint}> </Text>
+                <TextInput style={s.setInput} value={sets[cursor].speedInput} onChangeText={v => updateField('speedInput', v)} keyboardType="decimal-pad" selectTextOnFocus placeholder="0" placeholderTextColor="#333" />
               </View>
             </View>
           ) : (
             <View style={s.setRow}>
               <View style={s.setField}>
-                <Text style={s.setFieldLabel}>Distancia (m)</Text>
-                <Text style={s.setFieldHint}> </Text>
-                <TextInput
-                  style={s.setInput}
-                  value={sets[cursor].distanceInput}
-                  onChangeText={v => updateField('distanceInput', v)}
-                  keyboardType="numeric"
-                  selectTextOnFocus
-                />
-              </View>
-              <View style={s.setField}>
                 <Text style={s.setFieldLabel}>Tiempo (min)</Text>
                 <Text style={s.setFieldHint}> </Text>
-                <TextInput
-                  style={s.setInput}
-                  value={sets[cursor].durationInput}
-                  onChangeText={v => updateField('durationInput', v)}
-                  keyboardType="decimal-pad"
-                  selectTextOnFocus
-                />
+                <TextInput style={s.setInput} value={sets[cursor].durationInput} onChangeText={v => updateField('durationInput', v)} keyboardType="decimal-pad" selectTextOnFocus placeholder="0" placeholderTextColor="#333" />
               </View>
             </View>
           )}
@@ -589,7 +561,7 @@ const s = StyleSheet.create({
   topBar:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#111' },
   backBtn:  { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
   topTitle: { flex: 1, color: '#fff', fontSize: 15, fontWeight: '700', textAlign: 'center' },
-  timerTxt: { color: '#f05b22', fontWeight: '700', fontSize: 15, minWidth: 50, textAlign: 'right' },
+  timerTxt: { color: '#FF5E00', fontWeight: '700', fontSize: 20, minWidth: 90, textAlign: 'right' },
 
   progressBar:  { height: 3, backgroundColor: '#1a1a1a' },
   progressFill: { height: 3, backgroundColor: '#f05b22' },
@@ -601,10 +573,6 @@ const s = StyleSheet.create({
   gymTxt:       { fontSize: 13, fontWeight: '600' },
   readyTitle:   { color: '#fff', fontSize: 22, fontWeight: '800', marginBottom: 16 },
 
-  videoWrap:     { borderRadius: 14, overflow: 'hidden', backgroundColor: '#0e0e0e', marginBottom: 16, borderWidth: 1, borderColor: '#1a1a1a' },
-  videoLabel:    { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 10, paddingBottom: 6 },
-  videoLabelTxt: { color: '#888', fontSize: 12, fontWeight: '600' },
-  videoPlayer:   { width: '100%', backgroundColor: '#000' },
 
   previewCard:    { backgroundColor: '#0e0e0e', borderRadius: 14, padding: 16, marginBottom: 32, borderWidth: 1, borderColor: '#1a1a1a' },
   previewRow:     { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
