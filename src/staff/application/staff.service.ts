@@ -711,16 +711,21 @@ export class StaffService {
     const advisor = await this.userRepo.findOne({ where: { id: advisorId } });
     if (!advisor) throw new NotFoundException(`Asesor ${advisorId} no encontrado.`);
 
-    const existing = await this.advisorRepo.findOne({ where: { clientId, advisorId } });
-
-    if (existing && (existing.status === 'PENDING' || existing.status === 'ACTIVE')) {
+    const anyActive = await this.advisorRepo.findOne({
+      where: [
+        { clientId, status: 'PENDING' as const },
+        { clientId, status: 'ACTIVE' as const },
+      ],
+    });
+    if (anyActive) {
       throw new ConflictException(
-        `Ya tienes una solicitud ${existing.status === 'PENDING' ? 'pendiente' : 'activa'} con este asesor.`,
+        'Ya tienes una solicitud pendiente o activa con otro asesor. Cancélala antes de solicitar uno nuevo.',
       );
     }
 
+    const existing = await this.advisorRepo.findOne({ where: { clientId, advisorId } });
+
     if (existing) {
-      // REJECTED or CANCELLED — allow re-request
       existing.status = 'PENDING';
       return this.advisorRepo.save(existing);
     }
@@ -738,27 +743,28 @@ export class StaffService {
       throw new ForbiddenException('No tienes permiso para cancelar esta asesoría.');
     }
 
-    if (relation.status !== 'ACTIVE') {
-      throw new BadRequestException('Solo se pueden cancelar asesorías activas.');
+    if (relation.status !== 'ACTIVE' && relation.status !== 'PENDING') {
+      throw new BadRequestException('Solo se pueden cancelar asesorías activas o pendientes.');
     }
 
+    const wasActive = relation.status === 'ACTIVE';
     relation.status = 'CANCELLED';
     await this.advisorRepo.save(relation);
 
-    // Reset meal plan
-    const plan = await this.trainerPlanRepo.findOne({
-      where: { trainerId: relation.advisorId, clientId: relation.clientId },
-    });
-    if (plan) {
-      plan.mealPlan = null;
-      await this.trainerPlanRepo.save(plan);
-    }
+    if (wasActive) {
+      const plan = await this.trainerPlanRepo.findOne({
+        where: { trainerId: relation.advisorId, clientId: relation.clientId },
+      });
+      if (plan) {
+        plan.mealPlan = null;
+        await this.trainerPlanRepo.save(plan);
+      }
 
-    // Deactivate assigned routines
-    await this.advisorRepo.manager.query(
-      `UPDATE routines SET is_active = false WHERE trainer_id = $1 AND assigned_user_id = $2`,
-      [relation.advisorId, relation.clientId],
-    );
+      await this.advisorRepo.manager.query(
+        `UPDATE routines SET is_active = false WHERE trainer_id = $1 AND assigned_user_id = $2`,
+        [relation.advisorId, relation.clientId],
+      );
+    }
 
     return relation;
   }

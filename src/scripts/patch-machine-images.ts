@@ -53,7 +53,7 @@ const MACHINE_IMAGES = {
         let count = 0;
         for (const [name, url] of Object.entries(MACHINE_IMAGES)) {
             const result = await ds.query(
-                'UPDATE exercise_catalog SET image_url = $1 WHERE name = $2',
+                'UPDATE exercises SET image_url = $1 WHERE name = $2',
                 [url, name]
             );
             if (result[1] > 0) count++;

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsArray, IsIn } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateExerciseDto {
@@ -48,6 +48,11 @@ export class CreateExerciseDto {
   @IsOptional()
   @IsString()
   imageUrl?: string;
+
+  @ApiPropertyOptional({ example: 'WEIGHT_REPS', enum: ['WEIGHT_REPS', 'REPS_ONLY', 'TIME_DISTANCE', 'TIME_ONLY'] })
+  @IsOptional()
+  @IsIn(['WEIGHT_REPS', 'REPS_ONLY', 'TIME_DISTANCE', 'TIME_ONLY'])
+  logType?: 'WEIGHT_REPS' | 'REPS_ONLY' | 'TIME_DISTANCE' | 'TIME_ONLY';
 }
 
 export class UpdateExerciseDto {
@@ -100,6 +105,11 @@ export class UpdateExerciseDto {
   @IsOptional()
   @IsString()
   imageUrl?: string;
+
+  @ApiPropertyOptional({ example: 'WEIGHT_REPS', enum: ['WEIGHT_REPS', 'REPS_ONLY', 'TIME_DISTANCE', 'TIME_ONLY'] })
+  @IsOptional()
+  @IsIn(['WEIGHT_REPS', 'REPS_ONLY', 'TIME_DISTANCE', 'TIME_ONLY'])
+  logType?: 'WEIGHT_REPS' | 'REPS_ONLY' | 'TIME_DISTANCE' | 'TIME_ONLY';
 
   @ApiPropertyOptional({ example: false })
   @IsOptional()

@@ -18,7 +18,7 @@ import { UserProfile } from '../users/domain/user-profile.entity';
 import { Gym } from '../gyms/domain/gym.entity';
 import { GymLocation } from '../gyms/domain/gym-location.entity';
 import { GymSchedule } from '../gyms/domain/gym-schedule.entity';
-import { GymInfrastructure } from '../gyms/domain/gym-infrastructure.entity';
+import { MachineInventory } from '../gyms/domain/machine-inventory.entity';
 
 // 🔹 SUSCRIPCIONES
 import { SubscriptionPlan } from '../subscriptions/domain/subscription-plan.entity';
@@ -90,7 +90,7 @@ export const AppDataSource = new DataSource({
     Gym,
     GymLocation,
     GymSchedule,
-    GymInfrastructure,
+    MachineInventory,
 
     // Suscripciones (3)
     SubscriptionPlan,

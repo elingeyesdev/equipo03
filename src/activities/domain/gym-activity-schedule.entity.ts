@@ -10,7 +10,7 @@ import { GymActivity } from './gym-activity.entity';
 import { User } from '../../users/domain/user.entity';
 import { GymActivityAttendance } from './gym-activity-attendance.entity';
 
-@Entity('gym_activity_schedule')
+@Entity('gym_activity_schedules')
 export class GymActivitySchedule {
   @PrimaryGeneratedColumn()
   id!: number;

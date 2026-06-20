@@ -6,7 +6,6 @@ import {
   IsNumber,
   IsArray,
   ValidateNested,
-  Min,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -86,14 +85,6 @@ export class CreateGymDto {
   parentId?: number;
 
   @ApiPropertyOptional({
-    example: 50,
-    description: 'Capacidad de máquinas de la sucursal',
-  })
-  @IsOptional()
-  @IsInt()
-  machineCapacity?: number;
-
-  @ApiPropertyOptional({
     type: CreateGymLocationDto,
     example: {
       address: 'Av. Monseñor Rivero #300, Santa Cruz',
@@ -156,15 +147,6 @@ export class UpdateGymDto {
   @IsBoolean()
   isOpen?: boolean;
 
-  @ApiPropertyOptional({
-    example: 40,
-    description:
-      'Cantidad de máquinas disponibles en la sucursal (solo sucursales, no marcas)',
-  })
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  machineCapacity?: number;
 }
 
 export class CreateGymScheduleInputDto {

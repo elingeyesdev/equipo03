@@ -11,7 +11,7 @@ import {
 import { GymLocation } from './gym-location.entity';
 import { GymSchedule } from './gym-schedule.entity';
 import { GymActivity } from '../../activities/domain/gym-activity.entity';
-import { GymInfrastructure } from './gym-infrastructure.entity';
+import { MachineInventory } from './machine-inventory.entity';
 
 @Entity('gyms')
 export class Gym {
@@ -56,6 +56,6 @@ export class Gym {
   @OneToMany(() => GymActivity, (a) => a.gym)
   activities!: GymActivity[];
 
-  @OneToOne(() => GymInfrastructure, (inf) => inf.gym)
-  infrastructure?: GymInfrastructure;
+  @OneToMany(() => MachineInventory, (m) => m.gym)
+  machines!: MachineInventory[];
 }

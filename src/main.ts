@@ -1,5 +1,5 @@
 import { NestFactory, Reflector } from '@nestjs/core';
-import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
+import { ClassSerializerInterceptor, Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
@@ -11,9 +11,16 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const isProd = process.env.NODE_ENV === 'production';
+
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    logger: isProd
+      ? ['error', 'warn', 'log']
+      : ['log', 'error', 'warn', 'debug', 'verbose'],
+  });
   app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads' });
   const configService = app.get(ConfigService);
+  const logger = new Logger('Bootstrap');
 
   // ── Security Headers (helmet) ──────────────────────────────────
   app.use(helmet());
@@ -25,9 +32,6 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   // ── CORS ───────────────────────────────────────────────────────
-  // origin: true refleja el origen de cada petición —
-  // necesario para que 'credentials: true' funcione sin bloquear el browser.
-  // En producción reemplazar por la URL exacta del frontend.
   app.enableCors({
     origin: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
@@ -75,6 +79,7 @@ async function bootstrap() {
     .addTag('Users', 'Gestión de usuarios y perfiles')
     .addTag('Roles & Permissions', 'Sistema flexible de roles y permisos')
     .addTag('Gyms', 'Gimnasios, ubicaciones y horarios')
+    .addTag('Machines', 'Inventario de máquinas físicas')
     .addTag('Activities', 'Actividades, horarios y asistencia')
     .addTag('Exercises', 'Catálogo de ejercicios')
     .addTag('Routines', 'Rutinas de entrenamiento')
@@ -105,14 +110,8 @@ async function bootstrap() {
   const port = configService.get<number>('PORT') || 3000;
   await app.listen(port, '0.0.0.0');
 
-  console.log(`
-  ╔══════════════════════════════════════════════════════╗
-  ║          🏋️  GymSync API Server Running              ║
-  ║──────────────────────────────────────────────────────║
-  ║  URL:      http://localhost:${port}/api              ║
-  ║  Swagger:  http://localhost:${port}/api/docs         ║
-  ║  Env:      ${configService.get('NODE_ENV') || 'development'}║
-  ╚══════════════════════════════════════════════════════╝
-  `);
+  const env = configService.get('NODE_ENV') || 'development';
+  logger.log(`GymSync API running on http://localhost:${port}/api [${env}]`);
+  logger.log(`Swagger docs: http://localhost:${port}/api/docs`);
 }
 bootstrap();

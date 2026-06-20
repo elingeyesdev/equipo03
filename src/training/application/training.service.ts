@@ -270,8 +270,6 @@ export class TrainingService {
     );
 
     if (data.sets?.length) {
-      // Validate exerciseIds against exercise_catalog to prevent FK violations
-      // when the catalog has been modified since the app loaded its exercise list.
       const requestedExerciseIds = [
         ...new Set(
           (data.sets as any[])
@@ -283,7 +281,7 @@ export class TrainingService {
       const validExerciseIds = new Set<number>();
       if (requestedExerciseIds.length > 0) {
         const rows: { id: number }[] = await this.setsRepo.manager.query(
-          `SELECT id FROM exercise_catalog WHERE id = ANY($1::int[])`,
+          `SELECT id FROM exercises WHERE id = ANY($1::int[])`,
           [requestedExerciseIds],
         );
         rows.forEach((r) => validExerciseIds.add(r.id));
@@ -292,8 +290,8 @@ export class TrainingService {
           (id) => !validExerciseIds.has(id),
         );
         if (invalid.length > 0) {
-          console.warn(
-            `[TrainingService] exerciseId(s) not found in catalog, saved as null: ${invalid.join(', ')}`,
+          this.logger.warn(
+            `exerciseId(s) not found in catalog, saved as null: ${invalid.join(', ')}`,
           );
         }
       }

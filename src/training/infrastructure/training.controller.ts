@@ -21,6 +21,7 @@ import {
 } from '@nestjs/swagger';
 import type { RequestWithUser } from '../../common/security/gym-scope';
 import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
+import { AdminLevelGuard } from '../../auth/infrastructure/guards/admin-level.guard';
 import { TrainingService } from '../application/training.service';
 import {
   CreateTrainingProfileDto,
@@ -39,15 +40,20 @@ import {
 export class TrainingController {
   constructor(private readonly svc: TrainingService) {}
 
+  private assertOwnerOrStaff(req: RequestWithUser, targetUserId: number) {
+    const selfId = Number(req.user!.userId);
+    const level = req.user?.level ?? 0;
+    if (selfId !== targetUserId && level < 3) {
+      throw new ForbiddenException('No tienes permiso para modificar datos de otro usuario.');
+    }
+  }
+
   @Post('profile')
   @ApiOperation({ summary: 'Crear perfil de entrenamiento' })
   @ApiBody({ type: CreateTrainingProfileDto })
-  createProfile(@Body() body: CreateTrainingProfileDto) {
-    return this.svc.createTrainingProfile(
-      body.userId,
-      body.goals,
-      body.preferences,
-    );
+  createProfile(@Req() req: RequestWithUser, @Body() body: CreateTrainingProfileDto) {
+    this.assertOwnerOrStaff(req, body.userId);
+    return this.svc.createTrainingProfile(body.userId, body.goals, body.preferences);
   }
 
   @Get('profile/:userId')
@@ -59,7 +65,8 @@ export class TrainingController {
   @Post('restrictions')
   @ApiOperation({ summary: 'Crear restricción' })
   @ApiBody({ type: CreateRestrictionDto })
-  createRestriction(@Body() body: CreateRestrictionDto) {
+  createRestriction(@Req() req: RequestWithUser, @Body() body: CreateRestrictionDto) {
+    this.assertOwnerOrStaff(req, body.userId);
     return this.svc.createRestriction(body);
   }
 
@@ -72,7 +79,8 @@ export class TrainingController {
   @Post('emergency-contacts')
   @ApiOperation({ summary: 'Crear contacto de emergencia' })
   @ApiBody({ type: CreateEmergencyContactDto })
-  createEC(@Body() body: CreateEmergencyContactDto) {
+  createEC(@Req() req: RequestWithUser, @Body() body: CreateEmergencyContactDto) {
+    this.assertOwnerOrStaff(req, body.userId);
     return this.svc.createEmergencyContact(body);
   }
 
@@ -83,6 +91,7 @@ export class TrainingController {
   }
 
   @Delete('emergency-contacts/:id')
+  @UseGuards(AdminLevelGuard)
   @ApiOperation({ summary: 'Eliminar contacto' })
   removeEC(@Param('id', ParseIntPipe) id: number) {
     return this.svc.removeEmergencyContact(id);
@@ -97,33 +106,16 @@ export class TrainingController {
   }
 
   @Post('sessions/completed')
-  @ApiOperation({
-    summary: 'Guardar entrenamiento completado de un solo golpe',
-  })
+  @ApiOperation({ summary: 'Guardar entrenamiento completado de un solo golpe' })
   @ApiBody({ type: SaveCompletedSessionDto })
-  saveCompleted(
-    @Req() req: RequestWithUser,
-    @Body() body: SaveCompletedSessionDto,
-  ) {
+  saveCompleted(@Req() req: RequestWithUser, @Body() body: SaveCompletedSessionDto) {
     return this.svc.saveCompletedSession(Number(req.user!.userId), body);
   }
 
   @Get('sessions')
-  @ApiOperation({
-    summary: 'Listar mis sesiones paginadas (más recientes primero)',
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    example: 50,
-    description: 'Máx registros (default 50)',
-  })
-  @ApiQuery({
-    name: 'offset',
-    required: false,
-    example: 0,
-    description: 'Registros a saltar (default 0)',
-  })
+  @ApiOperation({ summary: 'Listar mis sesiones paginadas' })
+  @ApiQuery({ name: 'limit', required: false, example: 50 })
+  @ApiQuery({ name: 'offset', required: false, example: 0 })
   findSessions(
     @Req() req: RequestWithUser,
     @Query('limit') limit?: string,
@@ -135,10 +127,8 @@ export class TrainingController {
   }
 
   @Get('sessions/user/:userId')
-  @ApiOperation({
-    summary: 'Sesiones de usuario (USER solo puede ver las propias). Soporta ?routineId=X',
-  })
-  @ApiQuery({ name: 'routineId', required: false, description: 'Filtrar por rutina asignada' })
+  @ApiOperation({ summary: 'Sesiones de usuario (USER solo ve las propias)' })
+  @ApiQuery({ name: 'routineId', required: false })
   findByUser(
     @Req() req: RequestWithUser,
     @Param('userId', ParseIntPipe) uid: number,
@@ -148,9 +138,7 @@ export class TrainingController {
     const selfId = Number(req.user!.userId);
     if (role === 'USER' || role === 'CLIENTE') {
       if (selfId !== uid) {
-        throw new ForbiddenException(
-          'Solo puedes consultar tus propias sesiones.',
-        );
+        throw new ForbiddenException('Solo puedes consultar tus propias sesiones.');
       }
     }
     const rid = routineId ? parseInt(routineId, 10) : undefined;
@@ -158,12 +146,7 @@ export class TrainingController {
   }
 
   @Get('sessions/strength-records')
-  @ApiOperation({
-    summary: 'Récords de fuerza por ejercicio (gráfico de hipertrofia)',
-    description:
-      'Devuelve el historial de peso máximo levantado por ejercicio. ' +
-      'Formato: [{ exerciseId, exerciseName, muscleGroup, history: [{ date, maxWeightKg, totalSets }] }]',
-  })
+  @ApiOperation({ summary: 'Récords de fuerza por ejercicio' })
   getStrengthRecords(@Req() req: RequestWithUser) {
     return this.svc.getStrengthRecords(Number(req.user!.userId));
   }
@@ -178,6 +161,7 @@ export class TrainingController {
   @ApiOperation({ summary: 'Actualizar/finalizar sesión' })
   @ApiBody({ type: UpdateSessionDto })
   updateSession(
+    @Req() req: RequestWithUser,
     @Param('id', ParseIntPipe) id: number,
     @Body() body: UpdateSessionDto,
   ) {
@@ -187,7 +171,10 @@ export class TrainingController {
   @Post('sessions/:id/sets')
   @ApiOperation({ summary: 'Agregar serie completada' })
   @ApiBody({ type: AddSetDto })
-  addSet(@Param('id', ParseIntPipe) id: number, @Body() body: AddSetDto) {
+  addSet(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: AddSetDto,
+  ) {
     return this.svc.addSet(id, body);
   }
 }

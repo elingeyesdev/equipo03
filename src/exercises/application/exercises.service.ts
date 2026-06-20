@@ -60,7 +60,7 @@ export class ExercisesService {
     const exercise = await this.findOne(id);
     if (exercise.imageUrl) {
       await this.storageService.deleteImage(exercise.imageUrl);
-      exercise.imageUrl = null as any;
+      exercise.imageUrl = null;
       return this.repo.save(exercise);
     }
     return exercise;

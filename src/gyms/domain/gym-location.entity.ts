@@ -9,7 +9,7 @@ import {
 import { Gym } from './gym.entity';
 
 @Unique(['latitude', 'longitude'])
-@Entity('gym_location')
+@Entity('gym_locations')
 export class GymLocation {
   @PrimaryGeneratedColumn()
   id!: number;

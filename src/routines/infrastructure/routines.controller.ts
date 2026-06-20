@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
+import { StaffLevelGuard } from '../../auth/infrastructure/guards/staff-level.guard';
 import { RoutinesService } from '../application/routines.service';
 import {
   CreateRoutineDto,
@@ -28,6 +29,7 @@ export class RoutinesController {
   constructor(private readonly svc: RoutinesService) {}
 
   @Post()
+  @UseGuards(StaffLevelGuard)
   @ApiOperation({ summary: 'Crear rutina con ejercicios' })
   @ApiBody({ type: CreateRoutineDto })
   create(@Body() body: CreateRoutineDto) {
@@ -67,6 +69,7 @@ export class RoutinesController {
   }
 
   @Put(':id')
+  @UseGuards(StaffLevelGuard)
   @ApiOperation({ summary: 'Actualizar rutina' })
   @ApiBody({ type: UpdateRoutineDto })
   update(
@@ -77,6 +80,7 @@ export class RoutinesController {
   }
 
   @Delete(':id')
+  @UseGuards(StaffLevelGuard)
   @ApiOperation({ summary: 'Eliminar rutina' })
   async remove(@Param('id', ParseIntPipe) id: number) {
     await this.svc.remove(id);

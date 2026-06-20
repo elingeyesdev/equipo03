@@ -13,7 +13,7 @@ import { Repository } from 'typeorm';
 import { Gym } from '../domain/gym.entity';
 import { GymLocation } from '../domain/gym-location.entity';
 import { GymSchedule } from '../domain/gym-schedule.entity';
-import { GymInfrastructure } from '../domain/gym-infrastructure.entity';
+import { MachineInventory } from '../domain/machine-inventory.entity';
 import { Reservation } from '../../reservations/domain/reservation.entity';
 import { CheckIn } from '../../checkins/domain/check-in.entity';
 import {
@@ -51,8 +51,8 @@ export class GymsService {
     @InjectRepository(Gym) private gymsRepo: Repository<Gym>,
     @InjectRepository(GymLocation) private locRepo: Repository<GymLocation>,
     @InjectRepository(GymSchedule) private schedRepo: Repository<GymSchedule>,
-    @InjectRepository(GymInfrastructure)
-    private infraRepo: Repository<GymInfrastructure>,
+    @InjectRepository(MachineInventory)
+    private machineRepo: Repository<MachineInventory>,
     @InjectRepository(Reservation)
     private reservationRepo: Repository<Reservation>,
     @InjectRepository(CheckIn) private checkInRepo: Repository<CheckIn>,
@@ -68,10 +68,9 @@ export class GymsService {
   }
 
   async create(data: any) {
-    const { location, schedules, machineCapacity, ...gymData } = data as {
+    const { location, schedules, ...gymData } = data as {
       location?: { latitude?: number; longitude?: number; [k: string]: any };
       schedules?: any[];
-      machineCapacity?: number;
       name: string;
       [key: string]: unknown;
     };
@@ -103,11 +102,6 @@ export class GymsService {
         await this.locRepo.save(
           this.locRepo.create({ ...location, gymId: gym.id }),
         );
-      if (machineCapacity != null) {
-        await this.infraRepo.save(
-          this.infraRepo.create({ gymId: gym.id, machineCapacity }),
-        );
-      }
       if (schedules?.length) {
         const items = schedules.map((s: any) =>
           this.schedRepo.create({ ...s, gymId: gym.id }),
@@ -143,14 +137,14 @@ export class GymsService {
       if (!brandId) {
         gymsToMap = await this.gymsRepo.find({
           where: { parentId: sg, isActive: true },
-          relations: ['location', 'schedules', 'parent', 'infrastructure', 'activities'],
+          relations: ['location', 'schedules', 'parent', 'machines', 'activities'],
           order: { id: 'ASC' },
         });
       } else {
         // Devolver TODAS las sucursales activas de la misma marca, sin filtro de distancia
         gymsToMap = await this.gymsRepo.find({
           where: { parentId: brandId, isActive: true },
-          relations: ['location', 'schedules', 'parent', 'infrastructure', 'activities'],
+          relations: ['location', 'schedules', 'parent', 'machines', 'activities'],
           order: { id: 'ASC' },
         });
       }
@@ -160,7 +154,7 @@ export class GymsService {
         .leftJoinAndSelect('gym.location', 'location')
         .leftJoinAndSelect('gym.schedules', 'schedules')
         .leftJoinAndSelect('gym.parent', 'parent')
-        .leftJoinAndSelect('gym.infrastructure', 'infrastructure')
+        .leftJoinAndSelect('gym.machines', 'machines')
         .leftJoinAndSelect('gym.activities', 'activities')
         .where('gym.isActive = :active', { active: true })
         .andWhere('gym.parentId IS NOT NULL')
@@ -222,7 +216,7 @@ export class GymsService {
         'schedules',
         'activities',
         'parent',
-        'infrastructure',
+        'machines',
       ],
     });
     if (!gym) throw new NotFoundException(`Gimnasio ${id} no encontrado`);
@@ -265,6 +259,12 @@ export class GymsService {
       .filter(a => a.isActive)
       .map(a => a.name);
 
+    const machines = gym.machines ?? [];
+    const machineCapacity = machines.length;
+    const machinesAvailable = machines.filter(m => m.status === 'AVAILABLE').length;
+    const machinesInUse = machines.filter(m => m.status === 'IN_USE').length;
+    const machinesInMaintenance = machines.filter(m => m.status === 'MAINTENANCE').length;
+
     return {
       ...gym,
       isOpen: isGymOpenNow(gym.schedules ?? []),
@@ -272,34 +272,21 @@ export class GymsService {
       currentOccupancy,
       aforoActual: currentOccupancy,
       servicios: activeServices,
+      machineStats: {
+        total: machineCapacity,
+        available: machinesAvailable,
+        inUse: machinesInUse,
+        maintenance: machinesInMaintenance,
+      },
     };
   }
 
-  async update(id: number, data: any, callerRole = '') {
-    const { machineCapacity, ...gymData } = data;
-
+  async update(id: number, data: any) {
     const rawGym = await this.gymsRepo.findOne({ where: { id } });
     if (!rawGym) throw new NotFoundException(`Gimnasio ${id} no encontrado`);
 
-    Object.assign(rawGym, gymData);
+    Object.assign(rawGym, data);
     await this.gymsRepo.save(rawGym);
-
-    if (machineCapacity !== undefined) {
-      if (callerRole === 'RECEPCIONISTA') {
-        throw new ForbiddenException(
-          'No tienes permisos para alterar la infraestructura física de la sucursal.',
-        );
-      }
-      if (!rawGym.parentId) {
-        throw new BadRequestException(
-          'Las marcas no pueden tener aforo de máquinas',
-        );
-      }
-      let infra = await this.infraRepo.findOne({ where: { gymId: id } });
-      if (!infra) infra = this.infraRepo.create({ gymId: id });
-      infra.machineCapacity = machineCapacity;
-      await this.infraRepo.save(infra);
-    }
 
     return this.findOne(id);
   }
@@ -466,7 +453,6 @@ export class GymsService {
   async getOccupancyStats(gymId: number, period: 'day' | 'week' | 'month' | 'year' = 'day') {
     const gym = await this.gymsRepo.findOne({
       where: { id: gymId },
-      relations: ['infrastructure'],
     });
     if (!gym) throw new NotFoundException(`Gym ${gymId} no encontrado`);
 

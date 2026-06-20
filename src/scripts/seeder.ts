@@ -11,7 +11,7 @@ import { ExerciseCatalog } from '../exercises/domain/exercise-catalog.entity';
 import { GymActivity } from '../activities/domain/gym-activity.entity';
 import { GymSchedule } from '../gyms/domain/gym-schedule.entity';
 import { GymActivitySchedule } from '../activities/domain/gym-activity-schedule.entity';
-import { GymInfrastructure } from '../gyms/domain/gym-infrastructure.entity';
+import { MachineInventory, MachineStatus, MachineCategory } from '../gyms/domain/machine-inventory.entity';
 
 async function runSeed() {
   console.log('🌱 Iniciando seed de GymSync...');
@@ -20,11 +20,16 @@ async function runSeed() {
   const qr = dataSource.createQueryRunner();
   await qr.connect();
 
-  // ── TRUNCATE: limpiar todas las tablas y reiniciar secuencias ──────────────
-  // Orden: hijos primero para respetar FK; CASCADE cubre dependencias restantes.
+  // ── DROP tablas fantasma (nombres viejos sin entidad) ───────────────────────
+  const phantomTables = ['gym_infrastructure', 'gym_location', 'gym_activity_schedule', 'gym_activity', 'exercise_catalog'];
+  for (const t of phantomTables) {
+    await qr.query(`DROP TABLE IF EXISTS "${t}" CASCADE;`);
+  }
+
+  // ── TRUNCATE: las 39 tablas reales (orden: hijos → padres) ────────────────
   const tables = [
     // Staff / Asesorías
-    'client_advisors', 'staff_schedules', 'nutritional_appointments', 'trainer_plans',
+    'trainer_plans', 'nutritional_appointments', 'staff_schedules', 'client_advisors',
     // Roles y permisos
     'role_permissions', 'user_roles',
     // Entrenamientos
@@ -32,14 +37,14 @@ async function runSeed() {
     // Reservas y accesos
     'reservations', 'check_ins', 'waitlist_entries', 'visits',
     // Actividades
-    'gym_activity_attendance', 'gym_activity_schedule', 'gym_activity',
+    'gym_activity_attendance', 'gym_activity_schedules', 'gym_activities',
     // Gimnasios
-    'gym_schedules', 'gym_location', 'gym_infrastructure', 'gyms',
+    'machine_inventory', 'gym_schedules', 'gym_locations', 'gyms',
     // Usuarios
     'emergency_contacts', 'user_profiles', 'users',
     // Catálogos
-    'permissions', 'roles', 'exercise_catalog',
-    'routines', 'routine_exercises',
+    'permissions', 'roles', 'exercises',
+    'routine_exercises', 'routines',
     // Métricas y training
     'physical_metrics_history',
     'user_training', 'user_training_goals', 'user_training_preferences',
@@ -47,17 +52,13 @@ async function runSeed() {
     // Notificaciones
     'notification_templates', 'notifications', 'user_notification_preferences',
     // Suscripciones
-    'subscription_plans', 'user_subscriptions', 'subscription_payments',
+    'subscription_payments', 'user_subscriptions', 'subscription_plans',
     // Sistema
     'system_settings',
   ];
   console.log('Limpiando tablas y reiniciando secuencias...');
   for (const t of tables) {
-    try {
-      await qr.query(`TRUNCATE TABLE "${t}" RESTART IDENTITY CASCADE;`);
-    } catch {
-      // La tabla aún no existe en esta migración — se ignora
-    }
+    await qr.query(`TRUNCATE TABLE "${t}" RESTART IDENTITY CASCADE;`);
   }
 
   
@@ -95,7 +96,7 @@ async function runSeed() {
   const gymRepo = qr.manager.getRepository(Gym);
   const locRepo = qr.manager.getRepository(GymLocation);
   const schedRepo = qr.manager.getRepository(GymSchedule);
-  const infraRepo = qr.manager.getRepository(GymInfrastructure);
+  const machineRepo = qr.manager.getRepository(MachineInventory);
 
   const brandNames = [
     'Premier',
@@ -146,7 +147,6 @@ async function runSeed() {
       const branchName = `${parent.name} ${zoneData.zone}`;
       
       const randCap = 100 + Math.floor(Math.random() * 200); // 100 to 300
-      const machineCap = Math.floor(randCap * (0.3 + Math.random() * 0.3)); // 30% a 60% del aforo total
 
       const branch = await gymRepo.save(gymRepo.create({
         name:        branchName,
@@ -162,14 +162,49 @@ async function runSeed() {
         gymId:     branch.id,
         address:   zoneData.address,
         city:      'Santa Cruz de la Sierra',
-        latitude:  zoneData.lat + (Math.random() * 0.005 - 0.0025), // Jitter
+        latitude:  zoneData.lat + (Math.random() * 0.005 - 0.0025),
         longitude: zoneData.lng + (Math.random() * 0.005 - 0.0025),
       }));
 
-      await infraRepo.save(infraRepo.create({
-        gymId: branch.id,
-        machineCapacity: machineCap,
-      }));
+      // ── Inventario de máquinas (mínimo 10 por sucursal) ──
+      const C = MachineCategory;
+      const machineModels = [
+        { base: 'Cinta de Correr',             brand: 'Precor',          qty: 2, cat: C.CARDIO },
+        { base: 'Bicicleta Estática',          brand: 'Life Fitness',    qty: 2, cat: C.CARDIO },
+        { base: 'Elíptica',                    brand: 'Technogym',       qty: 1, cat: C.CARDIO },
+        { base: 'Press de Banca',              brand: 'Hammer Strength', qty: 1, cat: C.TREN_SUPERIOR },
+        { base: 'Prensa de Piernas',           brand: 'Cybex',           qty: 1, cat: C.TREN_INFERIOR },
+        { base: 'Polea Cruzada (Crossover)',   brand: 'Technogym',       qty: 1, cat: C.MULTIESTACION },
+        { base: 'Smith Machine',               brand: 'Precor',          qty: 1, cat: C.MULTIESTACION },
+        { base: 'Hack Squat',                  brand: 'Hammer Strength', qty: 1, cat: C.TREN_INFERIOR },
+        { base: 'Remo Sentado',                brand: 'Nautilus',        qty: 1, cat: C.ESPALDA },
+        { base: 'Lat Pulldown',                brand: 'Matrix',          qty: 1, cat: C.ESPALDA },
+      ];
+      const extraModels = [
+        { base: 'Extensión de Cuádriceps',     brand: 'Star Trac',      qty: 1, cat: C.TREN_INFERIOR },
+        { base: 'Curl de Piernas',             brand: 'Cybex',           qty: 1, cat: C.TREN_INFERIOR },
+        { base: 'Pec Deck',                    brand: 'Life Fitness',    qty: 1, cat: C.TREN_SUPERIOR },
+        { base: 'Press Militar',               brand: 'Cybex',           qty: 1, cat: C.TREN_SUPERIOR },
+        { base: 'Abductor/Aductor',            brand: 'Hoist',           qty: 1, cat: C.TREN_INFERIOR },
+      ];
+      const extraCount = Math.floor(Math.random() * extraModels.length);
+      const allModels = [...machineModels, ...extraModels.slice(0, extraCount)];
+      const units = ['A', 'B', 'C', 'D'];
+      const machineEntities: MachineInventory[] = [];
+      for (const model of allModels) {
+        for (let u = 0; u < model.qty; u++) {
+          const unitLabel = model.qty > 1 ? ` ${units[u]}` : '';
+          const roll = Math.random();
+          const status = roll < 0.65 ? MachineStatus.AVAILABLE : roll < 0.90 ? MachineStatus.IN_USE : MachineStatus.MAINTENANCE;
+          machineEntities.push(machineRepo.create({
+            gymId: branch.id,
+            name: `${model.base} ${model.brand}${unitLabel}`,
+            status,
+            category: model.cat,
+          }));
+        }
+      }
+      await machineRepo.save(machineEntities);
 
 
       // --- Generar Horarios de Atención ---
@@ -516,14 +551,16 @@ async function runSeed() {
   }
 
   // ── Resumen final ──────────────────────────────────────────────────────────
+  const totalMachines = await qr.query("SELECT COUNT(*) as cnt FROM machine_inventory");
+
   await qr.release();
   await dataSource.destroy();
-
   console.log('\n✅ Seed completado exitosamente.');
   console.log('─'.repeat(60));
   console.log(`   Roles:       9  (IDs 1-9, sincronizados con el frontend)`);
   console.log(`   Marcas:      10 (IDs 1-10)`);
   console.log(`   Sucursales:  30 (IDs 11-40)`);
+  console.log(`   Máquinas:    ${totalMachines[0].cnt} (inventario físico distribuido)`);
   console.log(`   Usuarios:    ${keyUsers.length + 50} (${keyUsers.length} clave + 50 aleatorios)`);
   console.log(`   Actividades: 50`);
   console.log(`   Ejercicios:  ${exercises.length}`);

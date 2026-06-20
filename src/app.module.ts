@@ -44,10 +44,6 @@ import { VisitsModule } from './visits/visits.module';
       limit: 120,   // 120 req/min por IP (2 req/s — suficiente para uso normal)
     }]),
 
-    // ── Database ───────────────────────────────────────────────
-    // IMPORTANTE: Para la primera ejecución después del reset de la DB,
-    // puedes activar DROP_SCHEMA=true en .env para forzar recreación.
-    // Después de la primera ejecución exitosa, QUITA esa variable.
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -61,7 +57,7 @@ import { VisitsModule } from './visits/visits.module';
         autoLoadEntities: true,
         synchronize: cfg.get('NODE_ENV') !== 'production',
         dropSchema: cfg.get('NODE_ENV') !== 'production' && cfg.get<string>('DROP_SCHEMA') === 'true',
-        logging: cfg.get('NODE_ENV') !== 'production',
+        logging: cfg.get('NODE_ENV') === 'production' ? ['error', 'warn'] : ['query', 'error'],
       }),
     }),
 

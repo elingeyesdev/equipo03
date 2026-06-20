@@ -9,7 +9,7 @@ import {
 import { Gym } from '../../gyms/domain/gym.entity';
 import { GymActivitySchedule } from './gym-activity-schedule.entity';
 
-@Entity('gym_activity')
+@Entity('gym_activities')
 export class GymActivity {
   @PrimaryGeneratedColumn()
   id!: number;

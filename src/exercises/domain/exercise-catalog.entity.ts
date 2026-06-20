@@ -5,7 +5,7 @@ import {
   CreateDateColumn,
 } from 'typeorm';
 
-@Entity('exercise_catalog')
+@Entity('exercises')
 export class ExerciseCatalog {
   @PrimaryGeneratedColumn()
   id!: number;
@@ -14,7 +14,7 @@ export class ExerciseCatalog {
   name!: string;
 
   @Column({ type: 'text', nullable: true })
-  description!: string;
+  description!: string | null;
 
   @Column({ type: 'varchar', length: 50, name: 'muscle_group' })
   muscleGroup!: string;
@@ -26,7 +26,7 @@ export class ExerciseCatalog {
   exerciseType!: string | null;
 
   @Column({ type: 'jsonb', name: 'secondary_muscle_groups', nullable: true })
-  secondaryMuscleGroups!: string[];
+  secondaryMuscleGroups!: string[] | null;
 
   @Column({
     type: 'varchar',
@@ -34,7 +34,7 @@ export class ExerciseCatalog {
     name: 'equipment_required',
     nullable: true,
   })
-  equipmentRequired!: string;
+  equipmentRequired!: string | null;
 
   @Column({ type: 'varchar', length: 30, name: 'difficulty_level' })
   difficultyLevel!: string;
@@ -43,16 +43,16 @@ export class ExerciseCatalog {
   youtubeVideoId!: string | null;
 
   @Column({ type: 'varchar', length: 500, name: 'image_url', nullable: true })
-  imageUrl!: string;
+  imageUrl!: string | null;
 
   @Column({ type: 'boolean', name: 'is_active', default: true })
   isActive!: boolean;
 
   @Column({
     type: 'enum',
+    name: 'log_type',
     enum: ['WEIGHT_REPS', 'REPS_ONLY', 'TIME_DISTANCE', 'TIME_ONLY'],
-    default: 'WEIGHT_REPS', // Valor por defecto para datos antiguos
-    comment: 'Define el tipo de parámetros a registrar por serie para este ejercicio.'
+    default: 'WEIGHT_REPS',
   })
   logType!: 'WEIGHT_REPS' | 'REPS_ONLY' | 'TIME_DISTANCE' | 'TIME_ONLY';
 
