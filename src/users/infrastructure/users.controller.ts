@@ -103,10 +103,14 @@ export class UsersController {
     const user = await this.usersService.findOne(userId);
     const dto = this.usersService.toPublicDto(user);
     const birthDate = user.profile?.dateOfBirth ?? null;
+    const age = birthDate
+      ? Math.floor((Date.now() - new Date(birthDate).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+      : null;
     return {
       ...dto,
       birthDate,
-      profile: dto.profile ? { ...dto.profile, birthDate } : null,
+      age,
+      profile: dto.profile ? { ...dto.profile, birthDate, age } : null,
     };
   }
 

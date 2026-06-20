@@ -29,6 +29,8 @@ import {
   DayOfWeek,
   aliasesForCanonicalDay,
 } from '../../activities/application/dtos/create-activity-schedule.dto';
+import { PushNotificationsService } from '../../push-notifications/application/push-notifications.service';
+import { GymGateway } from '../../notifications/infrastructure/gym.gateway';
 
 /** Índice UTC → nombre español del día (mismo orden que Date.getUTCDay). */
 const DAY_UTC: DayOfWeek[] = [
@@ -71,7 +73,29 @@ export class StaffService {
     @InjectRepository(TrainerPlan)
     private trainerPlanRepo: Repository<TrainerPlan>,
     @Inject(REQUEST) private readonly request: RequestWithUser,
+    private readonly pushService: PushNotificationsService,
+    private readonly gateway: GymGateway,
   ) {}
+
+  private async notifyAdvisoryChange(
+    targetUserId: number,
+    title: string,
+    body: string,
+    event: string,
+    data?: Record<string, unknown>,
+  ): Promise<void> {
+    this.gateway.emitToUser(targetUserId, event, { ...data, message: body });
+
+    const target = await this.userRepo.findOne({
+      where: { id: targetUserId },
+      select: ['id', 'pushToken'],
+    });
+    if (target?.pushToken) {
+      this.pushService
+        .sendPushMessage(target.pushToken, title, body, { event, ...data })
+        .catch(() => {});
+    }
+  }
 
   private static readonly DAY_NAMES = [
     'DOMINGO',
@@ -725,14 +749,30 @@ export class StaffService {
 
     const existing = await this.advisorRepo.findOne({ where: { clientId, advisorId } });
 
+    let saved: ClientAdvisor;
     if (existing) {
       existing.status = 'PENDING';
-      return this.advisorRepo.save(existing);
+      saved = await this.advisorRepo.save(existing);
+    } else {
+      saved = await this.advisorRepo.save(
+        this.advisorRepo.create({ clientId, advisorId, status: 'PENDING' }),
+      );
     }
 
-    return this.advisorRepo.save(
-      this.advisorRepo.create({ clientId, advisorId, status: 'PENDING' }),
-    );
+    const clientProfile = await this.profileRepo.findOne({ where: { userId: clientId } });
+    const clientName = clientProfile
+      ? `${clientProfile.firstName ?? ''} ${clientProfile.lastName ?? ''}`.trim()
+      : 'Un cliente';
+
+    this.notifyAdvisoryChange(
+      advisorId,
+      'Nueva solicitud de asesoría',
+      `${clientName} quiere ser asesorado por ti.`,
+      'advisory_request',
+      { advisorshipId: saved.id, clientId },
+    ).catch(() => {});
+
+    return saved;
   }
 
   async cancelAdvisorship(id: number, requesterId: number): Promise<ClientAdvisor> {
@@ -749,7 +789,21 @@ export class StaffService {
 
     const wasActive = relation.status === 'ACTIVE';
     relation.status = 'CANCELLED';
-    await this.advisorRepo.save(relation);
+    const saved = await this.advisorRepo.save(relation);
+
+    const otherUserId = requesterId === relation.clientId ? relation.advisorId : relation.clientId;
+    const requesterProfile = await this.profileRepo.findOne({ where: { userId: requesterId } });
+    const requesterName = requesterProfile
+      ? `${requesterProfile.firstName ?? ''} ${requesterProfile.lastName ?? ''}`.trim()
+      : 'El usuario';
+
+    this.notifyAdvisoryChange(
+      otherUserId,
+      wasActive ? 'Asesoría cancelada' : 'Solicitud retirada',
+      `${requesterName} ${wasActive ? 'canceló la asesoría' : 'retiró la solicitud'}.`,
+      'advisory_cancelled',
+      { advisorshipId: saved.id },
+    ).catch(() => {});
 
     if (wasActive) {
       const plan = await this.trainerPlanRepo.findOne({
@@ -823,7 +877,22 @@ export class StaffService {
       throw new BadRequestException(`La solicitud ya está en estado ${relation.status}.`);
     }
     relation.status = 'REJECTED';
-    return this.advisorRepo.save(relation);
+    const saved = await this.advisorRepo.save(relation);
+
+    const advisorProfile = await this.profileRepo.findOne({ where: { userId: advisorUserId } });
+    const advisorName = advisorProfile
+      ? `${advisorProfile.firstName ?? ''} ${advisorProfile.lastName ?? ''}`.trim()
+      : 'El entrenador';
+
+    this.notifyAdvisoryChange(
+      relation.clientId,
+      'Solicitud rechazada',
+      `${advisorName} rechazó tu solicitud de asesoría.`,
+      'advisory_rejected',
+      { advisorshipId: saved.id },
+    ).catch(() => {});
+
+    return saved;
   }
 
   async getActiveAdvisees(): Promise<
@@ -959,6 +1028,21 @@ export class StaffService {
       throw new BadRequestException(`La solicitud ya está en estado ${relation.status}.`);
     }
     relation.status = 'ACTIVE';
-    return this.advisorRepo.save(relation);
+    const saved = await this.advisorRepo.save(relation);
+
+    const advisorProfile = await this.profileRepo.findOne({ where: { userId: advisorUserId } });
+    const advisorName = advisorProfile
+      ? `${advisorProfile.firstName ?? ''} ${advisorProfile.lastName ?? ''}`.trim()
+      : 'Tu entrenador';
+
+    this.notifyAdvisoryChange(
+      relation.clientId,
+      'Solicitud aceptada',
+      `${advisorName} aceptó tu solicitud de asesoría.`,
+      'advisory_accepted',
+      { advisorshipId: saved.id, advisorId: advisorUserId },
+    ).catch(() => {});
+
+    return saved;
   }
 }

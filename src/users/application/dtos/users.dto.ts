@@ -77,6 +77,14 @@ export class UpdateProfileDto {
   @IsDateString()
   birthDate?: string;
 
+  @ApiPropertyOptional({
+    example: 25,
+    description: 'Edad en años (se convierte a fecha de nacimiento aproximada)',
+  })
+  @IsOptional()
+  @IsNumber()
+  age?: number;
+
   @ApiPropertyOptional({ example: 75.5 })
   @IsOptional()
   @IsNumber()

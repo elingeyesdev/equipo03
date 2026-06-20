@@ -53,6 +53,11 @@ export class CreateExerciseDto {
   @IsOptional()
   @IsIn(['WEIGHT_REPS', 'REPS_ONLY', 'TIME_DISTANCE', 'TIME_ONLY'])
   logType?: 'WEIGHT_REPS' | 'REPS_ONLY' | 'TIME_DISTANCE' | 'TIME_ONLY';
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
 
 export class UpdateExerciseDto {

@@ -14,6 +14,8 @@ import { PhysicalMetricsHistory } from '../metrics/domain/physical-metrics-histo
 import { TrainerPlan } from './domain/trainer-plan.entity';
 import { StaffService } from './application/staff.service';
 import { StaffController } from './infrastructure/staff.controller';
+import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -31,6 +33,8 @@ import { StaffController } from './infrastructure/staff.controller';
       PhysicalMetricsHistory,
       TrainerPlan,
     ]),
+    PushNotificationsModule,
+    NotificationsModule,
   ],
   controllers: [StaffController],
   providers: [StaffService],

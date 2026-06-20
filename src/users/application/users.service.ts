@@ -271,6 +271,7 @@ export class UsersService {
       chestCm,
       notes,
       birthDate,
+      age,
       ...profileData
     } = data;
 
@@ -308,7 +309,12 @@ export class UsersService {
     for (const [key, value] of Object.entries(profileData)) {
       if (value !== undefined) (profile as any)[key] = value;
     }
-    if (birthDate !== undefined) profile.dateOfBirth = new Date(birthDate);
+    if (birthDate !== undefined) {
+      profile.dateOfBirth = new Date(birthDate);
+    } else if (age !== undefined && age > 0) {
+      const birthYear = new Date().getFullYear() - age;
+      profile.dateOfBirth = new Date(`${birthYear}-01-01`);
+    }
 
     let savedProfile: UserProfile;
     try {

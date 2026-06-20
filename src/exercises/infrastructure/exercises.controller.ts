@@ -21,6 +21,7 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiQuery,
+  ApiResponse,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
 import { SuperAdminGuard } from '../../auth/infrastructure/guards/super-admin.guard';
@@ -37,16 +38,8 @@ import {
 export class ExercisesController {
   constructor(private readonly svc: ExercisesService) {}
 
-  @Post()
-  @UseGuards(SuperAdminGuard)
-  @ApiOperation({ summary: 'Crear ejercicio (Super Admin)' })
-  @ApiBody({ type: CreateExerciseDto })
-  create(@Body() body: CreateExerciseDto) {
-    return this.svc.create(body);
-  }
-
   @Get()
-  @ApiOperation({ summary: 'Listar ejercicios' })
+  @ApiOperation({ summary: 'Listar ejercicios (cualquier usuario autenticado)' })
   @ApiQuery({ name: 'muscleGroup', required: false })
   @ApiQuery({ name: 'difficultyLevel', required: false })
   @ApiQuery({ name: 'category', required: false })
@@ -61,14 +54,23 @@ export class ExercisesController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Obtener ejercicio' })
+  @ApiOperation({ summary: 'Obtener ejercicio por ID (cualquier usuario autenticado)' })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.svc.findOne(id);
   }
 
+  @Post()
+  @UseGuards(SuperAdminGuard)
+  @ApiOperation({ summary: 'Crear ejercicio (nivel >= 10)' })
+  @ApiBody({ type: CreateExerciseDto })
+  @ApiResponse({ status: 403, description: 'Nivel jerárquico insuficiente' })
+  create(@Body() body: CreateExerciseDto) {
+    return this.svc.create(body);
+  }
+
   @Put(':id')
   @UseGuards(SuperAdminGuard)
-  @ApiOperation({ summary: 'Actualizar ejercicio (Super Admin)' })
+  @ApiOperation({ summary: 'Actualizar ejercicio (nivel >= 10)' })
   @ApiBody({ type: UpdateExerciseDto })
   update(
     @Param('id', ParseIntPipe) id: number,
@@ -79,7 +81,7 @@ export class ExercisesController {
 
   @Patch(':id/image')
   @UseGuards(SuperAdminGuard)
-  @ApiOperation({ summary: 'Subir/reemplazar imagen (Super Admin)' })
+  @ApiOperation({ summary: 'Subir/reemplazar imagen (nivel >= 10)' })
   @UseInterceptors(FileInterceptor('image'))
   updateImage(
     @Param('id', ParseIntPipe) id: number,
@@ -93,14 +95,14 @@ export class ExercisesController {
 
   @Delete(':id/image')
   @UseGuards(SuperAdminGuard)
-  @ApiOperation({ summary: 'Eliminar imagen (Super Admin)' })
+  @ApiOperation({ summary: 'Eliminar imagen (nivel >= 10)' })
   deleteImage(@Param('id', ParseIntPipe) id: number) {
     return this.svc.deleteExerciseImage(id);
   }
 
   @Delete(':id')
   @UseGuards(SuperAdminGuard)
-  @ApiOperation({ summary: 'Eliminar ejercicio (Super Admin)' })
+  @ApiOperation({ summary: 'Eliminar ejercicio (nivel >= 10)' })
   async remove(@Param('id', ParseIntPipe) id: number) {
     await this.svc.remove(id);
     return { message: 'Ejercicio eliminado' };
