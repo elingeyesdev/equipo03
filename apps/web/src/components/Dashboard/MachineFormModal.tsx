@@ -49,6 +49,7 @@ export const MachineFormModal: React.FC<Props> = ({ machine, onClose, onSuccess 
   });
   const [gyms, setGyms] = useState<GymOption[]>([]);
   const [currentImageUrl, setCurrentImageUrl] = useState(machine?.imageUrl ?? undefined);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -113,6 +114,10 @@ export const MachineFormModal: React.FC<Props> = ({ machine, onClose, onSuccess 
     }
   };
 
+  const resetFileInput = () => {
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleImageUpload = async (file: File) => {
     if (!machine || !canEdit) return;
     setIsUploading(true);
@@ -127,6 +132,7 @@ export const MachineFormModal: React.FC<Props> = ({ machine, onClose, onSuccess 
       toast.error('Error al subir imagen');
     } finally {
       setIsUploading(false);
+      resetFileInput();
     }
   };
 
@@ -136,6 +142,7 @@ export const MachineFormModal: React.FC<Props> = ({ machine, onClose, onSuccess 
       await apiClient.delete(`/machines/${machine.id}/image`);
       setCurrentImageUrl(undefined);
       setImageChanged(true);
+      resetFileInput();
       toast.success('Imagen eliminada');
     } catch {
       toast.error('Error al eliminar imagen');
@@ -188,7 +195,7 @@ export const MachineFormModal: React.FC<Props> = ({ machine, onClose, onSuccess 
                     ) : (
                       <><Upload size={14} /> {currentImageUrl ? 'Reemplazar' : 'Subir imagen'}</>
                     )}
-                    <input type="file" accept="image/*" className="hidden" disabled={isUploading} onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0])} />
+                    <input ref={fileInputRef} type="file" accept="image/*" className="hidden" disabled={isUploading} onChange={(e) => { if (e.target.files?.[0]) handleImageUpload(e.target.files[0]); }} />
                   </label>
                   {currentImageUrl && (
                     <button onClick={handleDeleteImage} className="px-4 py-2.5 bg-slate-100 dark:bg-[#2a2a2a] hover:bg-red-600 text-slate-500 dark:text-gray-400 hover:text-white border border-slate-200 dark:border-gray-700 hover:border-red-500 rounded-lg transition-all text-sm font-medium flex items-center gap-2">
