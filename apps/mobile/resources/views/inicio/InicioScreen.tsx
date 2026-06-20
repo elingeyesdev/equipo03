@@ -234,7 +234,10 @@ const ClientDashboard = () => {
   };
 
   const handleSedePress = (sede: any) => {
-    navigation.navigate('Buscar', { sedeId: sede.id.value });
+    navigation.navigate('Buscar', {
+      screen: 'Mapa',
+      params: { focusSedeId: `${sede.id.value}-${Date.now()}` },
+    });
   };
 
   const handleDisciplinaPress = (disciplina: string) => {

@@ -25,6 +25,14 @@ const CALORIE_RATE: Record<string, number> = {
 const formatTime = (sec: number): string =>
   `${Math.floor(sec / 60).toString().padStart(2, '0')}:${(sec % 60).toString().padStart(2, '0')}`;
 
+const formatTimeMs = (ms: number): string => {
+  const totalSec = Math.floor(ms / 1000);
+  const m = Math.floor(totalSec / 60).toString().padStart(2, '0');
+  const s = (totalSec % 60).toString().padStart(2, '0');
+  const msPart = Math.floor((ms % 1000) / 10).toString().padStart(2, '0');
+  return `${m}:${s}:${msPart}`;
+};
+
 type Serie = {
   // PESO_REPS
   peso?: string;
@@ -52,7 +60,8 @@ export const WorkoutActiveScreen = () => {
 
   const [countdown, setCountdown]             = useState(3);
   const [startTime, setStartTime]             = useState(Date.now());
-  const [elapsedSeconds, setElapsedSeconds]   = useState(0);
+  const [elapsedMs, setElapsedMs]             = useState(0);
+  const elapsedSeconds = Math.floor(elapsedMs / 1000);
   const [isPaused, setIsPaused]               = useState(false);
   const [completedSeries, setCompletedSeries] = useState<Serie[]>([]);
   const [restDuration, setRestDuration]       = useState(60);
@@ -147,7 +156,7 @@ export const WorkoutActiveScreen = () => {
 
   const tick = useCallback(() => {
     if (pausedAtRef.current !== null) return;
-    setElapsedSeconds(Math.floor((Date.now() - startTimeRef.current) / 1000));
+    setElapsedMs(Date.now() - startTimeRef.current);
     if (restEndTimeRef.current !== null) {
       const left = Math.ceil((restEndTimeRef.current - Date.now()) / 1000);
       if (left <= 0) {
@@ -163,14 +172,14 @@ export const WorkoutActiveScreen = () => {
 
   useEffect(() => {
     if (countdown > 0) return;
-    intervalRef.current = setInterval(tick, 1000);
+    intervalRef.current = setInterval(tick, 50);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [countdown, tick]);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
       if (next === 'active' && countdown === 0 && pausedAtRef.current === null)
-        setElapsedSeconds(Math.floor((Date.now() - startTimeRef.current) / 1000));
+        setElapsedMs(Date.now() - startTimeRef.current);
     });
     return () => sub.remove();
   }, [countdown]);
@@ -299,7 +308,7 @@ export const WorkoutActiveScreen = () => {
         'Sesión muy corta',
         'Registra al menos 1 serie o entrena por lo menos 1 minuto antes de finalizar.',
       );
-      intervalRef.current = setInterval(tick, 1000);
+      intervalRef.current = setInterval(tick, 50);
       return;
     }
 
@@ -450,7 +459,10 @@ export const WorkoutActiveScreen = () => {
           </View>
           <View style={s.cardioWrap}>
             <Text style={s.sportLabel}>{displayName}</Text>
-            <Text style={s.timerBig}>{formatTime(elapsedSeconds)}</Text>
+            <Text style={{ color: '#888', fontSize: 12, fontStyle: 'italic', textAlign: 'center', marginBottom: 10 }}>
+              Mantén la posición o continúa durante el tiempo indicado.
+            </Text>
+            <Text style={s.timerBig}>{formatTimeMs(elapsedMs)}</Text>
             {isPaused && <Text style={s.pausedBadge}>PAUSADO</Text>}
 
             <View style={s.statsRow}>
@@ -512,12 +524,20 @@ export const WorkoutActiveScreen = () => {
           </TouchableOpacity>
           <View style={s.musTopRight}>
             {isPaused && <Text style={s.pausedBadge}>PAUSADO</Text>}
-            <Text style={s.timerSmall}>{formatTime(elapsedSeconds)}</Text>
+            <Text style={s.timerSmall}>{formatTimeMs(elapsedMs)}</Text>
           </View>
         </View>
 
         <View style={s.musCenterBlock}>
           <Text style={s.exerciseNameBig}>{displayName}</Text>
+          
+          <Text style={{ color: '#888', fontSize: 12, fontStyle: 'italic', textAlign: 'center', marginBottom: 10 }}>
+            {restDuration > 0 
+              ? "Pausa la rutina para modificar el tiempo de descanso." 
+              : trackingType === 'TIME_BASED'
+                ? "Mantén la posición durante el tiempo indicado." 
+                : "Por cada serie, registra la carga y reps, luego marca la serie como completada."}
+          </Text>
 
           {isResting ? (
             <View style={s.restBlock}>
@@ -606,7 +626,7 @@ const s = StyleSheet.create({
 
   cardioWrap:   { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 },
   sportLabel:   { color: '#f05b22', fontSize: 13, fontWeight: '700', letterSpacing: 3, marginBottom: 16 },
-  timerBig:     { color: '#fff', fontSize: 88, fontWeight: '900', letterSpacing: -2 },
+  timerBig:     { color: '#FF5E00', fontSize: 64, fontWeight: '900', letterSpacing: -2 },
   pausedBadge:  { color: '#f05b22', fontSize: 12, fontWeight: '700', letterSpacing: 2, marginTop: 6 },
 
   statsRow:   { flexDirection: 'row', gap: 12, marginTop: 36 },
@@ -625,7 +645,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 24, paddingTop: 16, paddingBottom: 4,
   },
   musTopRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  timerSmall: { color: '#444', fontSize: 22, fontWeight: '700' },
+  timerSmall: { color: '#FF5E00', fontSize: 24, fontWeight: '700' },
 
   musCenterBlock: { flex: 1, justifyContent: 'center', paddingHorizontal: 24, gap: 20 },
 

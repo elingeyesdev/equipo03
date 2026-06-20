@@ -23,6 +23,7 @@ type ExerciseItem = {
   exerciseType: string;
   trackingType: TrackingType;
   youtubeVideoId?: string | null;
+  imageUrl?: string | null;
 };
 
 type SubGroup = {
@@ -93,6 +94,7 @@ export const WorkoutModeScreen = () => {
             exerciseType: et,
             trackingType: TRACKING_MAP[et] ?? 'PESO_REPS',
             youtubeVideoId: ex.youtubeVideoId ?? null,
+            imageUrl: ex.imageUrl ?? null,
           });
         }
 
@@ -190,6 +192,7 @@ export const WorkoutModeScreen = () => {
                             exercise:     { id: item.id, name: item.name },
                             trackingType: item.trackingType,
                             youtubeVideoId: item.youtubeVideoId,
+                            imageUrl: item.imageUrl,
                           })}
                         >
                           <View style={[s.rowDot, { backgroundColor: sg.color + '22', borderColor: sg.color + '44' }]}>

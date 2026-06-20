@@ -14,7 +14,7 @@ import { MisReservasScreen } from '../app/Providers/reservations/screens/MisRese
 
 export type BuscarStackParamList = {
   BuscarHome: undefined;
-  Mapa: undefined;
+  Mapa: { focusSedeId?: string | number } | undefined;
   StaffMapa: undefined;
   Historial: undefined;
   VisitedGymMap: { gymId: number; name: string; latitude?: number; longitude?: number };

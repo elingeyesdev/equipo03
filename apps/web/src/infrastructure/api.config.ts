@@ -37,6 +37,9 @@ export const createApiClient = (): AxiosInstance => {
   // ── Request interceptor ──────────────────────────────────────────────────────
   client.interceptors.request.use(
     (config) => {
+      if (config.data instanceof FormData) {
+        config.headers.set('Content-Type', undefined as any);
+      }
       return config;
     },
     (error) => Promise.reject(error),

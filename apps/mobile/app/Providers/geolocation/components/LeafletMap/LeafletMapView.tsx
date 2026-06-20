@@ -30,6 +30,7 @@ export interface LeafletMapHandle {
   flyTo:           (lat: number, lng: number, zoom?: number) => void;
   openPopup:       (sedeId: string | number) => void;
   setUserLocation: (lat: number, lng: number) => void;
+  pulseMarker:     (sedeId: string | number, duration?: number) => void;
 }
 
 export interface LeafletMapProps {
@@ -82,6 +83,17 @@ html,body,#map{width:100%;height:100%;background:#0a0a0a;}
 /* ── Sede pin — SVG teardrop ── */
 .pin-wrap{width:30px;height:40px;filter:drop-shadow(0 3px 4px rgba(0,0,0,.55));position:relative;}
 .pin-wrap svg{display:block;}
+.pin-pulse .pin-wrap::after{
+  content:'';position:absolute;top:-8px;left:-8px;width:46px;height:46px;
+  border-radius:50%;border:2px solid rgba(255,94,0,0.5);
+  animation:pinRadar 1s ease-out infinite;
+}
+.pin-pulse .pin-wrap::before{
+  content:'';position:absolute;top:-8px;left:-8px;width:46px;height:46px;
+  border-radius:50%;border:2px solid rgba(255,94,0,0.3);
+  animation:pinRadar 1s ease-out 0.4s infinite;
+}
+@keyframes pinRadar{0%{transform:scale(.5);opacity:.8;}100%{transform:scale(2.2);opacity:0;}}
 
 /* ── Cluster — concentric rings ── */
 .marker-cluster{background:transparent!important;border:none!important;}
@@ -288,6 +300,13 @@ function handleCommand(cmd){
   else if(cmd.type==='SET_SEDES'){setSedes(cmd.sedes);}
   else if(cmd.type==='FLY_TO'){map.flyTo([cmd.lat,cmd.lng],cmd.zoom||15,{animate:true,duration:1});}
   else if(cmd.type==='OPEN_POPUP'){var m=sedeMarkers[String(cmd.sedeId)];if(m){clusterGroup.zoomToShowLayer(m,function(){m.openPopup();});}}
+  else if(cmd.type==='PULSE_MARKER'){
+    var pm=sedeMarkers[String(cmd.sedeId)];
+    if(pm){
+      var el=pm.getElement();
+      if(el){el.classList.add('pin-pulse');setTimeout(function(){el.classList.remove('pin-pulse');},cmd.duration||4000);}
+    }
+  }
 }
 
 document.addEventListener('message',function(e){try{handleCommand(JSON.parse(e.data));}catch(e){}});
@@ -337,6 +356,7 @@ export const LeafletMapView = forwardRef<LeafletMapHandle, LeafletMapProps>(
       flyTo:           (lat, lng, zoom = 15)    => send({ type: 'FLY_TO', lat, lng, zoom }),
       openPopup:       (sedeId)                  => send({ type: 'OPEN_POPUP', sedeId }),
       setUserLocation: (lat, lng)                => send({ type: 'SET_USER_LOCATION', lat, lng }),
+      pulseMarker:     (sedeId, duration = 4000) => send({ type: 'PULSE_MARKER', sedeId, duration }),
     }));
 
     useEffect(() => {
