@@ -39,7 +39,7 @@ export class CreateExerciseDto {
   @IsString()
   difficultyLevel!: string;
 
-  @ApiPropertyOptional({ example: 'dQw4w9WgXcQ', description: 'YouTube video ID (11 chars)' })
+  @ApiPropertyOptional({ example: 'dQw4w9WgXcQ' })
   @IsOptional()
   @IsString()
   youtubeVideoId?: string;
@@ -76,15 +76,30 @@ export class UpdateExerciseDto {
   @IsString()
   exerciseType?: string;
 
+  @ApiPropertyOptional({ example: ['Tríceps'] })
+  @IsOptional()
+  @IsArray()
+  secondaryMuscleGroups?: string[];
+
+  @ApiPropertyOptional({ example: 'Barra olímpica, Banco plano' })
+  @IsOptional()
+  @IsString()
+  equipmentRequired?: string;
+
   @ApiPropertyOptional({ example: 'AVANZADO' })
   @IsOptional()
   @IsString()
   difficultyLevel?: string;
 
-  @ApiPropertyOptional({ example: 'dQw4w9WgXcQ', description: 'YouTube video ID (11 chars)' })
+  @ApiPropertyOptional({ example: 'dQw4w9WgXcQ' })
   @IsOptional()
   @IsString()
   youtubeVideoId?: string;
+
+  @ApiPropertyOptional({ example: 'https://images.example.com/exercise.jpg' })
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
 
   @ApiPropertyOptional({ example: false })
   @IsOptional()

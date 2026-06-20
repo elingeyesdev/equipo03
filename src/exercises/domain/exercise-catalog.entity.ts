@@ -48,6 +48,14 @@ export class ExerciseCatalog {
   @Column({ type: 'boolean', name: 'is_active', default: true })
   isActive!: boolean;
 
+  @Column({
+    type: 'enum',
+    enum: ['WEIGHT_REPS', 'REPS_ONLY', 'TIME_DISTANCE', 'TIME_ONLY'],
+    default: 'WEIGHT_REPS', // Valor por defecto para datos antiguos
+    comment: 'Define el tipo de parámetros a registrar por serie para este ejercicio.'
+  })
+  logType!: 'WEIGHT_REPS' | 'REPS_ONLY' | 'TIME_DISTANCE' | 'TIME_ONLY';
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 

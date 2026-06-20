@@ -2,12 +2,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ExerciseCatalog } from '../domain/exercise-catalog.entity';
+import { StorageService } from '../../shared/infrastructure/storage/storage.service';
 
 @Injectable()
 export class ExercisesService {
   constructor(
     @InjectRepository(ExerciseCatalog)
     private repo: Repository<ExerciseCatalog>,
+    private readonly storageService: StorageService,
   ) {}
 
   create(data: Partial<ExerciseCatalog>) {
@@ -15,10 +17,10 @@ export class ExercisesService {
   }
 
   findAll(filters?: {
-    muscleGroup?:    string;
+    muscleGroup?: string;
     difficultyLevel?: string;
-    category?:       string;
-    exerciseType?:   string;
+    category?: string;
+    exerciseType?: string;
   }) {
     const qb = this.repo.createQueryBuilder('e');
     if (filters?.muscleGroup)
@@ -44,7 +46,31 @@ export class ExercisesService {
     return this.repo.save(e);
   }
 
+  async updateExerciseImage(id: number, fileBuffer: Buffer) {
+    const exercise = await this.findOne(id);
+    if (exercise.imageUrl) {
+      await this.storageService.deleteImage(exercise.imageUrl).catch(() => {});
+    }
+    const imageUrl = await this.storageService.uploadImage(fileBuffer, 'gym_equipment');
+    exercise.imageUrl = imageUrl;
+    return this.repo.save(exercise);
+  }
+
+  async deleteExerciseImage(id: number) {
+    const exercise = await this.findOne(id);
+    if (exercise.imageUrl) {
+      await this.storageService.deleteImage(exercise.imageUrl);
+      exercise.imageUrl = null as any;
+      return this.repo.save(exercise);
+    }
+    return exercise;
+  }
+
   async remove(id: number) {
+    const exercise = await this.findOne(id);
+    if (exercise.imageUrl) {
+      await this.storageService.deleteImage(exercise.imageUrl);
+    }
     const r = await this.repo.delete(id);
     if (r.affected === 0)
       throw new NotFoundException(`Ejercicio ${id} no encontrado`);
