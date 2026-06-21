@@ -12,7 +12,6 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
 import { StaffLevelGuard } from '../../auth/infrastructure/guards/staff-level.guard';
 import { RoutinesService } from '../application/routines.service';
 import {
@@ -23,7 +22,6 @@ import type { RequestWithUser } from '../../common/security/gym-scope';
 
 @ApiTags('Routines')
 @Controller('routines')
-@UseGuards(JwtAuthGuard)
 @ApiBearerAuth('access-token')
 export class RoutinesController {
   constructor(private readonly svc: RoutinesService) {}

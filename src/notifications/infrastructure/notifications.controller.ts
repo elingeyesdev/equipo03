@@ -11,9 +11,8 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { Roles } from '../../common/decorators/roles.decorator';
+import { AdminLevelGuard } from '../../auth/infrastructure/guards/admin-level.guard';
+import { SuperAdminGuard } from '../../auth/infrastructure/guards/super-admin.guard';
 import { NotificationsService } from '../application/notifications.service';
 import {
   CreateTemplateDto,
@@ -23,14 +22,12 @@ import {
 
 @ApiTags('Notifications')
 @Controller('notifications')
-@UseGuards(JwtAuthGuard)
 @ApiBearerAuth('access-token')
 export class NotificationsController {
   constructor(private readonly svc: NotificationsService) {}
 
   @Post('templates')
-  @UseGuards(RolesGuard)
-  @Roles('SUPER_ADMIN')
+  @UseGuards(SuperAdminGuard)
   @ApiOperation({ summary: 'Crear plantilla de notificación' })
   @ApiBody({ type: CreateTemplateDto })
   createTemplate(@Body() body: CreateTemplateDto) {
@@ -38,16 +35,14 @@ export class NotificationsController {
   }
 
   @Get('templates')
-  @UseGuards(RolesGuard)
-  @Roles('SUPER_ADMIN', 'GERENTE')
+  @UseGuards(AdminLevelGuard)
   @ApiOperation({ summary: 'Listar plantillas' })
   findTemplates() {
     return this.svc.findAllTemplates();
   }
 
   @Post()
-  @UseGuards(RolesGuard)
-  @Roles('SUPER_ADMIN', 'GERENTE')
+  @UseGuards(AdminLevelGuard)
   @ApiOperation({ summary: 'Enviar notificación' })
   @ApiBody({ type: SendNotificationDto })
   send(@Body() body: SendNotificationDto) {

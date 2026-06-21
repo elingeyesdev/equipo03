@@ -13,7 +13,6 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
-  ForbiddenException,
   ParseUUIDPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -27,7 +26,6 @@ import {
   ApiResponse,
   ApiConsumes,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
 import { AdminLevelGuard } from '../../auth/infrastructure/guards/admin-level.guard';
 import { MachinesService } from '../application/machines.service';
 import { CreateMachineDto, UpdateMachineDto } from '../application/dtos/machines.dto';
@@ -35,51 +33,41 @@ import type { RequestWithUser } from '../../common/security/gym-scope';
 
 @ApiTags('Machines')
 @Controller('machines')
-@UseGuards(JwtAuthGuard, AdminLevelGuard)
+@UseGuards(AdminLevelGuard)
 @ApiBearerAuth('access-token')
 export class MachinesController {
   constructor(private readonly svc: MachinesService) {}
 
-  private assertWriteAccess(req: RequestWithUser): void {
-    const level = req.user?.level ?? 0;
-    if (level < 5) {
-      throw new ForbiddenException(
-        'Se requiere nivel jerárquico >= 5 para gestionar máquinas.',
-      );
-    }
-  }
-
   @Get()
   @ApiOperation({
     summary:
-      'Listar máquinas. Nivel >=10: todas. Nivel 5: su marca. Nivel 4: su sucursal.',
+      'Listar máquinas. level >= 10: todas. level 5: su marca. level 4: su sucursal.',
   })
   @ApiQuery({ name: 'gymId', required: false, example: 11 })
   @ApiResponse({ status: 200 })
-  findAll(@Query('gymId') rawGymId?: string) {
+  findAll(@Req() req: RequestWithUser, @Query('gymId') rawGymId?: string) {
     const gymId = rawGymId ? Number(rawGymId) : undefined;
-    return this.svc.findAll(gymId);
+    return this.svc.findAll(gymId, req.user!);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Obtener máquina por ID' })
   @ApiParam({ name: 'id', example: 'uuid' })
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.svc.findOne(id);
+  findOne(@Req() req: RequestWithUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.svc.findOne(id, req.user!);
   }
 
   @Post()
-  @ApiOperation({ summary: 'Registrar nueva máquina (nivel >= 5)' })
+  @ApiOperation({ summary: 'Registrar nueva máquina (level >= 4)' })
   @ApiBody({ type: CreateMachineDto })
   @ApiResponse({ status: 201 })
-  @ApiResponse({ status: 403, description: 'Nivel < 5 o gymId ajeno' })
+  @ApiResponse({ status: 403, description: 'gymId fuera de jurisdicción' })
   create(@Req() req: RequestWithUser, @Body() body: CreateMachineDto) {
-    this.assertWriteAccess(req);
-    return this.svc.create(body);
+    return this.svc.create(body, req.user!);
   }
 
   @Put(':id')
-  @ApiOperation({ summary: 'Actualizar datos de una máquina (nivel >= 5)' })
+  @ApiOperation({ summary: 'Actualizar datos de una máquina (level >= 4)' })
   @ApiParam({ name: 'id', example: 'uuid' })
   @ApiBody({ type: UpdateMachineDto })
   update(
@@ -87,12 +75,11 @@ export class MachinesController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: UpdateMachineDto,
   ) {
-    this.assertWriteAccess(req);
-    return this.svc.update(id, body);
+    return this.svc.update(id, body, req.user!);
   }
 
   @Patch(':id/image')
-  @ApiOperation({ summary: 'Subir/reemplazar imagen (nivel >= 5)' })
+  @ApiOperation({ summary: 'Subir/reemplazar imagen (level >= 4)' })
   @ApiConsumes('multipart/form-data')
   @ApiParam({ name: 'id', example: 'uuid' })
   @ApiBody({
@@ -107,32 +94,29 @@ export class MachinesController {
     @Param('id', ParseUUIDPipe) id: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    this.assertWriteAccess(req);
     if (!file) {
       throw new BadRequestException('El campo "image" es requerido.');
     }
-    return this.svc.updateImage(id, file.buffer);
+    return this.svc.updateImage(id, file.buffer, req.user!);
   }
 
   @Delete(':id/image')
-  @ApiOperation({ summary: 'Eliminar imagen (nivel >= 5)' })
+  @ApiOperation({ summary: 'Eliminar imagen (level >= 4)' })
   @ApiParam({ name: 'id', example: 'uuid' })
   deleteImage(
     @Req() req: RequestWithUser,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    this.assertWriteAccess(req);
-    return this.svc.deleteImage(id);
+    return this.svc.deleteImage(id, req.user!);
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Eliminar máquina (nivel >= 5)' })
+  @ApiOperation({ summary: 'Eliminar máquina (level >= 4)' })
   @ApiParam({ name: 'id', example: 'uuid' })
   remove(
     @Req() req: RequestWithUser,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    this.assertWriteAccess(req);
-    return this.svc.remove(id);
+    return this.svc.remove(id, req.user!);
   }
 }

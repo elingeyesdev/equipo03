@@ -20,9 +20,8 @@ import {
   ApiQuery,
   ApiResponse,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { Roles } from '../../common/decorators/roles.decorator';
+import { AdminLevelGuard } from '../../auth/infrastructure/guards/admin-level.guard';
+import { SuperAdminGuard } from '../../auth/infrastructure/guards/super-admin.guard';
 import { GymsService } from '../application/gyms.service';
 import {
   CreateGymDto,
@@ -34,7 +33,6 @@ import type { RequestWithUser } from '../../common/security/gym-scope';
 
 @ApiTags('Gyms')
 @Controller('gyms')
-@UseGuards(JwtAuthGuard)
 @ApiBearerAuth('access-token')
 export class GymsController {
   constructor(private readonly svc: GymsService) {}
@@ -42,9 +40,7 @@ export class GymsController {
   // ── Rutas estáticas PRIMERO (antes de /:id) ────────────────────────────────
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN')
-  @ApiBearerAuth('access-token')
+  @UseGuards(SuperAdminGuard)
   @ApiOperation({ summary: 'Crear gimnasio con ubicación y horarios' })
   @ApiBody({ type: CreateGymDto })
   @ApiResponse({ status: 201 })
@@ -88,8 +84,6 @@ export class GymsController {
   }
 
   @Get('frequent')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('access-token')
   @ApiOperation({
     summary:
       'Sedes más visitadas del cliente autenticado con aforo en tiempo real',
@@ -112,13 +106,11 @@ export class GymsController {
   }
 
   @Get('me/dashboard-stats')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('GERENTE', 'SUPER_ADMIN', 'RECEPCIONISTA')
-  @ApiBearerAuth('access-token')
+  @UseGuards(AdminLevelGuard)
   @ApiOperation({
     summary: 'Estadísticas de HOY para la sede del gerente/recepcionista',
   })
-  @ApiQuery({ name: 'gymId', required: false, description: 'Solo SUPER_ADMIN' })
+  @ApiQuery({ name: 'gymId', required: false, description: 'Solo nivel >= 10' })
   @ApiResponse({
     status: 200,
     schema: {
@@ -133,15 +125,16 @@ export class GymsController {
   })
   @ApiResponse({
     status: 403,
-    description: 'Solo GERENTE, RECEPCIONISTA o SUPER_ADMIN',
+    description: 'Solo nivel administrativo (>= 4)',
   })
   getDashboardStats(
     @Req() req: RequestWithUser,
     @Query('gymId') rawGymId?: string,
   ) {
-    const role = req.user?.role?.toUpperCase();
+    const level = req.user?.level ?? 0;
     const gymId = req.user?.gymId;
-    if (role === 'RECEPCIONISTA' && gymId) {
+    // Operador local (level 4): solo puede ver stats de su propia sede
+    if (level < 5 && gymId) {
       return this.svc.getDashboardStats(Number(gymId));
     }
     return this.svc.getDashboardStats(
@@ -150,14 +143,12 @@ export class GymsController {
   }
 
   @Delete('schedules/:scheduleId')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GERENTE')
-  @ApiBearerAuth('access-token')
+  @UseGuards(AdminLevelGuard)
   @ApiOperation({ summary: 'Eliminar horario de gimnasio' })
   @ApiParam({ name: 'scheduleId', example: 1 })
   @ApiResponse({
     status: 403,
-    description: 'Solo SUPER_ADMIN o GERENTE de la sede',
+    description: 'Solo nivel administrativo (>= 4)',
   })
   async removeSchedule(@Param('scheduleId', ParseIntPipe) scheduleId: number) {
     await this.svc.removeSchedule(scheduleId);
@@ -174,15 +165,13 @@ export class GymsController {
   }
 
   @Put(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GERENTE')
-  @ApiBearerAuth('access-token')
+  @UseGuards(AdminLevelGuard)
   @ApiOperation({
-    summary: 'Actualizar datos del gimnasio. GERENTE: solo su sucursal.',
+    summary: 'Actualizar datos del gimnasio. Nivel >= 5: solo su sucursal.',
   })
   @ApiParam({ name: 'id', example: 1 })
   @ApiBody({ type: UpdateGymDto })
-  @ApiResponse({ status: 403, description: 'Solo SUPER_ADMIN o GERENTE' })
+  @ApiResponse({ status: 403, description: 'Solo nivel administrativo (>= 4)' })
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: UpdateGymDto,
@@ -191,9 +180,7 @@ export class GymsController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN')
-  @ApiBearerAuth('access-token')
+  @UseGuards(SuperAdminGuard)
   @ApiOperation({ summary: 'Eliminar gimnasio' })
   @ApiParam({ name: 'id', example: 1 })
   @ApiResponse({ status: 403, description: 'Solo SUPER_ADMIN' })
@@ -203,15 +190,13 @@ export class GymsController {
   }
 
   @Post(':id/schedules')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GERENTE')
-  @ApiBearerAuth('access-token')
+  @UseGuards(AdminLevelGuard)
   @ApiOperation({ summary: 'Agregar horario al gimnasio' })
   @ApiParam({ name: 'id', example: 1 })
   @ApiBody({ type: CreateGymScheduleInputDto })
   @ApiResponse({
     status: 403,
-    description: 'Solo SUPER_ADMIN o GERENTE de la sede',
+    description: 'Solo nivel administrativo (>= 4)',
   })
   addSchedule(
     @Param('id', ParseIntPipe) id: number,
@@ -239,13 +224,11 @@ export class GymsController {
   }
 
   @Put(':id/location')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GERENTE')
-  @ApiBearerAuth('access-token')
+  @UseGuards(AdminLevelGuard)
   @ApiOperation({ summary: 'Actualizar ubicación del gimnasio' })
   @ApiParam({ name: 'id', example: 1 })
   @ApiBody({ type: UpdateGymLocationDto })
-  @ApiResponse({ status: 403, description: 'Solo SUPER_ADMIN o GERENTE' })
+  @ApiResponse({ status: 403, description: 'Solo nivel administrativo (>= 4)' })
   updateLocation(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: UpdateGymLocationDto,

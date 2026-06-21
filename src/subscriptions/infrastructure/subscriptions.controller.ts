@@ -9,7 +9,7 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
+
 import { SubscriptionsService } from '../application/subscriptions.service';
 import {
   CreatePlanDto,
@@ -24,7 +24,6 @@ export class SubscriptionsController {
   constructor(private readonly svc: SubscriptionsService) {}
 
   @Post('plans')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Crear plan de suscripción' })
   @ApiBody({ type: CreatePlanDto })
@@ -33,7 +32,6 @@ export class SubscriptionsController {
   }
 
   @Get('plans')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Listar planes' })
   findPlans() {
@@ -41,7 +39,6 @@ export class SubscriptionsController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Crear suscripción de usuario' })
   @ApiBody({ type: CreateSubscriptionDto })
@@ -50,7 +47,6 @@ export class SubscriptionsController {
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Listar suscripciones' })
   findAll() {
@@ -58,7 +54,6 @@ export class SubscriptionsController {
   }
 
   @Get('user/:userId')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Suscripciones de usuario' })
   findByUser(@Param('userId', ParseIntPipe) uid: number) {
@@ -66,7 +61,6 @@ export class SubscriptionsController {
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Obtener suscripción' })
   findOne(@Param('id', ParseIntPipe) id: number) {
@@ -74,7 +68,6 @@ export class SubscriptionsController {
   }
 
   @Put(':id')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Actualizar suscripción' })
   @ApiBody({ type: UpdateSubscriptionDto })
@@ -86,7 +79,6 @@ export class SubscriptionsController {
   }
 
   @Post(':id/payments')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Registrar pago' })
   @ApiBody({ type: CreatePaymentDto })
@@ -98,7 +90,6 @@ export class SubscriptionsController {
   }
 
   @Get(':id/payments')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Pagos de suscripción' })
   findPayments(@Param('id', ParseIntPipe) id: number) {

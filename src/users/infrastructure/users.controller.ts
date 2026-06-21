@@ -23,9 +23,9 @@ import {
   ApiParam,
   ApiQuery,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { Roles } from '../../common/decorators/roles.decorator';
+import { AdminLevelGuard } from '../../auth/infrastructure/guards/admin-level.guard';
+import { SuperAdminGuard } from '../../auth/infrastructure/guards/super-admin.guard';
+import { StaffLevelGuard } from '../../auth/infrastructure/guards/staff-level.guard';
 import { UsersService } from '../application/users.service';
 import {
   CreateUserDto,
@@ -42,37 +42,35 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GERENTE')
+  @UseGuards(AdminLevelGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Crear usuario con perfil completo' })
   @ApiBody({ type: CreateUserDto })
   @ApiResponse({ status: 201, description: 'Usuario creado' })
   @ApiResponse({ status: 401, description: 'Token inválido o ausente' })
-  @ApiResponse({ status: 403, description: 'Solo SUPER_ADMIN o GERENTE' })
-  create(@Body() body: CreateUserDto) {
-    return this.usersService.create(body);
+  @ApiResponse({ status: 403, description: 'Nivel jerárquico insuficiente o escalada de privilegios' })
+  create(@Req() req: RequestWithUser, @Body() body: CreateUserDto) {
+    return this.usersService.create(body, req.user!);
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA')
+  @UseGuards(AdminLevelGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({
     summary:
-      'Listar usuarios. GERENTE/RECEPCIONISTA: solo su sede. SUPER_ADMIN: filtro opcional.',
+      'Listar usuarios. level >= 5: toda la marca. level 4: solo su sede. level >= 10: sin filtro.',
   })
   @ApiQuery({ name: 'role', required: false, example: 'INSTRUCTOR' })
   @ApiQuery({
     name: 'gymId',
     required: false,
     example: 1,
-    description: 'Solo SUPER_ADMIN',
+    description: 'Solo nivel >= 10',
   })
   @ApiResponse({ status: 200 })
   @ApiResponse({
     status: 403,
-    description: 'Solo SUPER_ADMIN, GERENTE o RECEPCIONISTA',
+    description: 'Nivel jerárquico insuficiente (>= 4)',
   })
   findAll(
     @Req() req: RequestWithUser,
@@ -80,18 +78,15 @@ export class UsersController {
     @Query('gymId') rawGymId?: string,
   ) {
     const authUser = req.user!;
-    const roleUp = authUser.role?.toUpperCase();
+    const level = authUser.level ?? 0;
     const gymId =
-      roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA'
-        ? (authUser.gymId ?? undefined)
-        : rawGymId != null
-          ? Number(rawGymId)
-          : undefined;
+      level >= 10
+        ? (rawGymId != null ? Number(rawGymId) : undefined)
+        : (authUser.gymId ?? undefined);
     return this.usersService.findAll({ role, gymId });
   }
 
   @Get('me')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({
     summary:
@@ -115,7 +110,6 @@ export class UsersController {
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Obtener usuario por ID' })
   @ApiParam({ name: 'id', example: 1 })
@@ -125,20 +119,22 @@ export class UsersController {
   }
 
   @Put(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA')
+  @UseGuards(AdminLevelGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Actualizar datos del usuario' })
   @ApiParam({ name: 'id', example: 1 })
   @ApiBody({ type: UpdateUserDto })
   @ApiResponse({ status: 200, description: 'Usuario actualizado' })
-  @ApiResponse({ status: 403, description: 'Solo SUPER_ADMIN o GERENTE' })
-  update(@Param('id', ParseIntPipe) id: number, @Body() body: UpdateUserDto) {
-    return this.usersService.update(id, body);
+  @ApiResponse({ status: 403, description: 'Nivel jerárquico insuficiente o escalada de privilegios' })
+  update(
+    @Req() req: RequestWithUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: UpdateUserDto,
+  ) {
+    return this.usersService.update(id, body, req.user!);
   }
 
   @Patch('me/profile')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({
     summary: 'Actualizar perfil propio (+ métricas si rol USER/MEMBER)',
@@ -160,7 +156,6 @@ export class UsersController {
   }
 
   @Post('me/metrics')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
@@ -181,7 +176,6 @@ export class UsersController {
   }
 
   @Get('me/metrics/latest')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Última métrica física del usuario autenticado' })
   @ApiResponse({ status: 200 })
@@ -190,7 +184,6 @@ export class UsersController {
   }
 
   @Get('me/metrics')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({
     summary: 'Historial completo de métricas físicas del usuario autenticado',
@@ -203,10 +196,8 @@ export class UsersController {
     return this.usersService.getMetricsHistory(Number(req.user!.userId));
   }
 
-  // TODO: [ESCALABILIDAD] Si en el futuro se requiere notificar a otros roles, agrégalos a este array.
   @Patch('me/push-token')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('GERENTE', 'INSTRUCTOR', 'ENTRENADOR', 'NUTRICIONISTA')
+  @UseGuards(StaffLevelGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({
     summary:
@@ -215,7 +206,7 @@ export class UsersController {
   @ApiBody({ type: UpdatePushTokenDto })
   @ApiResponse({ status: 200, description: 'Token registrado' })
   @ApiResponse({ status: 401, description: 'Token JWT inválido' })
-  @ApiResponse({ status: 403, description: 'Solo roles operativos' })
+  @ApiResponse({ status: 403, description: 'Nivel jerárquico insuficiente (>= 3)' })
   savePushToken(@Req() req: RequestWithUser, @Body() body: UpdatePushTokenDto) {
     return this.usersService.savePushToken(
       Number(req.user!.userId),
@@ -223,27 +214,24 @@ export class UsersController {
     );
   }
 
-  // TODO: [ESCALABILIDAD] Si en el futuro se requiere notificar a otros roles, agrégalos a este array.
   @Delete('me/push-token')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('GERENTE', 'INSTRUCTOR', 'ENTRENADOR', 'NUTRICIONISTA')
+  @UseGuards(StaffLevelGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({
     summary: 'Eliminar token push del dispositivo del usuario autenticado',
   })
   @ApiResponse({ status: 200, description: 'Token eliminado' })
-  @ApiResponse({ status: 403, description: 'Solo roles operativos' })
+  @ApiResponse({ status: 403, description: 'Nivel jerárquico insuficiente (>= 3)' })
   clearPushToken(@Req() req: RequestWithUser) {
     return this.usersService.clearPushToken(Number(req.user!.userId));
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN')
+  @UseGuards(SuperAdminGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Eliminar usuario' })
   @ApiParam({ name: 'id', example: 1 })
-  @ApiResponse({ status: 403, description: 'Solo SUPER_ADMIN' })
+  @ApiResponse({ status: 403, description: 'Nivel jerárquico insuficiente (>= 10)' })
   async remove(@Param('id', ParseIntPipe) id: number) {
     await this.usersService.remove(id);
     return { message: 'Usuario eliminado' };

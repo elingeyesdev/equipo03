@@ -16,9 +16,7 @@ import {
   ApiBody,
   ApiResponse,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { Roles } from '../../common/decorators/roles.decorator';
+import { SuperAdminGuard } from '../../auth/infrastructure/guards/super-admin.guard';
 import { SystemService } from '../application/system.service';
 import {
   CreateSettingDto,
@@ -27,8 +25,7 @@ import {
 
 @ApiTags('System')
 @Controller('system/settings')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('SUPER_ADMIN')
+@UseGuards(SuperAdminGuard)
 @ApiBearerAuth('access-token')
 @ApiResponse({ status: 403, description: 'Solo SUPER_ADMIN' })
 export class SystemController {

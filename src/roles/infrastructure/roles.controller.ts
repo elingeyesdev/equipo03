@@ -10,9 +10,8 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { Roles } from '../../common/decorators/roles.decorator';
+import { AdminLevelGuard } from '../../auth/infrastructure/guards/admin-level.guard';
+import { SuperAdminGuard } from '../../auth/infrastructure/guards/super-admin.guard';
 import { RolesService } from '../application/roles.service';
 import {
   CreatePermissionDto,
@@ -23,47 +22,50 @@ import {
 
 @ApiTags('Roles & Permissions')
 @Controller('roles')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('SUPER_ADMIN')
 @ApiBearerAuth('access-token')
 export class RolesController {
   constructor(private readonly svc: RolesService) {}
 
   @Post('permissions')
-  @ApiOperation({ summary: 'Crear permiso' })
+  @UseGuards(SuperAdminGuard)
+  @ApiOperation({ summary: 'Crear permiso (level >= 10)' })
   @ApiBody({ type: CreatePermissionDto })
   createPermission(@Body() body: CreatePermissionDto) {
     return this.svc.createPermission(body);
   }
 
   @Get('permissions')
-  @ApiOperation({ summary: 'Listar permisos' })
+  @UseGuards(SuperAdminGuard)
+  @ApiOperation({ summary: 'Listar permisos (level >= 10)' })
   findAllPermissions() {
     return this.svc.findAllPermissions();
   }
 
   @Post()
-  @ApiOperation({ summary: 'Crear rol' })
+  @UseGuards(SuperAdminGuard)
+  @ApiOperation({ summary: 'Crear rol (level >= 10)' })
   @ApiBody({ type: CreateRoleDto })
   createRole(@Body() body: CreateRoleDto) {
     return this.svc.createRole(body);
   }
 
   @Get()
-  @Roles('SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA')
-  @ApiOperation({ summary: 'Listar roles' })
+  @UseGuards(AdminLevelGuard)
+  @ApiOperation({ summary: 'Listar roles (level >= 4)' })
   findAllRoles() {
     return this.svc.findAllRoles();
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Obtener rol por ID' })
+  @UseGuards(AdminLevelGuard)
+  @ApiOperation({ summary: 'Obtener rol por ID (level >= 4)' })
   findOneRole(@Param('id', ParseIntPipe) id: number) {
     return this.svc.findOneRole(id);
   }
 
   @Post(':roleId/permissions/:permissionId')
-  @ApiOperation({ summary: 'Asignar permiso a rol' })
+  @UseGuards(SuperAdminGuard)
+  @ApiOperation({ summary: 'Asignar permiso a rol (level >= 10)' })
   assignPermission(
     @Param('roleId', ParseIntPipe) roleId: number,
     @Param('permissionId', ParseIntPipe) permId: number,
@@ -72,7 +74,8 @@ export class RolesController {
   }
 
   @Post('assign')
-  @ApiOperation({ summary: 'Asignar rol a usuario' })
+  @UseGuards(SuperAdminGuard)
+  @ApiOperation({ summary: 'Asignar rol a usuario (level >= 10)' })
   @ApiBody({ type: AssignRoleDto })
   assignRole(@Body() body: AssignRoleDto) {
     return this.svc.assignRoleToUser(
@@ -85,13 +88,15 @@ export class RolesController {
   }
 
   @Get('user/:userId')
-  @ApiOperation({ summary: 'Roles de un usuario' })
+  @UseGuards(AdminLevelGuard)
+  @ApiOperation({ summary: 'Roles de un usuario (level >= 4)' })
   findUserRoles(@Param('userId', ParseIntPipe) userId: number) {
     return this.svc.findUserRoles(userId);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Actualizar rol' })
+  @UseGuards(SuperAdminGuard)
+  @ApiOperation({ summary: 'Actualizar rol (level >= 10)' })
   @ApiBody({ type: UpdateRoleDto })
   updateRole(
     @Param('id', ParseIntPipe) id: number,
@@ -101,13 +106,15 @@ export class RolesController {
   }
 
   @Delete('user-role/:id')
-  @ApiOperation({ summary: 'Remover rol de usuario' })
+  @UseGuards(SuperAdminGuard)
+  @ApiOperation({ summary: 'Remover rol de usuario (level >= 10)' })
   removeUserRole(@Param('id', ParseIntPipe) id: number) {
     return this.svc.removeUserRole(id);
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Eliminar rol (no sistema)' })
+  @UseGuards(SuperAdminGuard)
+  @ApiOperation({ summary: 'Eliminar rol (level >= 10)' })
   removeRole(@Param('id', ParseIntPipe) id: number) {
     return this.svc.removeRole(id);
   }

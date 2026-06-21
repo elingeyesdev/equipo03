@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
   InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -11,8 +12,11 @@ import * as bcrypt from 'bcrypt';
 import { User } from '../domain/user.entity';
 import { UserProfile } from '../domain/user-profile.entity';
 import { UserRole } from '../../roles/domain/user-role.entity';
+import { Role } from '../../roles/domain/role.entity';
+import { Gym } from '../../gyms/domain/gym.entity';
 import { PhysicalMetricsHistory } from '../../metrics/domain/physical-metrics-history.entity';
 import type { UpdateProfileDto } from './dtos/users.dto';
+import type { RequestUser } from '../../common/security/gym-scope';
 
 @Injectable()
 export class UsersService {
@@ -22,6 +26,10 @@ export class UsersService {
     private readonly profilesRepo: Repository<UserProfile>,
     @InjectRepository(UserRole)
     private readonly userRolesRepo: Repository<UserRole>,
+    @InjectRepository(Role)
+    private readonly rolesRepo: Repository<Role>,
+    @InjectRepository(Gym)
+    private readonly gymRepo: Repository<Gym>,
     @InjectRepository(PhysicalMetricsHistory)
     private readonly metricsRepo: Repository<PhysicalMetricsHistory>,
   ) {}
@@ -38,7 +46,35 @@ export class UsersService {
     roleId?: number;
     gymIds?: number[];
     isActive?: boolean;
-  }) {
+  }, caller?: RequestUser) {
+    const callerLevel = caller?.level ?? 0;
+
+    if (caller && data.roleId !== undefined) {
+      const newLevel = await this.resolveNewRoleLevel(data.roleId);
+      if (newLevel >= callerLevel) {
+        throw new ForbiddenException(
+          'No puedes crear un usuario con un rol de nivel igual o superior al tuyo.',
+        );
+      }
+    }
+
+    if (caller && callerLevel < 10 && data.gymIds?.length) {
+      const allowedGyms = callerLevel >= 5
+        ? await this.resolveBrandGymIds(caller)
+        : (caller.gymId ? [Number(caller.gymId)] : []);
+      for (const gid of data.gymIds) {
+        if (!allowedGyms.includes(gid)) {
+          throw new ForbiddenException(
+            `La sucursal ${gid} no pertenece a tu jurisdicción.`,
+          );
+        }
+      }
+    }
+
+    if (caller && callerLevel <= 4 && data.gymIds?.length === 0) {
+      data.gymIds = caller.gymId ? [Number(caller.gymId)] : undefined;
+    }
+
     const existing = await this.usersRepo.findOne({
       where: { email: data.email },
     });
@@ -149,6 +185,53 @@ export class UsersService {
     });
   }
 
+  private async resolveTargetLevel(userId: number): Promise<number> {
+    const topRole = await this.userRolesRepo.findOne({
+      where: { userId },
+      relations: ['role'],
+      order: { role: { hierarchyLevel: 'DESC' } },
+    });
+    return topRole?.role?.hierarchyLevel ?? 0;
+  }
+
+  private async resolveNewRoleLevel(roleId: number): Promise<number> {
+    const role = await this.rolesRepo.findOne({ where: { id: roleId } });
+    if (!role) throw new NotFoundException(`Rol ${roleId} no encontrado.`);
+    return role.hierarchyLevel ?? 0;
+  }
+
+  private async resolveBrandGymIds(caller: RequestUser): Promise<number[]> {
+    const brandId = caller.brandId ? Number(caller.brandId) : null;
+    const gymId = caller.gymId ? Number(caller.gymId) : null;
+    const anchorId = brandId ?? gymId;
+    if (!anchorId) return [];
+
+    const anchor = await this.gymRepo.findOne({
+      where: { id: anchorId },
+      select: ['id', 'parentId'],
+    });
+    if (!anchor) return [];
+
+    const resolvedBrandId = anchor.parentId ?? anchor.id;
+    const branches = await this.gymRepo.find({
+      where: { parentId: resolvedBrandId, isActive: true },
+      select: ['id'],
+    });
+    return branches.map((b) => b.id);
+  }
+
+  private isStructuralChange(data: {
+    roleId?: number;
+    gymIds?: number[];
+    isActive?: boolean;
+  }): boolean {
+    return (
+      data.roleId !== undefined ||
+      data.gymIds !== undefined ||
+      data.isActive !== undefined
+    );
+  }
+
   async update(
     id: number,
     data: Partial<{
@@ -163,8 +246,57 @@ export class UsersService {
       roleId?: number;
       gymIds?: number[];
     }>,
+    caller?: RequestUser,
   ) {
+    const callerLevel = caller?.level ?? 0;
+    const callerId = caller?.userId ? Number(caller.userId) : 0;
+    const isSelfEdit = callerId === id;
+
+    // ── DEFENSA 1: Anti-escalada en auto-edición ──────────────────────────────
+    if (isSelfEdit && this.isStructuralChange(data)) {
+      throw new ForbiddenException(
+        'Operación prohibida: No puedes modificar tu propio nivel, jurisdicción o estado contractual.',
+      );
+    }
+
+    // ── DEFENSA 2: Validación jerárquica entre terceros ───────────────────────
+    if (!isSelfEdit && caller) {
+      const targetLevel = await this.resolveTargetLevel(id);
+
+      if (targetLevel >= callerLevel) {
+        throw new ForbiddenException(
+          'No puedes editar a un usuario de nivel igual o superior al tuyo.',
+        );
+      }
+
+      if (this.isStructuralChange(data)) {
+        if (data.roleId !== undefined) {
+          const newLevel = await this.resolveNewRoleLevel(data.roleId);
+          if (newLevel >= callerLevel) {
+            throw new ForbiddenException(
+              'No puedes asignar un rol de nivel igual o superior al tuyo.',
+            );
+          }
+        }
+
+        if (callerLevel < 10 && data.gymIds?.length) {
+          const brandGyms = callerLevel >= 5
+            ? await this.resolveBrandGymIds(caller)
+            : (caller.gymId ? [Number(caller.gymId)] : []);
+          for (const gid of data.gymIds) {
+            if (!brandGyms.includes(gid)) {
+              throw new ForbiddenException(
+                `La sucursal ${gid} no pertenece a tu marca.`,
+              );
+            }
+          }
+        }
+      }
+    }
+
+    // ── Persistencia ──────────────────────────────────────────────────────────
     const user = await this.findOne(id);
+
     if (data.password) user.passwordHash = await bcrypt.hash(data.password, 10);
     if (data.email) user.email = data.email;
     if (data.isActive !== undefined) user.isActive = data.isActive;
@@ -199,10 +331,8 @@ export class UsersService {
     }
 
     if (data.roleId !== undefined || data.gymIds !== undefined) {
-      // Eliminar asignaciones existentes
       await this.userRolesRepo.delete({ userId: id });
 
-      // Crear nuevas asignaciones si se proporcionan roleId y gymIds
       if (data.roleId && data.gymIds && data.gymIds.length > 0) {
         const roleAssignments: UserRole[] = [];
         for (const gymId of data.gymIds) {
@@ -218,7 +348,6 @@ export class UsersService {
           await this.userRolesRepo.save(roleAssignments);
         }
       } else if (data.roleId) {
-        // Solo asignar rol sin gimnasio específico
         await this.userRolesRepo.save(
           this.userRolesRepo.create({
             userId: id,

@@ -3,20 +3,16 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
-  Inject,
-  Scope,
 } from '@nestjs/common';
-import { REQUEST } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { MachineInventory } from '../domain/machine-inventory.entity';
 import { Gym } from '../domain/gym.entity';
 import { StorageService } from '../../shared/infrastructure/storage/storage.service';
-import type { RequestWithUser } from '../../common/security/gym-scope';
-import { CreateMachineDto } from './dtos/machines.dto';
-import { UpdateMachineDto } from './dtos/machines.dto';
+import type { RequestUser } from '../../common/security/gym-scope';
+import { CreateMachineDto, UpdateMachineDto } from './dtos/machines.dto';
 
-@Injectable({ scope: Scope.REQUEST })
+@Injectable()
 export class MachinesService {
   constructor(
     @InjectRepository(MachineInventory)
@@ -24,43 +20,32 @@ export class MachinesService {
     @InjectRepository(Gym)
     private gymRepo: Repository<Gym>,
     private readonly storage: StorageService,
-    @Inject(REQUEST) private readonly request: RequestWithUser,
   ) {}
 
-  private get auth() {
-    const user = this.request.user;
-    if (!user?.userId) throw new ForbiddenException('Sesión no válida.');
-    return user;
-  }
-
-  private get level(): number {
-    return this.auth.level ?? 0;
-  }
+  // ── Resolución de jurisdicción ──────────────────────────────────────────────
 
   /**
-   * Resuelve los IDs de sucursales visibles según el nivel jerárquico:
-   *   >= 10 → null (sin filtro, ve todo)
-   *   == 5  → todas las sucursales de su marca (herencia por parentId)
-   *   == 4  → solo su sucursal asignada (gymId del JWT)
+   * Devuelve los gymIds visibles para el usuario:
+   *   level >= 10 → null (sin filtro)
+   *   level == 5  → sucursales de su marca
+   *   level == 4  → solo su gymId
    */
-  private async resolveVisibleGymIds(): Promise<number[] | null> {
-    if (this.level >= 10) return null;
+  private async resolveVisibleGymIds(caller: RequestUser): Promise<number[] | null> {
+    const level = caller.level ?? 0;
 
-    if (this.level === 4) {
-      const gymId = this.auth.gymId ? Number(this.auth.gymId) : null;
-      if (!gymId) {
-        throw new ForbiddenException('No tienes una sucursal asignada.');
-      }
+    if (level >= 10) return null;
+
+    if (level <= 4) {
+      const gymId = caller.gymId ? Number(caller.gymId) : null;
+      if (!gymId) throw new ForbiddenException('No tienes una sucursal asignada.');
       return [gymId];
     }
 
-    const gymId = this.auth.gymId ? Number(this.auth.gymId) : null;
-    const brandId = this.auth.brandId ? Number(this.auth.brandId) : null;
+    // level 5-9: marca completa
+    const brandId = caller.brandId ? Number(caller.brandId) : null;
+    const gymId = caller.gymId ? Number(caller.gymId) : null;
     const anchorId = brandId ?? gymId;
-
-    if (!anchorId) {
-      throw new ForbiddenException('No tienes una marca o sucursal asignada.');
-    }
+    if (!anchorId) throw new ForbiddenException('No tienes una marca o sucursal asignada.');
 
     const anchor = await this.gymRepo.findOne({
       where: { id: anchorId },
@@ -69,7 +54,6 @@ export class MachinesService {
     if (!anchor) throw new ForbiddenException('Sede asignada no encontrada.');
 
     const resolvedBrandId = anchor.parentId ?? anchor.id;
-
     const branches = await this.gymRepo.find({
       where: { parentId: resolvedBrandId, isActive: true },
       select: ['id'],
@@ -78,14 +62,15 @@ export class MachinesService {
     return branches.map((b) => b.id);
   }
 
-  private async assertWriteAccess(gymId: number): Promise<void> {
-    if (this.level >= 10) return;
-
-    if (this.level < 5) {
-      throw new ForbiddenException(
-        'Se requiere nivel jerárquico >= 5 para gestionar máquinas.',
-      );
-    }
+  /**
+   * Valida que el usuario tenga jurisdicción sobre el gymId objetivo.
+   *   level >= 10 → pasa directo
+   *   level 5-9   → gymId debe pertenecer a su marca
+   *   level 4     → gymId debe ser exactamente su sucursal
+   */
+  private async assertJurisdiction(gymId: number, caller: RequestUser): Promise<void> {
+    const level = caller.level ?? 0;
+    if (level >= 10) return;
 
     const gym = await this.gymRepo.findOne({
       where: { id: gymId },
@@ -93,21 +78,34 @@ export class MachinesService {
     });
     if (!gym) throw new NotFoundException(`Sucursal ${gymId} no encontrada.`);
     if (!gym.parentId) {
-      throw new BadRequestException(
-        'Las máquinas solo se asignan a sucursales físicas, no a marcas.',
-      );
+      throw new BadRequestException('Las máquinas solo se asignan a sucursales físicas, no a marcas.');
     }
 
-    const allowed = await this.resolveVisibleGymIds();
+    const allowed = await this.resolveVisibleGymIds(caller);
     if (allowed !== null && !allowed.includes(gymId)) {
-      throw new ForbiddenException(
-        'No tienes permisos para gestionar máquinas en esta sucursal.',
-      );
+      throw new ForbiddenException('No tienes jurisdicción sobre esta sucursal.');
     }
   }
 
-  async findAll(gymId?: number) {
-    const visibleIds = await this.resolveVisibleGymIds();
+  /**
+   * Para level 4: sobrescribe gymId con el del JWT (anti-manipulación).
+   * Para level 5+: respeta el gymId del payload.
+   */
+  private enforceGymId(payloadGymId: number, caller: RequestUser): number {
+    const level = caller.level ?? 0;
+    if (level <= 4) {
+      const forced = caller.gymId ? Number(caller.gymId) : null;
+      if (!forced) throw new ForbiddenException('No tienes una sucursal asignada.');
+      return forced;
+    }
+    return payloadGymId;
+  }
+
+  // ── Queries ─────────────────────────────────────────────────────────────────
+
+  async findAll(gymId: number | undefined, caller?: RequestUser) {
+    const user = caller ?? this.getFallbackCaller();
+    const visibleIds = await this.resolveVisibleGymIds(user);
 
     if (visibleIds === null) {
       const where = gymId ? { gymId } : {};
@@ -129,42 +127,50 @@ export class MachinesService {
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, caller?: RequestUser) {
     const machine = await this.repo.findOne({
       where: { id },
       relations: ['gym'],
     });
     if (!machine) throw new NotFoundException(`Máquina ${id} no encontrada.`);
 
-    const visibleIds = await this.resolveVisibleGymIds();
-    if (visibleIds !== null && !visibleIds.includes(machine.gymId)) {
-      throw new ForbiddenException('No tienes acceso a esta máquina.');
+    if (caller) {
+      const visibleIds = await this.resolveVisibleGymIds(caller);
+      if (visibleIds !== null && !visibleIds.includes(machine.gymId)) {
+        throw new ForbiddenException('No tienes acceso a esta máquina.');
+      }
     }
 
     return machine;
   }
 
-  async create(dto: CreateMachineDto) {
-    await this.assertWriteAccess(dto.gymId);
-    const machine = this.repo.create(dto);
+  // ── Mutaciones ──────────────────────────────────────────────────────────────
+
+  async create(dto: CreateMachineDto, caller: RequestUser) {
+    const gymId = this.enforceGymId(dto.gymId, caller);
+    await this.assertJurisdiction(gymId, caller);
+
+    const machine = this.repo.create({ ...dto, gymId });
     return this.repo.save(machine);
   }
 
-  async update(id: string, dto: UpdateMachineDto) {
-    const machine = await this.findOne(id);
-    await this.assertWriteAccess(machine.gymId);
+  async update(id: string, dto: UpdateMachineDto, caller: RequestUser) {
+    const machine = await this.findOne(id, caller);
+    await this.assertJurisdiction(machine.gymId, caller);
 
     if (dto.gymId !== undefined && dto.gymId !== machine.gymId) {
-      await this.assertWriteAccess(dto.gymId);
+      const newGymId = this.enforceGymId(dto.gymId, caller);
+      await this.assertJurisdiction(newGymId, caller);
+      dto.gymId = newGymId;
     }
 
     Object.assign(machine, dto);
     return this.repo.save(machine);
   }
 
-  async updateImage(id: string, fileBuffer: Buffer) {
-    const machine = await this.findOne(id);
-    await this.assertWriteAccess(machine.gymId);
+  async updateImage(id: string, fileBuffer: Buffer, caller: RequestUser) {
+    const machine = await this.findOne(id, caller);
+    await this.assertJurisdiction(machine.gymId, caller);
 
     if (machine.imageUrl) {
       await this.storage.deleteImage(machine.imageUrl).catch(() => {});
@@ -174,9 +180,9 @@ export class MachinesService {
     return this.repo.save(machine);
   }
 
-  async deleteImage(id: string) {
-    const machine = await this.findOne(id);
-    await this.assertWriteAccess(machine.gymId);
+  async deleteImage(id: string, caller: RequestUser) {
+    const machine = await this.findOne(id, caller);
+    await this.assertJurisdiction(machine.gymId, caller);
 
     if (machine.imageUrl) {
       await this.storage.deleteImage(machine.imageUrl);
@@ -186,14 +192,18 @@ export class MachinesService {
     return machine;
   }
 
-  async remove(id: string) {
-    const machine = await this.findOne(id);
-    await this.assertWriteAccess(machine.gymId);
+  async remove(id: string, caller: RequestUser) {
+    const machine = await this.findOne(id, caller);
+    await this.assertJurisdiction(machine.gymId, caller);
 
     if (machine.imageUrl) {
       await this.storage.deleteImage(machine.imageUrl);
     }
     await this.repo.delete(id);
     return { message: `Máquina "${machine.name}" eliminada.` };
+  }
+
+  private getFallbackCaller(): RequestUser {
+    return { userId: 0, email: '', level: 0 };
   }
 }

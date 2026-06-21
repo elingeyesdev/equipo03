@@ -9,13 +9,11 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
 import { MetricsService } from '../application/metrics.service';
 import { CreateMetricDto } from '../application/dtos/metrics.dto';
 
 @ApiTags('Metrics')
 @Controller('metrics')
-@UseGuards(JwtAuthGuard)
 @ApiBearerAuth('access-token')
 export class MetricsController {
   constructor(private readonly svc: MetricsService) {}

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -6,16 +6,11 @@ import {
   ApiBody,
   ApiResponse,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { Roles } from '../../common/decorators/roles.decorator';
 import { VisitsService } from '../application/visits.service';
 import { CreateVisitDto } from '../application/dtos/create-visit.dto';
 
 @ApiTags('Visits (GPS)')
 @Controller('visits')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('CLIENTE', 'USER')
 @ApiBearerAuth('access-token')
 export class VisitsController {
   constructor(private readonly svc: VisitsService) {}

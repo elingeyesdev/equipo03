@@ -5,15 +5,12 @@ import {
   ApiBearerAuth,
   ApiResponse,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { Roles } from '../../common/decorators/roles.decorator';
+import { AdminLevelGuard } from '../../auth/infrastructure/guards/admin-level.guard';
 import { DashboardService } from '../application/dashboard.service';
 
 @ApiTags('Dashboard')
 @Controller('dashboard')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('SUPER_ADMIN', 'GERENTE', 'RECEPCIONISTA')
+@UseGuards(AdminLevelGuard)
 @ApiBearerAuth('access-token')
 export class DashboardController {
   constructor(private readonly svc: DashboardService) {}

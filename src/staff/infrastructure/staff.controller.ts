@@ -10,6 +10,8 @@ import {
   UseGuards,
   ParseIntPipe,
 } from '@nestjs/common';
+import { AdminLevelGuard } from '../../auth/infrastructure/guards/admin-level.guard';
+import { StaffLevelGuard } from '../../auth/infrastructure/guards/staff-level.guard';
 import {
   ApiTags,
   ApiOperation,
@@ -72,14 +74,10 @@ class AssignScheduleDto {
   @Type(() => ScheduleSlotDto)
   schedules!: ScheduleSlotDto[];
 }
-import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { Roles } from '../../common/decorators/roles.decorator';
 import { StaffService } from '../application/staff.service';
 
 @ApiTags('Staff')
 @Controller('staff')
-@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth('access-token')
 export class StaffController {
   constructor(private readonly svc: StaffService) {}
@@ -90,7 +88,7 @@ export class StaffController {
    * GET /api/staff/agenda/classes
    */
   @Get('agenda/classes')
-  @Roles('ENTRENADOR', 'INSTRUCTOR', 'TRAINER')
+  @UseGuards(StaffLevelGuard)
   @ApiOperation({
     summary: 'Agenda de HOY para el entrenador/instructor autenticado',
   })
@@ -116,7 +114,7 @@ export class StaffController {
   }
 
   @Get('my-appointments')
-  @Roles('NUTRICIONISTA', 'NUTRITIONIST')
+  @UseGuards(StaffLevelGuard)
   @ApiOperation({
     summary:
       'Todas las citas del nutricionista autenticado (+ perfil paciente)',
@@ -134,7 +132,7 @@ export class StaffController {
   }
 
   @Patch('appointments/:id/status')
-  @Roles('NUTRICIONISTA', 'NUTRITIONIST')
+  @UseGuards(StaffLevelGuard)
   @ApiOperation({ summary: 'Actualizar estado de cita nutricional' })
   @ApiParam({ name: 'id', example: 7 })
   @ApiBody({ type: UpdateAppointmentStatusDto })
@@ -149,7 +147,7 @@ export class StaffController {
   }
 
   @Get('me/stats/attendance')
-  @Roles('ENTRENADOR', 'INSTRUCTOR', 'TRAINER')
+  @UseGuards(StaffLevelGuard)
   @ApiOperation({
     summary:
       'Historial de asistencias reales (COMPLETADA) del instructor — últimos 30 días, agrupado por clase/horario',
@@ -179,7 +177,7 @@ export class StaffController {
   }
 
   @Get('me/students')
-  @Roles('ENTRENADOR', 'INSTRUCTOR', 'TRAINER')
+  @UseGuards(StaffLevelGuard)
   @ApiOperation({
     summary: 'Alumnos inscritos en las clases del instructor autenticado',
   })
@@ -204,7 +202,7 @@ export class StaffController {
   }
 
   @Get('me/schedules')
-  @Roles('ENTRENADOR', 'INSTRUCTOR', 'TRAINER')
+  @UseGuards(StaffLevelGuard)
   @ApiOperation({
     summary:
       'Clases de HOY del instructor autenticado con inscritos y lista de alumnos',
@@ -233,7 +231,7 @@ export class StaffController {
   }
 
   @Get('me/weekly-schedules')
-  @Roles('ENTRENADOR', 'INSTRUCTOR', 'TRAINER')
+  @UseGuards(StaffLevelGuard)
   @ApiOperation({
     summary:
       'Todos los horarios semanales del instructor (sin filtro de día) con aforo de hoy',
@@ -245,7 +243,7 @@ export class StaffController {
   }
 
   @Get('catalog')
-  @Roles('USER', 'CLIENTE')
+
   @ApiOperation({
     summary: 'Catálogo público de Entrenadores y Nutricionistas disponibles',
     description:
@@ -272,7 +270,7 @@ export class StaffController {
   }
 
   @Get('advisors/my-requests')
-  @Roles('USER', 'CLIENTE')
+
   @ApiOperation({ summary: 'Solicitudes de asesoría enviadas por el cliente autenticado' })
   @ApiResponse({ status: 200 })
   getMyAdvisorRequests() {
@@ -280,7 +278,7 @@ export class StaffController {
   }
 
   @Get('advisors/my-plan')
-  @Roles('USER', 'CLIENTE')
+
   @ApiOperation({ summary: 'Plan nutricional asignado al cliente por su asesor activo' })
   @ApiResponse({ status: 200, description: 'Devuelve el plan o null si no existe' })
   getMyPlan() {
@@ -288,7 +286,7 @@ export class StaffController {
   }
 
   @Post('advisors/request')
-  @Roles('USER', 'CLIENTE')
+
   @ApiOperation({ summary: 'Solicitar un asesor (Entrenador o Nutricionista)' })
   @ApiBody({
     schema: {
@@ -308,7 +306,7 @@ export class StaffController {
   }
 
   @Get('advisors/requests')
-  @Roles('ENTRENADOR', 'NUTRICIONISTA')
+  @UseGuards(StaffLevelGuard)
   @ApiOperation({ summary: 'Solicitudes de asesoría PENDIENTES recibidas por el asesor autenticado' })
   @ApiResponse({ status: 200 })
   getPendingAdvisorRequests() {
@@ -316,7 +314,7 @@ export class StaffController {
   }
 
   @Patch('advisors/:id/accept')
-  @Roles('ENTRENADOR', 'NUTRICIONISTA')
+  @UseGuards(StaffLevelGuard)
   @ApiOperation({ summary: 'Aceptar una solicitud de asesoría (solo el asesor destinatario)' })
   @ApiParam({ name: 'id', example: 1, description: 'ID de la relación client_advisors' })
   @ApiResponse({ status: 200, description: 'Relación cambiada a ACTIVE' })
@@ -330,7 +328,7 @@ export class StaffController {
   }
 
   @Patch('advisors/:id/reject')
-  @Roles('ENTRENADOR', 'NUTRICIONISTA')
+  @UseGuards(StaffLevelGuard)
   @ApiOperation({ summary: 'Rechazar una solicitud de asesoría' })
   @ApiParam({ name: 'id', example: 1 })
   @ApiResponse({ status: 200, description: 'Relación cambiada a REJECTED' })
@@ -342,7 +340,7 @@ export class StaffController {
   }
 
   @Patch('advisors/:id/cancel')
-  @Roles('USER', 'CLIENTE', 'ENTRENADOR', 'NUTRICIONISTA')
+
   @ApiOperation({ summary: 'Cancelar una asesoría activa (cliente o asesor)' })
   @ApiParam({ name: 'id', example: 1 })
   @ApiResponse({ status: 200, description: 'Asesoría cancelada, plan y rutinas reiniciados' })
@@ -356,7 +354,7 @@ export class StaffController {
   }
 
   @Get('advisors/active-clients')
-  @Roles('ENTRENADOR', 'NUTRICIONISTA')
+  @UseGuards(StaffLevelGuard)
   @ApiOperation({ summary: 'Clientes con relación ACTIVE para el asesor autenticado' })
   @ApiResponse({ status: 200 })
   getActiveAdvisees() {
@@ -364,7 +362,7 @@ export class StaffController {
   }
 
   @Get('clients/:clientId')
-  @Roles('ENTRENADOR', 'NUTRICIONISTA')
+  @UseGuards(StaffLevelGuard)
   @ApiOperation({ summary: 'Perfil + últimas métricas de un cliente (requiere relación ACTIVE)' })
   @ApiParam({ name: 'clientId', example: 5 })
   @ApiResponse({ status: 200 })
@@ -374,7 +372,7 @@ export class StaffController {
   }
 
   @Post('clients/:clientId/plan')
-  @Roles('ENTRENADOR', 'NUTRICIONISTA')
+  @UseGuards(StaffLevelGuard)
   @ApiOperation({ summary: 'Crear o actualizar plan nutricional del entrenador para un cliente' })
   @ApiParam({ name: 'clientId', example: 5 })
   @ApiBody({
@@ -404,7 +402,7 @@ export class StaffController {
   }
 
   @Get('clients/:clientId/plan')
-  @Roles('ENTRENADOR', 'NUTRICIONISTA')
+  @UseGuards(StaffLevelGuard)
   @ApiOperation({ summary: 'Obtener el plan nutricional guardado para un cliente' })
   @ApiParam({ name: 'clientId', example: 5 })
   @ApiResponse({ status: 200 })
@@ -413,7 +411,7 @@ export class StaffController {
   }
 
   @Post(':userId/schedules')
-  @Roles('GERENTE', 'SUPER_ADMIN')
+  @UseGuards(AdminLevelGuard)
   @ApiOperation({
     summary: 'Asignar horario laboral a un empleado (reemplaza el existente)',
   })
@@ -429,7 +427,7 @@ export class StaffController {
     @Param('userId', ParseIntPipe) targetUserId: number,
     @Body() body: AssignScheduleDto,
   ) {
-    const isSuperAdmin = req.user!.role === 'SUPER_ADMIN';
+    const isSuperAdmin = (req.user!.level ?? 0) >= 10;
     const managerGymId = Number(req.user!.gymId ?? req.user!.brandId);
     return this.svc.assignSchedule(
       managerGymId,
@@ -441,7 +439,7 @@ export class StaffController {
   }
 
   @Get(':userId/schedules')
-  @Roles('GERENTE', 'SUPER_ADMIN')
+  @UseGuards(AdminLevelGuard)
   @ApiOperation({ summary: 'Ver horarios laborales de un empleado' })
   @ApiParam({ name: 'userId', example: 5 })
   @ApiResponse({ status: 200 })
@@ -455,7 +453,7 @@ export class StaffController {
    * GET /api/staff/agenda/appointments
    */
   @Get('agenda/appointments')
-  @Roles('NUTRICIONISTA', 'NUTRITIONIST')
+  @UseGuards(StaffLevelGuard)
   @ApiOperation({ summary: 'Agenda de HOY para el nutricionista autenticado' })
   @ApiResponse({
     status: 200,

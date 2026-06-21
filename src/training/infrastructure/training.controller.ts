@@ -20,7 +20,6 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import type { RequestWithUser } from '../../common/security/gym-scope';
-import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
 import { AdminLevelGuard } from '../../auth/infrastructure/guards/admin-level.guard';
 import { TrainingService } from '../application/training.service';
 import {
@@ -35,7 +34,6 @@ import {
 
 @ApiTags('Training')
 @Controller('training')
-@UseGuards(JwtAuthGuard)
 @ApiBearerAuth('access-token')
 export class TrainingController {
   constructor(private readonly svc: TrainingService) {}
@@ -134,12 +132,10 @@ export class TrainingController {
     @Param('userId', ParseIntPipe) uid: number,
     @Query('routineId') routineId?: string,
   ) {
-    const role = req.user?.role?.toUpperCase();
+    const level = req.user?.level ?? 0;
     const selfId = Number(req.user!.userId);
-    if (role === 'USER' || role === 'CLIENTE') {
-      if (selfId !== uid) {
-        throw new ForbiddenException('Solo puedes consultar tus propias sesiones.');
-      }
+    if (level <= 2 && selfId !== uid) {
+      throw new ForbiddenException('Solo puedes consultar tus propias sesiones.');
     }
     const rid = routineId ? parseInt(routineId, 10) : undefined;
     return this.svc.findSessionsByUser(uid, rid);

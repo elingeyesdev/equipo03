@@ -10,7 +10,6 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
 import { WaitlistService } from '../application/waitlist.service';
 import {
   CreateWaitlistEntryDto,
@@ -19,7 +18,6 @@ import {
 
 @ApiTags('Waitlist')
 @Controller('waitlist')
-@UseGuards(JwtAuthGuard)
 @ApiBearerAuth('access-token')
 export class WaitlistController {
   constructor(private readonly svc: WaitlistService) {}

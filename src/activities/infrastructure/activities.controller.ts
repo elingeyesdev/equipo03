@@ -17,9 +17,7 @@ import {
   ApiBody,
   ApiResponse,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { Roles } from '../../common/decorators/roles.decorator';
+import { AdminLevelGuard } from '../../auth/infrastructure/guards/admin-level.guard';
 import { ActivitiesService } from '../application/activities.service';
 import {
   CreateActivityDto,
@@ -30,7 +28,6 @@ import {
 
 @ApiTags('Activities')
 @Controller('activities')
-@UseGuards(JwtAuthGuard)
 @ApiBearerAuth('access-token')
 export class ActivitiesController {
   constructor(private readonly svc: ActivitiesService) {}
@@ -38,11 +35,9 @@ export class ActivitiesController {
   // ── Catálogo (SUPER_ADMIN + GERENTE) ──────────────────────────────────────
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GERENTE')
-  @ApiBearerAuth('access-token')
+  @UseGuards(AdminLevelGuard)
   @ApiOperation({
-    summary: 'Crear actividad (SUPER_ADMIN: global; GERENTE: su sede)',
+    summary: 'Crear actividad (nivel admin: global o su sede)',
   })
   @ApiBody({ type: CreateActivityDto })
   @ApiResponse({ status: 201, description: 'Actividad creada' })
@@ -66,11 +61,9 @@ export class ActivitiesController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GERENTE')
-  @ApiBearerAuth('access-token')
+  @UseGuards(AdminLevelGuard)
   @ApiOperation({
-    summary: 'Actualizar actividad (SUPER_ADMIN: global; GERENTE: su sede)',
+    summary: 'Actualizar actividad (nivel admin: global o su sede)',
   })
   @ApiBody({ type: UpdateActivityDto })
   @ApiResponse({ status: 200, description: 'Actividad actualizada' })
@@ -84,11 +77,9 @@ export class ActivitiesController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GERENTE')
-  @ApiBearerAuth('access-token')
+  @UseGuards(AdminLevelGuard)
   @ApiOperation({
-    summary: 'Desactivar actividad (SUPER_ADMIN: global; GERENTE: su sede)',
+    summary: 'Desactivar actividad (nivel admin: global o su sede)',
   })
   @ApiResponse({ status: 200, description: 'Actividad desactivada' })
   @ApiResponse({ status: 403, description: 'Rol sin permiso o sede ajena' })
@@ -100,9 +91,7 @@ export class ActivitiesController {
   // ── Schedules ─────────────────────────────────────────────────────────────
 
   @Post(':id/schedules')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GERENTE')
-  @ApiBearerAuth('access-token')
+  @UseGuards(AdminLevelGuard)
   @ApiOperation({ summary: 'Crear horario de actividad' })
   @ApiBody({ type: CreateActivityScheduleDto })
   @ApiResponse({ status: 201, description: 'Horario creado exitosamente' })
@@ -129,9 +118,7 @@ export class ActivitiesController {
   }
 
   @Delete(':id/schedules/:scheduleId')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN', 'GERENTE')
-  @ApiBearerAuth('access-token')
+  @UseGuards(AdminLevelGuard)
   @ApiOperation({ summary: 'Eliminar horario de actividad' })
   @ApiResponse({ status: 200, description: 'Horario eliminado' })
   @ApiResponse({ status: 404, description: 'Horario no encontrado' })
@@ -145,8 +132,6 @@ export class ActivitiesController {
   // ── Asistencia ────────────────────────────────────────────────────────────
 
   @Post('schedules/:scheduleId/attendance')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Registrar asistencia' })
   @ApiBody({ type: RegisterAttendanceDto })
   registerAttendance(
@@ -157,8 +142,6 @@ export class ActivitiesController {
   }
 
   @Get('schedules/:scheduleId/attendance')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Asistencias de un horario' })
   findAttendances(@Param('scheduleId', ParseIntPipe) sid: number) {
     return this.svc.findAttendances(sid);

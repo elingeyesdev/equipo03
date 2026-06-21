@@ -23,7 +23,6 @@ import {
   ApiQuery,
   ApiResponse,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
 import { SuperAdminGuard } from '../../auth/infrastructure/guards/super-admin.guard';
 import { ExercisesService } from '../application/exercises.service';
 import {
@@ -33,7 +32,6 @@ import {
 
 @ApiTags('Exercises')
 @Controller('exercises')
-@UseGuards(JwtAuthGuard)
 @ApiBearerAuth('access-token')
 export class ExercisesController {
   constructor(private readonly svc: ExercisesService) {}
