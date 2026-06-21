@@ -68,19 +68,29 @@ export class VisitsService {
 
     const visits = await this.repo
       .createQueryBuilder('visit')
-      .leftJoinAndSelect('visit.gym', 'gym')
+      .innerJoinAndSelect('visit.gym', 'gym')
+      .leftJoinAndSelect('gym.location', 'location')
       .where('visit.user_id = :userId', { userId })
+      .andWhere('gym.isActive = true')
       .orderBy('visit.entered_at', 'DESC')
       .getMany();
 
     return visits.map((v) => ({
       id: v.id,
       gymId: v.gymId,
-      gymName: v.gym?.name ?? 'Gimnasio no encontrado',
       enteredAt: v.enteredAt,
       exitedAt: v.exitedAt,
       durationMin: v.durationMin,
       createdAt: v.createdAt,
+      gym: v.gym ? {
+        id: v.gym.id,
+        name: v.gym.name,
+        location: v.gym.location ? {
+          address: v.gym.location.address,
+          latitude: Number(v.gym.location.latitude),
+          longitude: Number(v.gym.location.longitude),
+        } : undefined,
+      } : undefined,
     }));
   }
 }
