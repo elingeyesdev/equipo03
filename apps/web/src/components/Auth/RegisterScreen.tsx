@@ -167,7 +167,7 @@ export const RegisterScreen = () => {
 
       <nav className="landing-navbar">
         <div>
-          <div className="navbar-logo">GymSync <span>Pro</span></div>
+          <div className="navbar-logo">GymSync <span>Suite</span></div>
           <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '5px 14px', borderRadius: 6, background: 'rgba(255,255,255,0.1)', color: '#fff', textDecoration: 'none', fontSize: 12, fontWeight: 600 }}>← Inicio</Link>
         </div>
         <Link to="/login" className="btn-ghost-cyan">Iniciar Sesión</Link>
@@ -181,7 +181,7 @@ export const RegisterScreen = () => {
           transition={{ type: 'spring', damping: 25, stiffness: 280 }}
         >
           <div className="text-xl font-extrabold text-slate-900 dark:text-white text-center mb-1 tracking-tight">
-            GymSync <span style={{ color: '#38BDF8' }}>Pro</span>
+            GymSync <span style={{ color: '#F97316' }}>Suite</span>
           </div>
 
           {/* ── Vista de éxito ── */}

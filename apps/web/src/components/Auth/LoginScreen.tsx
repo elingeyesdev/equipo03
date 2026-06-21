@@ -108,7 +108,7 @@ export const LoginScreen = () => {
 
       <nav className="landing-navbar">
         <div>
-          <div className="navbar-logo">GymSync <span>Pro</span></div>
+          <div className="navbar-logo">GymSync <span>Suite</span></div>
           <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '5px 14px', borderRadius: 6, background: 'rgba(255,255,255,0.1)', color: '#fff', textDecoration: 'none', fontSize: 12, fontWeight: 600 }}>← Inicio</Link>
         </div>
         <AnimatePresence>
@@ -169,7 +169,7 @@ export const LoginScreen = () => {
               </button>
 
               <div className="text-xl font-extrabold text-slate-900 dark:text-white text-center mb-1 tracking-tight">
-                GymSync <span style={{ color: '#38BDF8' }}>Pro</span>
+                GymSync <span style={{ color: '#F97316' }}>Suite</span>
               </div>
               <h1 className="text-2xl font-bold text-slate-900 dark:text-white text-center">Acceso Corporativo</h1>
               <p className="text-sm text-slate-500 dark:text-gray-400 text-center mt-2 mb-6">Introduce tus credenciales para acceder al sistema.</p>

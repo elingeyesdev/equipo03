@@ -538,7 +538,7 @@ export const MapaView: React.FC = () => {
           </h1>
           <p style={s.subtitle}>
             {isSuperAdmin
-              ? 'Visualización geoespacial de toda la red de gimnasios GymSync Pro'
+              ? 'Visualización geoespacial de toda la red de gimnasios GymSync Suite'
               : `Sucursales pertenecientes a tu marca${marcaNombre ? ` ${marcaNombre}` : ''}`}
           </p>
         </div>

@@ -67,7 +67,7 @@ export const AuditoriaDashboard: React.FC = () => {
     <div className="admin-layout">
       {/* Sidebar de Navegación Lateral */}
       <aside className="admin-sidebar">
-        <div className="brand">GymSync Pro</div>
+        <div className="brand">GymSync Suite</div>
         <nav className="nav-menu">
           <button className="nav-item"> Resumen</button>
           <button className="nav-item active"> Auditoría (Check-Ins)</button>

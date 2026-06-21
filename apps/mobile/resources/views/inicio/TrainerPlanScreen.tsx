@@ -230,7 +230,10 @@ export const TrainerPlanScreen = () => {
 
       await staffApi.upsertTrainerPlan(clientId, dto);
       await queryClient.invalidateQueries({ queryKey: ['trainer-plan', clientId] });
-      Alert.alert('¡Listo!', 'Plan guardado correctamente.');
+      await queryClient.invalidateQueries({ queryKey: ['my-plan'] });
+      Alert.alert('¡Listo!', 'Plan guardado correctamente.', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
     } catch (e: any) {
       Alert.alert('Error', e?.response?.data?.message ?? 'No se pudo guardar el plan.');
     } finally {
@@ -240,7 +243,7 @@ export const TrainerPlanScreen = () => {
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
         {/* Header */}
         <View style={s.topBar}>
           <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>

@@ -72,7 +72,7 @@ export const DashboardLayout = () => {
         {/* Logo */}
         <div className="h-16 flex items-center px-6 border-b border-gray-200 dark:border-bg-deep flex-shrink-0">
           <span className="text-gray-900 dark:text-text-main font-extrabold text-xl tracking-tight">
-            GymSync <span className="text-brand-celeste">Pro</span>
+            GymSync <span className="text-brand-orange">Suite</span>
           </span>
         </div>
 

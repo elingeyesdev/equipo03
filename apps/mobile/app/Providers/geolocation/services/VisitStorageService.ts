@@ -88,4 +88,28 @@ export const VisitStorageService = {
   clearAll: async (): Promise<void> => {
     await AsyncStorage.multiRemove([STORAGE_KEY, ACTIVE_VISIT_KEY]);
   },
+
+  discardActiveVisit: async (): Promise<void> => {
+    const raw = await AsyncStorage.getItem(ACTIVE_VISIT_KEY);
+    if (!raw) return;
+    await AsyncStorage.removeItem(ACTIVE_VISIT_KEY);
+    try {
+      const active: GymVisitRecord = JSON.parse(raw);
+      const all = await VisitStorageService.getAll();
+      const cleaned = all.filter(v => v.id !== active.id);
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
+    } catch {}
+  },
+
+  purgeByGymIds: async (validGymIds: Set<number>): Promise<void> => {
+    const all = await VisitStorageService.getAll();
+    const cleaned = all.filter(v => validGymIds.has(v.gymId));
+    if (cleaned.length < all.length) {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
+    }
+    const active = await VisitStorageService.getActiveVisit();
+    if (active && !validGymIds.has(active.gymId)) {
+      await AsyncStorage.removeItem(ACTIVE_VISIT_KEY);
+    }
+  },
 };
