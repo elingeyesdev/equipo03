@@ -1,6 +1,5 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useTheme } from '../../contexts/ThemeContext';
 
 const today = new Date().toLocaleDateString('es-BO', { day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -15,28 +14,24 @@ const I = {
   dumbbell: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M6.5 6.5h11M6 12h12M3.5 9v6M20.5 9v6M5.5 7.5v9M18.5 7.5v9"/></svg>,
   utensils: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 002-2V2M7 2v20M21 15V2v0a5 5 0 00-5 5v6c0 1.1.9 2 2 2h3v5"/></svg>,
   calendar: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
-  sun: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>,
-  moon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>,
 };
 
 const IconBox = ({ children }: { children: React.ReactNode }) => (
-  <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400 shrink-0">
+  <div className="w-10 h-10 rounded-xl bg-orange-400/10 border border-orange-400/15 flex items-center justify-center text-orange-400 shrink-0">
     {children}
   </div>
 );
 
 export const HomePage = () => {
-  const { theme, toggleTheme } = useTheme();
-
   return (
-    <div className="min-h-screen bg-[#0B0F19] text-white font-sans antialiased overflow-x-hidden">
+    <div className="min-h-screen bg-[#1a1f2e] text-white font-sans antialiased overflow-x-hidden">
 
       {/* ═══ NAVBAR ═══ */}
-      <nav className="sticky top-0 z-50 bg-[#0B0F19]/80 backdrop-blur-xl border-b border-white/5">
+      <nav className="sticky top-0 z-50 bg-[#1a1f2e]/80 backdrop-blur-xl border-b border-white/5">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-6 lg:px-10 py-4">
           <span className="text-xl font-extrabold tracking-tight">
             <span className="text-white">GymSync</span>
-            <span className="text-orange-500"> Pro</span>
+            <span className="text-orange-400"> Pro</span>
           </span>
           <div className="hidden md:flex items-center gap-8 text-sm text-gray-400">
             <a href="#features" className="hover:text-white transition-colors">Funcionalidades</a>
@@ -45,11 +40,8 @@ export const HomePage = () => {
             <a href="#stack" className="hover:text-white transition-colors">Tecnología</a>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={toggleTheme} className="p-2 rounded-lg border border-white/10 text-gray-400 hover:text-white hover:border-white/20 transition-colors">
-              {theme === 'dark' ? I.sun : I.moon}
-            </button>
             <Link to="/login" className="text-sm text-gray-400 hover:text-white transition-colors hidden sm:block">Iniciar Sesión</Link>
-            <Link to="/register" className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors shadow-lg shadow-orange-500/10 hover:shadow-orange-500/20">Registrarse gratis</Link>
+            <Link to="/register" className="bg-orange-400 hover:bg-orange-400 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors shadow-lg shadow-orange-400/10 hover:shadow-orange-400/15">Registrarse gratis</Link>
           </div>
         </div>
       </nav>
@@ -57,14 +49,14 @@ export const HomePage = () => {
       {/* ═══ HERO — with radial glow ═══ */}
       <section className="relative overflow-hidden">
         {/* Radial glow */}
-        <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-orange-500/15 blur-[150px] rounded-full pointer-events-none" />
+        <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-orange-400/10 blur-[150px] rounded-full pointer-events-none" />
         <div className="absolute top-[10%] right-[10%] w-[300px] h-[300px] bg-blue-500/5 blur-[120px] rounded-full pointer-events-none" />
 
         <div className="relative max-w-7xl mx-auto px-6 lg:px-10 pt-24 pb-28 flex flex-col lg:flex-row items-center gap-16">
           {/* Left */}
           <div className="flex-1 max-w-xl">
             <div className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.03] px-4 py-1.5 text-xs font-medium text-gray-300 backdrop-blur-sm mb-8 shadow-lg shadow-black/20">
-              <span className="w-2 h-2 rounded-full bg-orange-500 mr-2 animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-orange-400 mr-2 animate-pulse" />
               Plataforma de Gestión Fitness — SaaS B2B
             </div>
             <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-extrabold tracking-tight leading-[1.08] mb-6">
@@ -76,7 +68,7 @@ export const HomePage = () => {
               Reservas, rutinas, check-in QR, aforo en tiempo real, asesorías y planes nutricionales.
             </p>
             <div className="flex flex-wrap gap-4">
-              <Link to="/login" className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 text-white font-semibold px-8 py-3.5 rounded-xl text-base transition-all">
+              <Link to="/login" className="bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 shadow-lg shadow-orange-400/20 hover:shadow-orange-400/30 text-white font-semibold px-8 py-3.5 rounded-xl text-base transition-all">
                 Iniciar Sesión
               </Link>
               <Link to="/register" className="border border-white/10 hover:border-white/25 bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-sm text-white font-semibold px-8 py-3.5 rounded-xl text-base transition-all">
@@ -87,8 +79,8 @@ export const HomePage = () => {
 
           {/* Right — Glass mockup */}
           <div className="flex-1 max-w-[560px] w-full">
-            <div className="border border-white/10 bg-white/[0.02] backdrop-blur-md rounded-2xl shadow-[0_0_60px_-15px_rgba(249,115,22,0.25)] overflow-hidden">
-              <div className="flex items-center gap-2 px-5 py-3 bg-black/30 border-b border-white/5">
+            <div className="border border-white/10 bg-white/[0.02] backdrop-blur-md rounded-2xl shadow-[0_0_50px_-15px_rgba(251,146,60,0.2)] overflow-hidden">
+              <div className="flex items-center gap-2 px-5 py-3 bg-[#1a1f2e] border-b border-white/5">
                 <div className="w-2.5 h-2.5 rounded-full bg-[#FF5F57]" />
                 <div className="w-2.5 h-2.5 rounded-full bg-[#FEBC2E]" />
                 <div className="w-2.5 h-2.5 rounded-full bg-[#28C840]" />
@@ -127,7 +119,7 @@ export const HomePage = () => {
       </section>
 
       {/* ═══ SOCIAL PROOF ═══ */}
-      <div className="border-y border-white/5 bg-black/20">
+      <div className="border-y border-white/5 bg-[#1e2433]">
         <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-5 divide-x divide-white/5">
           {[
             { val: '2,400+', label: 'Miembros activos' },
@@ -148,15 +140,15 @@ export const HomePage = () => {
       <section id="features" className="py-24 px-6 lg:px-10">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <div className="text-xs uppercase tracking-widest text-orange-500 font-medium mb-3">Funcionalidades</div>
+            <div className="text-xs uppercase tracking-widest text-orange-400 font-medium mb-3">Funcionalidades</div>
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">Todo lo que necesitas en una plataforma</h2>
             <p className="text-gray-400 max-w-2xl mx-auto">19 módulos backend, 30+ pantallas móviles, panel web completo — diseñado para escalar.</p>
           </div>
 
           {/* Bento row 1 — Hero card + 2 small */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
-            <div className="md:col-span-2 bg-gradient-to-br from-[#111827] to-[#0D1117] rounded-2xl p-8 border border-white/5 hover:border-orange-500/30 transition-all duration-300 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-[300px] h-[200px] bg-orange-500/5 blur-[80px] rounded-full pointer-events-none group-hover:bg-orange-500/10 transition-all duration-500" />
+            <div className="md:col-span-2 bg-gradient-to-br from-[#242938] to-[#1e2433] rounded-2xl p-8 border border-white/5 hover:border-orange-400/25 transition-all duration-300 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-[300px] h-[200px] bg-orange-400/5 blur-[80px] rounded-full pointer-events-none group-hover:bg-orange-400/10 transition-all duration-500" />
               <div className="relative">
                 <div className="flex gap-3 mb-6">
                   <IconBox>{I.monitor}</IconBox>
@@ -193,8 +185,8 @@ export const HomePage = () => {
               <GlowCard icon={I.dumbbell} title="4 Modos de Entrenamiento" desc="Peso+reps, solo reps, tiempo+distancia o solo tiempo. Cada ejercicio con su logType específico." />
               <GlowCard icon={I.utensils} title="Planes Nutricionales" desc="Planificador semanal de comidas con macronutrientes. Indicaciones personalizadas del coach." />
             </div>
-            <div className="md:col-span-2 bg-gradient-to-bl from-[#111827] to-[#0D1117] rounded-2xl p-8 border border-white/5 hover:border-orange-500/30 transition-all duration-300 relative overflow-hidden group">
-              <div className="absolute bottom-0 left-0 w-[300px] h-[200px] bg-orange-500/5 blur-[80px] rounded-full pointer-events-none group-hover:bg-orange-500/10 transition-all duration-500" />
+            <div className="md:col-span-2 bg-gradient-to-bl from-[#242938] to-[#1e2433] rounded-2xl p-8 border border-white/5 hover:border-orange-400/25 transition-all duration-300 relative overflow-hidden group">
+              <div className="absolute bottom-0 left-0 w-[300px] h-[200px] bg-orange-400/5 blur-[80px] rounded-full pointer-events-none group-hover:bg-orange-400/10 transition-all duration-500" />
               <div className="relative">
                 <div className="flex gap-3 mb-6">
                   <IconBox>{I.dumbbell}</IconBox>
@@ -216,10 +208,10 @@ export const HomePage = () => {
       </section>
 
       {/* ═══ PLATFORM SPLIT ═══ */}
-      <section id="platform" className="py-24 px-6 lg:px-10 bg-black/20 border-y border-white/5">
+      <section id="platform" className="py-24 px-6 lg:px-10 bg-[#1e2433] border-y border-white/5">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <div className="text-xs uppercase tracking-widest text-orange-500 font-medium mb-3">Plataforma</div>
+            <div className="text-xs uppercase tracking-widest text-orange-400 font-medium mb-3">Plataforma</div>
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">Dos productos, un ecosistema</h2>
           </div>
           <div className="grid md:grid-cols-2 gap-6">
@@ -230,7 +222,7 @@ export const HomePage = () => {
               icon: I.phone, title: 'App Móvil Nativa',
               items: ['Mapa con GPS, distancia y aforo en vivo', 'Reservas y credencial QR virtual', 'Rutinas semanales con selector por día', 'Ejecutor de ejercicios con timer y descanso', 'Catálogo de entrenadores y nutricionistas', 'Planes nutricionales con comidas diarias', 'Métricas corporales y progreso', 'Notificaciones push en tiempo real', 'Dashboards por rol'],
             }].map((p) => (
-              <div key={p.title} className="bg-gradient-to-b from-[#111827] to-[#0D1117] border border-white/5 hover:border-white/10 rounded-2xl p-8 transition-all duration-300">
+              <div key={p.title} className="bg-gradient-to-b from-[#242938] to-[#1e2433] border border-white/5 hover:border-white/10 rounded-2xl p-8 transition-all duration-300">
                 <div className="flex items-center gap-3 mb-6">
                   <IconBox>{p.icon}</IconBox>
                   <h3 className="text-lg font-bold">{p.title}</h3>
@@ -238,7 +230,7 @@ export const HomePage = () => {
                 <ul className="space-y-2.5">
                   {p.items.map(item => (
                     <li key={item} className="flex items-start gap-3">
-                      <div className="w-1 h-1 rounded-full bg-orange-500 mt-2 shrink-0" />
+                      <div className="w-1 h-1 rounded-full bg-orange-400 mt-2 shrink-0" />
                       <span className="text-gray-400 text-sm">{item}</span>
                     </li>
                   ))}
@@ -251,10 +243,10 @@ export const HomePage = () => {
 
       {/* ═══ RBAC ═══ */}
       <section id="roles" className="py-24 px-6 lg:px-10 relative overflow-hidden">
-        <div className="absolute top-1/2 left-0 -translate-y-1/2 w-[400px] h-[400px] bg-orange-500/5 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute top-1/2 left-0 -translate-y-1/2 w-[400px] h-[400px] bg-orange-400/5 blur-[120px] rounded-full pointer-events-none" />
         <div className="relative max-w-6xl mx-auto flex flex-col lg:flex-row items-center gap-16">
           <div className="flex-1 max-w-lg">
-            <span className="font-mono text-xs text-orange-500 tracking-widest uppercase">Arquitectura de Seguridad</span>
+            <span className="font-mono text-xs text-orange-400 tracking-widest uppercase">Arquitectura de Seguridad</span>
             <h2 className="text-3xl font-extrabold tracking-tight mt-4 mb-4">Control de acceso por nivel jerárquico</h2>
             <p className="text-gray-400 leading-relaxed mb-8">
               Cada rol tiene un nivel numérico (1-10) que determina qué puede ver y hacer.
@@ -269,7 +261,7 @@ export const HomePage = () => {
                 'Clientes acceden a sus rutinas, planes y reservas',
               ].map(c => (
                 <div key={c} className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded bg-orange-500/20 border border-orange-500/30 flex items-center justify-center shrink-0">
+                  <div className="w-5 h-5 rounded bg-orange-400/15 border border-orange-400/20 flex items-center justify-center shrink-0">
                     <span className="text-orange-400 text-[11px] font-bold">✓</span>
                   </div>
                   <span className="text-gray-300 text-sm">{c}</span>
@@ -278,7 +270,7 @@ export const HomePage = () => {
             </div>
           </div>
           <div className="flex-1 max-w-md w-full">
-            <div className="border border-white/5 bg-white/[0.02] backdrop-blur-sm rounded-2xl p-6 shadow-[0_0_40px_-15px_rgba(249,115,22,0.15)]">
+            <div className="border border-white/5 bg-white/[0.02] backdrop-blur-sm rounded-2xl p-6 shadow-[0_0_40px_-15px_rgba(251,146,60,0.12)]">
               {[
                 { role: 'Super Admin', level: 10, w: '100%' },
                 { role: 'Gerente', level: 5, w: '50%' },
@@ -290,7 +282,7 @@ export const HomePage = () => {
                 <div key={r.role} className={`flex items-center gap-3 py-3 ${i < 5 ? 'border-b border-white/5' : ''}`}>
                   <span className="text-gray-200 text-sm font-medium w-28">{r.role}</span>
                   <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                    <div className="h-1.5 rounded-full bg-gradient-to-r from-orange-500 to-orange-600" style={{ width: r.w }} />
+                    <div className="h-1.5 rounded-full bg-gradient-to-r from-orange-400 to-orange-500" style={{ width: r.w }} />
                   </div>
                   <span className="font-mono text-xs text-orange-400 w-6 text-right">{r.level}</span>
                 </div>
@@ -301,16 +293,16 @@ export const HomePage = () => {
       </section>
 
       {/* ═══ TECH STACK ═══ */}
-      <section id="stack" className="py-20 px-6 lg:px-10 bg-black/20 border-y border-white/5">
+      <section id="stack" className="py-20 px-6 lg:px-10 bg-[#1e2433] border-y border-white/5">
         <div className="max-w-7xl mx-auto text-center">
-          <div className="text-xs uppercase tracking-widest text-orange-500 font-medium mb-3">Stack Tecnológico</div>
+          <div className="text-xs uppercase tracking-widest text-orange-400 font-medium mb-3">Stack Tecnológico</div>
           <h2 className="text-2xl font-extrabold tracking-tight mb-12">Construido con tecnología enterprise</h2>
           <div className="flex flex-wrap justify-center gap-3">
             {[
               'NestJS', 'TypeORM', 'PostgreSQL', 'React', 'React Native', 'Expo',
               'Tailwind CSS', 'Socket.io', 'Cloudinary', 'JWT', 'Swagger', 'Haversine GPS',
             ].map(tech => (
-              <span key={tech} className="px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/5 hover:border-orange-500/20 text-sm text-gray-300 font-medium transition-all duration-300 hover:text-white cursor-default">
+              <span key={tech} className="px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/5 hover:border-orange-400/20 text-sm text-gray-300 font-medium transition-all duration-300 hover:text-white cursor-default">
                 {tech}
               </span>
             ))}
@@ -320,7 +312,7 @@ export const HomePage = () => {
 
       {/* ═══ CTA FINAL ═══ */}
       <section className="py-28 px-6 lg:px-10 relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-orange-500/10 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-orange-400/10 blur-[120px] rounded-full pointer-events-none" />
         <div className="relative max-w-4xl mx-auto text-center">
           <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">
             Listo para transformar tu{' '}
@@ -330,7 +322,7 @@ export const HomePage = () => {
             19 módulos, 39 tablas PostgreSQL, y una app móvil completa — todo listo para usar.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Link to="/login" className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 text-white font-semibold px-10 py-4 rounded-xl text-base transition-all">
+            <Link to="/login" className="bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 shadow-lg shadow-orange-400/20 hover:shadow-orange-400/30 text-white font-semibold px-10 py-4 rounded-xl text-base transition-all">
               Iniciar Sesión
             </Link>
             <Link to="/register" className="border border-white/10 hover:border-white/25 bg-white/[0.03] text-white font-semibold px-10 py-4 rounded-xl text-base transition-all">
@@ -342,13 +334,13 @@ export const HomePage = () => {
       </section>
 
       {/* ═══ FOOTER ═══ */}
-      <footer className="border-t border-white/5 bg-black/30 py-12 px-6">
+      <footer className="border-t border-white/5 bg-[#1a1f2e] py-12 px-6">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-10">
             <div className="md:col-span-2">
               <span className="text-lg font-extrabold tracking-tight">
                 <span className="text-white">GymSync</span>
-                <span className="text-orange-500"> Suite</span>
+                <span className="text-orange-400"> Suite</span>
               </span>
               <p className="text-gray-500 text-sm mt-3 max-w-sm leading-relaxed">
                 Plataforma integral de gestión para cadenas de gimnasios.
@@ -392,7 +384,7 @@ export const HomePage = () => {
 
 // ── Glow Card ──
 const GlowCard = ({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) => (
-  <div className="bg-gradient-to-br from-[#111827] to-[#0D1117] rounded-2xl p-6 border border-white/5 hover:border-orange-500/30 transition-all duration-300 group relative overflow-hidden flex-1">
+  <div className="bg-gradient-to-br from-[#242938] to-[#1e2433] rounded-2xl p-6 border border-white/5 hover:border-orange-400/25 transition-all duration-300 group relative overflow-hidden flex-1">
     <div className="absolute inset-0 bg-gradient-to-br from-orange-500/0 to-orange-500/0 group-hover:from-orange-500/[0.02] group-hover:to-transparent transition-all duration-500 pointer-events-none" />
     <div className="relative">
       <IconBox>{icon}</IconBox>

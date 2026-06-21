@@ -175,7 +175,7 @@ export const RegisterScreen = () => {
 
       <div className="register-view-container">
         <motion.div
-          className="w-full max-w-md bg-white dark:bg-bg-surface border border-slate-200 dark:border-bg-deep rounded-2xl p-8"
+          className="w-full max-w-md bg-white dark:bg-bg-surface border border-slate-200 dark:border-bg-deep rounded-2xl p-5 sm:p-8"
           initial={{ scale: 0.9, y: 30, opacity: 0 }}
           animate={{ scale: 1, y: 0, opacity: 1 }}
           transition={{ type: 'spring', damping: 25, stiffness: 280 }}

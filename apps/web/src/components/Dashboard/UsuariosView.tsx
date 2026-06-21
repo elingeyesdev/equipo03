@@ -392,16 +392,19 @@ interface StaffScheduleRow { gymId: number; dayOfWeek: number; startTime: string
 
 interface UserPayload {
   email?: string; firstName?: string; lastName?: string;
-  phone?: string; ci?: string; roleId: number; gymIds: number[];
-  isActive: boolean; password?: string;
+  phone?: string; ci?: string; roleId?: number; gymIds?: number[];
+  isActive?: boolean; password?: string; gender?: string;
 }
 
 // ─── Componente Modal de creación/edición (usa Portal via ModalOverlay) ───────
-const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBrandId }: {
+const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBrandId, currentUserId }: {
   isOpen: boolean; onClose: () => void; userToEdit: UserDto | null; onSave: (d: UserFormData) => void;
   roleOptions: RoleOption[];
-  gerenteBrandId?: number; // Si es Gerente de Marca, restringe a las sucursales de esa Marca
+  gerenteBrandId?: number;
+  currentUserId?: number;
 }) => {
+
+  const isSelfEdit = !!(userToEdit && currentUserId && Number(userToEdit.id) === currentUserId);
 
   const [formData, setFormData] = useState({
     firstName: '', lastName: '', email: '', password: '', phone: '',
@@ -432,8 +435,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
   // ── Cargar gyms al abrir: marcas (/gyms/brands) + sucursales (/gyms) ─────────
   useEffect(() => {
     if (!isOpen) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoadingGyms(true);
+setLoadingGyms(true);
     Promise.all([
       apiClient.get('/gyms/brands').catch(() => ({ data: [] })),
       apiClient.get('/gyms').catch(() => ({ data: [] })),
@@ -448,15 +450,17 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
   // ── Poblar formulario al abrir ─────────────────────────────────────────────────
   useEffect(() => {
     if (!isOpen) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTouched(false);
+setTouched(false);
     if (userToEdit) {
       const gymsFromRoles = (userToEdit.userRoles ?? [])
         .map(ur => ur.gym)
         .filter((g): g is NonNullable<typeof g> => g != null);
       const rawPhone = userToEdit.profile?.phone ?? '';
       const { prefix, number } = splitPhone(rawPhone);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+    const currentRoleId = Number(userToEdit.userRoles?.[0]?.roleId) || DB_ROLES.USER;
+      const validRoleId = roleOptions.some(r => r.id === currentRoleId)
+        ? currentRoleId
+        : (roleOptions[0]?.id ?? DB_ROLES.USER);
       setFormData({
         firstName:   userToEdit.profile?.firstName ?? '',
         lastName:    userToEdit.profile?.lastName  ?? '',
@@ -467,12 +471,13 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
         gender:      (userToEdit.profile as Record<string, unknown>)?.gender as string ?? '',
         email:       userToEdit.email ?? '',
         password:    '',
-        roleId:      Number(userToEdit.userRoles?.[0]?.roleId) || DB_ROLES.USER,
+        roleId:      validRoleId,
         gymIds:      gymsFromRoles.map(g => Number(g.id)),
         isActive:    userToEdit.isActive ?? true,
       });
     } else {
-      setFormData({ firstName: '', lastName: '', email: '', password: '', phone: '', phonePrefix: '+591', phoneNumber: '', ci: '', gender: '', roleId: DB_ROLES.USER, gymIds: [], isActive: true });
+      const defaultRoleId = roleOptions[0]?.id ?? DB_ROLES.USER;
+      setFormData({ firstName: '', lastName: '', email: '', password: '', phone: '', phonePrefix: '+591', phoneNumber: '', ci: '', gender: '', roleId: defaultRoleId, gymIds: [], isActive: true });
     }
     if (sedeIdDelGerente) {
       setSelectedSede(sedeIdDelGerente);
@@ -481,13 +486,13 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
       setSelectedSede('');
       setSelectedMarcaId('');
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userToEdit, isOpen, sedeIdDelGerente]);
 
   // ── Pre-poblar marca y sucursal al editar (espera que gyms cargue) ──────────
   useEffect(() => {
     if (!isOpen || !userToEdit || !gyms.length) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (sedeIdDelGerente) { setSelectedMarcaId(sedeIdDelGerente); return; }
+if (sedeIdDelGerente) { setSelectedMarcaId(sedeIdDelGerente); return; }
 
     const firstGymId = formData.gymIds[0];
     if (!firstGymId) return;
@@ -511,8 +516,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
   // ── Restaurar marca del Gerente/Recepcionista si se limpió al cambiar de rol ──
   useEffect(() => {
     if (!isOpen || !sedeIdDelGerente) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSelectedMarcaId(sedeIdDelGerente);
+setSelectedMarcaId(sedeIdDelGerente);
     setSelectedSede(sedeIdDelGerente);
   }, [isOpen, formData.roleId, sedeIdDelGerente]);
 
@@ -712,6 +716,18 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
           </div>
           {errors.password && <span className="text-red-500 text-xs mt-1 block">{errors.password}</span>}
 
+        {isSelfEdit ? (
+          <div className="bg-slate-50 dark:bg-bg-surface border border-slate-200 dark:border-gray-700 rounded-lg p-3 mt-3 flex items-start gap-2.5">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 dark:text-gray-500 mt-0.5 flex-shrink-0">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+            <p className="m-0 text-xs text-slate-500 dark:text-gray-400 leading-relaxed">
+              Tu rol, sucursal y estado de cuenta son gestionados por un administrador de nivel superior.
+              Desde aquí puedes actualizar tus datos de perfil.
+            </p>
+          </div>
+        ) : (
+        <>
         <label className={labelCls}>Rol del Sistema</label>
         <select
           className={inputCls()}
@@ -724,9 +740,11 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
         >
           {roleOptions.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
         </select>
+        </>
+        )}
 
         {/* ── GERENTE / RECEPCIONISTA: selección en dos pasos (1 sucursal) ───────── */}
-        {(isGerente || isRecepcionista) && (
+        {!isSelfEdit && (isGerente || isRecepcionista) && (
           <div className="bg-gray-50 dark:bg-bg-surface border border-brand-orange rounded-xl p-4 mt-3 mb-1 flex flex-col gap-3">
             <p className="m-0 text-xs font-semibold tracking-widest uppercase text-brand-orange">
               Asignación de Marca y Sucursal
@@ -789,7 +807,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
         )}
 
         {/* ── ENTRENADOR / NUTRICIONISTA: sucursales agrupadas por sede ────────── */}
-        {needsMulti && (
+        {!isSelfEdit && needsMulti && (
           <>
             {/* Paso 1: Marca obligatoria (oculto si el contexto ya la impone) */}
             {!sedeIdDelGerente && (
@@ -857,18 +875,20 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
           </>
         )}
 
+        {!isSelfEdit && (
         <div className="flex items-center gap-2 mt-3">
           <input type="checkbox" style={{ width: 'auto' }} checked={formData.isActive}
             onChange={e => setFormData({ ...formData, isActive: e.target.checked })} />
           <label className="text-sm font-medium text-slate-700 dark:text-gray-300">Usuario Activo</label>
         </div>
+        )}
       </div>
 
       <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100 dark:border-gray-800 flex-shrink-0">
         <button className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-bg-deep rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent" onClick={() => guardClose(touched, onClose)}>Cancelar</button>
         <button className="px-4 py-2 bg-brand-celeste text-black font-medium rounded-lg border-0 cursor-pointer" onClick={() => {
           if (!validateForm()) return;
-          if (isGerente || isRecepcionista) {
+          if (!isSelfEdit && (isGerente || isRecepcionista)) {
             const rolLabel = isGerente ? 'Gerente' : 'Recepcionista';
             if (!selectedSede) {
               toast.error(`Debes seleccionar la Marca a la que pertenece el ${rolLabel}`);
@@ -1063,12 +1083,12 @@ export const UsuariosView = () => {
   const handleSaveUser = async (formData: UserFormData) => {
     try {
       const emailTrimmed = formData.email?.trim();
-      const payload: UserPayload = {
+      const isSelf = userToEdit && Number(userToEdit.id) === Number(user?.id);
 
+      const payload: UserPayload = {
         ...(emailTrimmed ? { email: emailTrimmed } : {}),
         firstName: formData.firstName?.trim() || undefined,
         lastName:  formData.lastName?.trim()  || undefined,
-        // Solo envía phone/ci si tienen valor (campos opcionales)
         ...(formData.phone?.trim() ? { phone: formData.phone.trim() } : {}),
         ...(formData.ci?.trim()    ? { ci:    formData.ci.trim()    } : {}),
         ...(formData.gender        ? { gender: formData.gender }      : {}),
@@ -1080,6 +1100,12 @@ export const UsuariosView = () => {
       };
 
       if (formData.password?.trim()) payload.password = formData.password.trim();
+
+      if (isSelf) {
+        delete payload.roleId;
+        delete payload.gymIds;
+        delete payload.isActive;
+      }
 
       if (userToEdit) {
         await apiClient.put(`/users/${userToEdit.id}`, payload);
@@ -1119,7 +1145,7 @@ export const UsuariosView = () => {
     <section style={panelStyle} className="glass-panel">
       <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Usuarios</h1>
       <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">
-        {user?.role === 'SUPER_ADMIN'
+        {(user?.level ?? 0) >= 10
           ? 'Gestión de usuarios de toda la red.'
           : 'Gestión de usuarios de tus sucursales asignadas.'}
       </p>
@@ -1128,7 +1154,7 @@ export const UsuariosView = () => {
         <div style={{ color: '#8E8E93', fontSize: '0.9rem' }}>
           {loading ? 'Cargando usuarios...' : `Total: ${users.length} | Activos: ${usuariosActivos}`}
         </div>
-        {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE' || user?.role === 'RECEPCIONISTA') && (
+        {(user?.level ?? 0) >= 4 && (
           <button onClick={() => { setUserToEdit(null); setIsModalOpen(true); }}
             className="bg-brand-orange text-white font-semibold px-4 py-2 rounded-lg border-0 cursor-pointer whitespace-nowrap inline-flex items-center gap-1.5">
             <Plus size={15} />
@@ -1238,6 +1264,11 @@ export const UsuariosView = () => {
                   ?? ROLE_ID_TO_NAME[roleId]
                   ?? 'SIN_ROL';
                 const roleDisplay = formatRoleName(roleNameRaw);
+                const targetLevel = roleOptions.find(r => r.id === roleId)?.level
+                  ?? (u?.userRoles?.[0]?.role as any)?.hierarchyLevel ?? 0;
+                const myLevel = user?.level ?? 0;
+                const isSelf = Number(u.id) === Number(user?.id);
+                const canEdit = isSelf || targetLevel < myLevel || myLevel >= 10;
                 type GymRef = NonNullable<UserRoleDto['gym']>;
                 const gymsList = (u?.userRoles ?? [])
                   .map((ur: UserRoleDto) => ur.gym)
@@ -1320,7 +1351,7 @@ export const UsuariosView = () => {
                         </button>
 
                         {/* Horarios (solo personal de sede) */}
-                        {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE' || user?.role === 'RECEPCIONISTA') && SEDE_ROLE_NAMES.has(roleNameRaw) && roleNameRaw !== 'GERENTE' && roleNameRaw !== 'RECEPCIONISTA' && (
+                        {(user?.level ?? 0) >= 4 && SEDE_ROLE_NAMES.has(roleNameRaw) && roleNameRaw !== 'GERENTE' && roleNameRaw !== 'RECEPCIONISTA' && (
                           <button
                             onClick={() => setSchedulingUser(u)}
                             title="Gestionar horarios"
@@ -1333,10 +1364,10 @@ export const UsuariosView = () => {
                         )}
 
                         {/* Editar */}
-                        {(user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE' || user?.role === 'RECEPCIONISTA') && (
+                        {canEdit && (
                           <button
                             onClick={() => { setUserToEdit(u); setIsModalOpen(true); }}
-                            title="Editar usuario"
+                            title={isSelf ? 'Editar mi perfil' : 'Editar usuario'}
                             style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(56,189,248,0.12)', color: '#38BDF8', transition: 'background 0.15s' }}
                             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.26)'; }}
                             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.12)'; }}
@@ -1346,7 +1377,7 @@ export const UsuariosView = () => {
                         )}
 
                         {/* Eliminar */}
-                        {user?.role === 'SUPER_ADMIN' && (
+                        {(user?.level ?? 0) >= 10 && (
                           <button
                             onClick={() => setDeleteConfirmUser(u)}
                             title="Eliminar usuario"
@@ -1373,21 +1404,19 @@ export const UsuariosView = () => {
         onClose={() => setIsModalOpen(false)}
         userToEdit={userToEdit}
         onSave={handleSaveUser}
+        currentUserId={user?.id}
         roleOptions={
-          user?.role === 'RECEPCIONISTA'
-            // RECEPCIONISTA solo puede crear personal operativo (no admins ni él mismo)
-            ? roleOptions.filter(r => r.name !== 'SUPER_ADMIN' && r.name !== 'GERENTE' && r.name !== 'RECEPCIONISTA')
-            : user?.role === 'GERENTE'
-            // GERENTE puede crear RECEPCIONISTA y staff, pero no SUPER_ADMIN ni otro GERENTE
-            ? roleOptions.filter(r => r.name !== 'SUPER_ADMIN' && r.name !== 'GERENTE')
-            : roleOptions
+          roleOptions.filter(r => {
+            const myLevel = user?.level ?? 0;
+            if (myLevel >= 10) return true;
+            return r.level < myLevel;
+          })
         }
         gerenteBrandId={(() => {
-          if (user?.role !== 'GERENTE' && user?.role !== 'RECEPCIONISTA') return undefined;
-          // GERENTE con brandId directo en JWT
-          if (user.brandId) return Number(user.brandId);
-          // GERENTE con gymId (gerente de sucursal) o RECEPCIONISTA → derivar marca del parent
-          if (user.gymId && gymsCatalog.length) {
+          const level = user?.level ?? 0;
+          if (level >= 10) return undefined;
+          if (user?.brandId) return Number(user.brandId);
+          if (user?.gymId && gymsCatalog.length) {
             const s = gymsCatalog.find(g => Number(g.id) === Number(user.gymId));
             return s?.parentId ?? s?.parent?.id ?? undefined;
           }
