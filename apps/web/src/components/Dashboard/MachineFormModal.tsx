@@ -55,6 +55,7 @@ export const MachineFormModal: React.FC<Props> = ({ machine, onClose, onSuccess 
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [imageChanged, setImageChanged] = useState(false);
+  const [pendingImage, setPendingImage] = useState<File | null>(null);
 
   const initialFormRef = useRef({
     name: machine?.name ?? '',
@@ -100,7 +101,13 @@ export const MachineFormModal: React.FC<Props> = ({ machine, onClose, onSuccess 
     try {
       const payload = { name: form.name, status: form.status, category: form.category, gymId: Number(form.gymId) };
       if (isNew) {
-        await apiClient.post('/machines', payload);
+        const res = await apiClient.post('/machines', payload);
+        const newMachineId = res.data?.id;
+        if (newMachineId && pendingImage) {
+          const formData = new FormData();
+          formData.append('image', pendingImage);
+          await apiClient.patch(`/machines/${newMachineId}/image`, formData);
+        }
         toast.success('Máquina registrada');
       } else {
         await apiClient.put(`/machines/${machine.id}`, payload);
@@ -119,6 +126,13 @@ export const MachineFormModal: React.FC<Props> = ({ machine, onClose, onSuccess 
   };
 
   const handleImageUpload = async (file: File) => {
+    if (isNew) {
+      setPendingImage(file);
+      setCurrentImageUrl(URL.createObjectURL(file));
+      setImageChanged(true);
+      resetFileInput();
+      return;
+    }
     if (!machine || !canEdit) return;
     setIsUploading(true);
     const formData = new FormData();
@@ -137,6 +151,13 @@ export const MachineFormModal: React.FC<Props> = ({ machine, onClose, onSuccess 
   };
 
   const handleDeleteImage = async () => {
+    if (isNew) {
+      setPendingImage(null);
+      setCurrentImageUrl(undefined);
+      setImageChanged(true);
+      resetFileInput();
+      return;
+    }
     if (!machine || !canEdit) return;
     try {
       await apiClient.delete(`/machines/${machine.id}/image`);
@@ -176,36 +197,34 @@ export const MachineFormModal: React.FC<Props> = ({ machine, onClose, onSuccess 
         </div>
 
         <div className="overflow-y-auto p-6 space-y-5">
-          {/* Imagen (solo en edición) */}
-          {!isNew && (
-            <div>
-              <p className={labelClass}>Imagen del equipo</p>
-              <div className="h-40 w-full bg-slate-100 dark:bg-[#0d0d0d] rounded-lg mb-3 flex items-center justify-center overflow-hidden border border-slate-200 dark:border-gray-800">
-                {currentImageUrl ? (
-                  <img src={currentImageUrl} alt={machine.name} className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-slate-400 dark:text-gray-600 italic text-sm">Sin imagen</span>
-                )}
-              </div>
-              {canEdit && (
-                <div className="flex gap-2">
-                  <label className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-slate-100 dark:bg-[#2a2a2a] hover:bg-brand-orange text-slate-600 dark:text-gray-300 hover:text-white border border-slate-200 dark:border-gray-700 hover:border-brand-orange rounded-lg cursor-pointer transition-all text-sm font-medium">
-                    {isUploading ? (
-                      <><Loader2 size={14} className="animate-spin" /> Subiendo...</>
-                    ) : (
-                      <><Upload size={14} /> {currentImageUrl ? 'Reemplazar' : 'Subir imagen'}</>
-                    )}
-                    <input ref={fileInputRef} type="file" accept="image/*" className="hidden" disabled={isUploading} onChange={(e) => { if (e.target.files?.[0]) handleImageUpload(e.target.files[0]); }} />
-                  </label>
-                  {currentImageUrl && (
-                    <button onClick={handleDeleteImage} className="px-4 py-2.5 bg-slate-100 dark:bg-[#2a2a2a] hover:bg-red-600 text-slate-500 dark:text-gray-400 hover:text-white border border-slate-200 dark:border-gray-700 hover:border-red-500 rounded-lg transition-all text-sm font-medium flex items-center gap-2">
-                      <Trash2 size={14} /> Eliminar
-                    </button>
-                  )}
-                </div>
+          {/* Imagen */}
+          <div>
+            <p className={labelClass}>Imagen del equipo</p>
+            <div className="h-40 w-full bg-slate-100 dark:bg-[#0d0d0d] rounded-lg mb-3 flex items-center justify-center overflow-hidden border border-slate-200 dark:border-gray-800">
+              {currentImageUrl ? (
+                <img src={currentImageUrl} alt={machine?.name || 'Preview'} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-slate-400 dark:text-gray-600 italic text-sm">Sin imagen</span>
               )}
             </div>
-          )}
+            {canEdit && (
+              <div className="flex gap-2">
+                <label className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-slate-100 dark:bg-[#2a2a2a] hover:bg-brand-orange text-slate-600 dark:text-gray-300 hover:text-white border border-slate-200 dark:border-gray-700 hover:border-brand-orange rounded-lg cursor-pointer transition-all text-sm font-medium">
+                  {isUploading ? (
+                    <><Loader2 size={14} className="animate-spin" /> Subiendo...</>
+                  ) : (
+                    <><Upload size={14} /> {currentImageUrl ? 'Reemplazar' : 'Subir imagen'}</>
+                  )}
+                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden" disabled={isUploading} onChange={(e) => { if (e.target.files?.[0]) handleImageUpload(e.target.files[0]); }} />
+                </label>
+                {currentImageUrl && (
+                  <button onClick={handleDeleteImage} className="px-4 py-2.5 bg-slate-100 dark:bg-[#2a2a2a] hover:bg-red-600 text-slate-500 dark:text-gray-400 hover:text-white border border-slate-200 dark:border-gray-700 hover:border-red-500 rounded-lg transition-all text-sm font-medium flex items-center gap-2">
+                    <Trash2 size={14} /> Eliminar
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Campos */}
           <div className="space-y-4">

@@ -288,9 +288,9 @@ export const RegisterScreen = () => {
                     style={{ paddingLeft: '0.75rem' }}
                   >
                     <option value="">Sin especificar</option>
-                    <option value="MALE">Masculino</option>
-                    <option value="FEMALE">Femenino</option>
-                    <option value="OTHER">Otro</option>
+                    <option value="Masculino">Masculino</option>
+                    <option value="Femenino">Femenino</option>
+                    <option value="Otro">Otro</option>
                   </select>
                 </div>
 

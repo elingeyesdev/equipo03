@@ -90,6 +90,7 @@ const ExerciseModal: React.FC<{
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [pendingImage, setPendingImage] = useState<File | null>(null);
 
   const updateField = (field: string, value: string | boolean) => setForm(prev => ({ ...prev, [field]: value }));
 
@@ -98,7 +99,13 @@ const ExerciseModal: React.FC<{
     setIsSaving(true);
     try {
       if (isNew) {
-        await apiClient.post('/exercises', form);
+        const res = await apiClient.post('/exercises', form);
+        const newExId = res.data?.id;
+        if (newExId && pendingImage) {
+          const fd = new FormData();
+          fd.append('image', pendingImage);
+          await apiClient.patch(`/exercises/${newExId}/image`, fd);
+        }
         toast.success('Ejercicio creado');
       } else {
         await apiClient.put(`/exercises/${exercise.id}`, form);
@@ -114,6 +121,12 @@ const ExerciseModal: React.FC<{
   };
 
   const handleImageUpload = async (file: File) => {
+    if (isNew) {
+      setPendingImage(file);
+      setCurrentImageUrl(URL.createObjectURL(file));
+      resetFileInput();
+      return;
+    }
     if (!exercise) return;
     setIsUploading(true);
     const fd = new FormData();
@@ -130,6 +143,12 @@ const ExerciseModal: React.FC<{
   };
 
   const handleDeleteImage = async () => {
+    if (isNew) {
+      setPendingImage(null);
+      setCurrentImageUrl(undefined);
+      resetFileInput();
+      return;
+    }
     if (!exercise) return;
     try {
       await apiClient.delete(`/exercises/${exercise.id}/image`);
@@ -239,19 +258,17 @@ const ExerciseModal: React.FC<{
                     ? <img src={currentImageUrl} alt={form.name} className="w-full h-full object-cover" />
                     : <span className="text-slate-400 dark:text-gray-600 italic text-sm">Sin imagen</span>}
                 </div>
-                {!isNew && (
-                  <div className="flex gap-2">
-                    <label className="flex-1 flex items-center justify-center gap-2 py-2 bg-slate-100 dark:bg-[#2a2a2a] hover:bg-brand-orange text-slate-600 dark:text-gray-300 hover:text-white border border-slate-200 dark:border-gray-700 hover:border-brand-orange rounded-lg cursor-pointer transition-all text-sm font-medium">
-                      {isUploading ? <><Loader2 size={14} className="animate-spin" /> Subiendo...</> : <><Upload size={14} /> {currentImageUrl ? 'Reemplazar' : 'Subir'}</>}
-                      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" disabled={isUploading} onChange={e => { if (e.target.files?.[0]) handleImageUpload(e.target.files[0]); }} />
-                    </label>
-                    {currentImageUrl && (
-                      <button onClick={handleDeleteImage} className="px-3 py-2 bg-slate-100 dark:bg-[#2a2a2a] hover:bg-red-600 text-slate-500 dark:text-gray-400 hover:text-white border border-slate-200 dark:border-gray-700 hover:border-red-500 rounded-lg transition-all text-sm font-medium">
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                  </div>
-                )}
+                <div className="flex gap-2">
+                  <label className="flex-1 flex items-center justify-center gap-2 py-2 bg-slate-100 dark:bg-[#2a2a2a] hover:bg-brand-orange text-slate-600 dark:text-gray-300 hover:text-white border border-slate-200 dark:border-gray-700 hover:border-brand-orange rounded-lg cursor-pointer transition-all text-sm font-medium">
+                    {isUploading ? <><Loader2 size={14} className="animate-spin" /> Subiendo...</> : <><Upload size={14} /> {currentImageUrl ? 'Reemplazar' : 'Subir'}</>}
+                    <input ref={fileInputRef} type="file" accept="image/*" className="hidden" disabled={isUploading} onChange={e => { if (e.target.files?.[0]) handleImageUpload(e.target.files[0]); }} />
+                  </label>
+                  {currentImageUrl && (
+                    <button onClick={handleDeleteImage} className="px-3 py-2 bg-slate-100 dark:bg-[#2a2a2a] hover:bg-red-600 text-slate-500 dark:text-gray-400 hover:text-white border border-slate-200 dark:border-gray-700 hover:border-red-500 rounded-lg transition-all text-sm font-medium">
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Video YouTube */}

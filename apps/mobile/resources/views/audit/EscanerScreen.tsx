@@ -166,14 +166,13 @@ export const EscanerScreen = () => {
       const activity    = r.freeActivity?.name ?? r.gymActivitySchedule?.gymActivity?.name ?? '';
       const fmtDateStr  = date ? fmtDate(date) : '?';
 
-      // Reserva de otra marca (403): mostramos sucursal y marca de la reserva escaneada
       if (isCrossBrand) {
         const gymName   = r.gym?.name;
-        const brandName = r.gym?.brand?.name;
+        const brandName = r.gym?.brand?.name ?? r.gym?.parent?.name;
         const location  = [gymName, brandName].filter(Boolean).join(' — ');
         Alert.alert(
-          '🏢 Reserva de otra marca',
-          `La reserva de ${clientName}${activity ? ` (${activity})` : ''} está registrada en "${location || 'otra sucursal'}" para el ${fmtDateStr} de ${startTime} a ${endTime}.\n\nEsta reserva no pertenece a ninguna de las sucursales de tu marca.`,
+          '🏢 Reserva de otra sucursal',
+          `La reserva de ${clientName}${activity ? ` (${activity})` : ''} está registrada en "${location || 'otra sucursal'}" para el ${fmtDateStr} de ${startTime} a ${endTime}.\n\nNo tienes acceso para registrar ingresos de esta sucursal.`,
           [{ text: 'Entendido', onPress: () => resetScan() }]
         );
         return;
@@ -288,10 +287,12 @@ export const EscanerScreen = () => {
       );
     } catch {
       if (isCrossBrand) {
-        // getReservationById también fue rechazado (restricción de marca en el backend)
+        const backendMsg = typeof originalErr?.response?.data?.message === 'string'
+          ? originalErr.response.data.message
+          : null;
         Alert.alert(
-          '🏢 Reserva de otra marca',
-          'Esta reserva pertenece a una sucursal de una marca diferente a la tuya.\n\nComo gerente, solo puedes registrar ingresos de las sucursales asociadas a tu marca.',
+          '🏢 Reserva de otra sucursal',
+          backendMsg ?? 'Esta reserva pertenece a otra sucursal. Solo puedes registrar ingresos de las sucursales asignadas a tu cuenta.',
           [{ text: 'Entendido', onPress: () => resetScan() }]
         );
       } else {

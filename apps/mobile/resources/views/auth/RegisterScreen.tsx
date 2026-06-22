@@ -431,9 +431,9 @@ export const RegisterScreen = () => {
                   <MaterialCommunityIcons name="account-outline" size={20} color="#666" style={styles.inputIcon} />
                   <View style={{ flex: 1, flexDirection: 'row', gap: 8 }}>
                     {([
-                      { value: 'MALE', label: 'Masculino' },
-                      { value: 'FEMALE', label: 'Femenino' },
-                      { value: 'OTHER', label: 'Otro' },
+                      { value: 'Masculino', label: 'Masculino' },
+                      { value: 'Femenino', label: 'Femenino' },
+                      { value: 'Otro', label: 'Otro' },
                     ] as const).map(opt => (
                       <TouchableOpacity
                         key={opt.value}

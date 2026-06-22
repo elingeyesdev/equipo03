@@ -20,6 +20,7 @@ const HIERARCHY_LABELS: Record<number, string> = {
   10: 'Máximo (10)',
   5: 'Alto (5)',
   3: 'Medio (3)',
+  2: 'Básico-Avanzado (2)',
   1: 'Básico (1)',
 };
 
@@ -171,6 +172,7 @@ const RoleModal = ({ isOpen, onClose, roleToEdit, onSave, roles }: any) => {
         >
           <option value={4} className="bg-white dark:bg-[#151521] text-slate-900 dark:text-white">Medio-Alto (4) — Recepcionistas / Secretarios</option>
           <option value={3} className="bg-white dark:bg-[#151521] text-slate-900 dark:text-white">Medio (3) — Entrenadores / Nutricionistas</option>
+          <option value={2} className="bg-white dark:bg-[#151521] text-slate-900 dark:text-white">Básico-Avanzado (2) — Instructores de Clases Grupales</option>
           <option value={1} className="bg-white dark:bg-[#151521] text-slate-900 dark:text-white">Básico (1) — Usuarios / Clientes</option>
         </select>
       </div>

@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 
 const today = new Date().toLocaleDateString('es-BO', { day: 'numeric', month: 'long', year: 'numeric' });
 
-// ── Icon components (inline SVG, no dependency) ──
 const I = {
   monitor: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>,
   phone: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>,
@@ -27,60 +26,57 @@ export const HomePage = () => {
     <div className="min-h-screen bg-[#1a1f2e] text-white font-sans antialiased overflow-x-hidden">
 
       {/* ═══ NAVBAR ═══ */}
-      <nav className="sticky top-0 z-50 bg-[#1a1f2e]/80 backdrop-blur-xl border-b border-white/5">
+      <nav className="sticky top-0 z-50 bg-[#1a1f2e]/90 backdrop-blur-xl border-b border-white/5">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-6 lg:px-10 py-4">
           <span className="text-xl font-extrabold tracking-tight">
             <span className="text-white">GymSync</span>
-            <span className="text-orange-400"> Pro</span>
+            <span className="text-orange-400"> Suite</span>
           </span>
           <div className="hidden md:flex items-center gap-8 text-sm text-gray-400">
             <a href="#features" className="hover:text-white transition-colors">Funcionalidades</a>
-            <a href="#platform" className="hover:text-white transition-colors">Plataforma</a>
+            <a href="#como-funciona" className="hover:text-white transition-colors">Cómo funciona</a>
             <a href="#roles" className="hover:text-white transition-colors">Roles</a>
             <a href="#stack" className="hover:text-white transition-colors">Tecnología</a>
           </div>
           <div className="flex items-center gap-3">
             <Link to="/login" className="text-sm text-gray-400 hover:text-white transition-colors hidden sm:block">Iniciar Sesión</Link>
-            <Link to="/register" className="bg-orange-400 hover:bg-orange-400 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors shadow-lg shadow-orange-400/10 hover:shadow-orange-400/15">Registrarse gratis</Link>
+            <Link to="/register" className="bg-orange-400 hover:bg-orange-500 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors">Registrarse gratis</Link>
           </div>
         </div>
       </nav>
 
-      {/* ═══ HERO — with radial glow ═══ */}
+      {/* ═══ HERO ═══ */}
       <section className="relative overflow-hidden">
-        {/* Radial glow */}
-        <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-orange-400/10 blur-[150px] rounded-full pointer-events-none" />
-        <div className="absolute top-[10%] right-[10%] w-[300px] h-[300px] bg-blue-500/5 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-orange-400/8 blur-[160px] rounded-full pointer-events-none" />
 
         <div className="relative max-w-7xl mx-auto px-6 lg:px-10 pt-24 pb-28 flex flex-col lg:flex-row items-center gap-16">
           {/* Left */}
           <div className="flex-1 max-w-xl">
-            <div className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.03] px-4 py-1.5 text-xs font-medium text-gray-300 backdrop-blur-sm mb-8 shadow-lg shadow-black/20">
-              <span className="w-2 h-2 rounded-full bg-orange-400 mr-2 animate-pulse" />
-              Plataforma de Gestión Fitness — SaaS B2B
-            </div>
-            <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-extrabold tracking-tight leading-[1.08] mb-6">
+            <span className="text-xs font-mono text-orange-400 tracking-widest uppercase mb-6 block">
+              Proyecto universitario — UNIVALLE · Santa Cruz
+            </span>
+            <h1 className="text-4xl sm:text-5xl lg:text-[3.4rem] font-extrabold tracking-tight leading-[1.08] mb-6">
               Administra toda tu<br />cadena de{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-orange-600">gimnasios</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-orange-500">gimnasios</span>
             </h1>
             <p className="text-lg text-gray-400 leading-relaxed max-w-xl mb-10">
               Panel web para administración. App móvil nativa para clientes y staff.
               Reservas, rutinas, check-in QR, aforo en tiempo real, asesorías y planes nutricionales.
             </p>
             <div className="flex flex-wrap gap-4">
-              <Link to="/login" className="bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 shadow-lg shadow-orange-400/20 hover:shadow-orange-400/30 text-white font-semibold px-8 py-3.5 rounded-xl text-base transition-all">
+              <Link to="/login" className="bg-orange-400 hover:bg-orange-500 text-white font-semibold px-8 py-3.5 rounded-xl text-base transition-colors">
                 Iniciar Sesión
               </Link>
-              <Link to="/register" className="border border-white/10 hover:border-white/25 bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-sm text-white font-semibold px-8 py-3.5 rounded-xl text-base transition-all">
+              <Link to="/register" className="border border-white/15 hover:border-white/30 text-white font-semibold px-8 py-3.5 rounded-xl text-base transition-colors">
                 Crear Cuenta
               </Link>
             </div>
           </div>
 
-          {/* Right — Glass mockup */}
+          {/* Right — Dashboard mockup */}
           <div className="flex-1 max-w-[560px] w-full">
-            <div className="border border-white/10 bg-white/[0.02] backdrop-blur-md rounded-2xl shadow-[0_0_50px_-15px_rgba(251,146,60,0.2)] overflow-hidden">
-              <div className="flex items-center gap-2 px-5 py-3 bg-[#1a1f2e] border-b border-white/5">
+            <div className="border border-white/8 bg-[#14181f] rounded-2xl overflow-hidden shadow-2xl">
+              <div className="flex items-center gap-2 px-5 py-3 border-b border-white/5">
                 <div className="w-2.5 h-2.5 rounded-full bg-[#FF5F57]" />
                 <div className="w-2.5 h-2.5 rounded-full bg-[#FEBC2E]" />
                 <div className="w-2.5 h-2.5 rounded-full bg-[#28C840]" />
@@ -118,9 +114,9 @@ export const HomePage = () => {
         </div>
       </section>
 
-      {/* ═══ SOCIAL PROOF ═══ */}
-      <div className="border-y border-white/5 bg-[#1e2433]">
-        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-5 divide-x divide-white/5">
+      {/* ═══ STATS ═══ */}
+      <div className="border-y border-white/5 bg-[#14181f]">
+        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-5">
           {[
             { val: '2,400+', label: 'Miembros activos' },
             { val: '48', label: 'Sucursales' },
@@ -128,7 +124,7 @@ export const HomePage = () => {
             { val: '19', label: 'Módulos' },
             { val: '30+', label: 'Pantallas app' },
           ].map((s, i) => (
-            <div key={i} className="py-8 text-center">
+            <div key={i} className={`py-8 text-center ${i < 4 ? 'border-r border-white/5' : ''}`}>
               <div className="text-3xl font-bold text-white">{s.val}</div>
               <div className="text-[10px] uppercase tracking-widest text-gray-500 mt-1.5">{s.label}</div>
             </div>
@@ -136,71 +132,64 @@ export const HomePage = () => {
         </div>
       </div>
 
-      {/* ═══ BENTO GRID — Features ═══ */}
+      {/* ═══ FEATURES ═══ */}
       <section id="features" className="py-24 px-6 lg:px-10">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <div className="text-xs uppercase tracking-widest text-orange-400 font-medium mb-3">Funcionalidades</div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">Todo lo que necesitas en una plataforma</h2>
-            <p className="text-gray-400 max-w-2xl mx-auto">19 módulos backend, 30+ pantallas móviles, panel web completo — diseñado para escalar.</p>
+          <div className="mb-14">
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-3">Todo lo que necesitas en una plataforma</h2>
+            <p className="text-gray-400 max-w-2xl">19 módulos backend, 30+ pantallas móviles, panel web completo — diseñado para escalar.</p>
           </div>
 
-          {/* Bento row 1 — Hero card + 2 small */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
-            <div className="md:col-span-2 bg-gradient-to-br from-[#242938] to-[#1e2433] rounded-2xl p-8 border border-white/5 hover:border-orange-400/25 transition-all duration-300 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-[300px] h-[200px] bg-orange-400/5 blur-[80px] rounded-full pointer-events-none group-hover:bg-orange-400/10 transition-all duration-500" />
-              <div className="relative">
-                <div className="flex gap-3 mb-6">
-                  <IconBox>{I.monitor}</IconBox>
-                  <IconBox>{I.phone}</IconBox>
-                </div>
-                <h3 className="text-xl font-bold mb-3">Panel Web + App Móvil Nativa</h3>
-                <p className="text-gray-400 text-sm leading-relaxed mb-6 max-w-lg">
-                  Dos productos en un ecosistema unificado. El panel web para tu equipo administrativo con dashboards, auditoría y gestión de sucursales.
-                  La app móvil para clientes con rutinas, reservas, mapa GPS y credencial QR virtual.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {['Dashboard KPIs', 'Mapa GPS', 'QR Virtual', 'Rutinas', 'Reservas', 'Push Notifications'].map(t => (
-                    <span key={t} className="text-[11px] text-gray-400 bg-white/5 border border-white/5 px-2.5 py-1 rounded-md">{t}</span>
-                  ))}
-                </div>
+          {/* Bento row 1 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div className="md:col-span-2 bg-[#1e2433] rounded-2xl p-8 border border-white/5 hover:border-orange-400/20 transition-colors">
+              <div className="flex gap-3 mb-6">
+                <IconBox>{I.monitor}</IconBox>
+                <IconBox>{I.phone}</IconBox>
+              </div>
+              <h3 className="text-xl font-bold mb-3">Panel Web + App Móvil Nativa</h3>
+              <p className="text-gray-400 text-sm leading-relaxed mb-6 max-w-lg">
+                Dos productos en un ecosistema unificado. El panel web para tu equipo administrativo con dashboards, auditoría y gestión de sucursales.
+                La app móvil para clientes con rutinas, reservas, mapa GPS y credencial QR virtual.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {['Dashboard KPIs', 'Mapa GPS', 'QR Virtual', 'Rutinas', 'Reservas', 'Push Notifications'].map(t => (
+                  <span key={t} className="text-[11px] text-gray-400 bg-white/5 border border-white/8 px-2.5 py-1 rounded-md">{t}</span>
+                ))}
               </div>
             </div>
-            <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-4">
               <GlowCard icon={I.map} title="GPS Geofencing" desc="Detecta cuando un miembro llega a cualquier sucursal. Check-in automático sin intervención manual." />
               <GlowCard icon={I.qr} title="QR Check-in" desc="Escaneo instantáneo y sin contacto. Validación de reserva, sucursal y horario en tiempo real." />
             </div>
           </div>
 
-          {/* Bento row 2 — 3 equal */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
+          {/* Bento row 2 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <GlowCard icon={I.zap} title="WebSocket en Vivo" desc="Aforo actualizado al instante. Notificaciones push de asesorías, reservas y sesiones sin recargar." />
             <GlowCard icon={I.shield} title="RBAC Jerárquico" desc="6 niveles de acceso (1-10). Cada rol ve exactamente lo que necesita. Sin strings — todo por nivel numérico." />
             <GlowCard icon={I.calendar} title="Reservas + Waitlist" desc="Clases programadas o acceso libre. Si el horario está lleno, la lista de espera te promueve automáticamente." />
           </div>
 
-          {/* Bento row 3 — 2 small + Hero card */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <div className="flex flex-col gap-5">
+          {/* Bento row 3 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex flex-col gap-4">
               <GlowCard icon={I.dumbbell} title="4 Modos de Entrenamiento" desc="Peso+reps, solo reps, tiempo+distancia o solo tiempo. Cada ejercicio con su logType específico." />
               <GlowCard icon={I.utensils} title="Planes Nutricionales" desc="Planificador semanal de comidas con macronutrientes. Indicaciones personalizadas del coach." />
             </div>
-            <div className="md:col-span-2 bg-gradient-to-bl from-[#242938] to-[#1e2433] rounded-2xl p-8 border border-white/5 hover:border-orange-400/25 transition-all duration-300 relative overflow-hidden group">
-              <div className="absolute bottom-0 left-0 w-[300px] h-[200px] bg-orange-400/5 blur-[80px] rounded-full pointer-events-none group-hover:bg-orange-400/10 transition-all duration-500" />
-              <div className="relative">
-                <div className="flex gap-3 mb-6">
-                  <IconBox>{I.dumbbell}</IconBox>
-                </div>
-                <h3 className="text-xl font-bold mb-3">Sistema de Asesorías Entrenador-Cliente</h3>
-                <p className="text-gray-400 text-sm leading-relaxed mb-6 max-w-lg">
-                  Los clientes solicitan un entrenador o nutricionista desde la app. El asesor acepta, asigna rutinas semanales por día,
-                  crea planes nutricionales con comidas y macros, y monitorea el progreso con métricas corporales y records personales.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {['Solicitar Asesor', 'Rutinas por Día', 'Plan Nutricional', 'Métricas', 'Records', 'Timer Descanso'].map(t => (
-                    <span key={t} className="text-[11px] text-gray-400 bg-white/5 border border-white/5 px-2.5 py-1 rounded-md">{t}</span>
-                  ))}
-                </div>
+            <div className="md:col-span-2 bg-[#1e2433] rounded-2xl p-8 border border-white/5 hover:border-orange-400/20 transition-colors">
+              <div className="flex gap-3 mb-6">
+                <IconBox>{I.dumbbell}</IconBox>
+              </div>
+              <h3 className="text-xl font-bold mb-3">Sistema de Asesorías Entrenador-Cliente</h3>
+              <p className="text-gray-400 text-sm leading-relaxed mb-6 max-w-lg">
+                Los clientes solicitan un entrenador o nutricionista desde la app. El asesor acepta, asigna rutinas semanales por día,
+                crea planes nutricionales con comidas y macros, y monitorea el progreso con métricas corporales y records personales.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {['Solicitar Asesor', 'Rutinas por Día', 'Plan Nutricional', 'Métricas', 'Records', 'Timer Descanso'].map(t => (
+                  <span key={t} className="text-[11px] text-gray-400 bg-white/5 border border-white/8 px-2.5 py-1 rounded-md">{t}</span>
+                ))}
               </div>
             </div>
           </div>
@@ -208,13 +197,13 @@ export const HomePage = () => {
       </section>
 
       {/* ═══ PLATFORM SPLIT ═══ */}
-      <section id="platform" className="py-24 px-6 lg:px-10 bg-[#1e2433] border-y border-white/5">
+      <section id="platform" className="py-24 px-6 lg:px-10 bg-[#14181f] border-y border-white/5">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <div className="text-xs uppercase tracking-widest text-orange-400 font-medium mb-3">Plataforma</div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">Dos productos, un ecosistema</h2>
+          <div className="mb-14">
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-3">Dos productos, un ecosistema</h2>
+            <p className="text-gray-400">Panel web para el equipo de gestión. App móvil para clientes y staff en campo.</p>
           </div>
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-2 gap-5">
             {[{
               icon: I.monitor, title: 'Panel Web Administrativo',
               items: ['Dashboard con KPIs por sucursal', 'Gestión de usuarios, roles y permisos', 'Catálogo de servicios y actividades', 'Inventario de máquinas con Cloudinary', 'Biblioteca de 69+ ejercicios con videos', 'Gestión de reservas y check-ins QR', 'Auditoría de accesos del personal', 'Mapa interactivo de sucursales'],
@@ -222,7 +211,7 @@ export const HomePage = () => {
               icon: I.phone, title: 'App Móvil Nativa',
               items: ['Mapa con GPS, distancia y aforo en vivo', 'Reservas y credencial QR virtual', 'Rutinas semanales con selector por día', 'Ejecutor de ejercicios con timer y descanso', 'Catálogo de entrenadores y nutricionistas', 'Planes nutricionales con comidas diarias', 'Métricas corporales y progreso', 'Notificaciones push en tiempo real', 'Dashboards por rol'],
             }].map((p) => (
-              <div key={p.title} className="bg-gradient-to-b from-[#242938] to-[#1e2433] border border-white/5 hover:border-white/10 rounded-2xl p-8 transition-all duration-300">
+              <div key={p.title} className="bg-[#1e2433] border border-white/5 hover:border-white/10 rounded-2xl p-8 transition-colors">
                 <div className="flex items-center gap-3 mb-6">
                   <IconBox>{p.icon}</IconBox>
                   <h3 className="text-lg font-bold">{p.title}</h3>
@@ -241,9 +230,59 @@ export const HomePage = () => {
         </div>
       </section>
 
+      {/* ═══ CÓMO FUNCIONA ═══ */}
+      <section id="como-funciona" className="py-24 px-6 lg:px-10">
+        <div className="max-w-6xl mx-auto">
+          <div className="mb-16">
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-3">Cómo funciona</h2>
+            <p className="text-gray-400">Tres actores, tres roles, una sola plataforma.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-0 relative">
+            {/* Línea conectora en desktop */}
+            <div className="hidden md:block absolute top-12 left-[calc(33.33%+1.5rem)] right-[calc(33.33%+1.5rem)] h-px bg-white/8" />
+
+            {[
+              {
+                n: '01',
+                who: 'Administrador',
+                title: 'Configura la sede',
+                desc: 'Crea sucursales, carga el inventario de máquinas, configura horarios de atención, asigna staff y define los roles desde el panel web.',
+                tags: ['Panel Web', 'RBAC', 'Inventario'],
+              },
+              {
+                n: '02',
+                who: 'Entrenador',
+                title: 'Asigna rutinas',
+                desc: 'Acepta solicitudes de asesoría, diseña rutinas semanales por día con ejercicios, series, repeticiones y tiempos de descanso personalizados.',
+                tags: ['App Móvil', 'Asesorías', 'Rutinas'],
+              },
+              {
+                n: '03',
+                who: 'Cliente',
+                title: 'Entrena desde la app',
+                desc: 'Reserva clases, hace check-in con QR, ejecuta su rutina con timer, registra series y hace seguimiento de su progreso y métricas corporales.',
+                tags: ['App Móvil', 'QR', 'Progreso'],
+              },
+            ].map((step) => (
+              <div key={step.n} className="relative flex flex-col px-6 md:px-8 py-8 border border-white/5 md:border-r md:last:border-r md:border-y-0 md:border-l-0 md:first:border-l rounded-2xl md:rounded-none md:first:rounded-l-2xl md:last:rounded-r-2xl bg-[#1a1f2e] hover:bg-[#1e2433] transition-colors">
+                <span className="text-5xl font-black text-orange-400/20 leading-none mb-4 select-none">{step.n}</span>
+                <span className="text-xs font-mono text-orange-400 uppercase tracking-widest mb-2">{step.who}</span>
+                <h3 className="text-xl font-bold text-white mb-3">{step.title}</h3>
+                <p className="text-gray-400 text-sm leading-relaxed flex-1">{step.desc}</p>
+                <div className="flex flex-wrap gap-1.5 mt-5">
+                  {step.tags.map(t => (
+                    <span key={t} className="text-[10px] text-gray-500 bg-white/4 border border-white/8 px-2 py-0.5 rounded">{t}</span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ═══ RBAC ═══ */}
-      <section id="roles" className="py-24 px-6 lg:px-10 relative overflow-hidden">
-        <div className="absolute top-1/2 left-0 -translate-y-1/2 w-[400px] h-[400px] bg-orange-400/5 blur-[120px] rounded-full pointer-events-none" />
+      <section id="roles" className="py-24 px-6 lg:px-10 bg-[#14181f] border-y border-white/5">
         <div className="relative max-w-6xl mx-auto flex flex-col lg:flex-row items-center gap-16">
           <div className="flex-1 max-w-lg">
             <span className="font-mono text-xs text-orange-400 tracking-widest uppercase">Arquitectura de Seguridad</span>
@@ -258,6 +297,7 @@ export const HomePage = () => {
                 'Gerentes administran su marca y sucursales hijas',
                 'Recepcionistas gestionan solo su sucursal',
                 'Entrenadores y nutricionistas ven solo sus clientes',
+                'Instructores dictan clases grupales con horario fijo',
                 'Clientes acceden a sus rutinas, planes y reservas',
               ].map(c => (
                 <div key={c} className="flex items-center gap-3">
@@ -270,16 +310,17 @@ export const HomePage = () => {
             </div>
           </div>
           <div className="flex-1 max-w-md w-full">
-            <div className="border border-white/5 bg-white/[0.02] backdrop-blur-sm rounded-2xl p-6 shadow-[0_0_40px_-15px_rgba(251,146,60,0.12)]">
+            <div className="border border-white/5 bg-[#1e2433] rounded-2xl p-6">
               {[
                 { role: 'Super Admin', level: 10, w: '100%' },
                 { role: 'Gerente', level: 5, w: '50%' },
                 { role: 'Recepcionista', level: 4, w: '40%' },
                 { role: 'Entrenador', level: 3, w: '30%' },
                 { role: 'Nutricionista', level: 3, w: '30%' },
+                { role: 'Instructor', level: 2, w: '20%' },
                 { role: 'Cliente', level: 1, w: '10%' },
               ].map((r, i) => (
-                <div key={r.role} className={`flex items-center gap-3 py-3 ${i < 5 ? 'border-b border-white/5' : ''}`}>
+                <div key={r.role} className={`flex items-center gap-3 py-3 ${i < 6 ? 'border-b border-white/5' : ''}`}>
                   <span className="text-gray-200 text-sm font-medium w-28">{r.role}</span>
                   <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
                     <div className="h-1.5 rounded-full bg-gradient-to-r from-orange-400 to-orange-500" style={{ width: r.w }} />
@@ -293,16 +334,16 @@ export const HomePage = () => {
       </section>
 
       {/* ═══ TECH STACK ═══ */}
-      <section id="stack" className="py-20 px-6 lg:px-10 bg-[#1e2433] border-y border-white/5">
+      <section id="stack" className="py-20 px-6 lg:px-10">
         <div className="max-w-7xl mx-auto text-center">
-          <div className="text-xs uppercase tracking-widest text-orange-400 font-medium mb-3">Stack Tecnológico</div>
-          <h2 className="text-2xl font-extrabold tracking-tight mb-12">Construido con tecnología enterprise</h2>
-          <div className="flex flex-wrap justify-center gap-3">
+          <h2 className="text-2xl font-extrabold tracking-tight mb-3">Construido con tecnología enterprise</h2>
+          <p className="text-gray-500 text-sm mb-10">Las tecnologías que usamos en cada capa del sistema.</p>
+          <div className="flex flex-wrap justify-center gap-2.5">
             {[
               'NestJS', 'TypeORM', 'PostgreSQL', 'React', 'React Native', 'Expo',
               'Tailwind CSS', 'Socket.io', 'Cloudinary', 'JWT', 'Swagger', 'Haversine GPS',
             ].map(tech => (
-              <span key={tech} className="px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/5 hover:border-orange-400/20 text-sm text-gray-300 font-medium transition-all duration-300 hover:text-white cursor-default">
+              <span key={tech} className="px-4 py-2.5 rounded-xl bg-[#1e2433] border border-white/5 hover:border-orange-400/20 text-sm text-gray-300 font-medium transition-colors hover:text-white cursor-default">
                 {tech}
               </span>
             ))}
@@ -311,21 +352,21 @@ export const HomePage = () => {
       </section>
 
       {/* ═══ CTA FINAL ═══ */}
-      <section className="py-28 px-6 lg:px-10 relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-orange-400/10 blur-[120px] rounded-full pointer-events-none" />
+      <section className="py-28 px-6 lg:px-10 bg-[#14181f] border-t border-white/5 relative overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[250px] bg-orange-400/8 blur-[140px] rounded-full pointer-events-none" />
         <div className="relative max-w-4xl mx-auto text-center">
           <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">
             Listo para transformar tu{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-orange-600">gimnasio</span>
+            <span className="text-orange-400">gimnasio</span>
           </h2>
           <p className="text-gray-400 mb-10 max-w-xl mx-auto">
             19 módulos, 39 tablas PostgreSQL, y una app móvil completa — todo listo para usar.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Link to="/login" className="bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 shadow-lg shadow-orange-400/20 hover:shadow-orange-400/30 text-white font-semibold px-10 py-4 rounded-xl text-base transition-all">
+            <Link to="/login" className="bg-orange-400 hover:bg-orange-500 text-white font-semibold px-10 py-4 rounded-xl text-base transition-colors">
               Iniciar Sesión
             </Link>
-            <Link to="/register" className="border border-white/10 hover:border-white/25 bg-white/[0.03] text-white font-semibold px-10 py-4 rounded-xl text-base transition-all">
+            <Link to="/register" className="border border-white/15 hover:border-white/30 text-white font-semibold px-10 py-4 rounded-xl text-base transition-colors">
               Crear Cuenta Gratis
             </Link>
           </div>
@@ -382,14 +423,10 @@ export const HomePage = () => {
   );
 };
 
-// ── Glow Card ──
 const GlowCard = ({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) => (
-  <div className="bg-gradient-to-br from-[#242938] to-[#1e2433] rounded-2xl p-6 border border-white/5 hover:border-orange-400/25 transition-all duration-300 group relative overflow-hidden flex-1">
-    <div className="absolute inset-0 bg-gradient-to-br from-orange-500/0 to-orange-500/0 group-hover:from-orange-500/[0.02] group-hover:to-transparent transition-all duration-500 pointer-events-none" />
-    <div className="relative">
-      <IconBox>{icon}</IconBox>
-      <h3 className="text-white font-semibold mt-4 mb-2 text-sm">{title}</h3>
-      <p className="text-gray-500 text-sm leading-relaxed">{desc}</p>
-    </div>
+  <div className="bg-[#1e2433] rounded-2xl p-6 border border-white/5 hover:border-orange-400/20 transition-colors flex-1 flex flex-col">
+    <IconBox>{icon}</IconBox>
+    <h3 className="text-white font-semibold mt-4 mb-2 text-sm">{title}</h3>
+    <p className="text-gray-500 text-sm leading-relaxed">{desc}</p>
   </div>
 );

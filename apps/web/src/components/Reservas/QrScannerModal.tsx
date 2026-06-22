@@ -91,12 +91,17 @@ export const QrScannerModal = ({ onClose, onScanned }: QrScannerModalProps) => {
               }, 1500);
             } catch (err: any) {
               if (!mounted) return;
-              const msg = err?.response?.data?.message ?? err?.message ?? 'Error desconocido';
-              setMessage(typeof msg === 'string' ? msg : Array.isArray(msg) ? msg.join('. ') : 'Error al procesar el QR');
+              const httpStatus = err?.response?.status;
+              const raw = err?.response?.data?.message ?? err?.message ?? 'Error desconocido';
+              const msg = typeof raw === 'string' ? raw : Array.isArray(raw) ? raw.join('. ') : 'Error al procesar el QR';
+              setMessage(msg);
               setStatus('error');
-              setTimeout(() => {
-                if (mounted) { setStatus('scanning'); setMessage(''); processingRef.current = false; }
-              }, 6000);
+              const isCrossBranch = httpStatus === 403;
+              if (!isCrossBranch) {
+                setTimeout(() => {
+                  if (mounted) { setStatus('scanning'); setMessage(''); processingRef.current = false; }
+                }, 6000);
+              }
             }
           },
           () => {},
@@ -171,6 +176,12 @@ export const QrScannerModal = ({ onClose, onScanned }: QrScannerModalProps) => {
         {message && status === 'error' && (
           <div style={errorBox}>
             <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>{message}</p>
+            <button
+              style={retryBtn}
+              onClick={() => { setStatus('scanning'); setMessage(''); processingRef.current = false; }}
+            >
+              Escanear otro
+            </button>
           </div>
         )}
 
@@ -218,6 +229,10 @@ const spinner: React.CSSProperties = {
 const errorBox: React.CSSProperties = {
   margin: '12px 20px 16px', padding: 14, background: '#1C1C1E',
   border: '1px solid #FF5E00', borderRadius: 10, color: '#FF5E00',
+};
+const retryBtn: React.CSSProperties = {
+  marginTop: 10, padding: '6px 16px', background: 'transparent', border: '1px solid #FF5E00',
+  borderRadius: 8, color: '#FF5E00', cursor: 'pointer', fontSize: 12, fontWeight: 600,
 };
 const hint: React.CSSProperties = {
   color: '#666', fontSize: 13, textAlign: 'center', padding: '12px 20px 20px', margin: 0,
