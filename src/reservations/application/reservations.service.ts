@@ -90,7 +90,6 @@ export class ReservationsService {
     const { gymId: jwtGymId, brandId: jwtBrandId } = this.getAuthUser();
 
     if (jwtBrandId) {
-      // Gerente de marca: la reserva debe ser del brand mismo o de una sucursal hija
       if (reservationGymId === jwtBrandId) return true;
       const gym = await this.gymRepo.findOne({
         where: { id: reservationGymId },
@@ -98,8 +97,34 @@ export class ReservationsService {
       });
       return gym?.parentId === jwtBrandId;
     }
-    // Gerente de sucursal: comparación directa
     return Number(reservationGymId) === Number(jwtGymId);
+  }
+
+  private async buildCrossBranchErrorMsg(reservationGymId: number | null): Promise<string> {
+    const { gymId: jwtGymId, brandId: jwtBrandId } = this.getAuthUser();
+    const scannerScopeId = jwtBrandId ?? jwtGymId;
+
+    const [reservationGym, scannerGym] = await Promise.all([
+      reservationGymId
+        ? this.gymRepo.findOne({ where: { id: reservationGymId }, relations: ['parent'] })
+        : null,
+      scannerScopeId
+        ? this.gymRepo.findOne({ where: { id: scannerScopeId } })
+        : null,
+    ]);
+
+    const resGymName = reservationGym?.name ?? 'otra sucursal';
+    const resBrandName = reservationGym?.parent?.name;
+    const scannerName = scannerGym?.name ?? 'tu sucursal';
+
+    const resLocation = resBrandName
+      ? `"${resGymName}" (marca ${resBrandName})`
+      : `"${resGymName}"`;
+
+    if (jwtBrandId) {
+      return `Esta reserva pertenece a la sucursal ${resLocation}. Tu marca es "${scannerName}" y solo puedes registrar ingresos de tus propias sucursales.`;
+    }
+    return `Esta reserva pertenece a la sucursal ${resLocation}. Tu sucursal es "${scannerName}" y solo puedes registrar ingresos de tu propia sucursal.`;
   }
 
   /**
@@ -147,22 +172,20 @@ export class ReservationsService {
   }
 
   private applyListScope(qb: SelectQueryBuilder<Reservation>): void {
-    const { role, userId } = this.getAuthUser();
+    const { userId } = this.getAuthUser();
+    const level = (this.request.user as any)?.level ?? 0;
 
-    if (role === 'ENTRENADOR') {
+    if (level === 3) {
       throw new ForbiddenException(
         'Los entrenadores deben usar el endpoint de asistencia por clase.',
       );
     }
 
-    const roleUp = role?.toUpperCase();
+    if (level >= 10) return;
 
-    if (roleUp === 'CLIENTE' || roleUp === 'USER') {
-      qb.andWhere('reservation.user_id = :uid', { uid: Number(userId) });
-    } else if (roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA') {
+    if (level >= 4) {
       const gymId = this.managerGymId();
       const auditStatuses = ['CONFIRMADA', 'COMPLETADA'];
-      // gym.parent_id = :gymId cubre sucursales hijas cuando gymId es el brandId del gerente de marca
       qb.andWhere(
         '(activity.gym_id = :gymId OR reservation.gym_id = :gymId OR gym.parent_id = :gymId)',
         { gymId },
@@ -170,8 +193,8 @@ export class ReservationsService {
       qb.andWhere('reservation.status IN (:...auditStatuses)', {
         auditStatuses,
       });
-    } else if (roleUp !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('No tiene permisos para listar reservas.');
+    } else {
+      qb.andWhere('reservation.user_id = :uid', { uid: Number(userId) });
     }
   }
 
@@ -305,9 +328,8 @@ export class ReservationsService {
       );
     }
 
-    // Validación multitenant para GERENTE
-    const roleUp = this.getAuthUser().role?.toUpperCase();
-    if (roleUp === 'GERENTE') {
+    const level = (this.request.user as any)?.level ?? 0;
+    if (level >= 4 && level < 10) {
       const managerGymId = this.managerGymId();
       if (Number(activity.gymId) !== Number(managerGymId)) {
         throw new ForbiddenException('La actividad pertenece a otra sucursal.');
@@ -363,20 +385,18 @@ export class ReservationsService {
    * Solo baja al flujo de horarios si activityId es nulo.
    */
   async createReservation(data: CreateReservationDto): Promise<Reservation> {
-    const { role, userId } = this.getAuthUser();
+    const { userId } = this.getAuthUser();
     const actorId = Number(userId);
-    const roleUp = (role ?? '').toUpperCase();
+    const level = (this.request.user as any)?.level ?? 0;
 
     // ── RBAC ────────────────────────────────────────────────────────────────
-    if (roleUp === 'SUPER_ADMIN' || roleUp === 'ENTRENADOR') {
+    if (level >= 10 || level === 3) {
       throw new ForbiddenException('Tu rol no permite crear reservas.');
     }
 
     // ── Resolver usuario objetivo ───────────────────────────────────────────
     let reservationUserId: number;
-    if (roleUp === 'CLIENTE' || roleUp === 'USER') {
-      reservationUserId = actorId;
-    } else if (roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA') {
+    if (level >= 4) {
       if (data.targetUserId == null) {
         throw new BadRequestException(
           'targetUserId es obligatorio para crear reservas como staff.',
@@ -384,6 +404,8 @@ export class ReservationsService {
       }
       reservationUserId = Number(data.targetUserId);
       await this.assertTargetUserExists(reservationUserId);
+    } else if (level < 3) {
+      reservationUserId = actorId;
     } else {
       throw new ForbiddenException('Tu rol no permite crear reservas.');
     }
@@ -408,8 +430,7 @@ export class ReservationsService {
         );
       }
 
-      // Multitenant: GERENTE solo puede reservar en su sede
-      if (roleUp === 'GERENTE') {
+      if (level >= 4 && level < 10) {
         const mg = this.managerGymId();
         if (Number(activity.gymId) !== Number(mg)) {
           throw new ForbiddenException(
@@ -472,12 +493,12 @@ export class ReservationsService {
 
     const scheduleId = await this.resolveScheduleId(data);
 
-    if (roleUp === 'GERENTE') {
+    if (level >= 4 && level < 10) {
       const mg = this.managerGymId();
       const gid = await this.resolveScheduleGymId(scheduleId);
       if (gid !== mg) {
         throw new ForbiddenException(
-          'No puede crear reservas en otra sucursal',
+          'No puede crear reservas en otra sucursal.',
         );
       }
     }
@@ -621,23 +642,18 @@ export class ReservationsService {
     gymId?: number;
   }) {
     const { date, status, page, limit } = opts;
-    const { role } = this.getAuthUser();
-    const roleUp = role?.toUpperCase();
+    const level = (this.request.user as any)?.level ?? 0;
 
     const qb = this.repo
       .createQueryBuilder('reservation')
-      // Usuario
       .leftJoinAndSelect('reservation.user', 'user')
       .leftJoinAndSelect('user.profile', 'userProfile')
-      // Sede + marca padre (para mensajes de error cross-brand)
       .leftJoinAndSelect('reservation.gym', 'gym')
       .leftJoinAndSelect('gym.parent', 'gymBrand')
-      // Flujo libre
       .leftJoinAndSelect('reservation.activity', 'freeActivity')
       .addSelect('freeActivity.name')
-      // Flujo programado
       .leftJoinAndSelect('reservation.gymActivitySchedule', 'schedule')
-      .leftJoinAndSelect('schedule.gymActivity', 'activity') // alias requerido por applyListScope
+      .leftJoinAndSelect('schedule.gymActivity', 'activity')
       .addSelect('activity.name')
       .leftJoinAndSelect('schedule.instructor', 'schedInstructor')
       .leftJoinAndSelect('schedInstructor.profile', 'schedInstructorProfile')
@@ -659,12 +675,7 @@ export class ReservationsService {
       qb.andWhere('reservation.status = :status', {
         status: status.toUpperCase(),
       });
-    } else if (
-      roleUp === 'SUPER_ADMIN' ||
-      roleUp === 'CLIENTE' ||
-      roleUp === 'USER'
-    ) {
-      // Sin filtro explícito → ocultar canceladas por defecto
+    } else if (level >= 10 || level < 4) {
       qb.andWhere('reservation.status != :cancelled', {
         cancelled: 'CANCELLED',
       });
@@ -773,25 +784,18 @@ export class ReservationsService {
   }
 
   async findByUser(userId: number, date?: string) {
-    const { role, userId: authUserId } = this.getAuthUser();
-    const roleUp = role?.toUpperCase();
+    const { userId: authUserId } = this.getAuthUser();
+    const level = (this.request.user as any)?.level ?? 0;
 
-    if (roleUp === 'ENTRENADOR') {
+    if (level === 3) {
       throw new ForbiddenException(
         'Los entrenadores deben usar el endpoint de asistencia por clase.',
       );
     }
 
-    // Candado de aislamiento: CLIENTE/USER solo ve SUS reservas.
-    // El controlador ya resuelve userId al JWT para estos roles,
-    // pero esta capa de servicio actúa como segunda defensa.
-    if (roleUp === 'CLIENTE' || roleUp === 'USER') {
-      userId = Number(authUserId); // sobrescribe cualquier valor externo
-    } else if (
-      roleUp !== 'SUPER_ADMIN' &&
-      roleUp !== 'GERENTE' &&
-      roleUp !== 'RECEPCIONISTA'
-    ) {
+    if (level < 3) {
+      userId = Number(authUserId);
+    } else if (level < 4) {
       throw new ForbiddenException('No tiene permisos para listar reservas.');
     }
 
@@ -820,7 +824,7 @@ export class ReservationsService {
       }
     }
 
-    if (roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA') {
+    if (level >= 4 && level < 10) {
       const gymId = this.managerGymId();
       qb.andWhere(
         '(activity.gym_id = :gymId OR reservation.gym_id = :gymId OR gym.parent_id = :gymId)',
@@ -857,15 +861,11 @@ export class ReservationsService {
     const r = await qb.getOne();
     if (r) return this.mapReservation(r);
 
-    const { role } = this.getAuthUser();
-    const roleUp = role?.toUpperCase();
+    const level = (this.request.user as any)?.level ?? 0;
     const exists = await this.repo.exist({ where: { id } });
-    if (
-      exists &&
-      (roleUp === 'GERENTE' || roleUp === 'CLIENTE' || roleUp === 'USER')
-    ) {
+    if (exists && level < 10) {
       throw new ForbiddenException(
-        'No tiene permisos para acceder a esta reserva',
+        'No tiene permisos para acceder a esta reserva.',
       );
     }
 
@@ -891,16 +891,15 @@ export class ReservationsService {
     if (!r)
       throw new NotFoundException('Token QR inválido o reserva no encontrada');
 
-    // Auth scope check
-    const { role } = this.getAuthUser();
-    const roleUp = role?.toUpperCase();
-    if (roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA') {
+    const level = (this.request.user as any)?.level ?? 0;
+    if (level >= 4 && level < 10) {
       const reservationGymId = r.gymId ?? r.gymActivitySchedule?.gymActivity?.gymId ?? null;
       const hasAccess = await this.gymBelongsToManager(reservationGymId);
       if (!hasAccess) {
-        throw new ForbiddenException('Esta reserva pertenece a una sucursal de otra marca.');
+        const msg = await this.buildCrossBranchErrorMsg(reservationGymId);
+        throw new ForbiddenException(msg);
       }
-    } else if (roleUp === 'CLIENTE' || roleUp === 'USER') {
+    } else if (level < 4) {
       throw new ForbiddenException(
         'No tiene permisos para validar reservas por token.',
       );
@@ -918,20 +917,15 @@ export class ReservationsService {
   async checkInReservation(
     reservationId: number,
   ): Promise<{ reservation: Reservation; checkIn: CheckIn }> {
-    const { role, userId, gymId: tokenGymId } = this.getAuthUser();
-    const roleUp = role?.toUpperCase();
+    const { userId, gymId: tokenGymId } = this.getAuthUser();
+    const level = (this.request.user as any)?.level ?? 0;
 
-    if (
-      roleUp !== 'GERENTE' &&
-      roleUp !== 'RECEPCIONISTA' &&
-      roleUp !== 'SUPER_ADMIN'
-    ) {
+    if (level < 4) {
       throw new ForbiddenException(
-        'Solo GERENTE, RECEPCIONISTA o SUPER_ADMIN pueden registrar ingresos.',
+        'Nivel jerárquico insuficiente para registrar ingresos.',
       );
     }
 
-    // Cargar reserva con todas las relaciones necesarias (libre y programada)
     const reservation = await this.repo.findOne({
       where: { id: reservationId },
       relations: [
@@ -945,16 +939,15 @@ export class ReservationsService {
       throw new NotFoundException(`Reserva ${reservationId} no encontrada.`);
     }
 
-    // Validación multitenant: GERENTE/RECEPCIONISTA solo pueden hacer check-in en su sede.
-    if (roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA') {
-      const managerGymId = this.managerGymId();
+    if (level >= 4 && level < 10) {
       const reservationGymId =
         reservation.gymId ??
-        reservation.gymActivitySchedule?.gymActivity?.gymId;
-      if (Number(reservationGymId) !== Number(managerGymId)) {
-        throw new ForbiddenException(
-          'Esta reserva pertenece a una sucursal distinta. Acceso denegado.',
-        );
+        reservation.gymActivitySchedule?.gymActivity?.gymId ??
+        null;
+      const hasAccess = await this.gymBelongsToManager(reservationGymId);
+      if (!hasAccess) {
+        const msg = await this.buildCrossBranchErrorMsg(reservationGymId);
+        throw new ForbiddenException(msg);
       }
     }
 
@@ -1117,9 +1110,8 @@ export class ReservationsService {
           null;
         const hasAccess = await this.gymBelongsToManager(reservationGymId);
         if (!hasAccess) {
-          throw new ForbiddenException(
-            'Esta reserva pertenece a otra sucursal. Solo puedes hacer check-in de reservas de tu sucursal o marca.',
-          );
+          const msg = await this.buildCrossBranchErrorMsg(reservationGymId);
+          throw new ForbiddenException(msg);
         }
       }
 
@@ -1296,8 +1288,8 @@ export class ReservationsService {
   }
 
   async cancel(id: number) {
-    const { role, userId, gymId } = this.getAuthUser();
-    const roleUp = role?.toUpperCase();
+    const { userId } = this.getAuthUser();
+    const level = (this.request.user as any)?.level ?? 0;
     const r = await this.repo.findOne({
       where: { id },
       relations: ['gymActivitySchedule', 'gymActivitySchedule.gymActivity'],
@@ -1307,16 +1299,17 @@ export class ReservationsService {
       throw new NotFoundException(`Reserva ${id} no encontrada`);
     }
 
-    if (roleUp === 'CLIENTE' || roleUp === 'USER') {
+    if (level < 4) {
       if (r.userId !== Number(userId)) {
         throw new ForbiddenException('No puedes cancelar reservas ajenas.');
       }
-    } else if (roleUp === 'GERENTE') {
-      const reservationGymId = r.gymActivitySchedule?.gymActivity?.gymId;
-      if (Number(reservationGymId) !== Number(gymId)) {
-        throw new ForbiddenException(
-          'Esta reserva pertenece a otra sede corporativa',
-        );
+    } else if (level >= 4 && level < 10) {
+      const reservationGymId =
+        r.gymId ?? r.gymActivitySchedule?.gymActivity?.gymId ?? null;
+      const hasAccess = await this.gymBelongsToManager(reservationGymId);
+      if (!hasAccess) {
+        const msg = await this.buildCrossBranchErrorMsg(reservationGymId);
+        throw new ForbiddenException(msg);
       }
     }
 
@@ -1327,15 +1320,10 @@ export class ReservationsService {
     return this.findOne(saved.id);
   }
   async confirm(id: number) {
-    const { role } = this.getAuthUser();
-    const roleUp = role?.toUpperCase();
+    const level = (this.request.user as any)?.level ?? 0;
 
-    if (
-      roleUp !== 'GERENTE' &&
-      roleUp !== 'RECEPCIONISTA' &&
-      roleUp !== 'SUPER_ADMIN'
-    ) {
-      throw new ForbiddenException('Solo el staff puede confirmar el ingreso.');
+    if (level < 4) {
+      throw new ForbiddenException('Nivel jerárquico insuficiente para confirmar ingresos.');
     }
 
     const r = await this.repo.findOne({
@@ -1347,13 +1335,12 @@ export class ReservationsService {
       throw new NotFoundException(`Reserva ${id} no encontrada`);
     }
 
-    if (roleUp === 'GERENTE' || roleUp === 'RECEPCIONISTA') {
+    if (level >= 4 && level < 10) {
       const reservationGymId = r.gymId ?? r.gymActivitySchedule?.gymActivity?.gymId ?? null;
       const hasAccess = await this.gymBelongsToManager(reservationGymId);
       if (!hasAccess) {
-        throw new ForbiddenException(
-          'Esta reserva pertenece a una sucursal de otra marca.',
-        );
+        const msg = await this.buildCrossBranchErrorMsg(reservationGymId);
+        throw new ForbiddenException(msg);
       }
     }
 

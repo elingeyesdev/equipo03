@@ -6,10 +6,10 @@ export class StaffLevelGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    if (user && user.level >= 3) {
+    if (user && user.level >= 2) {
       return true;
     }
 
-    throw new ForbiddenException('Se requiere nivel de staff (entrenador o superior).');
+    throw new ForbiddenException('Se requiere nivel de staff (instructor o superior).');
   }
 }

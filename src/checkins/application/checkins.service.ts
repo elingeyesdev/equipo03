@@ -7,10 +7,13 @@ import {
 } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { CheckIn } from '../domain/check-in.entity';
 import { UserRole } from '../../roles/domain/user-role.entity';
-import { type RequestWithUser } from '../../common/security/gym-scope';
+import {
+  getManagerGymId,
+  type RequestWithUser,
+} from '../../common/security/gym-scope';
 
 const STAFF_ROLES = ['ENTRENADOR', 'INSTRUCTOR', 'NUTRICIONISTA', 'LIMPIEZA'];
 const FORBIDDEN_ROLES = ['CLIENTE', 'USER', 'GERENTE', 'SUPER_ADMIN'];
@@ -23,19 +26,28 @@ export class CheckinsService {
     @Inject(REQUEST) private readonly request: RequestWithUser,
   ) {}
 
-  private getManagerGymId(): number | null {
+  private applyScopeFilter(qb: SelectQueryBuilder<CheckIn>): void {
     const user = this.request.user;
-    return user?.role?.toUpperCase() === 'GERENTE'
-      ? (user.gymId ?? null)
-      : null;
-  }
+    const level = user?.level ?? 0;
 
-  private ensureManagerCanAccessGym(gymId: number): void {
-    const managerGymId = this.getManagerGymId();
-    if (managerGymId !== null && managerGymId !== gymId) {
-      throw new ForbiddenException(
-        'No tiene permisos para acceder a otra sucursal',
-      );
+    if (level >= 10) return;
+
+    const scopeId = getManagerGymId(this.request);
+
+    if (level >= 4 && scopeId !== null) {
+      if (user?.brandId) {
+        qb.andWhere(
+          '(checkIn.gym_id = :scopeId OR gym.parent_id = :scopeId)',
+          { scopeId },
+        );
+      } else {
+        qb.andWhere('checkIn.gym_id = :scopeId', { scopeId });
+      }
+      return;
+    }
+
+    if (level < 4 && user?.userId) {
+      qb.andWhere('checkIn.user_id = :userId', { userId: user.userId });
     }
   }
 
@@ -97,9 +109,6 @@ export class CheckinsService {
   }
 
   async findAllHistory() {
-    const user = this.request.user;
-    const managerGymId = this.getManagerGymId();
-
     const qb = this.repo
       .createQueryBuilder('checkIn')
       .leftJoinAndSelect('checkIn.user', 'user')
@@ -109,14 +118,7 @@ export class CheckinsService {
       .leftJoinAndSelect('checkIn.gym', 'gym')
       .orderBy('checkIn.checkInTime', 'DESC');
 
-    if (managerGymId !== null) {
-      qb.andWhere('checkIn.gym_id = :gymId', { gymId: managerGymId });
-    } else if (
-      user?.role?.toUpperCase() === 'USER' ||
-      user?.role?.toUpperCase() === 'CLIENTE'
-    ) {
-      qb.andWhere('checkIn.user_id = :userId', { userId: user.userId });
-    }
+    this.applyScopeFilter(qb);
 
     const records = await qb.getMany();
 
@@ -131,7 +133,6 @@ export class CheckinsService {
   }
 
   async findAll() {
-    const managerGymId = this.getManagerGymId();
     const qb = this.repo
       .createQueryBuilder('checkIn')
       .leftJoinAndSelect('checkIn.user', 'user')
@@ -140,14 +141,12 @@ export class CheckinsService {
       .leftJoinAndSelect('userRoles.role', 'role')
       .leftJoinAndSelect('checkIn.gym', 'gym')
       .orderBy('checkIn.checkInTime', 'DESC');
-    if (managerGymId !== null)
-      qb.andWhere('checkIn.gym_id = :gymId', { gymId: managerGymId });
+    this.applyScopeFilter(qb);
     const records = await qb.getMany();
     return records.map((c) => this.mapCheckIn(c));
   }
 
   async findByUser(userId: number) {
-    const managerGymId = this.getManagerGymId();
     const qb = this.repo
       .createQueryBuilder('checkIn')
       .leftJoinAndSelect('checkIn.user', 'user')
@@ -157,14 +156,12 @@ export class CheckinsService {
       .leftJoinAndSelect('checkIn.gym', 'gym')
       .where('checkIn.user_id = :userId', { userId })
       .orderBy('checkIn.checkInTime', 'DESC');
-    if (managerGymId !== null)
-      qb.andWhere('checkIn.gym_id = :gymId', { gymId: managerGymId });
+    this.applyScopeFilter(qb);
     const records = await qb.getMany();
     return records.map((c) => this.mapCheckIn(c));
   }
 
   async findByGym(gymId: number) {
-    this.ensureManagerCanAccessGym(gymId);
     const qb = this.repo
       .createQueryBuilder('checkIn')
       .leftJoinAndSelect('checkIn.user', 'user')
@@ -174,19 +171,18 @@ export class CheckinsService {
       .leftJoinAndSelect('checkIn.gym', 'gym')
       .where('checkIn.gym_id = :gymId', { gymId })
       .orderBy('checkIn.checkInTime', 'DESC');
+    this.applyScopeFilter(qb);
     const records = await qb.getMany();
     return records.map((c) => this.mapCheckIn(c));
   }
 
   async findOne(id: number) {
-    const managerGymId = this.getManagerGymId();
     const qb = this.repo
       .createQueryBuilder('checkIn')
       .leftJoinAndSelect('checkIn.user', 'user')
       .leftJoinAndSelect('checkIn.gym', 'gym')
       .where('checkIn.id = :id', { id });
-    if (managerGymId !== null)
-      qb.andWhere('checkIn.gym_id = :gymId', { gymId: managerGymId });
+    this.applyScopeFilter(qb);
     const c = await qb.getOne();
     if (!c) throw new NotFoundException(`Check-in ${id} no encontrado`);
     return c;

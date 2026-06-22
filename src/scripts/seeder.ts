@@ -67,13 +67,13 @@ async function runSeed() {
   const rolesData = [
     { name: 'SUPER_ADMIN',          description: 'Administrador Global — acceso total',           hierarchyLevel: 10, isSystemRole: true  },
     { name: 'GERENTE',              description: 'Gerente de Sede o Marca',                        hierarchyLevel:  5, isSystemRole: true  },
-    { name: 'USER',                 description: 'Cliente / Socio del gimnasio',                   hierarchyLevel:  1, isSystemRole: false },
+    { name: 'USER',                 description: 'Cliente / Socio del gimnasio',                   hierarchyLevel:  1, isSystemRole: true },
     { name: 'ENTRENADOR',           description: 'Entrenador Personal',                            hierarchyLevel:  3, isSystemRole: true  },
     { name: 'COORDINADOR',          description: 'Coordinador de Sede',                            hierarchyLevel:  2, isSystemRole: false },
     { name: 'PERSONAL_DE_LIMPIEZA', description: 'Personal de Limpieza',                           hierarchyLevel:  1, isSystemRole: false },
-    { name: 'INSTRUCTOR',           description: 'Instructor de Clases Grupales',                  hierarchyLevel:  3, isSystemRole: false },
+    { name: 'INSTRUCTOR',           description: 'Instructor de Clases Grupales',                  hierarchyLevel:  2, isSystemRole: true },
     { name: 'NUTRICIONISTA',        description: 'Nutricionista',                                  hierarchyLevel:  3, isSystemRole: true  },
-    { name: 'RECEPCIONISTA',        description: 'Recepcionista / Cajero',                         hierarchyLevel:  4, isSystemRole: false },
+    { name: 'RECEPCIONISTA',        description: 'Recepcionista / Cajero',                         hierarchyLevel:  4, isSystemRole: true },
   ];
 
   const savedRoles: Role[] = [];
@@ -353,7 +353,7 @@ async function runSeed() {
       lastName:  ln,
       phone:     `+5917${Math.floor(1000000 + Math.random() * 9000000)}`,
       ci:        `${Math.floor(1000000 + Math.random() * 9000000)}`,
-      gender:    i % 2 === 0 ? 'MALE' : 'FEMALE',
+      gender:    i % 2 === 0 ? 'Masculino' : 'Femenino',
     }));
 
     const roleName = randomRoles[i];
