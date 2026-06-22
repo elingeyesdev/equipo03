@@ -3,13 +3,15 @@ import {
   Injectable,
   ForbiddenException,
   NotFoundException,
+  Optional,
   Scope,
 } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, SelectQueryBuilder } from 'typeorm';
+import { Repository, SelectQueryBuilder, IsNull } from 'typeorm';
 import { CheckIn } from '../domain/check-in.entity';
 import { UserRole } from '../../roles/domain/user-role.entity';
+import { GymGateway } from '../../notifications/infrastructure/gym.gateway';
 import {
   getManagerGymId,
   type RequestWithUser,
@@ -24,6 +26,7 @@ export class CheckinsService {
     @InjectRepository(CheckIn) private repo: Repository<CheckIn>,
     @InjectRepository(UserRole) private userRoleRepo: Repository<UserRole>,
     @Inject(REQUEST) private readonly request: RequestWithUser,
+    @Optional() private readonly gymGateway?: GymGateway,
   ) {}
 
   private applyScopeFilter(qb: SelectQueryBuilder<CheckIn>): void {
@@ -70,9 +73,16 @@ export class CheckinsService {
       );
     }
 
-    return this.repo.save(
+    const saved = await this.repo.save(
       this.repo.create({ userId, gymId, method, status: 'ACTIVO' }),
     );
+
+    const current = await this.repo.count({
+      where: { gymId, checkOutTime: IsNull(), status: 'ACTIVO' },
+    });
+    this.gymGateway?.emitToGym(gymId, 'aforo_updated', { gymId, current });
+
+    return saved;
   }
 
   private mapCheckIn(c: CheckIn) {
@@ -192,6 +202,16 @@ export class CheckinsService {
     const c = await this.findOne(id);
     c.checkOutTime = new Date();
     c.status = 'COMPLETADO';
-    return this.repo.save(c);
+    const saved = await this.repo.save(c);
+
+    const gymId = c.gymId ?? c.gym?.id;
+    if (gymId) {
+      const current = await this.repo.count({
+        where: { gymId, checkOutTime: IsNull(), status: 'ACTIVO' },
+      });
+      this.gymGateway?.emitToGym(gymId, 'aforo_updated', { gymId, current });
+    }
+
+    return saved;
   }
 }

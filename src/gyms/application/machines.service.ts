@@ -109,7 +109,7 @@ export class MachinesService {
 
     if (visibleIds === null) {
       const where = gymId ? { gymId } : {};
-      return this.repo.find({ where, order: { createdAt: 'DESC' }, relations: ['gym'] });
+      return this.repo.find({ where, order: { createdAt: 'DESC' }, relations: ['gym', 'gym.parent'] });
     }
 
     if (visibleIds.length === 0) return [];
@@ -123,14 +123,14 @@ export class MachinesService {
     return this.repo.find({
       where: { gymId: In(effectiveIds) },
       order: { createdAt: 'DESC' },
-      relations: ['gym'],
+      relations: ['gym', 'gym.parent'],
     });
   }
 
   async findOne(id: string, caller?: RequestUser) {
     const machine = await this.repo.findOne({
       where: { id },
-      relations: ['gym'],
+      relations: ['gym', 'gym.parent'],
     });
     if (!machine) throw new NotFoundException(`Máquina ${id} no encontrada.`);
 

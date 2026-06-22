@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { JwtAuthGuard } from './auth/infrastructure/guards/jwt-auth.guard';
 
 // ── Domain Modules (Estructura Modular por Dominios) ─────────
@@ -43,6 +44,8 @@ import { VisitsModule } from './visits/visits.module';
       ttl: 60000,   // ventana de 60 s (ms)
       limit: 120,   // 120 req/min por IP (2 req/s — suficiente para uso normal)
     }]),
+
+    ScheduleModule.forRoot(),
 
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],

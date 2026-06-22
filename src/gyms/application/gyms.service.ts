@@ -227,25 +227,17 @@ export class GymsService {
     gymIds: number[],
   ): Promise<Map<number, number>> {
     if (gymIds.length === 0) return new Map();
-    const rows = await this.reservationRepo
-      .createQueryBuilder('r')
-      .select('r.gym_id', 'gymId')
-      .addSelect('COUNT(*)', 'currentOccupancy')
-      .where('r.gym_id IN (:...gymIds)', { gymIds })
-      .andWhere('r.reservation_date = CURRENT_DATE')
-      .andWhere("r.status IN ('PENDIENTE', 'CONFIRMADA', 'COMPLETADA')")
-      .andWhere(
-        `EXISTS (
-          SELECT 1 FROM user_roles ur
-          INNER JOIN roles ro ON ro.id = ur.role_id
-          WHERE ur.user_id = r.user_id
-            AND UPPER(ro.name) = 'CLIENTE'
-        )`,
-      )
-      .groupBy('r.gym_id')
-      .getRawMany<{ gymId: string; currentOccupancy: string }>();
+    const rows = await this.checkInRepo
+      .createQueryBuilder('c')
+      .select('c.gym_id', 'gymId')
+      .addSelect('COUNT(*)', 'current')
+      .where('c.gym_id IN (:...gymIds)', { gymIds })
+      .andWhere('c.check_out_time IS NULL')
+      .andWhere("c.status = 'ACTIVO'")
+      .groupBy('c.gym_id')
+      .getRawMany<{ gymId: string; current: string }>();
     return new Map(
-      rows.map((r) => [Number(r.gymId), Number(r.currentOccupancy)]),
+      rows.map((r) => [Number(r.gymId), Number(r.current)]),
     );
   }
 
