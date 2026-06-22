@@ -1,11 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList,
   TouchableOpacity, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import { staffApi, ActiveAdvisee } from '../../../app/Providers/staff/api/staff.api';
 
@@ -84,12 +83,30 @@ const ClientCard = ({
 export const SeguimientoScreen = () => {
   const navigation = useNavigation<any>();
 
-  const { data: clients = [], isLoading, isError, refetch } = useQuery<ActiveAdvisee[]>({
-    queryKey: ['active-advisees'],
-    queryFn:  () => staffApi.getActiveAdvisees(),
-    staleTime: 60_000,
-    retry: 1,
-  });
+  const [clients,    setClients]    = useState<ActiveAdvisee[]>([]);
+  const [isLoading,  setIsLoading]  = useState(true);
+  const [isError,    setIsError]    = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = useCallback(async () => {
+    setIsError(false);
+    try {
+      const data = await staffApi.getActiveAdvisees();
+      setClients(data);
+    } catch {
+      setIsError(true);
+    } finally {
+      setIsLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  function handleRefresh() {
+    setRefreshing(true);
+    load();
+  }
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -106,6 +123,17 @@ export const SeguimientoScreen = () => {
         </View>
       </View>
 
+      {/* Report shortcut */}
+      <TouchableOpacity
+        style={s.reportRow}
+        activeOpacity={0.8}
+        onPress={() => navigation.navigate('TrainerReport')}
+      >
+        <MaterialCommunityIcons name="file-pdf-box" size={16} color="#FF5E00" />
+        <Text style={s.reportRowTxt}>Generar Reporte de Clientes</Text>
+        <MaterialCommunityIcons name="chevron-right" size={16} color="#333" style={{ marginLeft: 'auto' }} />
+      </TouchableOpacity>
+
       {isLoading ? (
         <View style={s.center}>
           <ActivityIndicator size="large" color="#38BDF8" />
@@ -115,7 +143,7 @@ export const SeguimientoScreen = () => {
           <MaterialCommunityIcons name="wifi-off" size={48} color="#222" />
           <Text style={s.emptyTitle}>Error de conexión</Text>
           <Text style={s.emptySubTxt}>No se pudo cargar tus clientes.</Text>
-          <TouchableOpacity style={s.retryBtn} onPress={() => refetch()}>
+          <TouchableOpacity style={s.retryBtn} onPress={load}>
             <Text style={s.retryTxt}>Reintentar</Text>
           </TouchableOpacity>
         </View>
@@ -135,8 +163,8 @@ export const SeguimientoScreen = () => {
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
-              refreshing={isLoading}
-              onRefresh={refetch}
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
               tintColor="#38BDF8"
               colors={['#38BDF8']}
             />
@@ -184,6 +212,14 @@ const s = StyleSheet.create({
     backgroundColor: '#0d2a3d', justifyContent: 'center', alignItems: 'center',
     borderWidth: 1, borderColor: '#38BDF844',
   },
+
+  reportRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 20, paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: '#111',
+    backgroundColor: '#050505',
+  },
+  reportRowTxt: { color: '#FF5E00', fontSize: 13, fontWeight: '700' },
 
   // ── Card ──
   card: {

@@ -55,6 +55,7 @@ import { ResumenEjercicioScreen } from '../resources/views/perfil/ResumenEjercic
 import { SeguimientoScreen }       from '../resources/views/seguimiento/SeguimientoScreen';
 import { HistorialRutinaScreen }   from '../resources/views/seguimiento/HistorialRutinaScreen';
 import { RegistroEjercicioScreen } from '../resources/views/seguimiento/RegistroEjercicioScreen';
+import { TrainerReportScreen }     from '../resources/views/seguimiento/TrainerReportScreen';
 import { MisAlumnosScreen }        from '../resources/views/inicio/MisAlumnosScreen';
 
 // ── Iconos de tabs ────────────────────────────────────────────────────────────
@@ -270,6 +271,11 @@ const StaffStack = () => (
     <StaffNav.Screen
       name="MisAlumnos"
       component={MisAlumnosScreen}
+      options={{ headerShown: false }}
+    />
+    <StaffNav.Screen
+      name="TrainerReport"
+      component={TrainerReportScreen}
       options={{ headerShown: false }}
     />
   </StaffNav.Navigator>

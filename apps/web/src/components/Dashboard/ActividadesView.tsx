@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CSSProperties } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
@@ -744,9 +745,40 @@ const DarkSelect = ({ value, onChange, children, style }: {
 // ─── Main View ────────────────────────────────────────────────────────────────
 export const ActividadesView = () => {
   const { user } = useAuth();
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [gyms, setGyms] = useState<GymOption[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  const userGymId = user?.gymId ? Number(user.gymId) : null;
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const activitiesKey = ['activities', userGymId] as const;
+
+  const { data: activities = [], isLoading: loading } = useQuery({
+    queryKey: activitiesKey,
+    queryFn: async () => {
+      const params = userGymId ? { gymId: userGymId } : {};
+      const data = await apiClient.get<Activity[]>('/activities', { params });
+      let raw: Activity[] = Array.isArray(data) ? data : (data as any)?.data ?? [];
+      if (userGymId) raw = raw.filter((a: Activity) => a.gymId === userGymId);
+      return raw;
+    },
+    enabled: !!user,
+  });
+
+  const { data: gyms = [] } = useQuery({
+    queryKey: ['gyms-options'],
+    queryFn: async () => {
+      const [branchesRes, brandsRes] = await Promise.all([
+        apiClient.get<GymOption[]>('/gyms').catch(() => []),
+        apiClient.get<GymOption[]>('/gyms/brands').catch(() => []),
+      ]);
+      const rawBranches: any[] = Array.isArray(branchesRes) ? branchesRes : (branchesRes as any)?.data ?? [];
+      const rawBrands: any[]   = Array.isArray(brandsRes)   ? brandsRes   : (brandsRes as any)?.data   ?? [];
+      return [
+        ...rawBrands.map((g: any)    => ({ id: g.id, name: g.name, parentId: null as null })),
+        ...rawBranches.map((g: any)  => ({ id: g.id, name: g.name, parentId: (g.parentId ?? g.parent_id ?? null) as number | null })),
+      ] as GymOption[];
+    },
+    enabled: isSuperAdmin,
+  });
   const [formTarget,   setFormTarget]   = useState<Activity | null | 'new'>(null);
   const [deleteTarget, setDeleteTarget] = useState<Activity | null>(null);
   const [detailTarget, setDetailTarget] = useState<Activity | null>(null);
@@ -757,48 +789,6 @@ export const ActividadesView = () => {
   const [sortOrder, setSortOrder] = useState<'az' | 'za' | 'dur_asc' | 'dur_desc'>('az');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
 
-  const userGymId = user?.gymId ? Number(user.gymId) : null;
-  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
-
-  const fetchActivities = useCallback(async () => {
-    setLoading(true);
-    try {
-      // GERENTE: filtra por su gymId en el servidor; SUPER_ADMIN: trae todo
-      const params = userGymId ? { gymId: userGymId } : {};
-      const data = await apiClient.get<Activity[]>('/activities', { params });
-      let raw: Activity[] = Array.isArray(data) ? data : (data as any)?.data ?? [];
-
-      // Segunda capa de seguridad: filtro client-side para GERENTE
-      if (userGymId) raw = raw.filter(a => a.gymId === userGymId);
-
-      setActivities(raw);
-    } catch {
-      // interceptor toasts
-    } finally {
-      setLoading(false);
-    }
-  }, [userGymId]);
-
-  const fetchGyms = useCallback(async () => {
-    if (!isSuperAdmin) return;
-    try {
-      const [branchesRes, brandsRes] = await Promise.all([
-        apiClient.get<GymOption[]>('/gyms').catch(() => []),
-        apiClient.get<GymOption[]>('/gyms/brands').catch(() => []),
-      ]);
-      const rawBranches: any[] = Array.isArray(branchesRes) ? branchesRes : (branchesRes as any)?.data ?? [];
-      const rawBrands: any[] = Array.isArray(brandsRes) ? brandsRes : (brandsRes as any)?.data ?? [];
-      const all: GymOption[] = [
-        ...rawBrands.map((g: any) => ({ id: g.id, name: g.name, parentId: null as null })),
-        ...rawBranches.map((g: any) => ({ id: g.id, name: g.name, parentId: (g.parentId ?? g.parent_id ?? null) as number | null })),
-      ];
-      setGyms(all);
-    } catch {
-      // ignore
-    }
-  }, [isSuperAdmin]);
-
-  useEffect(() => { fetchActivities(); fetchGyms(); }, [fetchActivities, fetchGyms]);
 
   // ── Opciones para barra de filtros (solo sucursales, nunca marcas) ──
   const gymOptions = useMemo((): GymOption[] => {
@@ -847,7 +837,7 @@ export const ActividadesView = () => {
       await apiClient.delete(`/activities/${deleteTarget.id}`);
       toast.success('Servicio eliminado');
       setDeleteTarget(null);
-      fetchActivities();
+      queryClient.invalidateQueries({ queryKey: activitiesKey });
     } catch {
       // interceptor toasts
     }
@@ -1025,7 +1015,7 @@ export const ActividadesView = () => {
           gyms={gyms}
           userGymId={userGymId}
           onClose={() => setFormTarget(null)}
-          onSaved={fetchActivities}
+          onSaved={() => queryClient.invalidateQueries({ queryKey: activitiesKey })}
         />
       )}
 

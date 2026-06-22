@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useLayoutEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CSSProperties } from 'react';
 import { Navigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -145,9 +146,20 @@ const MarcaModal = ({ isOpen, onClose, marcaToEdit, onSave, existingGyms = [] }:
 
 export const SedesView = () => {
   const { user } = useAuth();
-  const [gyms, setGyms] = useState<GymDto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const { data: gyms = [], isLoading: loading, error: fetchError } = useQuery({
+    queryKey: ['sedes'],
+    queryFn: async () => {
+      const res = await apiClient.get('/gyms/brands');
+      return Array.isArray(res.data) ? (res.data as GymDto[]) : [];
+    },
+  });
+  const error = fetchError
+    ? ((fetchError as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message
+        || (fetchError as Error).message
+        || 'No se pudo cargar sedes.')
+    : null;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [sedeToEdit, setSedeToEdit] = useState<GymDto | null>(null);
@@ -170,31 +182,6 @@ export const SedesView = () => {
       });
   }, [gyms, search, sortOrder]);
 
-  useEffect(() => {
-    let mounted = true;
-
-    const cargarSedes = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const gymsResp = await apiClient.get('/gyms/brands');
-        let gymsData: GymDto[] = Array.isArray(gymsResp.data) ? gymsResp.data : [];
-
-        // Las marcas no tienen scoping de gerente, solo SUPER_ADMIN las gestiona
-
-        if (mounted) setGyms(gymsData);
-      } catch (err: any) {
-        if (mounted) setError(err?.response?.data?.message || err?.message || 'No se pudo cargar sedes.');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    cargarSedes();
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   const handleDeleteSede = (sede: GymDto) => {
     setDeleteConfirmSede(sede);
@@ -204,7 +191,7 @@ export const SedesView = () => {
     if (!deleteConfirmSede) return;
     try {
       await apiClient.delete(`/gyms/${deleteConfirmSede.id}`);
-      setGyms(prev => prev.filter(g => g.id !== deleteConfirmSede.id));
+      await queryClient.invalidateQueries({ queryKey: ['sedes'] });
     } catch (err: any) {
       alert(err?.response?.data?.message || err?.message || 'Error al eliminar marca.');
     } finally {
@@ -249,10 +236,10 @@ export const SedesView = () => {
 
       if (sedeToEdit) {
         await apiClient.put(`/gyms/${sedeToEdit.id}`, payload);
-        await cargarSedes();
+        await queryClient.invalidateQueries({ queryKey: ['sedes'] });
       } else {
         await apiClient.post('/gyms', payload);
-        await cargarSedes();
+        await queryClient.invalidateQueries({ queryKey: ['sedes'] });
       }
 
       setIsModalOpen(false);

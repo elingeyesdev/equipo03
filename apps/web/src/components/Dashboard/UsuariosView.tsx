@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
@@ -914,9 +915,23 @@ setSelectedMarcaId(sedeIdDelGerente);
 // ─── Vista Principal de Usuarios ──────────────────────────────────────────────
 export const UsuariosView = () => {
   const { user } = useAuth();
-  const [users, setUsers]   = useState<UserDto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]   = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const usersKey = ['users', user?.id, user?.roleId, user?.gymId] as const;
+
+  const { data: users = [], isLoading: loading, error: fetchError } = useQuery({
+    queryKey: usersKey,
+    queryFn: async () => {
+      const res = await apiClient.get('/users');
+      return Array.isArray(res.data) ? (res.data as UserDto[]) : [];
+    },
+    enabled: !!user,
+  });
+
+  const error = fetchError
+    ? ((fetchError as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message
+        || (fetchError as Error).message
+        || 'No se pudo cargar usuarios.')
+    : null;
 
   const [isModalOpen,       setIsModalOpen]       = useState(false);
   const [userToEdit,        setUserToEdit]        = useState<UserDto | null>(null);
@@ -985,31 +1000,6 @@ export const UsuariosView = () => {
     return map;
   }, [gymsCatalog]);
 
-  // ── Carga inicial ─────────────────────────────────────────────────────────────
-  useEffect(() => {
-    let mounted = true;
-    setUsers([]);
-    setError(null);
-
-    const load = async () => {
-      if (!user) { setLoading(false); return; }
-      try {
-        setLoading(true);
-        const res = await apiClient.get('/users');
-        if (!mounted) return;
-        const data: UserDto[] = Array.isArray(res.data) ? (res.data as UserDto[]) : [];
-        setUsers(data);
-      } catch (err: unknown) {
-        const e = err as { response?: { data?: { message?: string } }; message?: string };
-        if (mounted) setError(e?.response?.data?.message || e?.message || 'No se pudo cargar usuarios.');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-    load();
-    return () => { mounted = false; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, user?.roleId, user?.gymId]);
 
   const usuariosActivos = useMemo(() => users.filter(u => !!u.isActive).length, [users]);
 
@@ -1073,11 +1063,6 @@ export const UsuariosView = () => {
   const resetFilters = () => { setSearch(''); setFilterRole(''); setFilterGym(''); setFilterStatus('all'); setSortOrder('az'); };
 
   // ── Re-fetch directo (no usa el use-case para evitar fallos silenciosos de RBAC) ──
-  const recargarUsuarios = async () => {
-    const res = await apiClient.get('/users');
-    const fresh: UserDto[] = Array.isArray(res.data) ? (res.data as UserDto[]) : [];
-    setUsers(fresh);
-  };
 
   // ── Acciones CRUD ────────────────────────────────────────────────────────────
   const handleSaveUser = async (formData: UserFormData) => {
@@ -1114,7 +1099,7 @@ export const UsuariosView = () => {
       }
 
       // Re-fetch directo: garantiza que la lista refleja el estado real del servidor
-      await recargarUsuarios();
+      await queryClient.invalidateQueries({ queryKey: usersKey });
 
       setIsModalOpen(false);
       setUserToEdit(null);
@@ -1131,7 +1116,7 @@ export const UsuariosView = () => {
     try {
       await apiClient.delete(`/users/${deleteConfirmUser.id}`);
       toast.success('Usuario eliminado.');
-      await recargarUsuarios();
+      await queryClient.invalidateQueries({ queryKey: usersKey });
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } }; message?: string };
       toast.error(e?.response?.data?.message || e?.message || 'Error al eliminar usuario.');

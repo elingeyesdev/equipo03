@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Building, RefreshCw, Clock,
   Users, Dumbbell, UserCheck, MapPin, BarChart2, Activity,
@@ -364,52 +365,34 @@ const ClienteResumen = () => (
 // ── Componente principal ──────────────────────────────────────────────────────
 export const ResumenView = () => {
   const { user } = useAuth();
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState<string | null>(null);
-  const [summary,   setSummary]   = useState<SummaryData>({});
-  const [gyms,      setGyms]      = useState<GymDto[]>([]);
-  const [gymBrands, setGymBrands] = useState<GymDto[]>([]);
-  const [allUsers,  setAllUsers]  = useState<UserDto[]>([]);
-  const [updatedAt, setUpdatedAt] = useState<Date>(new Date());
 
-  const fetchAll = async () => {
-    if (!user) { setLoading(false); return; }
-    setLoading(true);
-    setError(null);
-    try {
+  const { data, isLoading: loading, error: fetchError, refetch, dataUpdatedAt } = useQuery({
+    queryKey: ['resumen', user?.id, user?.role],
+    queryFn: async () => {
       const [summaryRes, gymsRes, brandsRes, usersRes] = await Promise.allSettled([
         apiClient.get<SummaryData>('/dashboard/summary'),
         apiClient.get('/gyms'),
         apiClient.get('/gyms/brands'),
         apiClient.get('/users'),
       ]);
-      if (summaryRes.status === 'fulfilled') setSummary(summaryRes.value.data ?? {});
-      if (gymsRes.status === 'fulfilled') {
-        const raw = gymsRes.value.data;
-        setGyms(Array.isArray(raw) ? raw : []);
-      }
-      if (brandsRes.status === 'fulfilled') {
-        const raw = brandsRes.value.data;
-        setGymBrands(Array.isArray(raw) ? raw : []);
-      }
-      if (usersRes.status === 'fulfilled') {
-        const raw = usersRes.value.data;
-        setAllUsers(Array.isArray(raw) ? raw : []);
-      }
-      setUpdatedAt(new Date());
-    } catch (err: unknown) {
-      setError((err instanceof Error ? err.message : null) ?? 'No se pudo cargar el resumen.');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return {
+        summary:   summaryRes.status === 'fulfilled' ? (summaryRes.value.data ?? {}) : {} as SummaryData,
+        gyms:      gymsRes.status    === 'fulfilled' && Array.isArray(gymsRes.value.data)    ? gymsRes.value.data    as GymDto[]  : [] as GymDto[],
+        gymBrands: brandsRes.status  === 'fulfilled' && Array.isArray(brandsRes.value.data)  ? brandsRes.value.data  as GymDto[]  : [] as GymDto[],
+        allUsers:  usersRes.status   === 'fulfilled' && Array.isArray(usersRes.value.data)   ? usersRes.value.data   as UserDto[] : [] as UserDto[],
+      };
+    },
+    enabled: !!user,
+    staleTime: 60 * 1000,
+  });
 
-  useEffect(() => {
-    let mounted = true;
-    if (mounted) fetchAll();
-    return () => { mounted = false; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  const summary   = data?.summary   ?? {};
+  const gyms      = data?.gyms      ?? [];
+  const gymBrands = data?.gymBrands ?? [];
+  const allUsers  = data?.allUsers  ?? [];
+  const updatedAt = new Date(dataUpdatedAt);
+  const error     = fetchError ? ((fetchError as Error).message || 'No se pudo cargar el resumen.') : null;
+  const fetchAll  = refetch;
 
   if (user?.role === 'CLIENTE') return <ClienteResumen />;
 
