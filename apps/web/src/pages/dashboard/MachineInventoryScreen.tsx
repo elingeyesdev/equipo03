@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Search, Wrench, Filter, Plus, Loader2, Layers } from 'lucide-react';
+import { Search, Wrench, Filter, Plus, Loader2, Layers, Info, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
@@ -12,7 +12,7 @@ type Machine = {
   category?: string;
   imageUrl?: string | null;
   gymId: number;
-  gym?: { id: number; name: string };
+  gym?: { id: number; name: string; parent?: { id: number; name: string } | null };
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
@@ -41,6 +41,7 @@ export const MachineInventoryScreen = () => {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedGymId, setSelectedGymId] = useState('');
   const [modalMachine, setModalMachine] = useState<Machine | null | 'new'>(null);
+  const [infoMachine, setInfoMachine] = useState<Machine | null>(null);
 
   const fetchMachines = useCallback(async () => {
     try {
@@ -217,17 +218,31 @@ export const MachineInventoryScreen = () => {
                 </div>
                 <div className="p-4 flex-1 flex flex-col">
                   <h3 className="text-slate-900 dark:text-white font-bold text-base truncate mb-1" title={machine.name}>{machine.name}</h3>
-                  <p className="text-brand-orange text-xs font-semibold uppercase tracking-wider mb-auto">
+                  {machine.gym?.parent?.name && (
+                    <p className="text-brand-orange text-[10px] font-bold uppercase tracking-wider leading-none mb-0.5">
+                      {machine.gym.parent.name}
+                    </p>
+                  )}
+                  <p className="text-brand-orange/70 text-[10px] font-semibold uppercase tracking-wider mb-auto">
                     {machine.gym?.name ?? `Sede #${machine.gymId}`}
                   </p>
-                  {canManage && (
+                  <div className="mt-3 flex gap-2">
                     <button
-                      onClick={() => setModalMachine(machine)}
-                      className="mt-3 w-full flex items-center justify-center gap-2 bg-slate-100 dark:bg-[#2a2a2a] hover:bg-brand-orange text-slate-600 dark:text-gray-300 hover:text-white border border-slate-200 dark:border-gray-700 hover:border-brand-orange py-2.5 rounded-lg text-sm font-medium transition-all"
+                      onClick={() => setInfoMachine(machine)}
+                      title="Ver información"
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-[#2a2a2a] hover:bg-sky-500/15 text-slate-500 dark:text-gray-400 hover:text-sky-400 border border-slate-200 dark:border-gray-700 hover:border-sky-500/40 rounded-lg text-xs font-medium transition-all shrink-0"
                     >
-                      <Wrench size={16} /> Gestionar
+                      <Info size={14} />
                     </button>
-                  )}
+                    {canManage && (
+                      <button
+                        onClick={() => setModalMachine(machine)}
+                        className="flex-1 flex items-center justify-center gap-1.5 bg-slate-100 dark:bg-[#2a2a2a] hover:bg-brand-orange text-slate-600 dark:text-gray-300 hover:text-white border border-slate-200 dark:border-gray-700 hover:border-brand-orange py-2 rounded-lg text-xs font-medium transition-all"
+                      >
+                        <Wrench size={13} /> Gestionar
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -242,6 +257,72 @@ export const MachineInventoryScreen = () => {
           onSuccess={closeModal}
         />
       )}
+
+      {infoMachine && (
+        <MachineInfoModal machine={infoMachine} onClose={() => setInfoMachine(null)} />
+      )}
     </div>
   );
 };
+
+const MachineInfoModal = ({ machine, onClose }: { machine: Machine; onClose: () => void }) => {
+  const st  = STATUS_CONFIG[machine.status] ?? STATUS_CONFIG.AVAILABLE;
+  const cat = CATEGORY_CONFIG[machine.category ?? ''] ?? CATEGORY_CONFIG.MULTIESTACION;
+  const marca    = machine.gym?.parent?.name ?? null;
+  const sucursal = machine.gym?.name ?? `Sede #${machine.gymId}`;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white dark:bg-bg-surface border border-slate-200 dark:border-gray-700 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
+        {/* Imagen */}
+        <div className="h-48 relative bg-slate-100 dark:bg-[#111]">
+          {machine.imageUrl ? (
+            <img src={machine.imageUrl} alt={machine.name} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center">
+              <Wrench className="text-slate-300 dark:text-gray-700 mb-2" size={40} />
+              <span className="text-[10px] font-bold tracking-widest text-slate-400 dark:text-gray-500 uppercase">Sin imagen</span>
+            </div>
+          )}
+          <button onClick={onClose} className="absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors">
+            <X size={14} />
+          </button>
+          <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md border border-white/10 px-2.5 py-1 rounded-md">
+            <span className={`text-[10px] font-bold tracking-wider uppercase ${cat.color}`}>{cat.label}</span>
+          </div>
+        </div>
+
+        {/* Contenido */}
+        <div className="p-5">
+          <h2 className="text-slate-900 dark:text-white font-bold text-lg mb-4 leading-snug">{machine.name}</h2>
+
+          <div className="space-y-3">
+            <Row label="Estado">
+              <span className={`text-xs font-bold uppercase px-2.5 py-1 rounded-md ${st.bg} ${st.color} ${st.border} border`}>
+                {st.label}
+              </span>
+            </Row>
+            <Row label="Categoría">
+              <span className={`text-sm font-semibold ${cat.color}`}>{cat.label}</span>
+            </Row>
+            {marca && (
+              <Row label="Marca">
+                <span className="text-sm font-semibold text-brand-orange">{marca}</span>
+              </Row>
+            )}
+            <Row label="Sucursal">
+              <span className="text-sm font-semibold text-brand-orange/80">{sucursal}</span>
+            </Row>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-gray-800 last:border-0">
+    <span className="text-xs text-slate-500 dark:text-gray-400 font-medium">{label}</span>
+    {children}
+  </div>
+);

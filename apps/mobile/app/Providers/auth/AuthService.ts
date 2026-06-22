@@ -15,6 +15,7 @@ import { Env } from '../geolocation/config/environment';
 
 const AUTH_STORAGE_KEY = 'gymsync.user';
 const TOKEN_STORAGE_KEY = 'gymsync.token';
+const PROFILE_CACHE_KEY = 'gymsync.profile';
 const API_BASE_URL = Env.API_BASE_URL;
 
 export interface LoginRequest {
@@ -245,6 +246,7 @@ export class AuthService {
     try {
       await SecureStore.deleteItemAsync(AUTH_STORAGE_KEY);
       await SecureStore.deleteItemAsync(TOKEN_STORAGE_KEY);
+      await SecureStore.deleteItemAsync(PROFILE_CACHE_KEY);
     } catch (e) {
       console.warn('[AuthService] Error en logout:', e);
     }
@@ -286,6 +288,21 @@ export class AuthService {
       if (e?.name !== 'AbortError') {
         console.warn('[AuthService] fetchUserProfile error:', e?.message ?? e);
       }
+      return null;
+    }
+  }
+
+  static async saveProfileCache(profile: Record<string, any>): Promise<void> {
+    try {
+      await SecureStore.setItemAsync(PROFILE_CACHE_KEY, JSON.stringify(profile));
+    } catch {}
+  }
+
+  static async getProfileCache(): Promise<Record<string, any> | null> {
+    try {
+      const raw = await SecureStore.getItemAsync(PROFILE_CACHE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
       return null;
     }
   }

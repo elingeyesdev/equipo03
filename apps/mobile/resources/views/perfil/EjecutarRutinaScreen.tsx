@@ -112,6 +112,13 @@ export const EjecutarRutinaScreen = () => {
   const [showDetail, setShowDetail] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // ── Descanso entre series ──
+  const [restDuration, setRestDuration] = useState(exercise.restSecondsBetweenSets ?? 60);
+  const [restEndTime,  setRestEndTime]  = useState<number | null>(null);
+  const [restTimeLeft, setRestTimeLeft] = useState(0);
+  const restEndRef = useRef<number | null>(null);
+  const isResting = restTimeLeft > 0;
+
   // ── GPS ─────────────────────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
@@ -158,6 +165,32 @@ export const EjecutarRutinaScreen = () => {
   }, []);
 
   useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
+
+  useEffect(() => {
+    if (!restEndTime) return;
+    restEndRef.current = restEndTime;
+    const tick = setInterval(() => {
+      const left = Math.max(0, Math.ceil((restEndRef.current! - Date.now()) / 1000));
+      if (left <= 0) {
+        clearInterval(tick);
+        setRestTimeLeft(0);
+        setRestEndTime(null);
+        restEndRef.current = null;
+      } else {
+        setRestTimeLeft(left);
+      }
+    }, 200);
+    return () => clearInterval(tick);
+  }, [restEndTime]);
+
+  const handleSkipRest = () => {
+    restEndRef.current = null;
+    setRestEndTime(null);
+    setRestTimeLeft(0);
+  };
+
+  const adjustRest = (delta: number) =>
+    setRestDuration(prev => Math.max(15, Math.min(300, prev + delta)));
 
   const startTimeRef = useRef<number>(0);
   const startTimer = useCallback(() => {
@@ -252,6 +285,12 @@ export const EjecutarRutinaScreen = () => {
     const nextIdx = cursor + 1;
     if (nextIdx < next.length) {
       setCursor(nextIdx);
+      if (restDuration > 0) {
+        const end = Date.now() + restDuration * 1000;
+        restEndRef.current = end;
+        setRestEndTime(end);
+        setRestTimeLeft(restDuration);
+      }
     } else {
       finishSession(next, 'COMPLETED');
     }
@@ -517,16 +556,42 @@ export const EjecutarRutinaScreen = () => {
             </View>
           )}
 
-          <TouchableOpacity style={s.doneBtn} onPress={handleCompleteSet} activeOpacity={0.85}>
-            <MaterialCommunityIcons name="check-circle" size={20} color="#fff" />
-            <Text style={s.doneTxt}>Serie Completada</Text>
-          </TouchableOpacity>
+          {isResting ? (
+            <View style={s.restBlock}>
+              <Text style={s.restLabel}>DESCANSO</Text>
+              <Text style={s.restTimer}>{restTimeLeft}s</Text>
+              <TouchableOpacity style={s.restSkipBtn} activeOpacity={0.8} onPress={handleSkipRest}>
+                <Text style={s.restSkipTxt}>Omitir Descanso</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <>
+              <TouchableOpacity style={s.doneBtn} onPress={handleCompleteSet} activeOpacity={0.85}>
+                <MaterialCommunityIcons name="check-circle" size={20} color="#fff" />
+                <Text style={s.doneTxt}>Serie Completada</Text>
+              </TouchableOpacity>
 
-          <TouchableOpacity style={s.skipBtn} onPress={handleSkipSet} activeOpacity={0.7}>
-            <Text style={s.skipTxt}>
-              {cursor === sets.length - 1 ? 'Finalizar sin esta serie' : 'Omitir serie →'}
-            </Text>
-          </TouchableOpacity>
+              <TouchableOpacity style={s.skipBtn} onPress={handleSkipSet} activeOpacity={0.7}>
+                <Text style={s.skipTxt}>
+                  {cursor === sets.length - 1 ? 'Finalizar sin esta serie' : 'Omitir serie →'}
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {/* Controles de descanso */}
+          <View style={s.restControl}>
+            <Text style={s.restControlLabel}>Descanso entre series</Text>
+            <View style={s.restControlRow}>
+              <TouchableOpacity style={s.restAdjBtn} onPress={() => adjustRest(-15)} activeOpacity={0.7}>
+                <Text style={s.restAdjTxt}>-15s</Text>
+              </TouchableOpacity>
+              <Text style={s.restDurationTxt}>{restDuration}s</Text>
+              <TouchableOpacity style={s.restAdjBtn} onPress={() => adjustRest(+15)} activeOpacity={0.7}>
+                <Text style={s.restAdjTxt}>+15s</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
 
         {/* Dots overview */}
@@ -611,4 +676,17 @@ const s = StyleSheet.create({
 
   earlyFinishBtn: { borderRadius: 12, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#2a2a2a' },
   earlyFinishTxt: { color: '#555', fontSize: 13, fontWeight: '600' },
+
+  // ── Rest / Descanso ──
+  restBlock:       { alignItems: 'center', paddingVertical: 24, gap: 8 },
+  restLabel:       { color: '#888', fontSize: 11, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase' },
+  restTimer:       { color: '#fff', fontSize: 56, fontWeight: '900' },
+  restSkipBtn:     { backgroundColor: '#1C1C1E', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 24, marginTop: 8 },
+  restSkipTxt:     { color: '#FF5E00', fontSize: 13, fontWeight: '700' },
+  restControl:     { alignItems: 'center', marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#1a1a1a' },
+  restControlLabel:{ color: '#555', fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 },
+  restControlRow:  { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  restAdjBtn:      { width: 44, height: 44, borderRadius: 22, backgroundColor: '#1C1C1E', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#2a2a2a' },
+  restAdjTxt:      { color: '#FF5E00', fontSize: 13, fontWeight: '800' },
+  restDurationTxt: { color: '#fff', fontSize: 20, fontWeight: '900', minWidth: 50, textAlign: 'center' },
 });

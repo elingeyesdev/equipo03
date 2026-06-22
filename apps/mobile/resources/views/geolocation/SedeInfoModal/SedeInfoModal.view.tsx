@@ -128,6 +128,33 @@ export const SedeInfoModalView: React.FC<SedeInfoModalViewProps> = ({
             </View>
           )}
 
+          {/* Aforo de máquinas */}
+          {sede.machineStats && sede.machineStats.total > 0 && (
+            <View style={{ marginHorizontal: 20, marginBottom: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                <MaterialCommunityIcons name="dumbbell" size={13} color="#B0B0B0" />
+                <Text style={{ color: '#888', fontSize: 12 }}>Máquinas disponibles</Text>
+                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700', marginLeft: 'auto' }}>
+                  {sede.machineStats.available}/{sede.machineStats.total}
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <View style={{ flex: 1, backgroundColor: '#00E5A320', borderRadius: 8, paddingVertical: 6, alignItems: 'center' }}>
+                  <Text style={{ color: '#00E5A3', fontSize: 13, fontWeight: '700' }}>{sede.machineStats.available}</Text>
+                  <Text style={{ color: '#888', fontSize: 10, marginTop: 1 }}>Disponible</Text>
+                </View>
+                <View style={{ flex: 1, backgroundColor: '#FF5E0020', borderRadius: 8, paddingVertical: 6, alignItems: 'center' }}>
+                  <Text style={{ color: '#FF5E00', fontSize: 13, fontWeight: '700' }}>{sede.machineStats.inUse}</Text>
+                  <Text style={{ color: '#888', fontSize: 10, marginTop: 1 }}>En uso</Text>
+                </View>
+                <View style={{ flex: 1, backgroundColor: '#FF3B3020', borderRadius: 8, paddingVertical: 6, alignItems: 'center' }}>
+                  <Text style={{ color: '#FF3B30', fontSize: 13, fontWeight: '700' }}>{sede.machineStats.maintenance}</Text>
+                  <Text style={{ color: '#888', fontSize: 10, marginTop: 1 }}>Mantenimiento</Text>
+                </View>
+              </View>
+            </View>
+          )}
+
           <ScrollView
             style={styles.scrollContent}
             showsVerticalScrollIndicator={false}

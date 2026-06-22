@@ -13,6 +13,7 @@ import { MedidasPlaceholder } from './components/Dashboard/Placeholders';
 import { ReservasView } from './components/Reservas/ReservasView';
 import { MachineInventoryScreen } from './pages/dashboard/MachineInventoryScreen';
 import { ExerciseLibraryScreen } from './pages/dashboard/ExerciseLibraryScreen';
+import { TerminosPage, PrivacidadPage, ContactoPage } from './pages/legal/LegalPages';
 
 export const AppRouter = () => {
   return (
@@ -33,6 +34,9 @@ export const AppRouter = () => {
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginScreen />} />
           <Route path="/register" element={<RegisterScreen />} />
+          <Route path="/terminos" element={<TerminosPage />} />
+          <Route path="/privacidad" element={<PrivacidadPage />} />
+          <Route path="/contacto" element={<ContactoPage />} />
 
           <Route path="/dashboard" element={<DashboardLayout />}>
             {/* Resumen: accesible a todos los roles autenticados */}

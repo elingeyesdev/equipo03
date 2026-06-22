@@ -168,6 +168,12 @@ export const PerfilAlumnoScreen = () => {
                   unit="%"
                   icon="fire"
                 />
+                <MetricCard
+                  label="Masa Muscular"
+                  value={metrics.muscleMassKg != null ? metrics.muscleMassKg.toFixed(1) : null}
+                  unit="kg"
+                  icon="arm-flex"
+                />
               </View>
               <Text style={s.metaDate}>
                 Último registro: {fmtDate(metrics.recordedAt)}
@@ -176,12 +182,17 @@ export const PerfilAlumnoScreen = () => {
           )}
 
           {/* Condición médica */}
-          {profile?.medicalConditions ? (
-            <View style={s.card}>
-              <Text style={s.cardTitle}>Condición Médica</Text>
+          <View style={s.card}>
+            <Text style={s.cardTitle}>Condición Médica</Text>
+            {profile?.medicalConditions ? (
               <Text style={s.medicalTxt}>{profile.medicalConditions}</Text>
-            </View>
-          ) : null}
+            ) : (
+              <View style={s.noDataRow}>
+                <MaterialCommunityIcons name="clipboard-text-off-outline" size={16} color="#333" />
+                <Text style={s.noDataTxt}>Sin registro de condiciones médicas</Text>
+              </View>
+            )}
+          </View>
 
           {/* Acciones */}
           <View style={s.actionsRow}>
@@ -255,6 +266,8 @@ const s = StyleSheet.create({
   noMetricsTxt: { color: '#333', fontSize: 13 },
 
   medicalTxt: { color: '#ccc', fontSize: 13, lineHeight: 20 },
+  noDataRow:  { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
+  noDataTxt:  { color: '#444', fontSize: 13, fontStyle: 'italic' },
 
   actionsRow: { gap: 10, marginTop: 8 },
   actionBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#f05b22', borderRadius: 12, paddingVertical: 14 },

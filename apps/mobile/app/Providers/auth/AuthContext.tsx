@@ -49,8 +49,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const doRestore = async () => {
         const currentUser = await AuthService.getCurrentUser();
         if (currentUser) {
+          const cachedProfile = await AuthService.getProfileCache();
+          if (cachedProfile) {
+            setUser({ ...currentUser, ...(({ profile: cachedProfile }) as any) });
+          }
+
           const userData = await AuthService.fetchUserProfile();
-          setUser({ ...currentUser, ...(({ profile: userData?.profile ?? (currentUser as any).profile ?? undefined }) as any) });
+          const freshProfile = userData?.profile ?? cachedProfile ?? undefined;
+          setUser({ ...currentUser, ...(({ profile: freshProfile ?? undefined }) as any) });
+
+          if (freshProfile) {
+            AuthService.saveProfileCache(freshProfile).catch(() => {});
+          }
+
           if (ALLOWED_PUSH_ROLES.includes(currentUser.role)) {
             await Promise.race([
               registerToken(),
@@ -104,7 +115,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         } catch {}
 
         const userData = await AuthService.fetchUserProfile();
-        setUser({ ...result.user, ...(({ profile: userData?.profile ?? undefined }) as any) });
+        const loginProfile = userData?.profile ?? undefined;
+        setUser({ ...result.user, ...(({ profile: loginProfile }) as any) });
+        if (loginProfile) {
+          AuthService.saveProfileCache(loginProfile).catch(() => {});
+        }
 
         if (ALLOWED_PUSH_ROLES.includes(result.user.role)) {
           await Promise.race([
@@ -146,17 +161,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const updateProfile = (data: any) => {
     setUser((prev: any) => {
       if (!prev) return prev;
-      return {
-        ...prev,
-        profile: {
-          ...(prev.profile || {}),
-          ...data,
-          physicalMetrics: {
-            ...(prev.profile?.physicalMetrics || {}),
-            ...(data.physicalMetrics || {}),
-          }
-        },
+      const merged = {
+        ...(prev.profile || {}),
+        ...data,
+        physicalMetrics: {
+          ...(prev.profile?.physicalMetrics || {}),
+          ...(data.physicalMetrics || {}),
+        }
       };
+      AuthService.saveProfileCache(merged).catch(() => {});
+      return { ...prev, profile: merged };
     });
   };
 

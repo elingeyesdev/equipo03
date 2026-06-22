@@ -48,6 +48,7 @@ function buildSucursalDTO(gym: IGymRaw, sedesMap: Map<number, string>): Sucursal
     aforoActual: gym.aforoActual ?? 0,
     currentOccupancy: gym.currentOccupancy ?? gym.aforoActual ?? 0,
     machineCapacity: gym.infrastructure?.machineCapacity || 0,
+    machineStats: gym.machineStats ?? undefined,
     isActive: gym.isActive ?? true,
     isOpen: gym.isOpen ?? true,
     schedules: gym.schedules ?? [],

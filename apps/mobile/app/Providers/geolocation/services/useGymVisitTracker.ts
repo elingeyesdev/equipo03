@@ -67,6 +67,13 @@ export const useGymVisitTracker = () => {
           }
 
           const currentInside = insideGymRef.current;
+          const activeVisit = await VisitStorageService.getActiveVisit();
+
+          if (activeVisit && !gyms.some(g => g.id === activeVisit.gymId)) {
+            await VisitStorageService.discardActiveVisit();
+            insideGymRef.current = null;
+            return;
+          }
 
           if (closestDist <= ENTER_RADIUS_M && !currentInside) {
             insideGymRef.current = closestGym;

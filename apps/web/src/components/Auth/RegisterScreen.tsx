@@ -167,7 +167,7 @@ export const RegisterScreen = () => {
 
       <nav className="landing-navbar">
         <div>
-          <div className="navbar-logo">GymSync <span>Pro</span></div>
+          <div className="navbar-logo">GymSync <span>Suite</span></div>
           <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '5px 14px', borderRadius: 6, background: 'rgba(255,255,255,0.1)', color: '#fff', textDecoration: 'none', fontSize: 12, fontWeight: 600 }}>← Inicio</Link>
         </div>
         <Link to="/login" className="btn-ghost-cyan">Iniciar Sesión</Link>
@@ -175,13 +175,13 @@ export const RegisterScreen = () => {
 
       <div className="register-view-container">
         <motion.div
-          className="w-full max-w-md bg-white dark:bg-bg-surface border border-slate-200 dark:border-bg-deep rounded-2xl p-8"
+          className="w-full max-w-md bg-white dark:bg-bg-surface border border-slate-200 dark:border-bg-deep rounded-2xl p-5 sm:p-8"
           initial={{ scale: 0.9, y: 30, opacity: 0 }}
           animate={{ scale: 1, y: 0, opacity: 1 }}
           transition={{ type: 'spring', damping: 25, stiffness: 280 }}
         >
           <div className="text-xl font-extrabold text-slate-900 dark:text-white text-center mb-1 tracking-tight">
-            GymSync <span style={{ color: '#38BDF8' }}>Pro</span>
+            GymSync <span style={{ color: '#F97316' }}>Suite</span>
           </div>
 
           {/* ── Vista de éxito ── */}
@@ -288,9 +288,9 @@ export const RegisterScreen = () => {
                     style={{ paddingLeft: '0.75rem' }}
                   >
                     <option value="">Sin especificar</option>
-                    <option value="MALE">Masculino</option>
-                    <option value="FEMALE">Femenino</option>
-                    <option value="OTHER">Otro</option>
+                    <option value="Masculino">Masculino</option>
+                    <option value="Femenino">Femenino</option>
+                    <option value="Otro">Otro</option>
                   </select>
                 </div>
 
