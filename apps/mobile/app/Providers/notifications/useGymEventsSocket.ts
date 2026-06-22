@@ -19,6 +19,11 @@ type GymEventPayload = {
   gymId?: number;
 };
 
+type AforoUpdatedPayload = {
+  gymId: number;
+  current: number;
+};
+
 async function showLocalGymNotification(
   event: 'new_reservation' | 'cancel_reservation',
   payload: GymEventPayload,
@@ -139,6 +144,14 @@ export function useGymEventsSocket(): void {
           queryClient.invalidateQueries({ queryKey: ['trainer-client-sessions'] });
         });
       }
+
+      socket.on('aforo_updated', (payload: AforoUpdatedPayload) => {
+        queryClient.invalidateQueries({ queryKey: ['frequent-gyms'] });
+        queryClient.invalidateQueries({ queryKey: ['sedes-cercanas'] });
+        if (payload?.gymId != null) {
+          queryClient.invalidateQueries({ queryKey: ['gym-aforo', payload.gymId] });
+        }
+      });
 
       const advisoryEvents = ['advisory_request', 'advisory_accepted', 'advisory_rejected', 'advisory_cancelled'];
       for (const evt of advisoryEvents) {

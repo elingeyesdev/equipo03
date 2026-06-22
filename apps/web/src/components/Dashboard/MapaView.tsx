@@ -10,7 +10,7 @@ import 'leaflet/dist/leaflet.css';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { SucursalMapaDTO } from '@gymsync/core';
-import { Edit, Calendar } from 'lucide-react';
+import { Edit, Calendar, Search, ChevronDown } from 'lucide-react';
 import { useMapaSucursales } from '../../hooks/useMapaSucursales';
 
 // ── Fix íconos Leaflet en Vite ────────────────────────────────────────────────
@@ -28,10 +28,10 @@ L.Icon.Default.mergeOptions({
 // ── Tipos de filtro estado ────────────────────────────────────────────────────
 type EstadoFiltro = 'abierta' | 'cerrada' | 'inactiva';
 
-const ESTADO_CONFIG: Record<EstadoFiltro, { label: string; color: string; emoji: string }> = {
-  abierta:  { label: 'Abierta',  color: '#2ecc71', emoji: '🟢' },
-  cerrada:  { label: 'Cerrada',  color: '#e74c3c', emoji: '🔴' },
-  inactiva: { label: 'Inactiva', color: '#FF5E00', emoji: '🟠' },
+const ESTADO_CONFIG: Record<EstadoFiltro, { label: string; color: string }> = {
+  abierta:  { label: 'Abierta',  color: '#2ecc71' },
+  cerrada:  { label: 'Cerrada',  color: '#e74c3c' },
+  inactiva: { label: 'Inactiva', color: '#FF5E00' },
 };
 
 
@@ -189,7 +189,8 @@ const PopupCard = ({ s, computedStatus, role }: { s: SucursalMapaDTO; computedSt
           border: `1px solid ${cfg.color}`,
           whiteSpace: 'nowrap', flexShrink: 0,
         }}>
-          {cfg.emoji} {cfg.label.toUpperCase()}
+          <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: cfg.color, marginRight: '4px', flexShrink: 0 }} />
+          {cfg.label.toUpperCase()}
         </span>
       </div>
 
@@ -210,12 +211,33 @@ const PopupCard = ({ s, computedStatus, role }: { s: SucursalMapaDTO; computedSt
       </div>
 
       {/* Aforo máquinas */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', marginBottom: '10px' }}>
-        <span style={{ color: '#8E8E93' }}>Aforo máquinas</span>
-        <span style={{ color: '#38BDF8', fontWeight: 600 }}>
-          {(s.machineCapacity ?? 0) > 0 ? `${s.machineCapacity} máq. disponibles` : 'Sin registro'}
-        </span>
-      </div>
+      {s.machineStats && s.machineStats.total > 0 ? (
+        <div style={{ marginBottom: '10px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', marginBottom: '5px' }}>
+            <span style={{ color: '#8E8E93' }}>Máquinas</span>
+            <span style={{ color: '#E5E5EA', fontWeight: 600 }}>{s.machineStats.available}/{s.machineStats.total} libres</span>
+          </div>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            <div style={{ flex: 1, background: '#00E5A315', borderRadius: '6px', padding: '4px 0', textAlign: 'center' }}>
+              <div style={{ color: '#00E5A3', fontSize: '0.78rem', fontWeight: 700 }}>{s.machineStats.available}</div>
+              <div style={{ color: '#555', fontSize: '0.62rem', marginTop: '1px' }}>Libre</div>
+            </div>
+            <div style={{ flex: 1, background: '#FF5E0015', borderRadius: '6px', padding: '4px 0', textAlign: 'center' }}>
+              <div style={{ color: '#FF5E00', fontSize: '0.78rem', fontWeight: 700 }}>{s.machineStats.inUse}</div>
+              <div style={{ color: '#555', fontSize: '0.62rem', marginTop: '1px' }}>En uso</div>
+            </div>
+            <div style={{ flex: 1, background: '#e74c3c15', borderRadius: '6px', padding: '4px 0', textAlign: 'center' }}>
+              <div style={{ color: '#e74c3c', fontSize: '0.78rem', fontWeight: 700 }}>{s.machineStats.maintenance}</div>
+              <div style={{ color: '#555', fontSize: '0.62rem', marginTop: '1px' }}>Mant.</div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', marginBottom: '10px' }}>
+          <span style={{ color: '#8E8E93' }}>Máquinas</span>
+          <span style={{ color: '#555', fontWeight: 600 }}>Sin registro</span>
+        </div>
+      )}
 
       {/* Coords + botón */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
@@ -594,7 +616,7 @@ export const MapaView: React.FC = () => {
 
             {/* Buscar por nombre */}
             <div style={{ position: 'relative', flex: '1 1 160px', maxWidth: '240px' }}>
-              <span style={{ position: 'absolute', left: '0.6rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.85rem', pointerEvents: 'none', color: '#8E8E93' }}>🔍</span>
+              <Search size={14} style={{ position: 'absolute', left: '0.6rem', top: '50%', transform: 'translateY(-50%)', color: '#8E8E93', pointerEvents: 'none' }} />
               <input
                 type="text"
                 placeholder="Buscar sucursal…"
@@ -617,49 +639,57 @@ export const MapaView: React.FC = () => {
                   onClick={() => toggleEstado(key)}
                   style={on ? s.pillActive(cfg.color) : s.pillInactive}
                 >
-                  {cfg.emoji} {cfg.label} ({estadoCounts[key]})
+                  <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: cfg.color, marginRight: '5px', flexShrink: 0, boxShadow: `0 0 4px ${cfg.color}` }} />
+                  {cfg.label} ({estadoCounts[key]})
                 </button>
               );
             })}
 
-            {/* Filtro marca — solo SUPER_ADMIN */}
+            {/* Filtro marca — solo SUPER_ADMIN (dropdown escalable) */}
             {isSuperAdmin && (
               <>
                 <div style={s.divider} />
                 <span style={s.sectionLabel}>Marca:</span>
-                <button
-                  style={{ ...s.filterBtn, ...(filtroSede === null ? s.filterBtnActive : {}) }}
-                  onClick={() => setFiltroSede(null)}
-                >
-                  Todas ({sucursales.length})
-                </button>
-                {sinSedeCnt > 0 && (
-                  <button
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                  <select
+                    value={filtroSede ?? ''}
+                    onChange={e => setFiltroSede(e.target.value === '' ? null : e.target.value)}
                     style={{
-                      ...s.filterBtn,
-                      ...(filtroSede === '__sinSede__'
-                        ? { border: '1px solid #8E8E93', background: '#1C1C1E', color: '#8E8E93', fontWeight: 700 }
-                        : {}),
+                      appearance: 'none' as const,
+                      WebkitAppearance: 'none' as const,
+                      background: theme === 'dark' ? '#1C1C1E' : '#F9FAFB',
+                      border: filtroSede
+                        ? `1px solid #38BDF8`
+                        : theme === 'dark' ? '1px solid #3A3A3C' : '1px solid #D1D5DB',
+                      borderRadius: '8px',
+                      color: filtroSede ? '#38BDF8' : theme === 'dark' ? '#E5E5EA' : '#475569',
+                      fontSize: '0.82rem',
+                      fontWeight: filtroSede ? 700 : 500,
+                      padding: '0.38rem 2rem 0.38rem 0.75rem',
+                      cursor: 'pointer',
+                      outline: 'none',
+                      minWidth: '170px',
                     }}
-                    onClick={() => setFiltroSede(filtroSede === '__sinSede__' ? null : '__sinSede__')}
                   >
-                    Sin Marca ({sinSedeCnt})
-                  </button>
-                )}
-                {sedesUnicas.map(({ nombre, id }) => {
-                  const cnt   = sucursales.filter(sc => sc.sedePrincipalNombre === nombre).length;
-                  const color = getSedeColor(id);
-                  const on    = filtroSede === nombre;
-                  return (
-                    <button
-                      key={nombre}
-                      style={{ ...s.filterBtn, ...(on ? { border: `1px solid ${color}`, background: `${color}22`, color, fontWeight: 700 } : {}) }}
-                      onClick={() => setFiltroSede(on ? null : nombre)}
-                    >
-                      {nombre} ({cnt})
-                    </button>
-                  );
-                })}
+                    <option value="">Todas ({sucursales.length})</option>
+                    {sinSedeCnt > 0 && (
+                      <option value="__sinSede__">Sin Marca ({sinSedeCnt})</option>
+                    )}
+                    {sedesUnicas.map(({ nombre }) => {
+                      const cnt = sucursales.filter(sc => sc.sedePrincipalNombre === nombre).length;
+                      return <option key={nombre} value={nombre}>{nombre} ({cnt})</option>;
+                    })}
+                  </select>
+                  <ChevronDown
+                    size={14}
+                    style={{
+                      position: 'absolute', right: '0.5rem', top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: filtroSede ? '#38BDF8' : theme === 'dark' ? '#8E8E93' : '#64748b',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                </div>
               </>
             )}
           </div>

@@ -21,6 +21,14 @@ export interface IScheduleRaw {
   isHoliday: boolean;
 }
 
+/** Stats de máquinas por sucursal (calculado en el backend). */
+export interface IMachineStats {
+  total: number;
+  available: number;
+  inUse: number;
+  maintenance: number;
+}
+
 /** Gym crudo tal como llega del endpoint GET /gyms. */
 export interface IGymRaw {
   id: number;
@@ -32,6 +40,7 @@ export interface IGymRaw {
   aforoActual?: number;
   currentOccupancy?: number;
   infrastructure?: { id: number; machineCapacity: number } | null;
+  machineStats?: IMachineStats | null;
   parentId?: number | null;
   parent?: { id: number; name: string } | null;
   location?: IGymLocationRaw | null;
@@ -55,6 +64,7 @@ export interface SucursalMapaDTO {
   aforoActual: number;
   currentOccupancy: number;
   machineCapacity: number;
+  machineStats?: IMachineStats;
   isActive: boolean;
   isOpen: boolean;
   schedules: IScheduleRaw[];

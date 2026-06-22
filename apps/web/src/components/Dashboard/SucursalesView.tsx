@@ -13,7 +13,7 @@ delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIcon
 L.Icon.Default.mergeOptions({ iconUrl: markerIcon, iconRetinaUrl: markerIcon2x, shadowUrl: markerShadow });
 import { ModalOverlay, ConfirmModal, panelStyle, RecordDetailModal, DetailField, guardClose } from './Shared/DashboardShared';
 import type { GymDto, GymScheduleDto } from './Shared/DashboardTypes';
-import { Eye, Edit, Trash2 } from 'lucide-react';
+import { Eye, Edit, Trash2, Search, X } from 'lucide-react';
 
 
 const HOURS_24_S   = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
@@ -721,12 +721,14 @@ export const SucursalesView = () => {
       {/* ── Barra de filtros ── */}
       {!loading && !error && gyms.length > 0 && (
         <div className="flex flex-col md:flex-row flex-wrap gap-3 items-center mb-6">
-          <input
-            value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="🔍  Buscar por nombre o dirección..."
-            className="flex-1 bg-white dark:bg-bg-deep border border-gray-300 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md px-4 py-2 text-sm focus:outline-none placeholder:text-slate-400 dark:placeholder:text-gray-500"
-            style={{ minWidth: '200px' }}
-          />
+          <div className="relative flex-1" style={{ minWidth: '200px' }}>
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-500 pointer-events-none" />
+            <input
+              value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar por nombre o dirección..."
+              className="w-full bg-white dark:bg-bg-deep border border-gray-300 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md pl-9 pr-4 py-2 text-sm focus:outline-none placeholder:text-slate-400 dark:placeholder:text-gray-500"
+            />
+          </div>
           {/* Sede principal */}
           {parentOptions.length > 0 && (
             <div style={{ position: 'relative' }}>
@@ -763,8 +765,8 @@ export const SucursalesView = () => {
           </div>
           {hasFilters && (
             <button onClick={resetFilters}
-              style={{ background: '#8e8e93', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.45rem 0.85rem', cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap', fontWeight: 600 }}>
-              Limpiar
+              style={{ background: 'none', color: '#8E8E93', border: '1px solid #3A3A3C', borderRadius: '8px', padding: '0.45rem 0.85rem', cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+              <X size={12} />Limpiar
             </button>
           )}
         </div>

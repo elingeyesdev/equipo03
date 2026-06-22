@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
 import { ModalOverlay, ConfirmModal, guardClose } from './Shared/DashboardShared';
-import { Eye, Edit, Trash2, Plus, X } from 'lucide-react';
+import { Eye, Edit, Trash2, Plus, X, Search, GraduationCap } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Activity {
@@ -476,8 +476,8 @@ const ActivityFormModal = ({
         </h2>
         <button
           onClick={() => guardClose(touched, onClose)}
-          className="text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-gray-300 text-sm font-bold bg-slate-100 dark:bg-gray-800 px-2 py-1 rounded border-0 cursor-pointer transition-colors"
-        >✕</button>
+          className="text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-gray-300 bg-slate-100 dark:bg-gray-800 p-1.5 rounded border-0 cursor-pointer transition-colors flex items-center"
+        ><X size={14} /></button>
       </div>
 
       {/* Contenido scrollable */}
@@ -607,14 +607,14 @@ const ActivityFormModal = ({
                         <span className="text-slate-700 dark:text-gray-200 text-sm flex-1">
                           {s.startTime.substring(0, 5)} – {s.endTime.substring(0, 5)}
                           {instrLabel && (
-                            <span className="text-slate-400 dark:text-gray-500 ml-2 text-xs">
-                              · 🎓 {instrLabel}
+                            <span className="inline-flex items-center gap-1 text-slate-400 dark:text-gray-500 ml-2 text-xs">
+                              · <GraduationCap size={11} /> {instrLabel}
                             </span>
                           )}
                         </span>
                         <button type="button" onClick={() => handleDeleteSchedule(s.id)}
-                          className="bg-red-50 dark:bg-bg-surface text-red-500 border border-red-200 dark:border-gray-600 rounded-md px-2 py-[0.15rem] cursor-pointer text-xs">
-                          ✕
+                          className="bg-red-50 dark:bg-bg-surface text-red-500 border border-red-200 dark:border-gray-600 rounded-md p-1 cursor-pointer flex items-center">
+                          <X size={12} />
                         </button>
                       </div>
                     );
@@ -870,13 +870,15 @@ export const ActividadesView = () => {
       {/* ── Barra de filtros ── */}
       <div className="flex flex-col md:flex-row flex-wrap gap-3 items-center mb-6">
         {/* Búsqueda libre */}
-        <input
-          className="flex-1 bg-white dark:bg-bg-deep border border-gray-300 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md px-4 py-2 text-sm focus:outline-none placeholder:text-slate-400 dark:placeholder:text-gray-500"
-          style={{ minWidth: '220px' }}
-          placeholder="🔍  Buscar por nombre o descripción..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
+        <div className="relative flex-1" style={{ minWidth: '220px' }}>
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-500 pointer-events-none" />
+          <input
+            className="w-full bg-white dark:bg-bg-deep border border-gray-300 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md pl-9 pr-4 py-2 text-sm focus:outline-none placeholder:text-slate-400 dark:placeholder:text-gray-500"
+            placeholder="Buscar por nombre o descripción..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
 
         {/* Sucursal — solo SUPER_ADMIN ve múltiples gyms */}
         {isSuperAdmin && gymOptions.length > 1 && (

@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
 import { ModalOverlay, ConfirmModal, panelStyle, guardClose } from './Shared/DashboardShared';
 import type { GymDto, GymScheduleDto, UserDto, CheckinDto, ScheduleEntry } from './Shared/DashboardTypes';
-import { Edit, Trash2, Building2 } from 'lucide-react';
+import { Edit, Trash2, Building2, Search, X } from 'lucide-react';
 
 const DESC_MAX = 180;
 
@@ -293,12 +293,14 @@ export const SedesView = () => {
       {/* ── Barra de filtros ── */}
       {!loading && !error && gyms.length > 0 && (
         <div className="flex flex-col md:flex-row flex-wrap gap-3 items-center mb-6">
-          <input
-            value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="🔍  Buscar marca por nombre..."
-            className="flex-1 bg-white dark:bg-bg-deep border border-gray-300 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md px-4 py-2 text-sm focus:outline-none placeholder:text-slate-400 dark:placeholder:text-gray-500"
-            style={{ minWidth: '180px' }}
-          />
+          <div className="relative flex-1" style={{ minWidth: '180px' }}>
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-500 pointer-events-none" />
+            <input
+              value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar marca por nombre..."
+              className="w-full bg-white dark:bg-bg-deep border border-gray-300 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md pl-9 pr-4 py-2 text-sm focus:outline-none placeholder:text-slate-400 dark:placeholder:text-gray-500"
+            />
+          </div>
           <div style={{ position: 'relative' }}>
             <select value={sortOrder} onChange={e => setSortOrder(e.target.value as any)}
               className="bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none">
@@ -311,8 +313,8 @@ export const SedesView = () => {
           </div>
           {(search || sortOrder !== 'az') && (
             <button onClick={() => { setSearch(''); setSortOrder('az'); }}
-              style={{ background: '#8e8e93', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.45rem 0.85rem', cursor: 'pointer', fontSize: '0.8rem' }}>
-              Limpiar
+              style={{ background: 'none', color: '#8E8E93', border: '1px solid #3A3A3C', borderRadius: '8px', padding: '0.45rem 0.85rem', cursor: 'pointer', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+              <X size={12} />Limpiar
             </button>
           )}
         </div>

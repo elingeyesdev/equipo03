@@ -5,7 +5,7 @@ import { apiClient } from '../../infrastructure/api.config';
 import { DB_ROLES, ROLE_ID_TO_NAME } from '../../config/rbac.constants';
 import { ModalOverlay, ConfirmModal, panelStyle, RecordDetailModal, DetailField, guardClose } from './Shared/DashboardShared';
 import type { GymDto, UserDto } from './Shared/DashboardTypes';
-import { Eye, Edit, Trash2, Plus, Clock, Building2 } from 'lucide-react';
+import { Eye, Edit, Trash2, Plus, Clock, Building2, Search, X } from 'lucide-react';
 
 // ─── Roles que requieren asignación de sede (por nombre, no ID hardcodeado) ───
 const SEDE_ROLE_NAMES = new Set([
@@ -36,14 +36,14 @@ const formatRoleName = (name: string): string => {
 
 // ─── Prefijos telefónicos y helper de parseo (fuera del componente — constantes) ─
 const PHONE_PREFIXES = [
-  { code: '+591', flag: '🇧🇴', label: '+591' },
-  { code: '+54',  flag: '🇦🇷', label: '+54'  },
-  { code: '+56',  flag: '🇨🇱', label: '+56'  },
-  { code: '+55',  flag: '🇧🇷', label: '+55'  },
-  { code: '+51',  flag: '🇵🇪', label: '+51'  },
-  { code: '+57',  flag: '🇨🇴', label: '+57'  },
-  { code: '+52',  flag: '🇲🇽', label: '+52'  },
-  { code: '+1',   flag: '🇺🇸', label: '+1'   },
+  { code: '+591', label: '+591 BO' },
+  { code: '+54',  label: '+54 AR'  },
+  { code: '+56',  label: '+56 CL'  },
+  { code: '+55',  label: '+55 BR'  },
+  { code: '+51',  label: '+51 PE'  },
+  { code: '+57',  label: '+57 CO'  },
+  { code: '+52',  label: '+52 MX'  },
+  { code: '+1',   label: '+1 US'   },
 ];
 
 const splitPhone = (raw: string): { prefix: string; number: string } => {
@@ -335,10 +335,10 @@ const StaffScheduleModal = ({
                                   type="button"
                                   onClick={() => activeGymId !== null && removeSlot(activeGymId, dow, idx)}
                                   title="Eliminar turno"
-                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '2px 5px', fontSize: '13px', lineHeight: 1 }}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '2px 5px', lineHeight: 1, display: 'inline-flex', alignItems: 'center' }}
                                   className="hover:opacity-70 rounded"
                                 >
-                                  ✕
+                                  <X size={13} />
                                 </button>
                               )}
                             </div>
@@ -618,7 +618,7 @@ setSelectedMarcaId(sedeIdDelGerente);
             style={{ width: '95px', flexShrink: 0 }}
           >
             {PHONE_PREFIXES.map(p => (
-              <option key={p.code} value={p.code}>{p.flag} {p.label}</option>
+              <option key={p.code} value={p.code}>{p.label}</option>
             ))}
           </select>
           <input
@@ -1169,12 +1169,14 @@ export const UsuariosView = () => {
       {/* ── Barra de filtros ── */}
       {!loading && !error && users.length > 0 && (
         <div className="flex flex-col md:flex-row flex-wrap gap-3 items-center mb-6">
-          <input
-            value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="🔍  Buscar por nombre o email..."
-            className="flex-1 bg-white dark:bg-bg-deep border border-gray-300 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md px-4 py-2 text-sm focus:outline-none placeholder:text-slate-400 dark:placeholder:text-gray-500"
-            style={{ minWidth: '200px' }}
-          />
+          <div className="relative flex-1" style={{ minWidth: '200px' }}>
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-500 pointer-events-none" />
+            <input
+              value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar por nombre o email..."
+              className="w-full bg-white dark:bg-bg-deep border border-gray-300 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md pl-9 pr-4 py-2 text-sm focus:outline-none placeholder:text-slate-400 dark:placeholder:text-gray-500"
+            />
+          </div>
           {/* Rol */}
           <div style={{ position: 'relative' }}>
             <select value={filterRole} onChange={e => setFilterRole(e.target.value)}
@@ -1219,8 +1221,8 @@ export const UsuariosView = () => {
           </div>
           {hasActiveFilters && (
             <button onClick={resetFilters}
-              style={{ background: 'none', color: '#8E8E93', border: '1px solid #3A3A3C', borderRadius: '8px', padding: '0.45rem 0.85rem', cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-              Limpiar
+              style={{ background: 'none', color: '#8E8E93', border: '1px solid #3A3A3C', borderRadius: '8px', padding: '0.45rem 0.85rem', cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+              <X size={12} />Limpiar
             </button>
           )}
         </div>
