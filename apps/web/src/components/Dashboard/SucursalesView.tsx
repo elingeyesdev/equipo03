@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Navigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
@@ -476,10 +477,29 @@ const SucursalModal = ({ isOpen, onClose, role, sucursalToEdit, onSave, parentGy
 
 export const SucursalesView = () => {
   const { user } = useAuth();
-  const [gyms, setGyms] = useState<GymDto[]>([]);
-  const [parentGyms, setParentGyms] = useState<Record<number, string>>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const { data: sucursalesData, isLoading: loading, error: fetchError } = useQuery({
+    queryKey: ['sucursales'],
+    queryFn: async () => {
+      const [gymsResp, brandsResp] = await Promise.all([
+        apiClient.get('/gyms'),
+        apiClient.get('/gyms/brands'),
+      ]);
+      const gymsArr: GymDto[]    = Array.isArray(gymsResp.data)   ? gymsResp.data   : [];
+      const brandsArr: GymDto[]  = Array.isArray(brandsResp.data) ? brandsResp.data : [];
+      const parentMap: Record<number, string> = {};
+      brandsArr.forEach(g => { parentMap[g.id] = g.name; });
+      return { gyms: gymsArr, parentGyms: parentMap };
+    },
+  });
+  const gyms       = sucursalesData?.gyms       ?? [];
+  const parentGyms = sucursalesData?.parentGyms ?? {};
+  const error = fetchError
+    ? ((fetchError as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message
+        || (fetchError as Error).message
+        || 'No se pudo cargar sucursales.')
+    : null;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [sucursalToEdit, setSucursalToEdit] = useState<GymDto | null>(null);
   const [viewingSucursal, setViewingSucursal] = useState<GymDto | null>(null);
@@ -521,44 +541,6 @@ export const SucursalesView = () => {
   const hasFilters = search || filterParent || filterEstado !== 'all' || sortOrder !== 'az';
   const resetFilters = () => { setSearch(''); setFilterParent(''); setFilterEstado('all'); setSortOrder('az'); };
 
-  useEffect(() => {
-    let mounted = true;
-
-    const cargarSucursales = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const [gymsResp, brandsResp] = await Promise.all([
-          apiClient.get('/gyms'),
-          apiClient.get('/gyms/brands'),
-        ]);
-        const gymsData: GymDto[]   = Array.isArray(gymsResp.data)   ? gymsResp.data   : [];
-        const brandsData: GymDto[] = Array.isArray(brandsResp.data) ? brandsResp.data : [];
-
-        // Sucursales = todo lo que devuelve /gyms (parentId IS NOT NULL)
-        const sucursalesData = gymsData;
-
-        // Mapa de marcas desde /gyms/brands
-        const parentMap: Record<number, string> = {};
-        brandsData.forEach(g => { parentMap[g.id] = g.name; });
-
-        if (mounted) {
-          setGyms(sucursalesData);
-          setParentGyms(parentMap);
-        }
-      } catch (err: unknown) {
-        const e = err as { response?: { data?: { message?: string } }; message?: string };
-        if (mounted) setError(e?.response?.data?.message || e?.message || 'No se pudo cargar sucursales.');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    cargarSucursales();
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   const [deleteConfirmSucursal, setDeleteConfirmSucursal] = useState<GymDto | null>(null);
 
@@ -582,7 +564,7 @@ export const SucursalesView = () => {
     try {
       await apiClient.delete(`/gyms/${deleteConfirmSucursal.id}`);
       toast.success(`Sucursal "${nameToDelete}" eliminada`);
-      await recargarSucursales();
+      await queryClient.invalidateQueries({ queryKey: ['sucursales'] });
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } }; message?: string };
       toast.error(e?.response?.data?.message || e?.message || 'Error al eliminar sucursal.');
@@ -591,20 +573,6 @@ export const SucursalesView = () => {
     }
   };
 
-  /** Re-carga la lista completa de sucursales y el mapa de sedes desde el servidor */
-  const recargarSucursales = async () => {
-    const [gymsResp, brandsResp] = await Promise.all([
-      apiClient.get('/gyms'),
-      apiClient.get('/gyms/brands'),
-    ]);
-    const gymsData: GymDto[]   = Array.isArray(gymsResp.data)   ? gymsResp.data   : [];
-    const brandsData: GymDto[] = Array.isArray(brandsResp.data) ? brandsResp.data : [];
-    const sucursalesData = gymsData;
-    const parentMap: Record<number, string> = {};
-    brandsData.forEach(g => { parentMap[g.id] = g.name; });
-    setGyms(sucursalesData);
-    setParentGyms(parentMap);
-  };
 
   const handleSaveSucursal = async (formData: SucursalFormData) => {
     try {
@@ -669,7 +637,7 @@ export const SucursalesView = () => {
         }
 
         // Re-fetch completo para reflejar parentId + parent.name correctamente
-        await recargarSucursales();
+        await queryClient.invalidateQueries({ queryKey: ['sucursales'] });
         toast.success(`Sucursal "${payload.name}" actualizada correctamente`);
 
       } else {
@@ -678,7 +646,7 @@ export const SucursalesView = () => {
         await apiClient.post('/gyms', payload);
 
         // Re-fetch para obtener el ID real del servidor y el parent completo
-        await recargarSucursales();
+        await queryClient.invalidateQueries({ queryKey: ['sucursales'] });
         toast.success(`Sucursal "${payload.name}" creada correctamente`);
       }
 

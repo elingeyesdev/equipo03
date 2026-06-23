@@ -259,6 +259,18 @@ export type SelectedExercise = {
   params?:                 Record<string, any>;
 };
 
+export type TrainingSession = {
+  id:              number;
+  userId:          number;
+  routineId?:      number | null;
+  sportType?:      string | null;
+  startedAt:       string;
+  finishedAt?:     string | null;
+  status:          'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | string;
+  durationSeconds?: number | null;
+  caloriesBurned?:  number | null;
+};
+
 // ─── API ─────────────────────────────────────────────────────────────────────
 
 export const staffApi = {
@@ -551,6 +563,20 @@ export const staffApi = {
    */
   requestAdvisor: async (staffId: number): Promise<void> => {
     await staffClient.post('/api/staff/advisors/request', { advisorId: Number(staffId) });
+  },
+
+  /**
+   * GET /api/training/sessions/user/:userId
+   * Sesiones de entrenamiento del cliente (requiere level >= 3).
+   */
+  getSessionsForUser: async (userId: number): Promise<TrainingSession[]> => {
+    try {
+      const response = await staffClient.get(`/api/training/sessions/user/${userId}`);
+      const data = response.data?.data ?? response.data;
+      return Array.isArray(data) ? data : [];
+    } catch {
+      return [];
+    }
   },
 
   searchUsers: async (query: string): Promise<UserSearchResult[]> => {

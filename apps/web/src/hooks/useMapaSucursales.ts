@@ -4,7 +4,7 @@
  * GERENTE     : ve solo las sucursales de la marca a la que pertenece su sucursal asignada.
  *               Resolución: user.gymId → parentId del gym → filtra por ese brand.
  */
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { WebUser } from '../contexts/AuthContext';
 import { gymsApiAdapter } from '../infrastructure/AxiosGymsApi.adapter';
 import type { SucursalMapaDTO, IGymRaw } from '@gymsync/core';
@@ -55,94 +55,73 @@ function buildSucursalDTO(gym: IGymRaw, sedesMap: Map<number, string>): Sucursal
   };
 }
 
+interface MapaQueryResult {
+  sucursales: SucursalMapaDTO[];
+  sinGeo: number;
+  marcaNombre: string | null;
+}
+
+async function fetchMapaData(user: WebUser): Promise<MapaQueryResult> {
+  const allGyms = await gymsApiAdapter.findAll();
+
+  const sedesMap = new Map<number, string>();
+  allGyms
+    .filter(g => !g.parentId)
+    .forEach(g => sedesMap.set(g.id, g.name));
+
+  let sinGeoCount = 0;
+  const all: SucursalMapaDTO[] = [];
+
+  for (const gym of allGyms.filter(g => !!g.parentId)) {
+    const dto = buildSucursalDTO(gym, sedesMap);
+    if (!dto) { sinGeoCount++; continue; }
+    all.push(dto);
+  }
+
+  if (user.role === 'SUPER_ADMIN') {
+    return { sucursales: all, sinGeo: sinGeoCount, marcaNombre: null };
+  }
+
+  if (user.role === 'RECEPCIONISTA' && user.gymId) {
+    const receptGymId = Number(user.gymId);
+    const sola = all.filter(s => s.id === receptGymId);
+    return { sucursales: sola, sinGeo: sinGeoCount, marcaNombre: sola[0]?.sedePrincipalNombre ?? null };
+  }
+
+  // GERENTE
+  let brandId: number | null = null;
+  let brandName: string | null = null;
+
+  if (user.brandId) {
+    brandId = user.brandId;
+    brandName = sedesMap.get(brandId) ?? null;
+  } else if (user.gymId) {
+    const managerGymId = Number(user.gymId);
+    const managerGym   = allGyms.find(g => g.id === managerGymId);
+    brandId  = managerGym?.parentId ?? managerGym?.parent?.id ?? null;
+    brandName = brandId !== null ? (sedesMap.get(brandId) ?? null) : null;
+  }
+
+  const filtered = brandId !== null
+    ? all.filter(s => s.sedePrincipalId === brandId)
+    : all;
+
+  return { sucursales: filtered, sinGeo: sinGeoCount, marcaNombre: brandName };
+}
+
 export function useMapaSucursales(user: WebUser | null): MapaSucursalesState {
-  const [sucursales, setSucursales] = useState<SucursalMapaDTO[]>([]);
-  const [sinGeo, setSinGeo]         = useState(0);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState<string | null>(null);
-  const [marcaNombre, setMarcaNombre] = useState<string | null>(null);
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['mapa-sucursales', user?.id, user?.role, user?.gymId, user?.brandId],
+    queryFn: () => fetchMapaData(user!),
+    enabled: !!user,
+    staleTime: 2 * 60 * 1000,
+  });
 
-  useEffect(() => {
-    if (!user) return;
-
-    let mounted = true;
-
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const allGyms = await gymsApiAdapter.findAll();
-        if (!mounted) return;
-
-        // Marcas/sedes principales: parentId === null (no tienen padre en la jerarquía)
-        const sedesMap = new Map<number, string>();
-        allGyms
-          .filter(g => !g.parentId)
-          .forEach(g => sedesMap.set(g.id, g.name));
-
-        // Sucursales: tienen parentId (pertenecen a una marca)
-        let sinGeoCount = 0;
-        const all: SucursalMapaDTO[] = [];
-
-        for (const gym of allGyms.filter(g => !!g.parentId)) {
-          const dto = buildSucursalDTO(gym, sedesMap);
-          if (!dto) { sinGeoCount++; continue; }
-          all.push(dto);
-        }
-
-        if (user.role === 'SUPER_ADMIN') {
-          setSucursales(all);
-          setSinGeo(sinGeoCount);
-          setMarcaNombre(null);
-          return;
-        }
-
-        // RECEPCIONISTA: ve únicamente su sucursal asignada
-        if (user.role === 'RECEPCIONISTA' && user.gymId) {
-          const receptGymId = Number(user.gymId);
-          const sola = all.filter(s => s.id === receptGymId);
-          setSucursales(sola);
-          setSinGeo(sinGeoCount);
-          setMarcaNombre(sola[0]?.sedePrincipalNombre ?? null);
-          return;
-        }
-
-        // GERENTE: filtrar por su marca
-        let brandId: number | null = null;
-        let brandName: string | null = null;
-
-        if (user.brandId) {
-          // JWT nuevo: brandId viene directamente (GERENTE asignado a Marca)
-          brandId = user.brandId;
-          brandName = sedesMap.get(brandId) ?? null;
-        } else if (user.gymId) {
-          // JWT legado: GERENTE asignado a sucursal → resolver brand via parentId
-          const managerGymId = Number(user.gymId);
-          const managerGym   = allGyms.find(g => g.id === managerGymId);
-          brandId  = managerGym?.parentId ?? managerGym?.parent?.id ?? null;
-          brandName = brandId !== null ? (sedesMap.get(brandId) ?? null) : null;
-        }
-
-        const filtered = brandId !== null
-          ? all.filter(s => s.sedePrincipalId === brandId)
-          : all;
-
-        setSucursales(filtered);
-        setSinGeo(sinGeoCount);
-        setMarcaNombre(brandName);
-      } catch (err: unknown) {
-        if (mounted) setError((err instanceof Error ? err.message : null) || 'Error al cargar el mapa.');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    fetchData();
-    return () => { mounted = false; };
-    // Dependencias granulares intencionales — evita refetch por rerenders del objeto user
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, user?.role, user?.gymId, user?.brandId]);
-
-  return { sucursales, sinGeo, loading, error, marcaNombre };
+  return {
+    sucursales:  data?.sucursales  ?? [],
+    sinGeo:      data?.sinGeo      ?? 0,
+    marcaNombre: data?.marcaNombre ?? null,
+    loading:     isLoading,
+    error:       error instanceof Error ? error.message : (error ? 'Error al cargar el mapa.' : null),
+  };
 }
