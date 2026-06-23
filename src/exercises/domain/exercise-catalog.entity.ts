@@ -3,6 +3,7 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  Index,
 } from 'typeorm';
 
 @Entity('exercises')
@@ -16,6 +17,7 @@ export class ExerciseCatalog {
   @Column({ type: 'text', nullable: true })
   description!: string | null;
 
+  @Index('idx_exercises_muscle_group')
   @Column({ type: 'varchar', length: 50, name: 'muscle_group' })
   muscleGroup!: string;
 
@@ -36,6 +38,7 @@ export class ExerciseCatalog {
   })
   equipmentRequired!: string | null;
 
+  @Index('idx_exercises_difficulty_level')
   @Column({ type: 'varchar', length: 30, name: 'difficulty_level' })
   difficultyLevel!: string;
 

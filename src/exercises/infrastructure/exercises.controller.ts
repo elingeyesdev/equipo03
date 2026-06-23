@@ -14,6 +14,7 @@ import {
   UploadedFile,
   BadRequestException,
 } from '@nestjs/common';
+import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
@@ -37,6 +38,8 @@ export class ExercisesController {
   constructor(private readonly svc: ExercisesService) {}
 
   @Get()
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(43200)
   @ApiOperation({ summary: 'Listar ejercicios (cualquier usuario autenticado)' })
   @ApiQuery({ name: 'muscleGroup', required: false })
   @ApiQuery({ name: 'difficultyLevel', required: false })

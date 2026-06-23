@@ -4,6 +4,7 @@ import {
   Column,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../../users/domain/user.entity';
 import { Gym } from '../../gyms/domain/gym.entity';
@@ -13,9 +14,11 @@ export class CheckIn {
   @PrimaryGeneratedColumn()
   id!: number;
 
+  @Index('idx_check_ins_user_id')
   @Column({ type: 'integer', name: 'user_id' })
   userId!: number;
 
+  @Index('idx_check_ins_gym_id')
   @Column({ type: 'integer', name: 'gym_id' })
   gymId!: number;
 

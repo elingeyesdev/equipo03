@@ -5,6 +5,7 @@ import {
   ManyToOne,
   JoinColumn,
   OneToMany,
+  Index,
 } from 'typeorm';
 import { GymActivity } from './gym-activity.entity';
 import { User } from '../../users/domain/user.entity';
@@ -15,9 +16,11 @@ export class GymActivitySchedule {
   @PrimaryGeneratedColumn()
   id!: number;
 
+  @Index('idx_gym_activity_schedules_activity_id')
   @Column({ type: 'integer', name: 'gym_activity_id' })
   gymActivityId!: number;
 
+  @Index('idx_gym_activity_schedules_instructor_id')
   @Column({ type: 'integer', name: 'instructor_id', nullable: true })
   instructorId!: number;
 

@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   OneToOne,
   OneToMany,
+  Index,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
 import { UserProfile } from './user-profile.entity';
@@ -23,6 +24,7 @@ export class User {
   @Column({ type: 'varchar', length: 255, name: 'password_hash' })
   passwordHash!: string;
 
+  @Index('idx_users_is_active')
   @Column({ type: 'boolean', name: 'is_active', default: true })
   isActive!: boolean;
 

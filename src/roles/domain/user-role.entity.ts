@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../../users/domain/user.entity';
 import { Role } from './role.entity';
@@ -15,12 +16,15 @@ export class UserRole {
   @PrimaryGeneratedColumn()
   id!: number;
 
+  @Index('idx_user_roles_user_id')
   @Column({ type: 'integer', name: 'user_id' })
   userId!: number;
 
+  @Index('idx_user_roles_role_id')
   @Column({ type: 'integer', name: 'role_id' })
   roleId!: number;
 
+  @Index('idx_user_roles_gym_id')
   @Column({ type: 'integer', name: 'gym_id', nullable: true })
   gymId!: number;
 

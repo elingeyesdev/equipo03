@@ -254,7 +254,6 @@ export class GymsService {
     const machines = gym.machines ?? [];
     const machineCapacity = machines.length;
     const machinesAvailable = machines.filter(m => m.status === 'AVAILABLE').length;
-    const machinesInUse = machines.filter(m => m.status === 'IN_USE').length;
     const machinesInMaintenance = machines.filter(m => m.status === 'MAINTENANCE').length;
 
     return {
@@ -267,7 +266,6 @@ export class GymsService {
       machineStats: {
         total: machineCapacity,
         available: machinesAvailable,
-        inUse: machinesInUse,
         maintenance: machinesInMaintenance,
       },
     };

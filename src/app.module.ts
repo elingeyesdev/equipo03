@@ -4,6 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
+import { CacheModule } from '@nestjs/cache-manager';
 import { JwtAuthGuard } from './auth/infrastructure/guards/jwt-auth.guard';
 
 // ── Domain Modules (Estructura Modular por Dominios) ─────────
@@ -46,6 +47,8 @@ import { VisitsModule } from './visits/visits.module';
     }]),
 
     ScheduleModule.forRoot(),
+
+    CacheModule.register({ isGlobal: true, ttl: 43200, max: 100 }),
 
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],

@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../../users/domain/user.entity';
 import { Gym } from '../../gyms/domain/gym.entity';
@@ -14,9 +15,11 @@ export class Visit {
   @PrimaryGeneratedColumn()
   id!: number;
 
+  @Index('idx_visits_user_id')
   @Column({ type: 'integer', name: 'user_id' })
   userId!: number;
 
+  @Index('idx_visits_gym_id')
   @Column({ type: 'integer', name: 'gym_id' })
   gymId!: number;
 

@@ -1,12 +1,13 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiBearerAuth,
+  ApiQuery,
   ApiResponse,
 } from '@nestjs/swagger';
 import { AdminLevelGuard } from '../../auth/infrastructure/guards/admin-level.guard';
-import { DashboardService } from '../application/dashboard.service';
+import { DashboardService, Period } from '../application/dashboard.service';
 
 @ApiTags('Dashboard')
 @Controller('dashboard')
@@ -17,54 +18,14 @@ export class DashboardController {
 
   @Get('summary')
   @ApiOperation({
-    summary:
-      'Totales + historial de 7 días para sparklines (SUPER_ADMIN / GERENTE)',
+    summary: 'Totales + historial para sparklines (SUPER_ADMIN / GERENTE)',
+    description: 'Soporta period=week (7 días), month (30 días) o year (12 meses)',
   })
-  @ApiResponse({
-    status: 200,
-    schema: {
-      example: {
-        users: {
-          total: 15,
-          history: [
-            { v: 2 },
-            { v: 5 },
-            { v: 8 },
-            { v: 0 },
-            { v: 0 },
-            { v: 0 },
-            { v: 0 },
-          ],
-        },
-        checkins: {
-          total: 3,
-          history: [
-            { v: 0 },
-            { v: 1 },
-            { v: 2 },
-            { v: 0 },
-            { v: 0 },
-            { v: 0 },
-            { v: 0 },
-          ],
-        },
-        reservations: {
-          total: 7,
-          history: [
-            { v: 1 },
-            { v: 3 },
-            { v: 3 },
-            { v: 0 },
-            { v: 0 },
-            { v: 0 },
-            { v: 0 },
-          ],
-        },
-      },
-    },
-  })
+  @ApiQuery({ name: 'period', required: false, enum: ['week', 'month', 'year'] })
   @ApiResponse({ status: 403, description: 'Solo SUPER_ADMIN o GERENTE' })
-  getSummary() {
-    return this.svc.getSummary();
+  getSummary(@Query('period') period?: string) {
+    const safe: Period =
+      period === 'month' || period === 'year' ? period : 'week';
+    return this.svc.getSummary(safe);
   }
 }

@@ -103,12 +103,37 @@ export class MachinesService {
 
   // ── Queries ─────────────────────────────────────────────────────────────────
 
-  async findAll(gymId: number | undefined, caller?: RequestUser) {
-    const user = caller ?? this.getFallbackCaller();
+  async findAll(gymId: number | undefined, caller?: RequestUser, status?: string) {
+    const user  = caller ?? this.getFallbackCaller();
+    const level = user.level ?? 0;
+
+    // Sanitize status to prevent injection with unknown enum values.
+    const VALID_STATUSES = ['AVAILABLE', 'MAINTENANCE'];
+    const safeStatus = status ? VALID_STATUSES.find(s => s === status.toUpperCase()) : undefined;
+
+    // level 1-3 (clientes, instructores, nutricionistas): sin gymId en JWT.
+    // Solo pueden leer el inventario de una sucursal específica vía gymId explícito.
+    if (level < 4) {
+      if (!gymId) throw new ForbiddenException('Se requiere el parámetro gymId para consultar máquinas.');
+      const where: Record<string, unknown> = { gymId };
+      if (safeStatus) where['status'] = safeStatus;
+      return this.repo.find({ where, order: { name: 'ASC' }, relations: ['gym', 'gym.parent'] });
+    }
+
+    // level 10+: super admin, ve todo.
+    if (level >= 10) {
+      const where: Record<string, unknown> = {};
+      if (gymId) where['gymId'] = gymId;
+      if (safeStatus) where['status'] = safeStatus;
+      return this.repo.find({ where, order: { createdAt: 'DESC' }, relations: ['gym', 'gym.parent'] });
+    }
+
+    // level 4-9: jurisdicción por JWT (sucursal o marca).
     const visibleIds = await this.resolveVisibleGymIds(user);
 
     if (visibleIds === null) {
-      const where = gymId ? { gymId } : {};
+      const where: Record<string, unknown> = gymId ? { gymId } : {};
+      if (safeStatus) where['status'] = safeStatus;
       return this.repo.find({ where, order: { createdAt: 'DESC' }, relations: ['gym', 'gym.parent'] });
     }
 
@@ -120,8 +145,10 @@ export class MachinesService {
 
     if (effectiveIds.length === 0) return [];
 
+    const where: Record<string, unknown> = { gymId: In(effectiveIds) };
+    if (safeStatus) where['status'] = safeStatus;
     return this.repo.find({
-      where: { gymId: In(effectiveIds) },
+      where,
       order: { createdAt: 'DESC' },
       relations: ['gym', 'gym.parent'],
     });

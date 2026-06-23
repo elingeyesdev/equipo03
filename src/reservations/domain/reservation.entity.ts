@@ -5,17 +5,20 @@ import {
   CreateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../../users/domain/user.entity';
 import { Gym } from '../../gyms/domain/gym.entity';
 import { GymActivity } from '../../activities/domain/gym-activity.entity';
 import { GymActivitySchedule } from '../../activities/domain/gym-activity-schedule.entity';
 
+@Index('idx_reservations_user_status', ['userId', 'status'])
 @Entity('reservations')
 export class Reservation {
   @PrimaryGeneratedColumn()
   id!: number;
 
+  @Index('idx_reservations_user_id')
   @Column({ type: 'integer', name: 'user_id' })
   userId!: number;
 
@@ -23,6 +26,7 @@ export class Reservation {
    * NULL cuando la reserva es de acceso libre (isFreeAccess).
    * Apunta a un horario concreto en flujo estándar.
    */
+  @Index('idx_reservations_schedule_id')
   @Column({ type: 'integer', name: 'gym_activity_schedule_id', nullable: true })
   gymActivityScheduleId!: number | null;
 

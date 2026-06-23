@@ -6,12 +6,12 @@ import {
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  Index,
 } from 'typeorm';
 import { Gym } from './gym.entity';
 
 export enum MachineStatus {
   AVAILABLE = 'AVAILABLE',
-  IN_USE = 'IN_USE',
   MAINTENANCE = 'MAINTENANCE',
 }
 
@@ -23,17 +23,20 @@ export enum MachineCategory {
   MULTIESTACION = 'MULTIESTACION',
 }
 
+@Index('idx_machine_inventory_gym_status', ['gymId', 'status'])
 @Entity('machine_inventory')
 export class MachineInventory {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
+  @Index('idx_machine_inventory_gym_id')
   @Column({ type: 'integer', name: 'gym_id' })
   gymId!: number;
 
   @Column({ type: 'varchar', length: 150 })
   name!: string;
 
+  @Index('idx_machine_inventory_status')
   @Column({
     type: 'enum',
     enum: MachineStatus,
@@ -41,6 +44,7 @@ export class MachineInventory {
   })
   status!: MachineStatus;
 
+  @Index('idx_machine_inventory_category')
   @Column({
     type: 'enum',
     enum: MachineCategory,

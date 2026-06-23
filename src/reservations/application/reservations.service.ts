@@ -697,7 +697,7 @@ export class ReservationsService {
     const records = await qb.getMany();
     return records.map((r) => this.mapReservation(r));
   }
-  private mapReservation(r: Reservation) {
+  private mapReservation(r: Reservation, gerentePhoneMap?: Map<number, string | null>) {
     let reservationDateStr = r.reservationDate as any;
     if (reservationDateStr instanceof Date) {
       reservationDateStr = reservationDateStr.toISOString().split('T')[0];
@@ -713,6 +713,12 @@ export class ReservationsService {
     const effectiveStatus =
       r.status === 'CONFIRMADA' && this.isReservationExpired(r) ? 'CADUCADA' : r.status;
 
+    const isPaid = ['COMPLETADA', 'USADA', 'USED'].includes(effectiveStatus);
+
+    const brandId = r.gym?.parent?.id ?? null;
+    const gerentePhone = brandId !== null ? (gerentePhoneMap?.get(brandId) ?? null) : null;
+    const instructorPhone = r.gymActivitySchedule?.instructor?.profile?.phone ?? null;
+
     return {
       id: r.id,
       userId: r.userId ?? r.user?.id,
@@ -720,6 +726,9 @@ export class ReservationsService {
       startTime: r.startTime,
       endTime: r.endTime,
       status: effectiveStatus,
+      isPaid,
+      gerentePhone,
+      instructorPhone,
       qrToken: r.qrToken,
       createdAt: r.createdAt,
       cancelledAt: r.cancelledAt,
@@ -805,6 +814,7 @@ export class ReservationsService {
       .leftJoinAndSelect('user.profile', 'userProfile')
       .leftJoinAndSelect('reservation.gym', 'gym')
       .leftJoinAndSelect('gym.location', 'gymLocation')
+      .leftJoinAndSelect('gym.parent', 'gymBrand')
       .leftJoinAndSelect('reservation.activity', 'freeActivity')
       .addSelect('freeActivity.name')
       .leftJoinAndSelect('reservation.gymActivitySchedule', 'schedule')
@@ -833,7 +843,43 @@ export class ReservationsService {
     }
 
     const records = await qb.getMany();
-    return records.map((r) => this.mapReservation(r));
+
+    const brandIds = [
+      ...new Set(
+        records
+          .map(r => r.gym?.parent?.id ?? null)
+          .filter((id): id is number => id !== null),
+      ),
+    ];
+    const gerentePhoneMap = await this.getGerentePhonesForBrands(brandIds);
+
+    return records.map(r => this.mapReservation(r, gerentePhoneMap));
+  }
+
+  private async getGerentePhonesForBrands(
+    brandIds: number[],
+  ): Promise<Map<number, string | null>> {
+    if (!brandIds.length) return new Map();
+
+    const rows = await this.dataSource
+      .createQueryBuilder()
+      .select('ur.gym_id', 'brandId')
+      .addSelect('p.phone', 'phone')
+      .from('user_roles', 'ur')
+      .innerJoin('roles', 'r', 'ur.role_id = r.id')
+      .innerJoin('user_profiles', 'p', 'p.user_id = ur.user_id')
+      .where('ur.gym_id IN (:...brandIds)', { brandIds })
+      .andWhere('r.hierarchy_level = :level', { level: 5 })
+      .getRawMany<{ brandId: string; phone: string | null }>();
+
+    const map = new Map<number, string | null>();
+    for (const row of rows) {
+      const id = Number(row.brandId);
+      if (!map.has(id)) {
+        map.set(id, row.phone ?? null);
+      }
+    }
+    return map;
   }
 
   async findOne(id: number) {
