@@ -15,7 +15,7 @@ equipo03-2/
     └── core/         # Lógica de negocio compartida
 ```
 
-El backend vive en un repositorio separado (`backend_gym_sync`).
+El backend reside en la rama llamada backend (`backend_gym_sync`).
 
 ---
 
