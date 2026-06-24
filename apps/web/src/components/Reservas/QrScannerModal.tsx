@@ -78,26 +78,58 @@ export const QrScannerModal = ({ onClose, onScanned }: QrScannerModalProps) => {
             setStatus('validating');
             setMessage('Validando reserva...');
 
-            try {
-              const res = await apiClient.post('/reservations/check-in/token', { token: decoded });
-              const data = res.data;
+            const doCheckIn = async (forceCheckIn: boolean) => {
+              const res = await apiClient.post('/reservations/check-in/token', { token: decoded, forceCheckIn });
               if (!mounted) return;
-
               try { await scanner.stop(); } catch {}
               setStatus('success');
               setMessage('Check-in registrado correctamente');
               setTimeout(() => {
-                if (mounted) { onScanned(data.reservation ?? data); onClose(); }
+                if (mounted) { onScanned(res.data.reservation ?? res.data); onClose(); }
               }, 1500);
+            };
+
+            try {
+              await doCheckIn(false);
             } catch (err: any) {
               if (!mounted) return;
               const httpStatus = err?.response?.status;
-              const raw = err?.response?.data?.message ?? err?.message ?? 'Error desconocido';
+              const errorData = err?.response?.data;
+              const raw = errorData?.message ?? err?.message ?? 'Error desconocido';
               const msg = typeof raw === 'string' ? raw : Array.isArray(raw) ? raw.join('. ') : 'Error al procesar el QR';
+
+              // Reserva futura: ofrecer check-in adelantado con confirmacion
+              if (httpStatus === 409 && errorData?.code === 'FUTURE_RESERVATION_WARNING') {
+                const confirmed = window.confirm(msg + '\n\nPresiona Aceptar para procesarla de todos modos.');
+                if (confirmed) {
+                  try {
+                    await doCheckIn(true);
+                  } catch (retryErr: unknown) {
+                    if (!mounted) return;
+                    const e = retryErr as { response?: { data?: { message?: unknown } }; message?: string };
+                    const retryRaw = e?.response?.data?.message ?? e?.message ?? 'Error al procesar el QR';
+                    const retryMsg = typeof retryRaw === 'string' ? retryRaw : 'Error al procesar el QR';
+                    setMessage(retryMsg);
+                    setStatus('error');
+                    setTimeout(() => {
+                      if (mounted) { setStatus('scanning'); setMessage(''); processingRef.current = false; }
+                    }, 6000);
+                  }
+                } else {
+                  setMessage('Check-in adelantado cancelado.');
+                  setStatus('error');
+                  setTimeout(() => {
+                    if (mounted) { setStatus('scanning'); setMessage(''); processingRef.current = false; }
+                  }, 3000);
+                }
+                return;
+              }
+
+              // Sucursal ajena (403): mensaje enriquecido del backend; sin auto-reset
+              // Otros errores: auto-reset tras 6s
               setMessage(msg);
               setStatus('error');
-              const isCrossBranch = httpStatus === 403;
-              if (!isCrossBranch) {
+              if (httpStatus !== 403) {
                 setTimeout(() => {
                   if (mounted) { setStatus('scanning'); setMessage(''); processingRef.current = false; }
                 }, 6000);

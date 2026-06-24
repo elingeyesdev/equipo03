@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useId } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useRef, useId } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import toast from 'react-hot-toast';
 import { ConsultarHistorialAccesosUseCase } from '@gymsync/core';
@@ -12,18 +12,27 @@ import '../Reservas/QrScannerModal.css';
 const apiAdapter = new AxiosAccessApiAdapter();
 const consultarAccesosUseCase = new ConsultarHistorialAccesosUseCase(apiAdapter);
 
-// ── Modal escáner QR de Check-In ─────────────────────────────────────────────
+// Modal escáner QR de Check-In 
 const CheckInScannerModal = ({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) => {
   const uid       = useId().replace(/:/g, '_');
   const SCANNER_ID = `checkin_scanner_${uid}`;
   const scannerRef    = useRef<Html5Qrcode | null>(null);
   const processingRef = useRef(false);
+  const onCloseRef    = useRef(onClose);
+  const onSuccessRef  = useRef(onSuccess);
+  useLayoutEffect(() => {
+    onCloseRef.current   = onClose;
+    onSuccessRef.current = onSuccess;
+  });
   const [status,    setStatus]   = useState<'idle' | 'scanning' | 'validating' | 'error'>('idle');
   const [errorMsg,  setErrorMsg] = useState('');
 
   const playBeep = () => {
     try {
-      const ctx  = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const W = window as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext };
+      const AudioCtor = W.AudioContext || W.webkitAudioContext;
+      if (!AudioCtor) return;
+      const ctx  = new AudioCtor();
       const osc  = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain); gain.connect(ctx.destination);
@@ -32,7 +41,9 @@ const CheckInScannerModal = ({ onClose, onSuccess }: { onClose: () => void; onSu
       gain.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 0.01);
       gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.2);
       osc.start(); osc.stop(ctx.currentTime + 0.2);
-    } catch {}
+    } catch {
+      void 0;
+    }
   };
 
   useEffect(() => {
@@ -61,10 +72,11 @@ const CheckInScannerModal = ({ onClose, onSuccess }: { onClose: () => void; onSu
               await apiClient.post('/checkins', { userId: decodedText, method: 'QR' });
               toast.success('Acceso registrado correctamente');
               await scanner.stop();
-              onSuccess();
-              onClose();
-            } catch (e: any) {
-              const msg = e?.response?.data?.message ?? e.message ?? 'Error al registrar acceso';
+              onSuccessRef.current();
+              onCloseRef.current();
+            } catch (e: unknown) {
+              const err = e as { response?: { data?: { message?: string } }; message?: string };
+              const msg = err?.response?.data?.message ?? err?.message ?? 'Error al registrar acceso';
               setErrorMsg(msg);
               setStatus('error');
               setTimeout(() => {
@@ -91,7 +103,7 @@ const CheckInScannerModal = ({ onClose, onSuccess }: { onClose: () => void; onSu
       isMounted = false;
       if (scannerRef.current?.isScanning) scannerRef.current.stop().catch(() => {});
     };
-  }, [SCANNER_ID]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [SCANNER_ID]); 
 
   return (
     <div className="qr-modal-overlay" onClick={onClose}>
@@ -147,7 +159,6 @@ const CheckInScannerModal = ({ onClose, onSuccess }: { onClose: () => void; onSu
   );
 };
 
-// ── Avatar de letra por rol ───────────────────────────────────────────────────
 const ROLE_AVATAR: Record<string, { letter: string; bg: string }> = {
   ENTRENADOR:           { letter: 'E', bg: '#38BDF8' },
   INSTRUCTOR:           { letter: 'I', bg: '#38BDF8' },
@@ -173,7 +184,7 @@ const RoleAvatar = ({ rol, nombre }: { rol?: string; nombre: string }) => {
   );
 };
 
-// ── Panel de Accesos ─────────────────────────────────────────────────────────
+//Panel de Accesos
 const AccesosPanel = () => {
   const { user } = useAuth();
   const [accesos,      setAccesos]      = useState<Acceso[]>([]);
@@ -190,10 +201,10 @@ const AccesosPanel = () => {
 
   useEffect(() => {
     if (user?.role !== 'SUPER_ADMIN') return;
-    apiClient.get<Array<{ id: unknown; name: unknown }>>('/gyms')
-      .then(res => {
-        const raw = Array.isArray(res.data) ? res.data : [];
-        setGyms(raw.map(g => ({ id: Number(g.id), name: String(g.name) })));
+    apiClient.get('/gyms')
+      .then((res: { data?: Array<{ id: unknown; name: unknown }> }) => {
+        const raw = res.data ?? [];
+        setGyms(raw.map((g) => ({ id: Number(g.id), name: String(g.name) })));
       })
       .catch(() => {});
   }, [user?.role]);
@@ -204,7 +215,6 @@ const AccesosPanel = () => {
     setErrorAcceso(null);
 
     // Cuando hay filtro de tiempo activo, cargar todos los registros de una vez
-    // para que el filtro cliente-side tenga el universo completo y no solo la página actual
     const timeFilterActive = Boolean(filtroTiempo);
     const currentPage = (resetPage || timeFilterActive) ? 1 : page;
     const limit = timeFilterActive ? 1000 : 20;
@@ -241,12 +251,14 @@ const AccesosPanel = () => {
   }, [filtroSede, filtroEstado, filtroTiempo, page, user]);
 
   useEffect(() => {
-    cargarAccesos(true);
-    setPage(1);
-  }, [filtroSede, filtroEstado, filtroTiempo, user, refreshKey]);
+    void (async () => {
+      setPage(1);
+      await cargarAccesos(true);
+    })();
+  }, [filtroSede, filtroEstado, filtroTiempo, user, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (page > 1) cargarAccesos(false);
+    if (page > 1) void (async () => { await cargarAccesos(false); })();
   }, [page, cargarAccesos]);
 
   const filteredAccesos = React.useMemo(() => {

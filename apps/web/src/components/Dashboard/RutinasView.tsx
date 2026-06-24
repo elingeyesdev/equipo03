@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
-import { ModalOverlay, ConfirmModal, panelStyle, guardClose } from './Shared/DashboardShared';
+import { ModalOverlay, ConfirmModal } from './Shared/DashboardShared';
+import { guardClose, panelStyle } from './Shared/DashboardShared.utils';
 import { Eye, Edit, Trash2, Plus, X, Search, Dumbbell } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────

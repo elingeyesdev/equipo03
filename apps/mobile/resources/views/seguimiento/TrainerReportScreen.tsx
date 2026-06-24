@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   ActivityIndicator, Alert, TextInput, Platform,
@@ -10,7 +10,7 @@ import * as Print   from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { staffApi, ActiveAdvisee, ClientProfile, TrainerPlanData, TrainingSession } from '../../../app/Providers/staff/api/staff.api';
 
-// ─── Date helpers ─────────────────────────────────────────────────────────────
+//Date helpers 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const weekStartStr = () => {
   const d = new Date(); const day = d.getDay(); const diff = day === 0 ? -6 : 1 - day;
@@ -175,8 +175,8 @@ export const TrainerReportScreen = () => {
 
   const loadAdvisees = useCallback(async () => {
     try {
-      const data = await staffApi.getActiveAdvisees();
-      setAdvisees(data);
+      const res = await staffApi.getActiveAdvisees({ limit: 100, offset: 0 });
+      setAdvisees(Array.isArray(res) ? res : (res?.data ?? []));
     } catch {
       // Fallo silencioso — la lista simplemente queda vacía
     } finally {
@@ -210,13 +210,14 @@ export const TrainerReportScreen = () => {
       const [profilesArr, plansArr, sessionsArr] = await Promise.all([
         Promise.all(target.map(c => staffApi.getClientProfile(c.clientId).catch(() => null))),
         Promise.all(target.map(c => staffApi.getTrainerPlan(c.clientId).catch(() => null))),
-        Promise.all(target.map(c => staffApi.getSessionsForUser(c.clientId).catch(() => [] as TrainingSession[]))),
+        Promise.all(target.map(c => staffApi.getSessionsForUser(c.clientId, { limit: 100, offset: 0 }).catch(() => ({ data: [] as TrainingSession[], meta: { total: 0, limit: 100, offset: 0 } })))),
       ]);
 
       const profiles = new Map<number, ClientProfile | null>(target.map((c, i) => [c.clientId, profilesArr[i]]));
       const plans    = new Map<number, TrainerPlanData | null>(target.map((c, i) => [c.clientId, plansArr[i]]));
       const counts   = new Map<number, number>(target.map((c, i) => {
-        const sessions = sessionsArr[i] as TrainingSession[];
+        const raw = sessionsArr[i];
+        const sessions: TrainingSession[] = Array.isArray(raw) ? raw : (raw?.data ?? []);
         const n = sessions.filter(s =>
           s.status === 'COMPLETED' && inRange(s.startedAt, range.from, range.to),
         ).length;

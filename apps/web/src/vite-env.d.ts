@@ -1,5 +1,11 @@
 /// <reference types="vite/client" />
 
+declare module 'axios' {
+  interface InternalAxiosRequestConfig {
+    _skipErrorToast?: boolean;
+  }
+}
+
 // Declaraciones para importar archivos de imagen estáticos como módulos
 declare module '*.png' {
   const src: string;

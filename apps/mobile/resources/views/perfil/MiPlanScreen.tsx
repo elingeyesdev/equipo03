@@ -26,11 +26,11 @@ const DAY_SHORT: Record<DayKey, string> = {
 const MEALS = ['desayuno','almuerzo','merienda','cena'] as const;
 type MealKey = typeof MEALS[number];
 
-const MEAL_META: Record<MealKey, { label: string; emoji: string; icon: string }> = {
-  desayuno:  { label: 'Desayuno',  emoji: '☀️', icon: 'weather-sunny' },
-  almuerzo:  { label: 'Almuerzo',  emoji: '🍱', icon: 'food' },
-  merienda:  { label: 'Merienda',  emoji: '🥤', icon: 'cookie-outline' },
-  cena:      { label: 'Cena',      emoji: '🌙', icon: 'weather-night' },
+const MEAL_META: Record<MealKey, { label: string; icon: string; color: string }> = {
+  desayuno:  { label: 'Desayuno',  icon: 'weather-sunny',   color: '#FACC15' },
+  almuerzo:  { label: 'Almuerzo',  icon: 'silverware-fork-knife', color: '#00E5A3' },
+  merienda:  { label: 'Merienda',  icon: 'cookie-outline',  color: '#FF5E00' },
+  cena:      { label: 'Cena',      icon: 'weather-night',   color: '#818cf8' },
 };
 
 const getTodayKey = (): DayKey => {
@@ -69,7 +69,9 @@ const MealCard = ({ meal, content }: { meal: MealKey; content: string }) => {
   return (
     <View style={s.mealCard}>
       <View style={s.mealHeader}>
-        <Text style={s.mealEmoji}>{meta.emoji}</Text>
+        <View style={[s.mealIconBox, { backgroundColor: `${meta.color}18` }]}>
+          <MaterialCommunityIcons name={meta.icon as any} size={18} color={meta.color} />
+        </View>
         <Text style={s.mealTitle}>{meta.label}</Text>
       </View>
       <Text style={s.mealContent}>{content}</Text>
@@ -184,7 +186,7 @@ export const MiPlanScreen = () => {
           {plan.planNotes ? (
             <View style={s.coachCard}>
               <View style={s.coachHeader}>
-                <Text style={s.coachEmoji}>💡</Text>
+                <MaterialCommunityIcons name="lightbulb-on-outline" size={18} color="#FF5E00" />
                 <Text style={s.coachLabel}>Coach dice:</Text>
               </View>
               <Text style={s.coachText}>{plan.planNotes}</Text>
@@ -290,7 +292,6 @@ const s = StyleSheet.create({
     gap: 8,
     marginBottom: 10,
   },
-  coachEmoji: { fontSize: 16 },
   coachLabel: {
     color: '#FF5E00',
     fontSize: 13,
@@ -345,7 +346,13 @@ const s = StyleSheet.create({
     gap: 8,
     marginBottom: 10,
   },
-  mealEmoji: { fontSize: 18 },
+  mealIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   mealTitle: {
     color: '#fff',
     fontSize: 15,

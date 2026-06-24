@@ -1,10 +1,3 @@
-/**
- * SedeMarker — Marcador personalizado de sede en el mapa.
- *
- * Muestra un marcador con color según disponibilidad de aforo
- * y un callout con nombre, distancia e info de aforo.
- */
-
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';

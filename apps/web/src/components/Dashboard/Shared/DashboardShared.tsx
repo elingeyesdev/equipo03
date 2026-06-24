@@ -1,6 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties } from 'react';
+import { guardClose } from './DashboardShared.utils';
 
 const backdropStyle: CSSProperties = {
   position: 'fixed',
@@ -13,12 +14,6 @@ const backdropStyle: CSSProperties = {
   padding: '1rem',
 };
 
-const UNSAVED_MSG = 'Tienes cambios sin guardar. ¿Deseas salir?';
-
-export const guardClose = (isDirty: boolean, onClose: () => void) => {
-  if (!isDirty || window.confirm(UNSAVED_MSG)) onClose();
-};
-
 export const ModalOverlay = ({ children, onClose, maxWidth, isDirty, onFormChange }: {
   children: React.ReactNode;
   onClose: () => void;
@@ -28,8 +23,10 @@ export const ModalOverlay = ({ children, onClose, maxWidth, isDirty, onFormChang
 }) => {
   const dirtyRef = React.useRef(false);
   const closeRef = React.useRef(onClose);
-  dirtyRef.current = !!isDirty;
-  closeRef.current = onClose;
+  React.useLayoutEffect(() => {
+    dirtyRef.current = !!isDirty;
+    closeRef.current = onClose;
+  });
 
   React.useEffect(() => {
     document.body.setAttribute('data-modal-open', 'true');
@@ -62,7 +59,6 @@ export const ModalOverlay = ({ children, onClose, maxWidth, isDirty, onFormChang
   );
 };
 
-// ─── Modal de Confirmación (Eliminar) ─────────────────────────────────────────
 export const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message }: {
   isOpen: boolean;
   onClose: () => void;
@@ -93,7 +89,6 @@ export const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message }: {
   );
 };
 
-// ─── Campo de detalle en la ficha de registro ──────────────────────────────────
 export const DetailField = ({
   label, value, isFullWidth = false,
 }: {
@@ -111,7 +106,6 @@ export const DetailField = ({
   </div>
 );
 
-// ─── Modal de Detalle / Solo-Lectura ──────────────────────────────────────────
 export const RecordDetailModal = ({
   isOpen, onClose, title, children,
 }: {
@@ -124,7 +118,6 @@ export const RecordDetailModal = ({
   return (
     <ModalOverlay onClose={onClose}>
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-        {/* Header */}
         <div className="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-gray-700 flex-shrink-0 mb-0">
           <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             {title}
@@ -137,12 +130,10 @@ export const RecordDetailModal = ({
           </button>
         </div>
 
-        {/* Contenido scrollable */}
         <div className="grid grid-cols-2 gap-3 mt-5 overflow-y-auto flex-1 min-h-0 pr-1 pb-2">
           {children}
         </div>
 
-        {/* Footer */}
         <div className="border-t border-slate-200 dark:border-gray-700 mt-4 pt-3 flex-shrink-0">
           <button
             className="w-full px-4 py-2 rounded-lg text-sm font-medium text-slate-600 dark:text-gray-300 bg-slate-100 dark:bg-gray-800 hover:bg-slate-200 dark:hover:bg-gray-700 transition-colors cursor-pointer border-0"
@@ -154,8 +145,4 @@ export const RecordDetailModal = ({
       </div>
     </ModalOverlay>
   );
-};
-
-export const panelStyle: CSSProperties = {
-  padding: '1.25rem',
 };

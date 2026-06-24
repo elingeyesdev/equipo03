@@ -12,13 +12,17 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
 L.Icon.Default.mergeOptions({ iconUrl: markerIcon, iconRetinaUrl: markerIcon2x, shadowUrl: markerShadow });
-import { ModalOverlay, ConfirmModal, panelStyle, RecordDetailModal, DetailField, guardClose } from './Shared/DashboardShared';
+import { ModalOverlay, ConfirmModal, RecordDetailModal, DetailField } from './Shared/DashboardShared';
+import { guardClose, panelStyle } from './Shared/DashboardShared.utils';
 import type { GymDto, GymScheduleDto } from './Shared/DashboardTypes';
 import { Eye, Edit, Trash2, Search, X } from 'lucide-react';
 
 
 const HOURS_24_S   = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const MINUTES_15_S = ['00', '15', '30', '45'];
+const NAME_MAX = 100;
+const DESC_MAX_BRANCH = 300;
+const GIBBERISH_RE = /[bcdfghjklmnñpqrstvwxyz]{5,}/i;
 
 const TimeSelect = ({ value, onChange, disabled = false }: {
   value: string; onChange: (v: string) => void; disabled?: boolean;
@@ -63,12 +67,26 @@ interface ScheduleFormEntry {
   isHoliday?: boolean;
 }
 
+const DAY_ORDER = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO'] as const;
+
+const timeToMinutes = (t: string): number => {
+  const parts = t.split(':').map(Number);
+  return (parts[0] || 0) * 60 + (parts[1] || 0);
+};
+
+const sortSchedules = (list: ScheduleFormEntry[]): ScheduleFormEntry[] =>
+  [...list].sort((a, b) => {
+    const dayDiff = DAY_ORDER.indexOf(a.dayOfWeek as typeof DAY_ORDER[number])
+                  - DAY_ORDER.indexOf(b.dayOfWeek as typeof DAY_ORDER[number]);
+    if (dayDiff !== 0) return dayDiff;
+    return timeToMinutes(a.opensAt) - timeToMinutes(b.opensAt);
+  });
+
 interface SucursalFormData {
   name: string;
   description: string;
   address: string;
   maxCapacity: number;
-  machineCapacity: number;
   isOpen: boolean;
   latitude: number;
   longitude: number;
@@ -162,7 +180,6 @@ const SucursalModal = ({ isOpen, onClose, role, sucursalToEdit, onSave, parentGy
         description: '',
         address: '',
         maxCapacity: 100,
-        machineCapacity: 0,
         isOpen: true,
         latitude: -17.7833,
         longitude: -63.1667,
@@ -190,7 +207,6 @@ const SucursalModal = ({ isOpen, onClose, role, sucursalToEdit, onSave, parentGy
         description: sucursalToEdit.description || '',
         address: sucursalToEdit.location?.address || '',
         maxCapacity: sucursalToEdit.maxCapacity || 100,
-        machineCapacity: (sucursalToEdit as any).infrastructure?.machineCapacity || 0,
         isOpen: sucursalToEdit.isOpen ?? true,
         latitude: sucursalToEdit.location?.latitude || -17.7833,
         longitude: sucursalToEdit.location?.longitude || -63.1667,
@@ -203,12 +219,12 @@ const SucursalModal = ({ isOpen, onClose, role, sucursalToEdit, onSave, parentGy
         const data = Array.isArray(res.data) ? res.data : [];
         setFormData(prev => ({
           ...prev,
-          schedules: data.map((s: GymScheduleDto) => ({
+          schedules: sortSchedules(data.map((s: GymScheduleDto) => ({
             dayOfWeek: s.dayOfWeek,
             opensAt: s.opensAt?.slice(0, 5) || '06:00',
             closesAt: s.closesAt?.slice(0, 5) || '22:00',
             isHoliday: s.isHoliday ?? false,
-          }))
+          })))
         }));
       }).catch(() => {});
     }
@@ -220,12 +236,23 @@ const SucursalModal = ({ isOpen, onClose, role, sucursalToEdit, onSave, parentGy
 
     if (!nameTrimmed) {
       newErrors.name = 'El nombre es obligatorio';
+    } else if (nameTrimmed.length > NAME_MAX) {
+      newErrors.name = `El nombre no puede superar los ${NAME_MAX} caracteres`;
+    } else if (GIBBERISH_RE.test(nameTrimmed)) {
+      newErrors.name = 'El nombre parece contener caracteres aleatorios';
     } else {
       const isDuplicate = existingGyms.some(
         g => g.name.trim().toLowerCase() === nameTrimmed.toLowerCase() &&
              g.id !== sucursalToEdit?.id
       );
       if (isDuplicate) newErrors.name = 'Ya existe una sucursal con este nombre';
+    }
+
+    const descTrimmed = formData.description.trim();
+    if (descTrimmed.length > DESC_MAX_BRANCH) {
+      newErrors.description = `La descripción no puede superar los ${DESC_MAX_BRANCH} caracteres`;
+    } else if (descTrimmed && GIBBERISH_RE.test(descTrimmed)) {
+      newErrors.description = 'La descripción parece contener caracteres aleatorios';
     }
 
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return false; }
@@ -250,24 +277,37 @@ const SucursalModal = ({ isOpen, onClose, role, sucursalToEdit, onSave, parentGy
         {sucursalToEdit ? 'Editar Sucursal' : 'Nueva Sucursal'}
       </h2>
       <form onSubmit={handleSubmit} className="flex flex-col overflow-y-auto flex-1 min-h-0 pr-1">
-          <label className={labelCls2}>Nombre de la Sucursal</label>
+          <div className="flex justify-between items-baseline mb-1 mt-3">
+            <label className={labelCls2} style={{ marginTop: 0, marginBottom: 0 }}>Nombre de la Sucursal</label>
+            <span className={`text-xs ${formData.name.length > NAME_MAX ? 'text-red-500' : formData.name.length > NAME_MAX * 0.9 ? 'text-amber-500' : 'text-slate-400 dark:text-gray-500'}`}>
+              {formData.name.length}/{NAME_MAX}
+            </span>
+          </div>
           <input
             type="text"
             className={`w-full bg-slate-50 dark:bg-[#151521] border ${errors.name ? 'border-red-500' : 'border-slate-200 dark:border-gray-700'} text-slate-900 dark:text-white rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors`}
             value={formData.name}
             onChange={e => { setFormData({ ...formData, name: e.target.value }); setErrors(p => ({ ...p, name: '' })); }}
             placeholder="Ej. Sucursal Centro"
+            maxLength={NAME_MAX}
           />
           {errors.name && <span className="text-red-500 text-xs mt-1 block">{errors.name}</span>}
 
-          <label className={labelCls2}>Descripción (Opcional)</label>
+          <div className="flex justify-between items-baseline mb-1 mt-3">
+            <label className={labelCls2} style={{ marginTop: 0, marginBottom: 0 }}>Descripción (Opcional)</label>
+            <span className={`text-xs ${formData.description.length > DESC_MAX_BRANCH ? 'text-red-500' : formData.description.length > DESC_MAX_BRANCH * 0.9 ? 'text-amber-500' : 'text-slate-400 dark:text-gray-500'}`}>
+              {formData.description.length}/{DESC_MAX_BRANCH}
+            </span>
+          </div>
           <textarea
-            className={inputCls2}
+            className={`${inputCls2}${errors.description ? ' !border-red-500' : ''}`}
             value={formData.description}
-            onChange={e => setFormData({...formData, description: e.target.value})}
+            onChange={e => { setFormData({...formData, description: e.target.value}); setErrors(p => ({ ...p, description: '' })); }}
             placeholder="Ej. Gimnasio equipado con área de pesas libres..."
             style={{ minHeight: '80px', resize: 'vertical', fontFamily: 'inherit' }}
+            maxLength={DESC_MAX_BRANCH}
           />
+          {errors.description && <span className="text-red-500 text-xs mt-1 block">{errors.description}</span>}
 
           <label className={labelCls2}>Marca Principal</label>
           <select
@@ -344,19 +384,7 @@ const SucursalModal = ({ isOpen, onClose, role, sucursalToEdit, onSave, parentGy
             required
           />
 
-          {canEditMachineCapacity && (
-            <>
-              <label className={labelCls2}>Aforo Máquinas</label>
-              <input
-                type="number"
-                className={inputCls2}
-                value={formData.machineCapacity}
-                onChange={e => setFormData({...formData, machineCapacity: parseInt(e.target.value) || 0})}
-                placeholder="Ej. 30"
-                min="0"
-              />
-            </>
-          )}
+
 
           <div className="flex items-center gap-2 mt-3">
             <input
@@ -437,12 +465,30 @@ const SucursalModal = ({ isOpen, onClose, role, sucursalToEdit, onSave, parentGy
                 <button
                   type="button"
                   onClick={() => {
-                    const schToAdd = {
-                      ...newSchedule,
-                      opensAt: newSchedule.isHoliday ? '00:00' : newSchedule.opensAt,
-                      closesAt: newSchedule.isHoliday ? '00:00' : newSchedule.closesAt
-                    };
-                    setFormData(prev => ({...prev, schedules: [...(prev.schedules||[]), schToAdd]}));
+                    const opensAt  = newSchedule.isHoliday ? '00:00' : newSchedule.opensAt;
+                    const closesAt = newSchedule.isHoliday ? '00:00' : newSchedule.closesAt;
+
+                    // Detectar solapamiento con entradas del mismo día (permite contiguos)
+                    const newStart = timeToMinutes(opensAt);
+                    const newEnd   = timeToMinutes(closesAt);
+                    const clash = (formData.schedules || []).find(
+                      s => s.dayOfWeek === newSchedule.dayOfWeek &&
+                           !s.isHoliday &&
+                           newStart < timeToMinutes(s.closesAt) &&
+                           newEnd   > timeToMinutes(s.opensAt)
+                    );
+                    if (clash) {
+                      toast.error(
+                        `Horario superpuesto en ${newSchedule.dayOfWeek}: ${opensAt}–${closesAt} choca con ${clash.opensAt}–${clash.closesAt}.`
+                      );
+                      return;
+                    }
+
+                    const schToAdd: ScheduleFormEntry = { ...newSchedule, opensAt, closesAt };
+                    setFormData(prev => ({
+                      ...prev,
+                      schedules: sortSchedules([...(prev.schedules || []), schToAdd]),
+                    }));
                     setNewSchedule(prev => ({ ...prev, isHoliday: false }));
                   }}
                   className="px-4 py-2 bg-brand-celeste text-black font-medium rounded-lg border-0 cursor-pointer text-sm flex items-center gap-1"
@@ -577,14 +623,13 @@ export const SucursalesView = () => {
   const handleSaveSucursal = async (formData: SucursalFormData) => {
     try {
       const payload: {
-        name: string; description: string; maxCapacity: number; machineCapacity: number; parentId: number | null;
+        name: string; description: string; maxCapacity: number; parentId: number | null;
         location: { address: string; city: string; latitude: number; longitude: number };
         schedules?: ScheduleFormEntry[];
       } = {
         name: formData.name,
         description: formData.description || formData.address,
         maxCapacity: Number(formData.maxCapacity) || 0,
-        machineCapacity: Number(formData.machineCapacity) || 0,
         parentId: Number(formData.parentId) || null,
         location: {
           address: formData.address || '',
@@ -607,7 +652,6 @@ export const SucursalesView = () => {
           name: payload.name,
           description: payload.description,
           maxCapacity: payload.maxCapacity,
-          machineCapacity: Number(formData.machineCapacity) || 0,
           parentId: payload.parentId,
         });
 
@@ -925,22 +969,13 @@ export const SucursalesView = () => {
             );
           })()}
         />
-        {(viewingSucursal?.infrastructure?.machineCapacity ?? 0) > 0 && (
-          <DetailField
-            label="Aforo Máquinas"
-            value={
-              <span style={{ fontWeight: 700, color: '#38BDF8' }}>
-                {viewingSucursal!.infrastructure!.machineCapacity} aforo total
-              </span>
-            }
-          />
-        )}
+
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', gridColumn: 'span 2', marginTop: '0.5rem', background: '#1C1C1E', padding: '0.75rem', borderRadius: '8px', border: '1px solid #1C1C1E' }}>
           <span style={{ fontSize: '0.7rem', color: '#8E8E93', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Horarios de Atención</span>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.5rem', marginTop: '0.25rem' }}>
             {viewingSucursal?.schedules && viewingSucursal.schedules.length > 0 ? (
-              viewingSucursal.schedules.map((sch, i) => (
+              sortSchedules(viewingSucursal.schedules as ScheduleFormEntry[]).map((sch, i) => (
                 <div key={i} style={{ background: '#0A0A0A', padding: '0.5rem', borderRadius: '6px', border: sch.isHoliday ? '1px solid #FF5E00' : '1px solid #1C1C1E' }}>
                   <div style={{ color: '#38BDF8', fontWeight: 600, fontSize: '0.75rem' }}>{sch.dayOfWeek}</div>
                   <div style={{ color: sch.isHoliday ? '#FF5E00' : '#FFFFFF', fontSize: '0.8rem', fontFamily: 'monospace', marginTop: '2px' }}>

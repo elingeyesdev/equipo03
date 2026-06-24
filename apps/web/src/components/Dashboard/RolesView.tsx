@@ -4,7 +4,8 @@ import { Navigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
-import { ModalOverlay, ConfirmModal, panelStyle, guardClose } from './Shared/DashboardShared';
+import { ModalOverlay, ConfirmModal } from './Shared/DashboardShared';
+import { guardClose, panelStyle } from './Shared/DashboardShared.utils';
 import type { GymDto, GymScheduleDto, UserDto, CheckinDto, ScheduleEntry } from './Shared/DashboardTypes';
 import { Edit, Trash2, Plus, Shield } from 'lucide-react';
 
@@ -68,8 +69,13 @@ const RoleModal = ({ isOpen, onClose, roleToEdit, onSave, roles }: any) => {
     }
 
     // Regla 3: Descripción
-    if (!formData.description || formData.description.trim().length < 5) {
+    const descTrimmed = formData.description?.trim() ?? '';
+    if (!descTrimmed || descTrimmed.length < 5) {
       newErrors.description = 'La descripción es obligatoria (mínimo 5 caracteres).';
+    } else if (descTrimmed.length > 300) {
+      newErrors.description = 'La descripción no puede superar los 300 caracteres.';
+    } else if (/[bcdfghjklmnñpqrstvwxyz]{5,}/i.test(descTrimmed)) {
+      newErrors.description = 'La descripción parece contener caracteres aleatorios.';
     }
 
     setErrors(newErrors);
@@ -138,7 +144,7 @@ const RoleModal = ({ isOpen, onClose, roleToEdit, onSave, roles }: any) => {
           Descripción
         </label>
         <textarea
-          maxLength={250}
+          maxLength={300}
           rows={3}
           className={`w-full bg-slate-50 dark:bg-[#151521] border ${errors.description ? 'border-red-500' : 'border-slate-200 dark:border-gray-700'} text-slate-900 dark:text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors resize-none font-sans`}
           value={formData.description}
@@ -154,8 +160,8 @@ const RoleModal = ({ isOpen, onClose, roleToEdit, onSave, roles }: any) => {
           ) : (
             <span />
           )}
-          <span className={`text-xs ml-auto ${formData.description.length >= 230 ? 'text-red-500 font-semibold' : 'text-slate-400 dark:text-gray-500'}`}>
-            {formData.description.length} / 250
+          <span className={`text-xs ml-auto ${formData.description.length >= 300 ? 'text-red-500 font-semibold' : formData.description.length >= 270 ? 'text-amber-500' : 'text-slate-400 dark:text-gray-500'}`}>
+            {formData.description.length} / 300
           </span>
         </div>
       </div>

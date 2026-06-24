@@ -74,7 +74,11 @@ function findUpcomingReservation(reservations: UserReservation[]): UserReservati
 }
 
 const NextReservationBanner = ({ onBuscar }: { onBuscar: () => void }) => {
-  const { data: reservations = [] } = useMyReservationsQuery();
+  const { data: reservationsData } = useMyReservationsQuery();
+  const reservations = useMemo(
+    () => reservationsData?.pages.flatMap(p => p.data) ?? [],
+    [reservationsData],
+  );
 
   const next = useMemo(() => findUpcomingReservation(reservations), [reservations]);
 

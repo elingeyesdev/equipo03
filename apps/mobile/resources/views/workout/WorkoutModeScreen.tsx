@@ -38,24 +38,49 @@ type SubGroup = {
 // ── Category meta ──────────────────────────────────────────────────────────────
 const CATEGORY_META: Record<string, { label: string; icon: string; color: string }> = {
   FUERZA:    { label: 'Fuerza e Hipertrofia', icon: 'dumbbell',        color: '#38BDF8' },
-  CARDIO:    { label: 'Cardio',               icon: 'run',             color: '#FF5E00' },
+  CARDIO:    { label: 'Cardio y Resistencia', icon: 'run',             color: '#FF5E00' },
   FUNCIONAL: { label: 'Funcional y Potencia', icon: 'lightning-bolt',  color: '#00E5A3' },
 };
 
+// Maps any DB category value → one of the 3 UI macro-categories
+// Guarantees zero exercises are lost regardless of future category values
+function toMacroCategory(raw: string | null | undefined): 'FUERZA' | 'CARDIO' | 'FUNCIONAL' {
+  switch ((raw ?? '').toUpperCase()) {
+    case 'CARDIO':
+    case 'RESISTENCIA':
+      return 'CARDIO';
+    case 'FUNCIONAL':
+    case 'POTENCIA':
+    case 'HIIT':
+    case 'FLEXIBILIDAD':
+    case 'MOVILIDAD':
+      return 'FUNCIONAL';
+    default: // FUERZA, HIPERTROFIA, or any future value → strength bucket
+      return 'FUERZA';
+  }
+}
+
 const MUSCLE_META: Record<string, { icon: string; color: string }> = {
-  Pectorales:     { icon: 'arm-flex-outline', color: '#38BDF8' },
-  Dorsales:       { icon: 'rowing',           color: '#00E5A3' },
-  Hombros:        { icon: 'weight-lifter',    color: '#FF5E00' },
-  'Bíceps':       { icon: 'arm-flex',         color: '#38BDF8' },
-  'Tríceps':      { icon: 'dumbbell',         color: '#FF5E00' },
-  'Cuádriceps':   { icon: 'run-fast',         color: '#00E5A3' },
-  Isquiotibiales: { icon: 'human-male',       color: '#FF5E00' },
-  Gemelos:        { icon: 'walk',             color: '#38BDF8' },
+  // Valores reales del seeder/DB
+  Pecho:          { icon: 'arm-flex-outline', color: '#38BDF8' },
+  Espalda:        { icon: 'rowing',           color: '#00E5A3' },
+  Hombro:         { icon: 'weight-lifter',    color: '#FF5E00' },
+  Pierna:         { icon: 'run-fast',         color: '#00E5A3' },
+  Brazo:          { icon: 'arm-flex',         color: '#38BDF8' },
   Core:           { icon: 'yoga',             color: '#00E5A3' },
   Cardio:         { icon: 'run',              color: '#FF5E00' },
   Funcional:      { icon: 'crosshairs',       color: '#38BDF8' },
   HIIT:           { icon: 'lightning-bolt',   color: '#FF5E00' },
   Movilidad:      { icon: 'human',            color: '#00E5A3' },
+  // Aliases por si hay variaciones
+  Hombros:        { icon: 'weight-lifter',    color: '#FF5E00' },
+  Pectorales:     { icon: 'arm-flex-outline', color: '#38BDF8' },
+  Dorsales:       { icon: 'rowing',           color: '#00E5A3' },
+  'Bíceps':       { icon: 'arm-flex',         color: '#38BDF8' },
+  'Tríceps':      { icon: 'dumbbell',         color: '#FF5E00' },
+  'Cuádriceps':   { icon: 'run-fast',         color: '#00E5A3' },
+  Isquiotibiales: { icon: 'human-male',       color: '#FF5E00' },
+  Gemelos:        { icon: 'walk',             color: '#38BDF8' },
 };
 
 const TRACKING_MAP: Record<string, TrackingType> = {
@@ -66,7 +91,7 @@ const TRACKING_MAP: Record<string, TrackingType> = {
   MOBILITY:  'TIME_BASED',
 };
 
-const CATEGORY_ORDER = ['FUERZA', 'CARDIO', 'FUNCIONAL'];
+const MACRO_ORDER = ['FUERZA', 'CARDIO', 'FUNCIONAL'] as const;
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export const WorkoutModeScreen = () => {
@@ -80,12 +105,11 @@ export const WorkoutModeScreen = () => {
       try {
         const raw: any[] = await trainingApi.getExercises();
 
-        // Group: category → muscleGroup → exercises
         const tree: Record<string, Record<string, ExerciseItem[]>> = {};
         for (const ex of raw) {
-          const cat  = ex.category     ?? 'FUERZA';
-          const mg   = ex.muscleGroup  ?? 'Otro';
-          const et   = ex.exerciseType ?? 'STRENGTH';
+          const cat = toMacroCategory(ex.category);
+          const mg  = ex.muscleGroup  ?? 'Otro';
+          const et  = ex.exerciseType ?? 'STRENGTH';
           if (!tree[cat])     tree[cat]    = {};
           if (!tree[cat][mg]) tree[cat][mg] = [];
           tree[cat][mg].push({
@@ -102,7 +126,7 @@ export const WorkoutModeScreen = () => {
           });
         }
 
-        const built = CATEGORY_ORDER
+        const built = MACRO_ORDER
           .filter(cat => tree[cat])
           .map(cat => ({
             categoryKey: cat,

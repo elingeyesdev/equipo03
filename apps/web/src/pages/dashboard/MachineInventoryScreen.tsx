@@ -8,7 +8,7 @@ import { MachineFormModal } from '../../components/Dashboard/MachineFormModal';
 type Machine = {
   id: string;
   name: string;
-  status: 'AVAILABLE' | 'IN_USE' | 'MAINTENANCE';
+  status: 'AVAILABLE' | 'MAINTENANCE';
   category?: string;
   imageUrl?: string | null;
   gymId: number;
@@ -17,7 +17,6 @@ type Machine = {
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
   AVAILABLE:   { label: 'Disponible',    color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' },
-  IN_USE:      { label: 'En Uso',        color: 'text-sky-400',     bg: 'bg-sky-500/10',     border: 'border-sky-500/30' },
   MAINTENANCE: { label: 'Mantenimiento', color: 'text-amber-400',   bg: 'bg-amber-500/10',   border: 'border-amber-500/30' },
 };
 
@@ -94,7 +93,6 @@ export const MachineInventoryScreen = () => {
   const stats = {
     total: machines.length,
     available: machines.filter(m => m.status === 'AVAILABLE').length,
-    inUse: machines.filter(m => m.status === 'IN_USE').length,
     maintenance: machines.filter(m => m.status === 'MAINTENANCE').length,
   };
 
@@ -116,7 +114,7 @@ export const MachineInventoryScreen = () => {
         </div>
 
         {/* KPI row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-3 gap-3 mb-6">
           <div className="bg-white dark:bg-bg-surface border border-slate-200 dark:border-gray-800 rounded-lg px-4 py-3">
             <div className="text-xs text-slate-500 dark:text-gray-400 uppercase tracking-wider">Total</div>
             <div className="text-xl font-bold text-slate-900 dark:text-white">{stats.total}</div>
@@ -124,10 +122,6 @@ export const MachineInventoryScreen = () => {
           <div className="bg-white dark:bg-bg-surface border border-slate-200 dark:border-gray-800 rounded-lg px-4 py-3">
             <div className="text-xs text-slate-500 dark:text-gray-400 uppercase tracking-wider">Disponibles</div>
             <div className="text-xl font-bold text-emerald-500">{stats.available}</div>
-          </div>
-          <div className="bg-white dark:bg-bg-surface border border-slate-200 dark:border-gray-800 rounded-lg px-4 py-3">
-            <div className="text-xs text-slate-500 dark:text-gray-400 uppercase tracking-wider">En Uso</div>
-            <div className="text-xl font-bold text-sky-500">{stats.inUse}</div>
           </div>
           <div className="bg-white dark:bg-bg-surface border border-slate-200 dark:border-gray-800 rounded-lg px-4 py-3">
             <div className="text-xs text-slate-500 dark:text-gray-400 uppercase tracking-wider">Mantenimiento</div>
@@ -153,7 +147,6 @@ export const MachineInventoryScreen = () => {
             <select className={selectClass} value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
               <option value="">Todos los estados</option>
               <option value="AVAILABLE">Disponible</option>
-              <option value="IN_USE">En Uso</option>
               <option value="MAINTENANCE">Mantenimiento</option>
             </select>
           </div>

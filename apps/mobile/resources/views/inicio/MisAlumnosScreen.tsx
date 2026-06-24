@@ -14,12 +14,21 @@ export const MisAlumnosScreen = () => {
   const queryClient = useQueryClient();
   const [processingId, setProcessingId] = useState<number | null>(null);
 
-  const { data: advisees = [], isLoading, refetch } = useQuery({
+  const {
+    data: adviseesRaw,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ['trainer-active-advisees'],
-    queryFn:  staffApi.getActiveAdvisees,
+    queryFn:  () => staffApi.getActiveAdvisees({ limit: 100, offset: 0 }),
     staleTime: 60_000,
     retry: 1,
   });
+
+  const advisees: ActiveAdvisee[] = Array.isArray(adviseesRaw)
+    ? adviseesRaw
+    : ((adviseesRaw as any)?.data ?? []);
 
   const handleCancelAdvisee = (item: ActiveAdvisee) => {
     Alert.alert(
@@ -64,6 +73,15 @@ export const MisAlumnosScreen = () => {
         <View style={s.center}>
           <ActivityIndicator size="large" color="#38BDF8" />
         </View>
+      ) : isError ? (
+        <View style={s.center}>
+          <MaterialCommunityIcons name="wifi-off" size={48} color="#222" />
+          <Text style={s.emptyTitle}>Error al cargar alumnos</Text>
+          <Text style={s.emptyTxt}>Verifica tu conexión e intenta de nuevo.</Text>
+          <TouchableOpacity style={s.retryBtn} onPress={() => refetch()}>
+            <Text style={s.retryTxt}>Reintentar</Text>
+          </TouchableOpacity>
+        </View>
       ) : advisees.length === 0 ? (
         <View style={s.center}>
           <MaterialCommunityIcons name="account-group-outline" size={56} color="#222" />
@@ -83,7 +101,7 @@ export const MisAlumnosScreen = () => {
             />
           }
         >
-          {(advisees as ActiveAdvisee[]).map((item) => {
+          {advisees.map((item) => {
             const isCancelling = processingId === item.id;
             return (
               <View key={item.clientId} style={s.card}>
@@ -158,7 +176,9 @@ const s = StyleSheet.create({
   badgeTxt: { color: '#38BDF8', fontSize: 14, fontWeight: '800' },
 
   emptyTitle: { color: '#444', fontSize: 16, fontWeight: '700', marginTop: 16 },
-  emptyTxt:   { color: '#333', fontSize: 14, marginTop: 6 },
+  emptyTxt:   { color: '#333', fontSize: 14, marginTop: 6, textAlign: 'center' },
+  retryBtn:   { marginTop: 16, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: '#38BDF8' },
+  retryTxt:   { color: '#38BDF8', fontWeight: '700', fontSize: 14 },
 
   card: {
     flexDirection: 'row', alignItems: 'center',

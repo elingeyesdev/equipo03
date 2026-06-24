@@ -69,13 +69,11 @@ export const CATEGORY_LABELS: Record<string, string> = {
 
 export const STATUS_LABELS: Record<string, string> = {
   AVAILABLE:   'Disponible',
-  IN_USE:      'En Uso',
   MAINTENANCE: 'Mantenimiento',
 };
 
 export const STATUS_COLORS: Record<string, string> = {
   AVAILABLE:   '#00E5A3',
-  IN_USE:      '#FF5E00',
   MAINTENANCE: '#e74c3c',
 };
 

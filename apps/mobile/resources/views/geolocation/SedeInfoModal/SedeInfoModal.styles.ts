@@ -1,7 +1,3 @@
-/**
- * SedeInfoModal Styles — Estilos del modal de información de sede.
- */
-
 import { StyleSheet, Dimensions, Platform } from 'react-native';
 
 const { width } = Dimensions.get('window');

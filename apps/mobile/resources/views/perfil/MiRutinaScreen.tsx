@@ -182,7 +182,10 @@ export const MiRutinaScreen = () => {
 
   const { data: routines = [], isLoading, isError, refetch } = useQuery<ClientRoutine[]>({
     queryKey: ['my-routines', userId],
-    queryFn: () => staffApi.getMyRoutines(userId),
+    queryFn: async () => {
+      const res = await staffApi.getMyRoutines(userId);
+      return Array.isArray(res) ? res : (res?.data ?? []);
+    },
     enabled: !!userId,
     staleTime: 2 * 60_000,
     retry: 1,

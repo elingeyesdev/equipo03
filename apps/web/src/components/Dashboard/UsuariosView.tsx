@@ -1,23 +1,26 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { usePagination } from '../../hooks/usePagination';
+import { PaginationControls } from '../common/PaginationControls';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
 import { DB_ROLES, ROLE_ID_TO_NAME } from '../../config/rbac.constants';
-import { ModalOverlay, ConfirmModal, panelStyle, RecordDetailModal, DetailField, guardClose } from './Shared/DashboardShared';
-import type { GymDto, UserDto } from './Shared/DashboardTypes';
+import { ModalOverlay, ConfirmModal, RecordDetailModal, DetailField } from './Shared/DashboardShared';
+import { guardClose, panelStyle } from './Shared/DashboardShared.utils';
+import type { GymDto, UserDto, UserRoleDto } from './Shared/DashboardTypes';
 import { Eye, Edit, Trash2, Plus, Clock, Building2, Search, X } from 'lucide-react';
 
-// ─── Roles que requieren asignación de sede (por nombre, no ID hardcodeado) ───
+//Roles que requieren asignación de sede 
 const SEDE_ROLE_NAMES = new Set([
   'GERENTE', 'ENTRENADOR', 'NUTRICIONISTA', 'INSTRUCTOR',
   'COORDINADOR', 'PERSONAL_DE_LIMPIEZA', 'RECEPCIONISTA',
 ]);
 
-// ─── Interfaz para roles cargados dinámicamente ───────────────────────────────
+//Interfaz para roles cargados dinámicamente 
 interface RoleOption { id: number; name: string; label: string; level: number; }
 
-// ─── Formatea el nombre DB al label legible ───────────────────────────────────
+//Formatea el nombre DB al label legible
 const formatRoleName = (name: string): string => {
   const map: Record<string, string> = {
     SUPER_ADMIN: 'Super Administrador',
@@ -36,6 +39,10 @@ const formatRoleName = (name: string): string => {
 };
 
 // ─── Prefijos telefónicos y helper de parseo (fuera del componente — constantes) ─
+const NAME_MAX = 60;
+const GIBBERISH_RE = /[bcdfghjklmnñpqrstvwxyz]{5,}/i;
+const LETTERS_ONLY_RE = /^[a-záéíóúüñA-ZÁÉÍÓÚÜÑ\s'-]+$/;
+
 const PHONE_PREFIXES = [
   { code: '+591', label: '+591 BO' },
   { code: '+54',  label: '+54 AR'  },
@@ -76,7 +83,7 @@ const initGymSchedule = (): Record<number, DaySchedule> => {
   return r;
 };
 
-// ─── Input de hora en formato 24h estricto (sin AM/PM) ───────────────────────
+//Input de hora en formato 24h estricto (sin AM/PM) 
 const TimeInput24h = ({
   value, onChange, disabled = false,
 }: {
@@ -125,7 +132,7 @@ const TimeInput24h = ({
   );
 };
 
-// ─── Modal de horarios laborales del personal ─────────────────────────────────
+//Modal de horarios laborales del personal
 const StaffScheduleModal = ({
   isOpen, onClose, employee,
 }: {
@@ -155,9 +162,8 @@ const StaffScheduleModal = ({
 
     setLoading(true);
     apiClient.get(`/staff/${employee.id}/schedules`)
-      .then(res => {
-        const rows: { gymId: number; dayOfWeek: number; startTime: string; endTime: string }[] =
-          Array.isArray(res.data) ? res.data : [];
+      .then((res: { data?: { gymId: number; dayOfWeek: number; startTime: string; endTime: string }[] }) => {
+        const rows = res.data ?? [];
         setSchedules(prev => {
           const updated = { ...prev };
           for (const gymId of Object.keys(updated).map(Number)) {
@@ -381,11 +387,11 @@ const StaffScheduleModal = ({
   );
 };
 
-// ─── Tipos para el formulario de usuario ──────────────────────────────────────
+//Tipos para el formulario de usuario 
 type UserFormData = {
   firstName: string; lastName: string; email: string; password: string;
   phone: string; phonePrefix: string; phoneNumber: string; ci: string;
-  roleId: number; gymIds: number[]; isActive: boolean;
+  roleId: number; gymIds: number[]; isActive: boolean; gender?: string;
 };
 
 interface RoleRaw { id: number; name: string; isActive?: boolean; hierarchyLevel?: number; }
@@ -393,15 +399,16 @@ interface StaffScheduleRow { gymId: number; dayOfWeek: number; startTime: string
 
 interface UserPayload {
   email?: string; firstName?: string; lastName?: string;
-  phone?: string; ci?: string; roleId?: number; gymIds?: number[];
+  phone?: string; ci?: string; roleId?: number; gymId?: number | null; gymIds?: number[];
   isActive?: boolean; password?: string; gender?: string;
 }
 
-// ─── Componente Modal de creación/edición (usa Portal via ModalOverlay) ───────
-const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBrandId, currentUserId }: {
+//Componente Modal de creación/edición (usa Portal via ModalOverlay) 
+const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBrandId, callerGymId, currentUserId }: {
   isOpen: boolean; onClose: () => void; userToEdit: UserDto | null; onSave: (d: UserFormData) => void;
   roleOptions: RoleOption[];
   gerenteBrandId?: number;
+  callerGymId?: number;
   currentUserId?: number;
 }) => {
 
@@ -417,23 +424,19 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
   const [showPassword, setShowPassword] = useState(false);
   const [gyms, setGyms] = useState<GymDto[]>([]);
   const [loadingGyms, setLoadingGyms] = useState(false);
-  // Para GERENTE: selección en dos pasos (sede → sucursal)
-  const [selectedSede, setSelectedSede] = useState<number | ''>('');
-  // Para staff multi-sede: arranca con la Marca del Gerente si aplica
+  // selectedMarcaId: Marca seleccionada (filtro cascada) para GERENTE, RECEPCIONISTA y staff multi-sede
   const [selectedMarcaId, setSelectedMarcaId] = useState<number | ''>(gerenteBrandId || '');
 
   // ── Derivados: marcas (parentId === null) y sucursales físicas (parentId !== null) ─
   const sedes      = gyms.filter(g => g.parentId === null);
   const sucursales = gyms.filter(g => g.parentId !== null && g.parentId !== undefined);
-  // Sucursales que pertenecen a la sede seleccionada
-  const sucursalesParaSede = selectedSede !== ''
-    ? sucursales.filter(s => (s.parentId ?? s.parent?.id) === selectedSede)
+  // Sucursales que pertenecen a la marca seleccionada
+  const sucursalesParaSede = selectedMarcaId !== ''
+    ? sucursales.filter(s => (s.parentId ?? s.parent?.id) === selectedMarcaId)
     : [];
 
-  // ── Marca del Gerente (brandId viene directo del JWT nuevo) ─────────────────
   const sedeIdDelGerente = gerenteBrandId ?? null;
 
-  // ── Cargar gyms al abrir: marcas (/gyms/brands) + sucursales (/gyms) ─────────
   useEffect(() => {
     if (!isOpen) return;
 setLoadingGyms(true);
@@ -441,10 +444,12 @@ setLoadingGyms(true);
       apiClient.get('/gyms/brands').catch(() => ({ data: [] })),
       apiClient.get('/gyms').catch(() => ({ data: [] })),
     ]).then(([brandsRes, sucursalesRes]) => {
-      const brands: GymDto[]     = Array.isArray(brandsRes.data)     ? brandsRes.data     : [];
-      const sucursales: GymDto[] = Array.isArray(sucursalesRes.data) ? sucursalesRes.data : [];
-      // Marcas: parentId null; Sucursales: parentId != null (ya viene del backend)
-      setGyms([...brands, ...sucursales]);
+      const unwrap = (raw: unknown): GymDto[] => {
+        if (Array.isArray(raw)) return raw as GymDto[];
+        const nested = (raw as { data?: unknown })?.data;
+        return Array.isArray(nested) ? (nested as GymDto[]) : [];
+      };
+      setGyms([...unwrap(brandsRes.data), ...unwrap(sucursalesRes.data)]);
     }).finally(() => setLoadingGyms(false));
   }, [isOpen]);
 
@@ -459,9 +464,13 @@ setTouched(false);
       const rawPhone = userToEdit.profile?.phone ?? '';
       const { prefix, number } = splitPhone(rawPhone);
     const currentRoleId = Number(userToEdit.userRoles?.[0]?.roleId) || DB_ROLES.USER;
-      const validRoleId = roleOptions.some(r => r.id === currentRoleId)
+      // Si roleOptions aún no cargó (race condition), usar el ID de la BD directamente
+      // sin caer al fallback DB_ROLES.USER que sobreescribiría el rol real del usuario.
+      const validRoleId = roleOptions.length === 0
         ? currentRoleId
-        : (roleOptions[0]?.id ?? DB_ROLES.USER);
+        : roleOptions.some(r => r.id === currentRoleId)
+          ? currentRoleId
+          : (roleOptions[0]?.id ?? DB_ROLES.USER);
       setFormData({
         firstName:   userToEdit.profile?.firstName ?? '',
         lastName:    userToEdit.profile?.lastName  ?? '',
@@ -477,52 +486,71 @@ setTouched(false);
         isActive:    userToEdit.isActive ?? true,
       });
     } else {
-      const defaultRoleId = roleOptions[0]?.id ?? DB_ROLES.USER;
-      setFormData({ firstName: '', lastName: '', email: '', password: '', phone: '', phonePrefix: '+591', phoneNumber: '', ci: '', gender: '', roleId: defaultRoleId, gymIds: [], isActive: true });
+      // 0 = sin seleccionar; obliga al usuario a elegir explícitamente y evita
+      // que un race-condition en la carga de roleOptions fije un rol incorrecto.
+      setFormData({ firstName: '', lastName: '', email: '', password: '', phone: '', phonePrefix: '+591', phoneNumber: '', ci: '', gender: '', roleId: 0, gymIds: [], isActive: true });
     }
     if (sedeIdDelGerente) {
-      setSelectedSede(sedeIdDelGerente);
       setSelectedMarcaId(sedeIdDelGerente);
     } else {
-      setSelectedSede('');
       setSelectedMarcaId('');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userToEdit, isOpen, sedeIdDelGerente]);
 
   // ── Pre-poblar marca y sucursal al editar (espera que gyms cargue) ──────────
+  // Lee el árbol de gyms para reconstruir la cascada Marca → Sucursal en modo edición.
   useEffect(() => {
     if (!isOpen || !userToEdit || !gyms.length) return;
-if (sedeIdDelGerente) { setSelectedMarcaId(sedeIdDelGerente); return; }
-
-    const firstGymId = formData.gymIds[0];
-    if (!firstGymId) return;
-    const firstGym = gyms.find(g => g.id === firstGymId);
-    if (!firstGym) return;
-
-    const roleName = roleOptions.find(r => r.id === formData.roleId)?.name ?? '';
-
-    if (roleName === 'GERENTE') {
-      if (firstGym.parentId ?? firstGym.parent?.id) {
-        setSelectedSede(firstGym.parentId ?? firstGym.parent?.id ?? '');
-      } else {
-        setSelectedSede(firstGym.id);
-      }
-    } else {
-      const marcaId = firstGym.parentId ?? firstGym.parent?.id;
-      if (marcaId) setSelectedMarcaId(marcaId);
+    if (sedeIdDelGerente) {
+      setSelectedMarcaId(sedeIdDelGerente);
+      return;
     }
-  }, [isOpen, sedeIdDelGerente, gyms, formData.gymIds, formData.roleId, userToEdit, roleOptions]);
+
+    const mainRole = userToEdit.userRoles?.[0];
+    if (!mainRole) return;
+
+    const gymId = Number(mainRole.gymId || mainRole.gym?.id || 0);
+    if (!gymId) return;
+
+    const gym = gyms.find(g => g.id === gymId);
+    if (!gym) return;
+
+    const parentId = Number(gym.parentId ?? gym.parent?.id ?? 0);
+
+    if (parentId === 0) {
+      // gymId es directamente una Marca (ej. Gerente administra la red completa)
+      setSelectedMarcaId(gymId);
+      setFormData(prev => ({ ...prev, gymIds: [gymId] }));
+    } else {
+      // gymId es una Sucursal (ej. Recepcionista, Entrenador en sede específica)
+      setSelectedMarcaId(parentId);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, userToEdit, gyms]);
 
   // ── Restaurar marca del Gerente/Recepcionista si se limpió al cambiar de rol ──
   useEffect(() => {
     if (!isOpen || !sedeIdDelGerente) return;
-setSelectedMarcaId(sedeIdDelGerente);
-    setSelectedSede(sedeIdDelGerente);
+    setSelectedMarcaId(sedeIdDelGerente);
   }, [isOpen, formData.roleId, sedeIdDelGerente]);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
+
+    const fn = formData.firstName.trim();
+    if (fn) {
+      if (fn.length > NAME_MAX) newErrors.firstName = `Máximo ${NAME_MAX} caracteres`;
+      else if (!LETTERS_ONLY_RE.test(fn)) newErrors.firstName = 'Solo se permiten letras, espacios y guiones';
+      else if (GIBBERISH_RE.test(fn)) newErrors.firstName = 'El nombre parece contener caracteres aleatorios';
+    }
+
+    const ln = formData.lastName.trim();
+    if (ln) {
+      if (ln.length > NAME_MAX) newErrors.lastName = `Máximo ${NAME_MAX} caracteres`;
+      else if (!LETTERS_ONLY_RE.test(ln)) newErrors.lastName = 'Solo se permiten letras, espacios y guiones';
+      else if (GIBBERISH_RE.test(ln)) newErrors.lastName = 'El apellido parece contener caracteres aleatorios';
+    }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
       newErrors.email = 'Correo inválido';
@@ -538,7 +566,7 @@ setSelectedMarcaId(sedeIdDelGerente);
     const roleLevel = roleOptions.find(r => r.id === formData.roleId)?.level ?? 0;
     const requiresStaffFields = roleLevel >= 3 && roleLevel < 10;
 
-    if (requiresStaffFields) {
+    if (requiresStaffFields && isCreation) {
       if (!formData.phoneNumber.trim()) {
         newErrors.phone = 'El teléfono es obligatorio para este rol';
       } else {
@@ -575,11 +603,12 @@ setSelectedMarcaId(sedeIdDelGerente);
   // Determina el nombre del rol seleccionado (usando datos reales de la BD)
   const selectedRoleName   = roleOptions.find(r => r.id === formData.roleId)?.name ?? '';
   const selectedRoleLevel  = roleOptions.find(r => r.id === formData.roleId)?.level ?? 0;
-  const requiresStaffInfo  = selectedRoleLevel >= 3 && selectedRoleLevel < 10;
-  const isGerente          = selectedRoleName === 'GERENTE';
+  const requiresStaffInfo  = selectedRoleLevel >= 3 && selectedRoleLevel < 10 && !userToEdit;
+  // Gerente: nivel jerárquico 5 (sin importar el nombre del rol)
+  const isGerente          = selectedRoleLevel === 5;
   const isRecepcionista    = selectedRoleName === 'RECEPCIONISTA';
   const needsSede          = SEDE_ROLE_NAMES.has(selectedRoleName);
-  // RECEPCIONISTA usa selector único igual que GERENTE — no checkboxes múltiples
+  // Solo checkboxes múltiples para staff distinto de Gerente y Recepcionista
   const needsMulti         = needsSede && !isGerente && !isRecepcionista;
 
   if (!isOpen) return null;
@@ -595,15 +624,27 @@ setSelectedMarcaId(sedeIdDelGerente);
       </h2>
 
       <div style={{ overflowY: 'auto', flex: 1, minHeight: 0, paddingRight: '0.25rem' }}>
-        <label className={labelCls}>Nombre</label>
-        <input type="text" className={inputCls()} value={formData.firstName}
-          onChange={e => setFormData({ ...formData, firstName: e.target.value })}
-          placeholder="Ej. Juan" />
+        <div className="flex justify-between items-baseline mt-3 mb-1">
+          <label className={labelCls} style={{ marginTop: 0, marginBottom: 0 }}>Nombre</label>
+          <span className={`text-xs ${formData.firstName.length > NAME_MAX ? 'text-red-500' : 'text-slate-400 dark:text-gray-500'}`}>
+            {formData.firstName.length}/{NAME_MAX}
+          </span>
+        </div>
+        <input type="text" className={inputCls(errors.firstName)} value={formData.firstName}
+          onChange={e => { setFormData({ ...formData, firstName: e.target.value }); setErrors(p => ({ ...p, firstName: '' })); }}
+          placeholder="Ej. Juan" maxLength={NAME_MAX} />
+        {errors.firstName && <span className="text-red-500 text-xs mt-1 block">{errors.firstName}</span>}
 
-        <label className={labelCls}>Apellido</label>
-        <input type="text" className={inputCls()} value={formData.lastName}
-          onChange={e => setFormData({ ...formData, lastName: e.target.value })}
-          placeholder="Ej. Pérez" />
+        <div className="flex justify-between items-baseline mt-3 mb-1">
+          <label className={labelCls} style={{ marginTop: 0, marginBottom: 0 }}>Apellido</label>
+          <span className={`text-xs ${formData.lastName.length > NAME_MAX ? 'text-red-500' : 'text-slate-400 dark:text-gray-500'}`}>
+            {formData.lastName.length}/{NAME_MAX}
+          </span>
+        </div>
+        <input type="text" className={inputCls(errors.lastName)} value={formData.lastName}
+          onChange={e => { setFormData({ ...formData, lastName: e.target.value }); setErrors(p => ({ ...p, lastName: '' })); }}
+          placeholder="Ej. Pérez" maxLength={NAME_MAX} />
+        {errors.lastName && <span className="text-red-500 text-xs mt-1 block">{errors.lastName}</span>}
 
         <label className={labelCls}>
           Teléfono{' '}
@@ -655,7 +696,7 @@ setSelectedMarcaId(sedeIdDelGerente);
         </label>
         <select
           className={inputCls()}
-          value={formData.gender}
+          value={formData.gender || ''}
           onChange={e => setFormData({ ...formData, gender: e.target.value })}
         >
           <option value="">Sin especificar</option>
@@ -729,34 +770,73 @@ setSelectedMarcaId(sedeIdDelGerente);
           </div>
         ) : (
         <>
-        <label className={labelCls}>Rol del Sistema</label>
+        <label className={labelCls}>Rol del Sistema <span style={{ color: '#EF4444', fontWeight: 700, fontSize: '0.75rem' }}>*</span></label>
         <select
-          className={inputCls()}
+          className={inputCls(formData.roleId === 0 ? 'required' : undefined)}
           value={formData.roleId}
           onChange={e => {
             setFormData({ ...formData, roleId: Number(e.target.value), gymIds: [] });
-            setSelectedSede('');
             setSelectedMarcaId('');
           }}
         >
+          {!userToEdit && <option value={0} disabled>— Seleccionar Rol —</option>}
           {roleOptions.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
         </select>
+        {formData.roleId === 0 && <span className="text-red-500 text-xs mt-1 block">Selecciona el rol del usuario</span>}
         </>
         )}
 
-        {/* ── GERENTE / RECEPCIONISTA: selección en dos pasos (1 sucursal) ───────── */}
-        {!isSelfEdit && (isGerente || isRecepcionista) && (
+        {/* ── GERENTE (nivel 5): solo Marca — administra la red completa ──────── */}
+        {!isSelfEdit && isGerente && (
+          <div className="bg-gray-50 dark:bg-bg-surface border border-brand-orange rounded-xl p-4 mt-3 mb-1 flex flex-col gap-3">
+            <p className="m-0 text-xs font-semibold tracking-widest uppercase text-brand-orange">
+              Asignación de Marca
+            </p>
+            <p className="m-0 text-sm text-slate-600 dark:text-gray-400 leading-relaxed">
+              El gerente administra <strong className="text-slate-900 dark:text-gray-200">todas las sucursales</strong> de
+              la <strong className="text-slate-900 dark:text-gray-200">Marca</strong> seleccionada (ej. "Smart Fit").
+            </p>
+
+            {sedeIdDelGerente ? (
+              <div className="w-full bg-slate-100 dark:bg-bg-deep border border-slate-200 dark:border-gray-700 text-slate-700 dark:text-gray-300 rounded-lg px-4 py-2.5 text-sm flex items-center justify-between">
+                <span className="font-medium">{sedes.find(s => s.id === sedeIdDelGerente)?.name ?? `Marca #${sedeIdDelGerente}`}</span>
+                <span className="text-xs text-slate-400 dark:text-gray-500 ml-2">(tu marca)</span>
+              </div>
+            ) : loadingGyms ? <p className="text-sm text-slate-400 dark:text-gray-500">Cargando...</p> : (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">
+                  Marca *
+                </label>
+                <select
+                  value={selectedMarcaId}
+                  onChange={e => {
+                    const val = Number(e.target.value) || '';
+                    setSelectedMarcaId(val);
+                    setFormData(p => ({ ...p, gymIds: val ? [val as number] : [] }));
+                  }}
+                  className={`w-full bg-slate-50 dark:bg-[#151521] border ${!selectedMarcaId ? 'border-red-500' : 'border-slate-200 dark:border-gray-700'} text-slate-900 dark:text-white rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors`}
+                >
+                  <option value="">— Seleccionar Marca —</option>
+                  {sedes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── RECEPCIONISTA: dos pasos (Marca → Sucursal asignada) ─────────────── */}
+        {!isSelfEdit && isRecepcionista && (
           <div className="bg-gray-50 dark:bg-bg-surface border border-brand-orange rounded-xl p-4 mt-3 mb-1 flex flex-col gap-3">
             <p className="m-0 text-xs font-semibold tracking-widest uppercase text-brand-orange">
               Asignación de Marca y Sucursal
             </p>
             <p className="m-0 text-sm text-slate-600 dark:text-gray-400 leading-relaxed">
               Una <strong className="text-slate-900 dark:text-gray-200">Marca</strong> es la organización (ej. "Smart Fit").
-              Una <strong className="text-slate-900 dark:text-gray-200">Sucursal</strong> es el gimnasio físico donde trabajará
-              el {isGerente ? 'gerente' : 'recepcionista'} (ej. "Smart Fit - Centro").
+              Una <strong className="text-slate-900 dark:text-gray-200">Sucursal</strong> es el gimnasio físico donde
+              trabajará el recepcionista (ej. "Smart Fit - Centro").
             </p>
 
-            {/* Paso 1: Sede (Marca) — solo lectura si el contexto ya la impone */}
+            {/* Paso 1: Marca */}
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">
                 {sedeIdDelGerente ? 'Marca' : '1 · Marca *'}
@@ -768,12 +848,15 @@ setSelectedMarcaId(sedeIdDelGerente);
                 </div>
               ) : loadingGyms ? <p className="text-sm text-slate-400 dark:text-gray-500">Cargando...</p> : (
                 <select
-                  value={selectedSede}
+                  className={`w-full bg-slate-50 dark:bg-[#151521] border ${!selectedMarcaId ? 'border-red-500' : 'border-slate-200 dark:border-gray-700'} text-slate-900 dark:text-white rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors`}
+                  value={selectedMarcaId || ''}
                   onChange={e => {
-                    setSelectedSede(Number(e.target.value) || '');
-                    setFormData(p => ({ ...p, gymIds: [] }));
+                    const val = Number(e.target.value);
+                    setSelectedMarcaId(val);
+                    // FIX CRÍTICO: Guardamos el ID de la Marca en el estado. 
+                    // Si el usuario es Gerente, esto se enviará al backend.
+                    setFormData(prev => ({ ...prev, gymIds: val ? [val] : [] }));
                   }}
-                  className={`w-full bg-slate-50 dark:bg-[#151521] border ${!selectedSede ? 'border-red-500' : 'border-slate-200 dark:border-gray-700'} text-slate-900 dark:text-white rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors`}
                 >
                   <option value="">— Seleccionar Marca —</option>
                   {sedes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -781,21 +864,26 @@ setSelectedMarcaId(sedeIdDelGerente);
               )}
             </div>
 
-            {/* Paso 2: Sucursal única (habilitado tras elegir sede) */}
-            <div style={{ opacity: selectedSede !== '' ? 1 : 0.4, transition: 'opacity 0.2s' }}>
+            {/* Paso 2: Sucursal única */}
+            <div style={{ opacity: selectedMarcaId !== '' ? 1 : 0.4, transition: 'opacity 0.2s' }}>
               <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">
-                {sedeIdDelGerente ? '' : '2 · '}{isGerente ? 'Sucursal a Administrar' : 'Sucursal Asignada'} *
+                {sedeIdDelGerente ? '' : '2 · '}Sucursal Asignada *
               </label>
-              {selectedSede !== '' && sucursalesParaSede.length === 0 ? (
+              {selectedMarcaId !== '' && sucursalesParaSede.length === 0 ? (
                 <p className="m-0 text-sm text-red-500 p-2 bg-red-50 dark:bg-bg-surface rounded-lg">
                   Atención: esta marca no tiene sucursales registradas aún.
                 </p>
               ) : (
                 <select
-                  value={formData.gymIds[0] ?? ''}
-                  onChange={e => setFormData(p => ({ ...p, gymIds: e.target.value ? [Number(e.target.value)] : [] }))}
-                  disabled={selectedSede === ''}
-                  className={`w-full bg-slate-50 dark:bg-[#151521] border ${selectedSede !== '' && formData.gymIds.length === 0 ? 'border-red-500' : 'border-slate-200 dark:border-gray-700'} text-slate-900 dark:text-white rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors disabled:opacity-40`}
+                  className={`w-full bg-slate-50 dark:bg-[#151521] border ${selectedMarcaId !== '' && formData.gymIds.length === 0 ? 'border-red-500' : 'border-slate-200 dark:border-gray-700'} text-slate-900 dark:text-white rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-colors disabled:opacity-40`}
+                  disabled={selectedMarcaId === ''}
+                  // CRÍTICO: El value debe leer directamente del formData
+                  value={formData.gymIds && formData.gymIds.length > 0 ? formData.gymIds[0] : ''}
+                  onChange={e => {
+                    const val = Number(e.target.value);
+                    // CRÍTICO: Guardar el ID en el formData como array numérico
+                    setFormData(prev => ({ ...prev, gymIds: val ? [val] : [] }));
+                  }}
                 >
                   <option value="">— Seleccionar Sucursal —</option>
                   {sucursalesParaSede.map(s => (
@@ -837,6 +925,7 @@ setSelectedMarcaId(sedeIdDelGerente);
               const activeMarcaId = sedeIdDelGerente ?? Number(selectedMarcaId);
               const checkboxSucursales = sucursales.filter(
                 s => (s.parentId ?? s.parent?.id) === activeMarcaId
+                  && (callerGymId == null || Number(s.id) === callerGymId)
               );
               return (
                 <>
@@ -889,14 +978,24 @@ setSelectedMarcaId(sedeIdDelGerente);
         <button className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-bg-deep rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent" onClick={() => guardClose(touched, onClose)}>Cancelar</button>
         <button className="px-4 py-2 bg-brand-celeste text-black font-medium rounded-lg border-0 cursor-pointer" onClick={() => {
           if (!validateForm()) return;
-          if (!isSelfEdit && (isGerente || isRecepcionista)) {
-            const rolLabel = isGerente ? 'Gerente' : 'Recepcionista';
-            if (!selectedSede) {
-              toast.error(`Debes seleccionar la Marca a la que pertenece el ${rolLabel}`);
+          if (!isSelfEdit && !formData.roleId) {
+            toast.error('Debes seleccionar el Rol del Sistema');
+            return;
+          }
+          if (!isSelfEdit && isGerente) {
+            if (!selectedMarcaId) {
+              toast.error('Debes seleccionar la Marca que administrará el Gerente');
+              return;
+            }
+            // gymIds ya contiene la marca seleccionada (se asigna al cambiar el selector)
+          }
+          if (!isSelfEdit && isRecepcionista) {
+            if (!selectedMarcaId) {
+              toast.error('Debes seleccionar la Marca a la que pertenece el Recepcionista');
               return;
             }
             if (formData.gymIds.length === 0) {
-              toast.error(`Debes seleccionar la Sucursal que administrará el ${rolLabel}`);
+              toast.error('Debes seleccionar la Sucursal que atenderá el Recepcionista');
               return;
             }
           }
@@ -916,16 +1015,46 @@ setSelectedMarcaId(sedeIdDelGerente);
 export const UsuariosView = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const usersKey = ['users', user?.id, user?.roleId, user?.gymId] as const;
+  // ── Filtros (declarados antes de usePagination para ser sus deps) ──────────
+  const [search,          setSearch]       = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [filterRole,      setFilterRole]   = useState('');
+  const [filterGym,       setFilterGym]    = useState('');
+  const [filterStatus,    setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
+  const [sortOrder,       setSortOrder]    = useState<'az' | 'za' | 'id_asc' | 'id_desc'>('az');
 
-  const { data: users = [], isLoading: loading, error: fetchError } = useQuery({
+  // Debounce: espera 400ms sin tipear para disparar el query
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 400);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const { page, setPage, limit, offset } = usePagination(20, [debouncedSearch, filterRole, filterGym, filterStatus, sortOrder]);
+  const usersKey = ['users', user?.id, user?.gymId, page, limit, debouncedSearch, filterRole, filterGym, filterStatus, sortOrder] as const;
+
+  const { data: queryData, isLoading: loading, error: fetchError } = useQuery({
     queryKey: usersKey,
     queryFn: async () => {
-      const res = await apiClient.get('/users');
-      return Array.isArray(res.data) ? (res.data as UserDto[]) : [];
+      const res = await apiClient.get('/users', {
+        params: {
+          search: debouncedSearch || undefined,
+          roleId: filterRole && filterRole !== 'none' ? Number(filterRole) : undefined,
+          noRole: filterRole === 'none' ? true : undefined,
+          gymId:  filterGym ? Number(filterGym) : undefined,
+          status: filterStatus !== 'all' ? filterStatus : undefined,
+          sortBy: sortOrder,
+          limit,
+          offset,
+        },
+      });
+      const body = res.data as { data: UserDto[]; meta: { total: number; limit: number; offset: number } } | UserDto[];
+      if (Array.isArray(body)) return { data: body, meta: { total: body.length, limit, offset } };
+      return body;
     },
     enabled: !!user,
   });
+  const users = useMemo(() => queryData?.data ?? [], [queryData]);
+  const meta = queryData?.meta ?? { total: 0, limit, offset };
 
   const error = fetchError
     ? ((fetchError as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message
@@ -956,7 +1085,10 @@ export const UsuariosView = () => {
   useEffect(() => {
     apiClient.get('/roles')
       .then((res: { data: unknown }) => {
-        const raw: RoleRaw[] = Array.isArray(res.data) ? (res.data as RoleRaw[]) : [];
+        const rawData = res.data;
+        const raw: RoleRaw[] = Array.isArray(rawData)
+          ? (rawData as RoleRaw[])
+          : (Array.isArray((rawData as { data?: unknown })?.data) ? ((rawData as { data: RoleRaw[] }).data) : []);
         setRoleOptions(
           raw
             .filter(r => r.isActive !== false)
@@ -976,9 +1108,12 @@ export const UsuariosView = () => {
       apiClient.get('/gyms').catch(() => ({ data: [] })),
     ]).then(([brandsRes, sucursalesRes]) => {
       if (!mounted) return;
-      const brands: GymDto[]     = Array.isArray(brandsRes.data)     ? brandsRes.data     : [];
-      const sucursales: GymDto[] = Array.isArray(sucursalesRes.data) ? sucursalesRes.data : [];
-      setGymsCatalog([...brands, ...sucursales]);
+      const unwrap = (raw: unknown): GymDto[] => {
+        if (Array.isArray(raw)) return raw as GymDto[];
+        const nested = (raw as { data?: unknown })?.data;
+        return Array.isArray(nested) ? (nested as GymDto[]) : [];
+      };
+      setGymsCatalog([...unwrap(brandsRes.data), ...unwrap(sucursalesRes.data)]);
     }).catch(() => {});
     return () => { mounted = false; };
   }, []);
@@ -1001,66 +1136,15 @@ export const UsuariosView = () => {
   }, [gymsCatalog]);
 
 
-  const usuariosActivos = useMemo(() => users.filter(u => !!u.isActive).length, [users]);
-
-  // ── Filtros ───────────────────────────────────────────────────────────────────
-  const [search,       setSearch]       = useState('');
-  const [filterRole,   setFilterRole]   = useState('');
-  const [filterGym,    setFilterGym]    = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
-  const [sortOrder,    setSortOrder]    = useState<'az' | 'za' | 'id_asc' | 'id_desc'>('az');
-
-  // Gyms únicos que aparecen en los roles de los usuarios (para el filtro)
+  // Gyms para el selector de filtro (catálogo completo, no la página actual)
   const gymOptions = useMemo(() => {
-    const map = new Map<number, string>();
-    users.forEach(u => {
-      (u?.userRoles ?? []).forEach((ur: UserRoleDto) => {
-        if (ur?.gym?.id) map.set(Number(ur.gym.id), ur.gym.name ?? `Gym #${ur.gym.id}`);
-      });
-    });
-    return [...map.entries()]
-      .map(([id, name]) => ({ id, name }))
+    return gymsCatalog
+      .map(g => ({ id: g.id, name: g.name }))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [users]);
-
-  const filteredUsers = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return users
-      .filter(u => {
-        const fullName = [u?.profile?.firstName, u?.profile?.lastName].filter(Boolean).join(' ').toLowerCase();
-        const email    = (u?.email ?? '').toLowerCase();
-        if (term && !fullName.includes(term) && !email.includes(term)) return false;
-
-        if (filterRole === 'none') {
-          if ((u?.userRoles ?? []).length > 0) return false;
-        } else if (filterRole) {
-          const rId = String(Number(u?.userRoles?.[0]?.roleId ?? 0));
-          if (rId !== filterRole) return false;
-        }
-
-        if (filterGym) {
-          const gymIds = (u?.userRoles ?? [])
-            .filter((ur: UserRoleDto) => ur?.gym?.id != null)
-            .map((ur: UserRoleDto) => String(ur.gym!.id));
-          if (!gymIds.includes(filterGym)) return false;
-        }
-
-        if (filterStatus === 'active'   && !u.isActive) return false;
-        if (filterStatus === 'inactive' &&  u.isActive) return false;
-        return true;
-      })
-      .sort((a, b) => {
-        const nameA = [a?.profile?.firstName, a?.profile?.lastName].filter(Boolean).join(' ');
-        const nameB = [b?.profile?.firstName, b?.profile?.lastName].filter(Boolean).join(' ');
-        if (sortOrder === 'az') return nameA.localeCompare(nameB);
-        if (sortOrder === 'za') return nameB.localeCompare(nameA);
-        if (sortOrder === 'id_asc')  return Number(a.id) - Number(b.id);
-        return Number(b.id) - Number(a.id);
-      });
-  }, [users, search, filterRole, filterGym, filterStatus, sortOrder]);
+  }, [gymsCatalog]);
 
   const hasActiveFilters = search || filterRole || filterGym || filterStatus !== 'all' || sortOrder !== 'az';
-  const resetFilters = () => { setSearch(''); setFilterRole(''); setFilterGym(''); setFilterStatus('all'); setSortOrder('az'); };
+  const resetFilters = () => { setSearch(''); setDebouncedSearch(''); setFilterRole(''); setFilterGym(''); setFilterStatus('all'); setSortOrder('az'); };
 
   // ── Re-fetch directo (no usa el use-case para evitar fallos silenciosos de RBAC) ──
 
@@ -1070,6 +1154,16 @@ export const UsuariosView = () => {
       const emailTrimmed = formData.email?.trim();
       const isSelf = userToEdit && Number(userToEdit.id) === Number(user?.id);
 
+      // Extraer el ID de la sucursal de forma segura
+      const selectedRoleObj = roleOptions.find(r => r.id === Number(formData.roleId));
+      const hierarchy = selectedRoleObj?.level ?? 0;
+      
+      // Niveles intermedios SÍ requieren. Nivel 10 (Super Admin) y 1 (Usuario base) NO.
+      const requiresGymUI = hierarchy > 1 && hierarchy < 10;
+      const targetGymId = formData.gymIds && formData.gymIds.length > 0 ? Number(formData.gymIds[0]) : null;
+      const finalGymId = requiresGymUI ? targetGymId : null;
+
+      // Construir payload a prueba de balas
       const payload: UserPayload = {
         ...(emailTrimmed ? { email: emailTrimmed } : {}),
         firstName: formData.firstName?.trim() || undefined,
@@ -1077,12 +1171,13 @@ export const UsuariosView = () => {
         ...(formData.phone?.trim() ? { phone: formData.phone.trim() } : {}),
         ...(formData.ci?.trim()    ? { ci:    formData.ci.trim()    } : {}),
         ...(formData.gender        ? { gender: formData.gender }      : {}),
-        roleId:    Number(formData.roleId),
-        gymIds: (([DB_ROLES.SUPER_ADMIN, DB_ROLES.CLIENTE, DB_ROLES.USER] as number[]).includes(Number(formData.roleId)))
-          ? []
-          : (formData.gymIds || []).map(Number),
+        roleId: Number(formData.roleId),
+        gymId: finalGymId, // Backend lo atrapará aquí
+        gymIds: finalGymId ? [finalGymId] : [], // O lo atrapará aquí
         isActive: formData.isActive,
       };
+
+      console.log('PAYLOAD REPARADO:', payload);
 
       if (formData.password?.trim()) payload.password = formData.password.trim();
 
@@ -1100,6 +1195,14 @@ export const UsuariosView = () => {
 
       // Re-fetch directo: garantiza que la lista refleja el estado real del servidor
       await queryClient.invalidateQueries({ queryKey: usersKey });
+
+      // Actualizar ficha detallada si estaba abierta para el mismo usuario
+      if (userToEdit && viewingUser && Number(viewingUser.id) === Number(userToEdit.id)) {
+        try {
+          const refreshed = await apiClient.get<UserDto>(`/users/${userToEdit.id}`);
+          setViewingUser(refreshed.data);
+        } catch { /* si falla, la ficha mostrará datos viejos */ }
+      }
 
       setIsModalOpen(false);
       setUserToEdit(null);
@@ -1137,7 +1240,7 @@ export const UsuariosView = () => {
 
       <div className="flex flex-wrap justify-between items-center gap-3 mt-4 mb-4">
         <div style={{ color: '#8E8E93', fontSize: '0.9rem' }}>
-          {loading ? 'Cargando usuarios...' : `Total: ${users.length} | Activos: ${usuariosActivos}`}
+          {loading ? 'Cargando usuarios...' : `Total: ${meta.total} usuarios`}
         </div>
         {(user?.level ?? 0) >= 4 && (
           <button onClick={() => { setUserToEdit(null); setIsModalOpen(true); }}
@@ -1151,8 +1254,8 @@ export const UsuariosView = () => {
       {error && <div style={{ marginTop: '0.75rem', color: '#FF5E00', fontSize: '0.9rem' }}>{error}</div>}
       {loading && <div style={{ marginTop: '2rem', textAlign: 'center', color: '#8E8E93' }}>Cargando...</div>}
 
-      {/* ── Barra de filtros ── */}
-      {!loading && !error && users.length > 0 && (
+      {/* ── Barra de filtros — visible si hay datos o filtros activos; NO depende de loading para que el input nunca se desmonte ── */}
+      {!error && (meta.total > 0 || hasActiveFilters) && (
         <div className="flex flex-col md:flex-row flex-wrap gap-3 items-center mb-6">
           <div className="relative flex-1" style={{ minWidth: '200px' }}>
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-500 pointer-events-none" />
@@ -1214,17 +1317,30 @@ export const UsuariosView = () => {
       )}
 
       {/* Contador */}
-      {!loading && !error && users.length > 0 && (
+      {!loading && !error && (meta.total > 0 || hasActiveFilters || debouncedSearch !== '') && (
         <div style={{ color: '#8E8E93', fontSize: '0.8rem', marginBottom: '0.5rem' }}>
-          {filteredUsers.length === users.length
-            ? `${users.length} usuario${users.length !== 1 ? 's' : ''} · Activos: ${usuariosActivos}`
-            : `${filteredUsers.length} de ${users.length} usuarios`}
+          {meta.total === 0
+            ? 'Sin resultados para los filtros aplicados.'
+            : `${meta.total} usuario${meta.total !== 1 ? 's' : ''}${hasActiveFilters ? ' (filtrado)' : ''}`
+          }
         </div>
       )}
 
       {!loading && !error && users.length === 0 && (
-        <div style={{ marginTop: '2rem', textAlign: 'center', color: '#8E8E93', padding: '2rem', borderRadius: '12px', background: '#1C1C1E' }}>
-          <p>No hay usuarios disponibles en esta marca.</p>
+        <div className="mt-8 text-center bg-gray-50 dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-700 rounded-xl p-8">
+          {hasActiveFilters ? (
+            <>
+              <p className="text-gray-500 dark:text-[#8E8E93] text-sm">Sin resultados para los filtros aplicados.</p>
+              <button
+                onClick={resetFilters}
+                className="mt-3 text-sm px-4 py-1.5 rounded-lg border border-[#38BDF8] text-[#38BDF8] bg-transparent hover:bg-[#38BDF8]/10 transition-colors cursor-pointer"
+              >
+                Limpiar filtros
+              </button>
+            </>
+          ) : (
+            <p className="text-gray-500 dark:text-[#8E8E93] text-sm">No hay usuarios disponibles en esta marca.</p>
+          )}
         </div>
       )}
 
@@ -1240,9 +1356,9 @@ export const UsuariosView = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.length === 0 ? (
+              {users.length === 0 ? (
                 <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400 dark:text-gray-500">Sin resultados para los filtros aplicados.</td></tr>
-              ) : filteredUsers.map(u => {
+              ) : users.map(u => {
                 const fullName  = [u?.profile?.firstName, u?.profile?.lastName].filter(Boolean).join(' ').trim() || '-';
                 const roleId    = Number(u?.userRoles?.[0]?.roleId ?? 0);
                 // Prioridad: joined role object del backend > roleOptions dinámico > ROLE_ID_TO_NAME hardcodeado
@@ -1252,7 +1368,7 @@ export const UsuariosView = () => {
                   ?? 'SIN_ROL';
                 const roleDisplay = formatRoleName(roleNameRaw);
                 const targetLevel = roleOptions.find(r => r.id === roleId)?.level
-                  ?? (u?.userRoles?.[0]?.role as any)?.hierarchyLevel ?? 0;
+                  ?? (u?.userRoles?.[0]?.role as { name?: string; hierarchyLevel?: number } | null | undefined)?.hierarchyLevel ?? 0;
                 const myLevel = user?.level ?? 0;
                 const isSelf = Number(u.id) === Number(user?.id);
                 const canEdit = isSelf || targetLevel < myLevel || myLevel >= 10;
@@ -1386,6 +1502,13 @@ export const UsuariosView = () => {
         </div>
       )}
 
+      <PaginationControls
+        page={page}
+        limit={limit}
+        total={meta.total}
+        onPageChange={setPage}
+      />
+
       <UserModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -1408,6 +1531,11 @@ export const UsuariosView = () => {
             return s?.parentId ?? s?.parent?.id ?? undefined;
           }
           return undefined;
+        })()}
+        callerGymId={(() => {
+          const level = user?.level ?? 0;
+          if (level >= 5) return undefined;
+          return user?.gymId ? Number(user.gymId) : undefined;
         })()}
       />
 
@@ -1432,6 +1560,12 @@ export const UsuariosView = () => {
         <DetailField label="Correo Electrónico" value={viewingUser?.email} />
         <DetailField label="Carnet de Identidad (CI)" value={viewingUser?.profile?.ci || 'Sin registrar'} />
         <DetailField label="Teléfono" value={viewingUser?.profile?.phone || 'No registrado'} />
+        <DetailField label="Género" value={
+          viewingUser?.profile?.gender === 'MALE' ? 'Masculino' :
+          viewingUser?.profile?.gender === 'FEMALE' ? 'Femenino' :
+          viewingUser?.profile?.gender === 'OTHER' ? 'Otro' :
+          viewingUser?.profile?.gender || 'Sin especificar'
+        } />
         <DetailField label="Estado de Cuenta"
           value={
             <span style={{ color: viewingUser?.isActive ? '#00E5A3' : '#FF5E00', fontWeight: 700 }}>
@@ -1440,10 +1574,10 @@ export const UsuariosView = () => {
           } />
         <DetailField label="Rol del Sistema" isFullWidth
           value={(() => {
-            const rId   = Number(viewingUser?.userRoles?.[0]?.roleId ?? 0);
-            const name  = ROLE_ID_TO_NAME[rId] ?? 'Usuario';
-            const label = roleOptions.find(r => r.id === rId)?.label ?? name;
-            return `${name} · ${label}`;
+            const ur    = viewingUser?.userRoles?.[0];
+            const rId   = Number(ur?.roleId ?? 0);
+            const rawName = ur?.role?.name ?? ROLE_ID_TO_NAME[rId] ?? 'USER';
+            return roleOptions.find(r => r.id === rId)?.label ?? formatRoleName(rawName);
           })()} />
 
         {/* ── Asignación: desglose sede + sucursal según rol ── */}
@@ -1471,7 +1605,7 @@ export const UsuariosView = () => {
             const gId   = Number(g?.id);
             const info  = gymInfoMap.get(gId);
             // Fallback: si gymInfoMap aún no cargó, usar el dato que viene en el rol
-            const sedeName     = info?.sedeName     ?? g?.parent?.name ?? g?.gym?.name ?? '—';
+            const sedeName     = info?.sedeName     ?? g?.parent?.name ?? '—';
             const sucursalName = info?.sucursalName ?? g?.name ?? `Gym #${gId}`;
             return (
               <>

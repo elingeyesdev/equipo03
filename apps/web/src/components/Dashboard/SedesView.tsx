@@ -5,11 +5,14 @@ import { Navigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
-import { ModalOverlay, ConfirmModal, panelStyle, guardClose } from './Shared/DashboardShared';
+import { ModalOverlay, ConfirmModal } from './Shared/DashboardShared';
+import { guardClose, panelStyle } from './Shared/DashboardShared.utils';
 import type { GymDto, GymScheduleDto, UserDto, CheckinDto, ScheduleEntry } from './Shared/DashboardTypes';
 import { Edit, Trash2, Building2, Search, X } from 'lucide-react';
 
 const DESC_MAX = 180;
+const NAME_MAX = 100;
+const GIBBERISH_RE = /[bcdfghjklmnñpqrstvwxyz]{5,}/i;
 
 const MarcaModal = ({ isOpen, onClose, marcaToEdit, onSave, existingGyms = [] }: any) => {
   const [formData, setFormData] = useState({ name: '', description: '' });
@@ -44,6 +47,10 @@ const MarcaModal = ({ isOpen, onClose, marcaToEdit, onSave, existingGyms = [] }:
 
     if (!nameTrimmed) {
       newErrors.name = 'El nombre es obligatorio';
+    } else if (nameTrimmed.length > NAME_MAX) {
+      newErrors.name = `El nombre no puede superar los ${NAME_MAX} caracteres`;
+    } else if (GIBBERISH_RE.test(nameTrimmed)) {
+      newErrors.name = 'El nombre parece contener caracteres aleatorios';
     } else {
       const isDuplicate = (existingGyms as any[]).some(
         s => s.name.trim().toLowerCase() === nameTrimmed.toLowerCase() &&
@@ -54,6 +61,8 @@ const MarcaModal = ({ isOpen, onClose, marcaToEdit, onSave, existingGyms = [] }:
 
     if (formData.description.length > DESC_MAX) {
       newErrors.description = `Máximo ${DESC_MAX} caracteres`;
+    } else if (formData.description.trim() && GIBBERISH_RE.test(formData.description)) {
+      newErrors.description = 'La descripción parece contener caracteres aleatorios';
     }
 
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return false; }
@@ -87,13 +96,19 @@ const MarcaModal = ({ isOpen, onClose, marcaToEdit, onSave, existingGyms = [] }:
 
         {/* Nombre */}
         <div className="flex flex-col gap-1">
-          <label className={labelCls}>Nombre de la Marca *</label>
+          <div className="flex justify-between items-baseline">
+            <label className={labelCls}>Nombre de la Marca *</label>
+            <span className={`text-xs ${formData.name.length > NAME_MAX ? 'text-red-500' : formData.name.length > NAME_MAX * 0.9 ? 'text-amber-500' : 'text-slate-400 dark:text-gray-500'}`}>
+              {formData.name.length}/{NAME_MAX}
+            </span>
+          </div>
           <input
             type="text"
             className={inputCls(errors.name)}
             value={formData.name}
             onChange={e => { setFormData({ ...formData, name: e.target.value }); setErrors(p => ({ ...p, name: '' })); }}
             placeholder="Ej. Metro Flex"
+            maxLength={NAME_MAX}
           />
           {errors.name && <span className="text-red-500 text-xs">{errors.name}</span>}
         </div>

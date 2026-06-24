@@ -1,7 +1,3 @@
-/**
- * ErrorMessage — Componente de estado de error con botón de reintento.
- */
-
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';

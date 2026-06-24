@@ -34,8 +34,9 @@ export type GymDto = {
 
 export type UserRoleDto = {
   roleId: number;
-  gym?: { id: number; name?: string; parent?: { id: number; name?: string } } | null;
-  role?: { name?: string } | null;
+  gymId?: number | null;
+  gym?: { id: number; name?: string; parentId?: number | null; parent?: { id: number; name?: string } } | null;
+  role?: { id?: number; name?: string; hierarchyLevel?: number } | null;
 };
 
 export type UserDto = {

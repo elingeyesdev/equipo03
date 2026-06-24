@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Building, RefreshCw, Clock,
-  Users, Dumbbell, UserCheck, MapPin, BarChart2, Activity,
+  Users, Dumbbell, UserCheck, MapPin, Activity,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -11,6 +11,7 @@ import { DB_ROLES } from '../../config/rbac.constants';
 import type { GymDto, UserDto } from './Shared/DashboardTypes';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
+type Period = 'week' | 'month' | 'year';
 type HistPoint = { v: number };
 type SummaryData = {
   users?:        { total?: number; history?: HistPoint[] };
@@ -22,14 +23,28 @@ type SummaryData = {
 const safeData = (h?: HistPoint[]): HistPoint[] =>
   h && h.length >= 2 ? h : [];
 
-const lastDays = (n: number): string[] => {
-  const today = new Date();
+const getPeriodLabels = (period: Period): string[] => {
+  if (period === 'year') {
+    return Array.from({ length: 12 }, (_, i) => {
+      const d = new Date();
+      d.setDate(1);
+      d.setMonth(d.getMonth() - (11 - i));
+      return d.toLocaleDateString('es-ES', { month: 'short' })
+        .toUpperCase().replace('.', '').slice(0, 3);
+    });
+  }
+  const n = period === 'month' ? 30 : 7;
   return Array.from({ length: n }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(today.getDate() - (n - 1 - i));
-    return d.toLocaleDateString('es-ES', { weekday: 'short' }).toUpperCase().slice(0, 3);
+    const d = new Date();
+    d.setDate(d.getDate() - (n - 1 - i));
+    return period === 'month'
+      ? String(d.getDate())
+      : d.toLocaleDateString('es-ES', { weekday: 'short' }).toUpperCase().slice(0, 3);
   });
 };
+
+const periodSuffix = (period: Period) =>
+  period === 'week' ? 'últ. 7 días' : period === 'month' ? 'últ. 30 días' : 'últ. 12 meses';
 
 const fmtTimeAgo = (date: Date): string => {
   const diff = (Date.now() - date.getTime()) / 1000;
@@ -38,6 +53,27 @@ const fmtTimeAgo = (date: Date): string => {
   if (diff < 86400) return `hace ${Math.floor(diff / 3600)} h`;
   return `hace ${Math.floor(diff / 86400)} d`;
 };
+
+// ── Period Toggle ─────────────────────────────────────────────────────────────
+const PeriodToggle = ({
+  period, onChange,
+}: { period: Period; onChange: (p: Period) => void }) => (
+  <div className="flex items-center gap-0.5 bg-slate-100 dark:bg-bg-deep rounded-lg p-1">
+    {(['week', 'month', 'year'] as const).map((p) => (
+      <button
+        key={p}
+        onClick={() => onChange(p)}
+        className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+          period === p
+            ? 'bg-white dark:bg-bg-surface text-slate-900 dark:text-white shadow-sm'
+            : 'text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-200'
+        }`}
+      >
+        {p === 'week' ? 'Semana' : p === 'month' ? 'Mes' : 'Año'}
+      </button>
+    ))}
+  </div>
+);
 
 // ── KPI card con ícono ────────────────────────────────────────────────────────
 const KpiCard = ({
@@ -70,7 +106,7 @@ const KpiCard = ({
   );
 };
 
-// ── Stat pill compacto (sin ícono) ────────────────────────────────────────────
+// ── Stat pill compacto ────────────────────────────────────────────────────────
 const StatPill = ({
   label, value, color,
 }: {
@@ -118,7 +154,9 @@ const LineChartCard = ({ data, labels }: { data: HistPoint[]; labels: string[] }
         <line key={i} x1={PX} x2={W - PX} y1={y} y2={y} stroke="#ffffff30" strokeWidth="1" strokeDasharray="3 4" />
       ))}
       <path d={d} fill="none" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      {pts.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r="3" fill="#ffffff" />)}
+      {pts.map((p, i) => (
+        i % tickStep === 0 ? <circle key={i} cx={p.x} cy={p.y} r="3" fill="#ffffff" /> : null
+      ))}
       {labels.map((lbl, i) => (
         i % tickStep === 0 && pts[i] ? (
           <text key={i} x={pts[i].x} y={H - 6} fill="#ffffff90" fontSize="11" textAnchor="middle" fontFamily="system-ui">{lbl}</text>
@@ -219,7 +257,7 @@ const RingChartCard = ({ label, current, max, color }: { label: string; current:
   );
 };
 
-// ── HBarChart — barras horizontales (sucursales por marca) ────────────────────
+// ── HBarChart — barras horizontales ──────────────────────────────────────────
 const HBarChartCard = ({ data }: { data: { label: string; value: number }[] }) => {
   if (!data.length) return <EmptyChart />;
   const max = Math.max(...data.map(d => d.value), 1);
@@ -255,7 +293,6 @@ const ChartCard = ({
   return (
     <div className="bg-white dark:bg-bg-surface border border-slate-200 dark:border-gray-800 rounded-xl overflow-hidden flex flex-col">
       <div style={{ background: bg, padding: '16px 20px 0 20px', position: 'relative' }}>
-        {/* Overlay oscuro en modo claro para reducir saturación y mejorar legibilidad */}
         {!isDark && (
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.20)', pointerEvents: 'none', zIndex: 0 }} />
         )}
@@ -365,12 +402,13 @@ const ClienteResumen = () => (
 // ── Componente principal ──────────────────────────────────────────────────────
 export const ResumenView = () => {
   const { user } = useAuth();
+  const [period, setPeriod] = useState<Period>('week');
 
   const { data, isLoading: loading, error: fetchError, refetch, dataUpdatedAt } = useQuery({
-    queryKey: ['resumen', user?.id, user?.role],
+    queryKey: ['resumen', user?.id, user?.role, period],
     queryFn: async () => {
       const [summaryRes, gymsRes, brandsRes, usersRes] = await Promise.allSettled([
-        apiClient.get<SummaryData>('/dashboard/summary'),
+        apiClient.get<SummaryData>(`/dashboard/summary?period=${period}`),
         apiClient.get('/gyms'),
         apiClient.get('/gyms/brands'),
         apiClient.get('/users'),
@@ -392,7 +430,6 @@ export const ResumenView = () => {
   const allUsers  = data?.allUsers  ?? [];
   const updatedAt = new Date(dataUpdatedAt);
   const error     = fetchError ? ((fetchError as Error).message || 'No se pudo cargar el resumen.') : null;
-  const fetchAll  = refetch;
 
   if (user?.role === 'CLIENTE') return <ClienteResumen />;
 
@@ -411,12 +448,15 @@ export const ResumenView = () => {
   const checkinsHist = safeData(summary.checkins?.history);
   const resHist      = safeData(summary.reservations?.history);
 
-  const labels7 = lastDays(7);
+  const labels = getPeriodLabels(period);
+  const suffix = periodSuffix(period);
 
   const adminTotalAforo  = branches.reduce((acc, g) => acc + (g.aforoActual ?? 0), 0);
   const adminMaxCapacity = branches.reduce((acc, g) => acc + (g.maxCapacity ?? 0), 0);
   const avgCapacity      = branches.length > 0 ? Math.round(adminMaxCapacity / branches.length) : 0;
   const avgUsers         = branches.length > 0 ? Math.round(totalUsers / branches.length) : 0;
+
+  void adminTotalAforo;
 
   // Distribución de roles
   const adminClientes = allUsers.filter(u => u.userRoles?.some(ur => ur.roleId === DB_ROLES.CLIENTE || ur.roleId === DB_ROLES.USER)).length;
@@ -427,16 +467,22 @@ export const ResumenView = () => {
   const adminPieLabels = ['Clientes', 'Personal', 'Administración'];
   const adminPieColors = ['#38BDF8', '#FF5E00', '#00E5A3'];
 
-  // Top sucursales por capacidad instalada (reemplaza branchesByMarca que queda vacío si no hay marcas)
   const topBranchesByCapacity = [...branches]
     .sort((a, b) => (b.maxCapacity ?? 0) - (a.maxCapacity ?? 0))
     .slice(0, 6)
     .map(b => ({ label: b.name, value: b.maxCapacity ?? 0 }));
 
-  // Datos GERENTE
+  // Datos GERENTE / RECEPCIONISTA
   const userGymId          = user?.gymId ? Number(user.gymId) : null;
   const userGym            = gyms.find(g => g.id === userGymId);
   const gymName            = userGym?.name ?? 'N/A';
+
+  // Nivel 5 = Gerente: administra una Marca completa
+  const isGerenteLevel     = (user?.level ?? 0) === 5;
+  // brandName del JWT tiene precedencia; si es dato antiguo (gymId = sucursal), el gymId ya
+  // debería apuntar a la Marca tras el fix del formulario; brandName es el fallback seguro
+  const marcaDisplayName   = user?.brandName || gymName;
+
   const clientCount        = allUsers.filter(u => u.userRoles?.some(ur => ur.roleId === DB_ROLES.CLIENTE)).length;
   const entrenadorCount    = allUsers.filter(u => u.userRoles?.some(ur => ur.roleId === DB_ROLES.ENTRENADOR)).length;
   const nutricionistaCount = allUsers.filter(u => u.userRoles?.some(ur => ur.roleId === DB_ROLES.NUTRICIONISTA)).length;
@@ -444,7 +490,9 @@ export const ResumenView = () => {
 
   const roleText = user?.role === 'SUPER_ADMIN'
     ? 'Vista global de toda la cadena de gimnasios.'
-    : `Métricas de tu sucursal ${gymName}.`;
+    : isGerenteLevel
+      ? `Métricas de tu marca ${marcaDisplayName}.`
+      : `Métricas de tu sucursal ${gymName}.`;
 
   const isGerente = user?.role !== 'SUPER_ADMIN';
 
@@ -453,19 +501,22 @@ export const ResumenView = () => {
     <div className="space-y-5">
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Resumen</h1>
           <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">{roleText}</p>
         </div>
-        <button
-          onClick={fetchAll}
-          disabled={loading}
-          className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 dark:text-text-muted bg-white dark:bg-bg-surface border border-slate-200 dark:border-bg-deep rounded-lg hover:bg-slate-50 dark:hover:bg-bg-deep disabled:opacity-50"
-        >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          Actualizar
-        </button>
+        <div className="flex items-center gap-3">
+          <PeriodToggle period={period} onChange={setPeriod} />
+          <button
+            onClick={() => refetch()}
+            disabled={loading}
+            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 dark:text-text-muted bg-white dark:bg-bg-surface border border-slate-200 dark:border-bg-deep rounded-lg hover:bg-slate-50 dark:hover:bg-bg-deep disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            Actualizar
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -479,10 +530,10 @@ export const ResumenView = () => {
         <>
           {/* Fila 1: KPIs principales */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <KpiCard label="Marcas"          value={brands.length}                             icon={<Building  size={22} color="#fff" />} color="#38BDF8" />
-            <KpiCard label="Sucursales"      value={branches.length}                           icon={<MapPin    size={22} color="#fff" />} color="#00E5A3" />
-            <KpiCard label="Total Usuarios"  value={totalUsers}                                icon={<Users     size={22} color="#fff" />} color="#FF5E00" />
-            <KpiCard label="Total Reservas"  value={totalRes}                                  icon={<Activity  size={22} color="#fff" />} color="#FF5E00" />
+            <KpiCard label="Marcas"          value={brands.length}   icon={<Building  size={22} color="#fff" />} color="#38BDF8" />
+            <KpiCard label="Sucursales"      value={branches.length} icon={<MapPin    size={22} color="#fff" />} color="#00E5A3" />
+            <KpiCard label="Total Usuarios"  value={totalUsers}      icon={<Users     size={22} color="#fff" />} color="#FF5E00" />
+            <KpiCard label="Total Reservas"  value={totalRes}        icon={<Activity  size={22} color="#fff" />} color="#FF5E00" />
           </div>
 
           {/* Fila 2: Pills secundarios */}
@@ -498,12 +549,12 @@ export const ResumenView = () => {
             <ChartCard
               bg="#00E5A3"
               title="Usuarios registrados"
-              subtitle="Crecimiento de usuarios en la cadena"
+              subtitle={`Crecimiento de usuarios en la cadena — ${suffix}`}
               total={totalUsers}
               totalLabel="TOTAL"
               updatedAt={updatedAt}
             >
-              <LineChartCard data={usersHist} labels={labels7} />
+              <LineChartCard data={usersHist} labels={labels} />
             </ChartCard>
 
             <ChartCard
@@ -523,23 +574,23 @@ export const ResumenView = () => {
             <ChartCard
               bg="#FF5E00"
               title="Reservas activas"
-              subtitle="Reservas registradas por día"
+              subtitle={`Reservas registradas — ${suffix}`}
               total={totalRes}
               totalLabel="TOTAL"
               updatedAt={updatedAt}
             >
-              <BarChartCard data={resHist} labels={labels7} />
+              <BarChartCard data={resHist} labels={labels} />
             </ChartCard>
 
             <ChartCard
               bg="#38BDF8"
               title="Check-ins"
-              subtitle="Accesos físicos confirmados"
+              subtitle={`Accesos físicos confirmados — ${suffix}`}
               total={totalCk}
               totalLabel="TOTAL"
               updatedAt={updatedAt}
             >
-              <LineChartCard data={checkinsHist} labels={labels7} />
+              <LineChartCard data={checkinsHist} labels={labels} />
             </ChartCard>
 
             <ChartCard
@@ -554,7 +605,7 @@ export const ResumenView = () => {
             </ChartCard>
           </div>
 
-          {/* Fila 5: HBar sucursales por marca + Tabla top sucursales */}
+          {/* Fila 5: HBar + Tabla top sucursales */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <ChartCard
               bg="#FF5E00"
@@ -588,7 +639,11 @@ export const ResumenView = () => {
             <StatPill label="Reservas"  value={totalRes}   color="#38BDF8" />
             <StatPill label="Check-ins" value={totalCk}    color="#00E5A3" />
             <StatPill label="Usuarios"  value={totalUsers} color="#FF5E00" />
-            <StatPill label="Sucursal"  value={gymName}    color="#38BDF8" />
+            <StatPill
+              label={isGerenteLevel ? 'Marca' : 'Sucursal'}
+              value={isGerenteLevel ? marcaDisplayName : gymName}
+              color="#38BDF8"
+            />
           </div>
 
           {/* Gráficos (2×2) */}
@@ -596,40 +651,40 @@ export const ResumenView = () => {
             <ChartCard
               bg="#00E5A3"
               title="Clientes registrados"
-              subtitle="Crecimiento de clientes en tu sucursal"
+              subtitle={`Crecimiento de clientes en ${isGerenteLevel ? `la marca ${marcaDisplayName}` : 'tu sucursal'} — ${suffix}`}
               total={totalUsers}
               totalLabel="TOTAL"
               updatedAt={updatedAt}
             >
-              <LineChartCard data={usersHist} labels={labels7} />
+              <LineChartCard data={usersHist} labels={labels} />
             </ChartCard>
 
             <ChartCard
               bg="#FF5E00"
               title="Reservas activas"
-              subtitle="Reservas registradas por día"
+              subtitle={`Reservas registradas — ${suffix}`}
               total={totalRes}
               totalLabel="TOTAL"
               updatedAt={updatedAt}
             >
-              <BarChartCard data={resHist} labels={labels7} />
+              <BarChartCard data={resHist} labels={labels} />
             </ChartCard>
 
             <ChartCard
               bg="#38BDF8"
               title="Check-ins"
-              subtitle="Accesos físicos confirmados en tu sucursal"
+              subtitle={`Accesos físicos en ${isGerenteLevel ? `la marca ${marcaDisplayName}` : 'tu sucursal'} — ${suffix}`}
               total={totalCk}
               totalLabel="TOTAL"
               updatedAt={updatedAt}
             >
-              <LineChartCard data={checkinsHist} labels={labels7} />
+              <LineChartCard data={checkinsHist} labels={labels} />
             </ChartCard>
 
             <ChartCard
               bg="#FF5E00"
               title="Personal por Rol"
-              subtitle="Distribución del equipo en tu sucursal"
+              subtitle={`Distribución del equipo en ${isGerenteLevel ? `la marca ${marcaDisplayName}` : 'tu sucursal'}`}
               total={totalStaff}
               totalLabel="TOTAL PERSONAL"
               updatedAt={updatedAt}

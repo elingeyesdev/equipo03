@@ -11,7 +11,6 @@ import { CATEGORY_LABELS, STATUS_LABELS, fmtDate } from '../types';
 
 const STATUS_COLORS_PDF: Record<string, string> = {
   AVAILABLE:   '#10B981',
-  IN_USE:      '#FF5E00',
   MAINTENANCE: '#EF4444',
 };
 
@@ -58,7 +57,7 @@ export function ReporteMaquinas({ filters }: Props) {
   );
 
   const byStatus = useMemo(() => {
-    const counts: Record<string, number> = { AVAILABLE: 0, IN_USE: 0, MAINTENANCE: 0 };
+    const counts: Record<string, number> = { AVAILABLE: 0, MAINTENANCE: 0 };
     machines.forEach(m => { if (m.status in counts) counts[m.status]++; });
     return Object.entries(counts).map(([key, value]) => ({
       name: STATUS_LABELS[key] ?? key,
@@ -126,12 +125,11 @@ export function ReporteMaquinas({ filters }: Props) {
 
       <div style={{ padding: '28px 40px 40px' }}>
         {/* KPI Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
           {[
-            { label: 'Total de máquinas',    value: machines.length.toString(),                                     accent: '#6B7280' },
-            { label: 'Disponibles',           value: byStatus.find(s => s.key === 'AVAILABLE')?.value.toString() ?? '0',    accent: '#10B981' },
-            { label: 'En uso',                value: byStatus.find(s => s.key === 'IN_USE')?.value.toString() ?? '0',       accent: '#FF5E00' },
-            { label: 'En mantenimiento',      value: byStatus.find(s => s.key === 'MAINTENANCE')?.value.toString() ?? '0',  accent: '#EF4444' },
+            { label: 'Total de máquinas', value: machines.length.toString(),                                                    accent: '#6B7280' },
+            { label: 'Disponibles',       value: byStatus.find(s => s.key === 'AVAILABLE')?.value.toString() ?? '0',           accent: '#10B981' },
+            { label: 'En mantenimiento',  value: byStatus.find(s => s.key === 'MAINTENANCE')?.value.toString() ?? '0',         accent: '#EF4444' },
           ].map(kpi => (
             <div key={kpi.label} style={{ border: '1px solid #E5E7EB', borderLeft: `3px solid ${kpi.accent}`, borderRadius: 8, padding: '14px 18px' }}>
               <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 8 }}>{kpi.label}</div>

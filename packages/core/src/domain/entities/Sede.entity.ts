@@ -31,7 +31,6 @@ export type SedeProps = {
   machineStats?: {
     total: number;
     available: number;
-    inUse: number;
     maintenance: number;
   };
 };

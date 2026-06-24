@@ -104,24 +104,26 @@ export const HistorialRutinaScreen = () => {
   const route      = useRoute<RouteProp<Record<string, RouteParams>, string>>();
   const { clientId, clientName } = route.params;
 
-  const { data: routines = [], isLoading: loadingRoutine } = useQuery({
+  const { data: routinesResponse, isLoading: loadingRoutine } = useQuery({
     queryKey: ['client-routines', clientId],
     queryFn:  () => staffApi.getMyRoutines(clientId),
     staleTime: 30_000,
   });
+  const routines = routinesResponse?.data ?? [];
 
   // Prefer the most recent routine that actually has exercises assigned
   const activeRoutine = routines.find(r => (r.exercises?.length ?? 0) > 0) ?? routines[0] ?? null;
   const routineId  = activeRoutine?.id;
   const exercises: ClientRoutineExercise[] = activeRoutine?.exercises ?? [];
 
-  const { data: sessions = [], isLoading: loadingSessions, isError, refetch } = useQuery<WorkoutSession[]>({
+  const { data: sessionsResponse, isLoading: loadingSessions, isError, refetch } = useQuery({
     queryKey: ['trainer-client-sessions', clientId, routineId],
-    queryFn:  () => trainingApi.getClientSessions(clientId, routineId),
+    queryFn:  () => trainingApi.getClientSessions(clientId, routineId, { limit: 100 }), // obtenemos más por si acaso, no se pagina visualmente aquí
     enabled:  !loadingRoutine,
     staleTime: 30_000,
     retry: 1,
   });
+  const sessions = sessionsResponse?.data ?? [];
 
   const isLoading = loadingRoutine || loadingSessions;
 

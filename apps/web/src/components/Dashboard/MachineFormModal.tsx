@@ -7,7 +7,7 @@ import { apiClient } from '../../infrastructure/api.config';
 type Machine = {
   id: string;
   name: string;
-  status: 'AVAILABLE' | 'IN_USE' | 'MAINTENANCE';
+  status: 'AVAILABLE' | 'MAINTENANCE';
   category?: string;
   imageUrl?: string | null;
   gymId: number;
@@ -22,9 +22,11 @@ type Props = {
   onSuccess: () => void;
 };
 
+const GIBBERISH_RE = /[bcdfghjklmnñpqrstvwxyz]{5,}/i;
+const NAME_MAX = 100;
+
 const STATUSES: { value: string; label: string }[] = [
   { value: 'AVAILABLE', label: 'Disponible' },
-  { value: 'IN_USE', label: 'En Uso' },
   { value: 'MAINTENANCE', label: 'Mantenimiento' },
 ];
 
@@ -91,6 +93,14 @@ export const MachineFormModal: React.FC<Props> = ({ machine, onClose, onSuccess 
   const handleSave = async () => {
     if (!form.name.trim()) {
       toast.error('El nombre de la máquina es obligatorio.');
+      return;
+    }
+    if (form.name.trim().length > NAME_MAX) {
+      toast.error(`El nombre no puede superar los ${NAME_MAX} caracteres.`);
+      return;
+    }
+    if (GIBBERISH_RE.test(form.name)) {
+      toast.error('El nombre parece contener caracteres aleatorios o inválidos.');
       return;
     }
     if (!form.gymId) {
@@ -229,8 +239,16 @@ export const MachineFormModal: React.FC<Props> = ({ machine, onClose, onSuccess 
           {/* Campos */}
           <div className="space-y-4">
             <div>
-              <p className={labelClass}>Nombre de la máquina *</p>
-              <input className={inputClass} value={form.name} onChange={(e) => updateField('name', e.target.value)} placeholder="Ej: Cinta de Correr Precor A" />
+              <div className="flex justify-between items-baseline mb-1">
+                <p className={labelClass}>Nombre de la máquina *</p>
+                <span className={`text-xs ${form.name.length > NAME_MAX ? 'text-red-500' : form.name.length > NAME_MAX * 0.9 ? 'text-amber-500' : 'text-slate-400 dark:text-gray-500'}`}>
+                  {form.name.length}/{NAME_MAX}
+                </span>
+              </div>
+              <input className={inputClass} value={form.name} onChange={(e) => updateField('name', e.target.value)} placeholder="Ej: Cinta de Correr Precor A" maxLength={NAME_MAX} />
+              {GIBBERISH_RE.test(form.name) && (
+                <p className="text-amber-500 text-xs mt-1">El nombre parece contener caracteres aleatorios</p>
+              )}
             </div>
 
             <div>

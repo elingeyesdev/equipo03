@@ -11,12 +11,12 @@ import { Eye, CheckCircle, X, Loader2, RotateCw, QrCode } from 'lucide-react';
 
 const STATUS_DISPLAY: Record<string, { label: string; cls: string }> = {
   // inglés (valores originales)
-  CONFIRMED:  { label: 'RECIBIDA',   cls: 'confirmed' },
+  CONFIRMED:  { label: 'GENERADA',   cls: 'confirmed' },
   USED:       { label: 'COMPLETADA', cls: 'used' },
   CANCELLED:  { label: 'CANCELADA',  cls: 'cancelled' },
   PENDING:    { label: 'PENDIENTE',  cls: 'pending' },
   // español (backend actualizado)
-  CONFIRMADA: { label: 'RECIBIDA',   cls: 'confirmed' },
+  CONFIRMADA: { label: 'GENERADA',   cls: 'confirmed' },
   COMPLETADA: { label: 'COMPLETADA', cls: 'used' },
   CANCELADA:  { label: 'CANCELADA',  cls: 'cancelled' },
   PENDIENTE:  { label: 'PENDIENTE',  cls: 'pending' },
@@ -272,7 +272,7 @@ export const ReservasView = () => {
             className="bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md px-4 py-2 focus:outline-none">
             <option value="">Todas las reservas</option>
             <option value="HOY">Hoy</option>
-            <option value="CONFIRMADA">Recibidas</option>
+            <option value="CONFIRMADA">Generadas</option>
             <option value="COMPLETADA">Completadas</option>
             <option value="CANCELADA">Canceladas</option>
           </select>

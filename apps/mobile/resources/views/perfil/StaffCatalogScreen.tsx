@@ -1,13 +1,13 @@
 import { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, Alert, ScrollView,
+  ActivityIndicator, Alert, ScrollView, TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import {
   staffApi,
   StaffCatalogEntry,
@@ -58,17 +58,19 @@ const fmtDate = (iso: string) => {
 const StaffCard = ({
   entry,
   alreadyRequested,
+  requestBlocked,
   onRequest,
 }: {
   entry:            StaffCatalogEntry;
   alreadyRequested: boolean;
+  requestBlocked:   boolean;
   onRequest:        (advisorName: string) => void;
 }) => {
   const [loading, setLoading] = useState(false);
   const displayName = resolveDisplayName(entry);
 
   const handlePress = async () => {
-    if (alreadyRequested || loading) return;
+    if (alreadyRequested || requestBlocked || loading) return;
     setLoading(true);
     try {
       await staffApi.requestAdvisor(entry.id);
@@ -106,9 +108,9 @@ const StaffCard = ({
       </View>
 
       <TouchableOpacity
-        style={[s.btn, alreadyRequested && s.btnSent]}
+        style={[s.btn, alreadyRequested && s.btnSent, requestBlocked && s.btnBlocked]}
         onPress={handlePress}
-        disabled={alreadyRequested || loading}
+        disabled={alreadyRequested || requestBlocked || loading}
         activeOpacity={0.8}
       >
         {loading ? (
@@ -118,6 +120,8 @@ const StaffCard = ({
             <MaterialCommunityIcons name="check-circle-outline" size={14} color="#22C55E" />
             <Text style={[s.btnTxt, s.btnTxtSent]}>Enviada</Text>
           </>
+        ) : requestBlocked ? (
+          <Text style={s.btnTxtBlocked}>No{'\n'}disponible</Text>
         ) : (
           <Text style={s.btnTxt}>Solicitar{'\n'}Asesoría</Text>
         )}
@@ -188,20 +192,45 @@ export const StaffCatalogScreen = () => {
   const navigation  = useNavigation<Nav>();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'catalog' | 'requests'>('catalog');
+  const [search,    setSearch]    = useState('');
 
   const {
-    data: catalog = [],
+    data: catalogData,
     isLoading: loadingCatalog,
     isError: errorCatalog,
     refetch: refetchCatalog,
-  } = useQuery({
+    fetchNextPage: fetchNextCatalog,
+    hasNextPage: hasNextCatalog,
+    isFetchingNextPage: fetchingNextCatalog,
+  } = useInfiniteQuery({
     queryKey:  ['staff-catalog'],
-    queryFn:   staffApi.getCatalog,
+    queryFn:   ({ pageParam = 0 }) => staffApi.getCatalog({ limit: 20, offset: pageParam }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => {
+      if (!lastPage?.meta) return undefined;
+      const nextOffset = lastPage.meta.offset + lastPage.meta.limit;
+      return nextOffset < lastPage.meta.total ? nextOffset : undefined;
+    },
     staleTime: 2 * 60_000,
   });
 
+  const catalog = useMemo(() => {
+    return catalogData?.pages.flatMap(page => page.data ?? page) ?? [];
+  }, [catalogData]);
+
+  const filteredCatalog = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return catalog;
+    return catalog.filter(e =>
+      resolveDisplayName(e).toLowerCase().includes(q) ||
+      resolveBranchName(e).toLowerCase().includes(q)  ||
+      resolveBrandName(e).toLowerCase().includes(q)   ||
+      resolveRole(e).toLowerCase().includes(q),
+    );
+  }, [catalog, search]);
+
   const {
-    data: myRequests = [],
+    data: myRequestsRaw,
     isLoading: loadingReqs,
     refetch: refetchReqs,
   } = useQuery({
@@ -209,6 +238,9 @@ export const StaffCatalogScreen = () => {
     queryFn:   staffApi.getMyAdvisorRequests,
     staleTime: 30_000,
   });
+  const myRequests: AdvisorRequestStatus[] = Array.isArray(myRequestsRaw)
+    ? myRequestsRaw
+    : ((myRequestsRaw as any)?.data ?? []);
 
   const hasActiveOrPending = useMemo(
     () => myRequests.some(r => r.status === 'PENDING' || r.status === 'ACTIVE'),
@@ -322,6 +354,28 @@ export const StaffCatalogScreen = () => {
         </TouchableOpacity>
       </View>
 
+      {/* ── Buscador (solo en tab catálogo) ── */}
+      {activeTab === 'catalog' && (
+        <View style={s.searchBar}>
+          <MaterialCommunityIcons name="magnify" size={18} color="#555" />
+          <TextInput
+            style={s.searchInput}
+            placeholder="Buscar por nombre o sucursal..."
+            placeholderTextColor="#555"
+            value={search}
+            onChangeText={setSearch}
+            autoCorrect={false}
+            autoCapitalize="none"
+            returnKeyType="search"
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <MaterialCommunityIcons name="close-circle" size={18} color="#555" />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
       {/* ── Tab: Catálogo ── */}
       {activeTab === 'catalog' && (
         <>
@@ -340,23 +394,35 @@ export const StaffCatalogScreen = () => {
             </View>
           ) : (
             <FlatList
-              data={catalog}
+              data={filteredCatalog}
               keyExtractor={(item, index) => `${item.id}-${item.branchId ?? item.gymId ?? index}`}
               contentContainerStyle={s.list}
               showsVerticalScrollIndicator={false}
               ListEmptyComponent={
                 <View style={s.center}>
                   <MaterialCommunityIcons name="account-search-outline" size={56} color="#3A3A3C" />
-                  <Text style={s.soft}>No hay asesores disponibles.</Text>
+                  <Text style={s.soft}>
+                    {search.trim() ? 'Sin resultados para tu búsqueda.' : 'No hay asesores disponibles.'}
+                  </Text>
                 </View>
               }
               renderItem={({ item }) => (
                 <StaffCard
                   entry={item}
-                  alreadyRequested={hasActiveOrPending || requestedAdvisorIds.has(item.id)}
+                  alreadyRequested={requestedAdvisorIds.has(item.id)}
+                  requestBlocked={hasActiveOrPending && !requestedAdvisorIds.has(item.id)}
                   onRequest={handleRequest}
                 />
               )}
+              onEndReached={() => {
+                if (hasNextCatalog && !fetchingNextCatalog) {
+                  fetchNextCatalog();
+                }
+              }}
+              onEndReachedThreshold={0.5}
+              ListFooterComponent={
+                fetchingNextCatalog ? <ActivityIndicator size="small" color="#FF6B00" style={{ marginVertical: 15 }} /> : null
+              }
             />
           )}
         </>
@@ -443,11 +509,17 @@ const s = StyleSheet.create({
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   metaText:{ color: '#888', fontSize: 12 },
 
+  // Barra de búsqueda
+  searchBar:   { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#1C1C1E', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, marginHorizontal: 16, marginTop: 10, marginBottom: 2, borderWidth: 1, borderColor: '#2A2A2D' },
+  searchInput: { flex: 1, color: '#fff', fontSize: 14, paddingVertical: 0 },
+
   // Botón asesoría
-  btn:        { alignItems: 'center', justifyContent: 'center', backgroundColor: '#f05b22', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, minWidth: 72, gap: 3, flexShrink: 0 },
-  btnSent:    { backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: '#22C55E' },
-  btnTxt:     { color: '#fff', fontSize: 11, fontWeight: '700', textAlign: 'center' },
-  btnTxtSent: { color: '#22C55E', fontSize: 11 },
+  btn:           { alignItems: 'center', justifyContent: 'center', backgroundColor: '#f05b22', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, minWidth: 72, gap: 3, flexShrink: 0 },
+  btnSent:       { backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: '#22C55E' },
+  btnBlocked:    { backgroundColor: '#111', borderWidth: 1, borderColor: '#2A2A2D' },
+  btnTxt:        { color: '#fff', fontSize: 11, fontWeight: '700', textAlign: 'center' },
+  btnTxtSent:    { color: '#22C55E', fontSize: 11 },
+  btnTxtBlocked: { color: '#444', fontSize: 11, fontWeight: '600', textAlign: 'center' },
 
   // Tarjeta solicitud
   reqCard:    { backgroundColor: '#0e0e0e', borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#1C1C1E', borderLeftWidth: 3, gap: 10 },

@@ -23,7 +23,6 @@ const AccesoDenegado = () => (
 
 interface RoleGuardProps {
   children: React.ReactNode;
-  /** Ruta relativa (sin /dashboard/) que se está protegiendo, ej: "usuarios" */
   routePath: string;
 }
 
