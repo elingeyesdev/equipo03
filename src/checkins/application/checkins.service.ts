@@ -11,6 +11,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder, IsNull } from 'typeorm';
 import { CheckIn } from '../domain/check-in.entity';
 import { UserRole } from '../../roles/domain/user-role.entity';
+import { Gym } from '../../gyms/domain/gym.entity';
 import { GymGateway } from '../../notifications/infrastructure/gym.gateway';
 import {
   getManagerGymId,
@@ -25,9 +26,14 @@ export class CheckinsService {
   constructor(
     @InjectRepository(CheckIn) private repo: Repository<CheckIn>,
     @InjectRepository(UserRole) private userRoleRepo: Repository<UserRole>,
+    @InjectRepository(Gym) private gymRepo: Repository<Gym>,
     @Inject(REQUEST) private readonly request: RequestWithUser,
     @Optional() private readonly gymGateway?: GymGateway,
   ) {}
+
+  private applyStaffOnlyFilter(qb: SelectQueryBuilder<CheckIn>): void {
+    qb.andWhere("checkIn.status != 'COMPLETED'");
+  }
 
   private applyScopeFilter(qb: SelectQueryBuilder<CheckIn>): void {
     const user = this.request.user;
@@ -71,6 +77,22 @@ export class CheckinsService {
       throw new ForbiddenException(
         'Solo personal autorizado (ENTRENADOR, INSTRUCTOR, NUTRICIONISTA, LIMPIEZA) puede registrar ingreso.',
       );
+    }
+
+    const exactMatch = assignments.some(a => Number(a.gymId) === Number(gymId));
+    if (!exactMatch) {
+      const scanningGym = await this.gymRepo.findOne({
+        where: { id: Number(gymId) },
+        select: { id: true, name: true, parentId: true },
+      });
+      const parentMatch = scanningGym?.parentId != null
+        ? assignments.some(a => Number(a.gymId) === scanningGym.parentId)
+        : false;
+      if (!parentMatch) {
+        throw new ForbiddenException(
+          `El personal no pertenece a la sucursal "${scanningGym?.name ?? `#${gymId}`}". No se puede registrar su ingreso aquí.`,
+        );
+      }
     }
 
     const saved = await this.repo.save(
@@ -128,6 +150,7 @@ export class CheckinsService {
       .leftJoinAndSelect('checkIn.gym', 'gym')
       .orderBy('checkIn.checkInTime', 'DESC');
 
+    this.applyStaffOnlyFilter(qb);
     this.applyScopeFilter(qb);
 
     const records = await qb.getMany();
@@ -151,6 +174,7 @@ export class CheckinsService {
       .leftJoinAndSelect('userRoles.role', 'role')
       .leftJoinAndSelect('checkIn.gym', 'gym')
       .orderBy('checkIn.checkInTime', 'DESC');
+    this.applyStaffOnlyFilter(qb);
     this.applyScopeFilter(qb);
     const records = await qb.getMany();
     return records.map((c) => this.mapCheckIn(c));
@@ -181,6 +205,7 @@ export class CheckinsService {
       .leftJoinAndSelect('checkIn.gym', 'gym')
       .where('checkIn.gym_id = :gymId', { gymId })
       .orderBy('checkIn.checkInTime', 'DESC');
+    this.applyStaffOnlyFilter(qb);
     this.applyScopeFilter(qb);
     const records = await qb.getMany();
     return records.map((c) => this.mapCheckIn(c));

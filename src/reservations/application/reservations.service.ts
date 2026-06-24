@@ -1188,6 +1188,18 @@ export class ReservationsService {
       const endTime = reservation.endTime ? String(reservation.endTime).substring(0, 5) : '';
       const timeRange = startTime && endTime ? `${startTime} - ${endTime}` : '';
 
+      if (level >= 4 && level < 10) {
+        const reservationGymId =
+          reservation.gymId ??
+          reservation.gymActivitySchedule?.gymActivity?.gymId ??
+          null;
+        const hasAccess = await this.gymBelongsToManager(reservationGymId);
+        if (!hasAccess) {
+          const msg = await this.buildCrossBranchErrorMsg(reservationGymId);
+          throw new ForbiddenException(msg);
+        }
+      }
+
       if (reservationDateStr < todayLocal) {
         throw new BadRequestException(
           `Esta reserva era para el ${reservationDateStr}${timeRange ? ` (${timeRange})` : ''} y ya expiró. No se puede hacer check-in de reservas pasadas.`,
@@ -1199,18 +1211,6 @@ export class ReservationsService {
           message: `Esta reserva es para el ${reservationDateStr}${timeRange ? ` (${timeRange})` : ''}. El check-in solo se puede realizar el día de la reserva.`,
           code: 'FUTURE_RESERVATION_WARNING',
         });
-      }
-
-      if (level >= 4 && level < 10) {
-        const reservationGymId =
-          reservation.gymId ??
-          reservation.gymActivitySchedule?.gymActivity?.gymId ??
-          null;
-        const hasAccess = await this.gymBelongsToManager(reservationGymId);
-        if (!hasAccess) {
-          const msg = await this.buildCrossBranchErrorMsg(reservationGymId);
-          throw new ForbiddenException(msg);
-        }
       }
 
       const statusMap: Record<string, string> = {

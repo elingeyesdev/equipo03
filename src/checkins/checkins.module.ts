@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CheckIn } from './domain/check-in.entity';
 import { UserRole } from '../roles/domain/user-role.entity';
+import { Gym } from '../gyms/domain/gym.entity';
 import { CheckinsService } from './application/checkins.service';
 import { CheckinsController } from './infrastructure/checkins.controller';
 import { CheckinsSchedulerService } from './application/checkins-scheduler.service';
@@ -9,7 +10,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([CheckIn, UserRole]),
+    TypeOrmModule.forFeature([CheckIn, UserRole, Gym]),
     NotificationsModule,
   ],
   controllers: [CheckinsController],
