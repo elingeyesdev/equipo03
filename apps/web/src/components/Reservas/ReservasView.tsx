@@ -40,7 +40,6 @@ export const ReservasView = () => {
 
   // Control de modales
   const [showScanner, setShowScanner] = useState(false);
-  const [scannedReservation, setScannedReservation] = useState<Reservation | null>(null);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [viewingReservation, setViewingReservation] = useState<Reservation | null>(null);
 
@@ -163,15 +162,8 @@ export const ReservasView = () => {
     }
   };
 
-  // ── Post-escaneo: mostrar modal de confirmación ────────────
-  const handleScanned = (reservation: Reservation) => {
-    setScannedReservation(reservation);
-  };
-
-  const handleAcceptScanned = async () => {
-    if (!scannedReservation) return;
-    await handleAccept(scannedReservation);
-    setScannedReservation(null);
+  const handleScanned = (_reservation: Reservation) => {
+    loadReservations();
   };
 
   return (
@@ -183,57 +175,6 @@ export const ReservasView = () => {
           onClose={() => setShowScanner(false)}
           onScanned={handleScanned}
         />
-      )}
-
-      {/* ── Modal de confirmación post-escaneo ── */}
-      {scannedReservation && (
-        <div className="qr-modal-overlay" onClick={() => setScannedReservation(null)}>
-          <div className="confirm-card premium" onClick={e => e.stopPropagation()}>
-            <div className="confirm-header">
-              <div className="status-badge-valid">QR VÁLIDO</div>
-              <button onClick={() => setScannedReservation(null)} style={{ background: '#8e8e93', border: 'none', color: '#fff', fontSize: '0.85rem', fontWeight: 700, padding: '0.25rem 0.6rem', borderRadius: '6px', cursor: 'pointer' }}>X</button>
-            </div>
-            
-            <div className="confirm-icon-wrapper">
-              <CheckCircle size={48} color="#00E5A3" />
-            </div>
-
-            <div className="confirm-content">
-              <h3 className="confirm-name">{scannedReservation.user?.profile?.fullName || 'Usuario'}</h3>
-              <p className="confirm-email">{scannedReservation.user?.email}</p>
-              
-              <div className="confirm-details-box">
-                <div className="detail-item">
-                  <span className="label">Actividad</span>
-                  <span className="value">{scannedReservation.gymActivitySchedule?.gymActivity?.name}</span>
-                </div>
-                <div className="detail-row">
-                  <div className="detail-item">
-                    <span className="label">Horario</span>
-                    <span className="value">{scannedReservation.gymActivitySchedule?.startTime?.substring(0, 5)}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="label">Fecha</span>
-                    <span className="value">{scannedReservation.reservationDate}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="confirm-actions">
-              <button 
-                className="btn-confirm-accept-premium" 
-                onClick={handleAcceptScanned}
-                disabled={actionLoading === scannedReservation.id}
-              >
-                {actionLoading === scannedReservation.id ? 'Confirmando...' : 'Aceptar Entrada'}
-              </button>
-              <button className="btn-confirm-cancel-text" onClick={() => setScannedReservation(null)}>
-                Descartar
-              </button>
-            </div>
-          </div>
-        </div>
       )}
 
       {/* ── Cabecera ── */}

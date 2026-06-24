@@ -191,6 +191,8 @@ const AccesosPanel = () => {
   const [filtroSede,   setFiltroSede]   = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroTiempo, setFiltroTiempo] = useState('');
+  const [fechaDesde,   setFechaDesde]   = useState('');
+  const [fechaHasta,   setFechaHasta]   = useState('');
   const [page,         setPage]         = useState(1);
   const [hasMore,      setHasMore]      = useState(true);
   const [loading,      setLoading]      = useState(false);
@@ -276,10 +278,19 @@ const AccesosPanel = () => {
       const now = new Date();
       const thirtyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30).getTime();
       list = list.filter(a => new Date(a.checkInTime).getTime() >= thirtyDaysAgo);
+    } else if (filtroTiempo === 'rango') {
+      if (fechaDesde || fechaHasta) {
+        const from = fechaDesde ? new Date(fechaDesde + 'T00:00:00').getTime() : 0;
+        const to   = fechaHasta ? new Date(fechaHasta + 'T23:59:59').getTime() : Infinity;
+        list = list.filter(a => {
+          const t = new Date(a.checkInTime).getTime();
+          return t >= from && t <= to;
+        });
+      }
     }
 
     return list;
-  }, [accesos, filtroTiempo]);
+  }, [accesos, filtroTiempo, fechaDesde, fechaHasta]);
 
   return (
     <div className="auditoria-view">
@@ -337,14 +348,39 @@ const AccesosPanel = () => {
           </select>
           <select
             value={filtroTiempo}
-            onChange={e => setFiltroTiempo(e.target.value)}
+            onChange={e => {
+              setFiltroTiempo(e.target.value);
+              if (e.target.value !== 'rango') { setFechaDesde(''); setFechaHasta(''); }
+            }}
             className="bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md px-4 py-2 focus:outline-none font-semibold cursor-pointer text-sm"
           >
             <option value="">Todos los Registros</option>
             <option value="hoy">Hoy</option>
             <option value="semana">Esta Semana</option>
             <option value="mes">Este Mes</option>
+            <option value="rango">Rango personalizado</option>
           </select>
+          {filtroTiempo === 'rango' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <input
+                type="date"
+                value={fechaDesde}
+                onChange={e => setFechaDesde(e.target.value)}
+                max={fechaHasta || undefined}
+                className="bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md px-3 py-2 focus:outline-none text-sm cursor-pointer"
+                style={{ colorScheme: 'dark' }}
+              />
+              <span style={{ color: '#888', fontSize: 13, fontWeight: 600, userSelect: 'none' }}>—</span>
+              <input
+                type="date"
+                value={fechaHasta}
+                onChange={e => setFechaHasta(e.target.value)}
+                min={fechaDesde || undefined}
+                className="bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md px-3 py-2 focus:outline-none text-sm cursor-pointer"
+                style={{ colorScheme: 'dark' }}
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -360,7 +396,7 @@ const AccesosPanel = () => {
               <tr>
                 <th className="px-6 py-4">ID</th>
                 <th className="px-6 py-4">Usuario</th>
-                <th className="px-6 py-4">Marca</th>
+                <th className="px-6 py-4">Sucursal</th>
                 <th className="px-6 py-4">Fecha/Hora</th>
                 <th className="px-6 py-4">Método</th>
                 <th className="px-6 py-4">Estado</th>
@@ -385,7 +421,7 @@ const AccesosPanel = () => {
                         </div>
                       </div>
                     </td>
-                    <td data-label="Marca" className="px-6 py-4">
+                    <td data-label="Sucursal" className="px-6 py-4">
                       <div className="cell-gym">
                         <span className="name">{acceso.gymInfo.nombre}</span>
                         <a
