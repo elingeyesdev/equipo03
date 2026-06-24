@@ -4,10 +4,12 @@ import type { CSSProperties } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
-import { ModalOverlay, ConfirmModal, guardClose } from './Shared/DashboardShared';
+import { ModalOverlay, ConfirmModal } from './Shared/DashboardShared';
+import { DB_ROLES } from '../../config/rbac.constants';
+import { guardClose } from './Shared/DashboardShared.utils';
 import { Eye, Edit, Trash2, Plus, X, Search, GraduationCap } from 'lucide-react';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+//Types 
 interface Activity {
   id: number;
   gymId: number;
@@ -26,6 +28,16 @@ interface ActivitySchedule {
   dayOfWeek: string;
   startTime: string;
   endTime: string;
+  maxAttendees?: number;
+  instructorId?: number;
+  instructor?: { email?: string };
+}
+
+interface RawUser {
+  id: number | string;
+  email?: string;
+  profile?: { firstName?: string; lastName?: string };
+  userProfiles?: { firstName?: string; lastName?: string }[];
 }
 
 const DAY_LABELS: Record<string, string> = {
@@ -74,7 +86,11 @@ const TimeSelect = ({ value, onChange }: { value: string; onChange: (v: string) 
   );
 };
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+//Styles
+const GIBBERISH_RE = /[bcdfghjklmnñpqrstvwxyz]{5,}/i;
+const ACT_NAME_MAX = 100;
+const ACT_DESC_MAX = 500;
+
 const panelStyle: CSSProperties = { padding: '2rem', minHeight: '100vh' };
 
 const tableStyle: CSSProperties = {
@@ -110,7 +126,6 @@ const btnPrimary: CSSProperties = {
 
 const btnSecondaryCls = "px-4 py-2 bg-slate-100 dark:bg-gray-800 hover:bg-slate-200 dark:hover:bg-gray-700 text-slate-700 dark:text-gray-300 text-sm font-medium rounded-lg border-0 cursor-pointer transition-colors";
 
-const btnDangerCls = "bg-transparent text-gray-500 dark:text-text-muted px-2 py-1 rounded cursor-pointer text-sm font-semibold inline-flex items-center gap-1";
 
 const inputCls = "w-full bg-slate-50 dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-celeste transition-colors box-border";
 const labelCls = "block mb-1 text-sm font-medium text-slate-700 dark:text-gray-300";
@@ -129,26 +144,36 @@ const ActivityDetailModal = ({
   const [instructorMap, setInstructorMap] = useState<Map<number, string>>(new Map());
 
   useEffect(() => {
-    setLoading(true);
+    void (async () => {
+      setLoading(true);
+      try {
+        const [schedRes, usersRes] = await Promise.all([
+          apiClient.get(`/activities/${activity.id}/schedules`).catch(() => null),
+          apiClient.get('/users').catch(() => null),
+        ]);
+        const rawSched: ActivitySchedule[] = Array.isArray(schedRes)
+          ? (schedRes as ActivitySchedule[])
+          : ((schedRes as { data?: ActivitySchedule[] })?.data ?? []);
+        setSchedules(sortSchedules(rawSched.filter(Boolean)));
 
-    // Carga paralela: horarios + usuarios para mapear nombre del instructor
-    Promise.all([
-      apiClient.get(`/activities/${activity.id}/schedules`).catch(() => []),
-      apiClient.get('/users').catch(() => []),
-    ]).then(([schedRes, usersRes]: any[]) => {
-      const rawSched: any[] = Array.isArray(schedRes) ? schedRes : (schedRes?.data ?? []);
-      setSchedules(sortSchedules(rawSched.filter(Boolean)));
-
-      const rawUsers: any[] = Array.isArray(usersRes) ? usersRes : (usersRes?.data ?? []);
-      const map = new Map<number, string>();
-      rawUsers.forEach((u: any) => {
-        const first = u?.profile?.firstName ?? u?.userProfiles?.[0]?.firstName ?? '';
-        const last  = u?.profile?.lastName  ?? u?.userProfiles?.[0]?.lastName  ?? '';
-        const name  = `${first} ${last}`.trim() || u?.email || `#${u?.id}`;
-        map.set(Number(u.id), name);
-      });
-      setInstructorMap(map);
-    }).finally(() => setLoading(false));
+        const usersBody = (usersRes as { data?: unknown })?.data;
+        const rawUsers: RawUser[] = Array.isArray(usersBody)
+          ? (usersBody as RawUser[])
+          : Array.isArray((usersBody as { data?: unknown })?.data)
+            ? ((usersBody as { data: RawUser[] }).data)
+            : [];
+        const map = new Map<number, string>();
+        rawUsers.forEach((u) => {
+          const first = u?.profile?.firstName ?? u?.userProfiles?.[0]?.firstName ?? '';
+          const last  = u?.profile?.lastName  ?? u?.userProfiles?.[0]?.lastName  ?? '';
+          const name  = `${first} ${last}`.trim() || u?.email || `#${u?.id}`;
+          map.set(Number(u.id), name);
+        });
+        setInstructorMap(map);
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, [activity.id]);
 
   const field = (label: string, value: React.ReactNode, full = false): React.ReactNode => (
@@ -208,12 +233,12 @@ const ActivityDetailModal = ({
                       <span style={{ color: '#E5E5EA', fontSize: '0.87rem', flex: 1 }}>
                         {s.startTime.substring(0, 5)} – {s.endTime.substring(0, 5)}
                       </span>
-                      {(s as any).maxAttendees && (
-                        <span style={{ color: '#8E8E93', fontSize: '0.75rem' }}>{(s as any).maxAttendees} cupos</span>
+                      {s.maxAttendees && (
+                        <span style={{ color: '#8E8E93', fontSize: '0.75rem' }}>{s.maxAttendees} cupos</span>
                       )}
-                      {(s as any).instructorId && (
+                      {s.instructorId && (
                         <span style={{ color: '#8E8E93', fontSize: '0.75rem', maxWidth: '130px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          Inst. {instructorMap.get(Number((s as any).instructorId)) ?? (s as any).instructor?.email ?? `#${(s as any).instructorId}`}
+                          Inst. {instructorMap.get(Number(s.instructorId)) ?? s.instructor?.email ?? `#${s.instructorId}`}
                         </span>
                       )}
                     </div>
@@ -234,7 +259,7 @@ const ActivityDetailModal = ({
   );
 };
 
-// ─── Form Modal ───────────────────────────────────────────────────────────────
+//Form Modal
 const ActivityFormModal = ({
   initial, gyms, userGymId, onClose, onSaved,
 }: {
@@ -300,8 +325,10 @@ const ActivityFormModal = ({
     if (!isEdit || !initial?.id) return;
     setSchedulesLoading(true);
     apiClient.get(`/activities/${initial.id}/schedules`)
-      .then((data: any) => {
-        const raw = Array.isArray(data) ? data : (data as any)?.data ?? [];
+      .then((data: unknown) => {
+        const raw: ActivitySchedule[] = Array.isArray(data)
+          ? (data as ActivitySchedule[])
+          : ((data as { data?: ActivitySchedule[] })?.data ?? []);
         setSchedules(sortSchedules(raw.filter(Boolean)));
       })
       .catch(() => {})
@@ -316,34 +343,38 @@ const ActivityFormModal = ({
       setNewInstructorId('');
       return;
     }
-    const parse = (res: any): any[] => {
-      const raw = Array.isArray(res) ? res : (res as any)?.data ?? [];
-      return Array.isArray(raw) ? raw : [];
+    const parse = (rawInstructors: any): RawUser[] => {
+      let safeInstructors: RawUser[] = [];
+      if (Array.isArray(rawInstructors)) safeInstructors = rawInstructors;
+      else safeInstructors = Array.isArray(rawInstructors?.data) 
+        ? rawInstructors.data 
+        : (rawInstructors?.data?.data || []);
+      
+      console.log('INSTRUCTORES DESEMPAQUETADOS:', safeInstructors);
+      return safeInstructors;
     };
     const gymFilter = needsGymPicker && gymId ? { gymId: Number(gymId) } : {};
-    Promise.all([
-      apiClient.get('/users', { params: { role: 'ENTRENADOR', ...gymFilter } }).catch(() => []),
-      apiClient.get('/users', { params: { role: 'INSTRUCTOR', ...gymFilter } }).catch(() => []),
-    ]).then(([tRes, iRes]: any[]) => {
-      const seen = new Set<number>();
-      const list = [...parse(tRes), ...parse(iRes)]
-        .filter((u: any) => {
-          const uid = Number(u?.id);
-          if (!uid || seen.has(uid)) return false;
-          seen.add(uid);
-          return true;
-        })
-        .map((u: any) => ({
-          id: u.id,
-          label: u.profile
-            ? `${u.profile.firstName ?? ''} ${u.profile.lastName ?? ''}`.trim() || u.email
-            : u.email,
-        }));
-      setInstructors(list);
-      if (list.length === 1) setNewInstructorId(String(list[0].id));
-      else setNewInstructorId('');
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    apiClient.get('/users', { params: { hierarchyLevel: 2, ...gymFilter } })
+      .catch(() => [])
+      .then((res) => {
+        const seen = new Set<number>();
+        const list = parse(res)
+          .filter((u) => {
+            const uid = Number(u?.id);
+            if (!uid || seen.has(uid)) return false;
+            seen.add(uid);
+            return true;
+          })
+          .map((u) => ({
+            id: u.id as number,
+            label: u.profile
+              ? `${u.profile.firstName ?? ''} ${u.profile.lastName ?? ''}`.trim() || (u.email ?? '')
+              : (u.email ?? ''),
+          }));
+        setInstructors(list);
+        if (list.length === 1) setNewInstructorId(String(list[0].id));
+        else setNewInstructorId('');
+      });
   }, [gymId, needsGymPicker]);
 
   const handleAddSchedule = async () => {
@@ -364,8 +395,8 @@ const ActivityFormModal = ({
           instructorId: Number(newInstructorId),
           maxAttendees: maxAtt,
           isRecurring:  true,
-        }) as any;
-        const created: ActivitySchedule = res?.data ?? res;
+        });
+        const created: ActivitySchedule = (res as { data?: ActivitySchedule })?.data ?? (res as ActivitySchedule);
         setSchedules(prev => sortSchedules([...prev, created]));
         toast.success('Horario agregado');
       } catch {
@@ -374,7 +405,6 @@ const ActivityFormModal = ({
         setAddingSchedule(false);
       }
     } else {
-      // Modo creación: guardar en estado local; se enviarán al crear el servicio
       setSchedules(prev => sortSchedules([...prev, {
         id:           -(Date.now()),
         dayOfWeek:    newDay,
@@ -382,7 +412,7 @@ const ActivityFormModal = ({
         endTime:      newEnd,
         instructorId: Number(newInstructorId),
         maxAttendees: maxAtt,
-      } as any]));
+      }]));
     }
   };
 
@@ -408,6 +438,22 @@ const ActivityFormModal = ({
       toast.error('Nombre y descripción son obligatorios');
       return;
     }
+    if (name.trim().length > ACT_NAME_MAX) {
+      toast.error(`El nombre no puede superar los ${ACT_NAME_MAX} caracteres`);
+      return;
+    }
+    if (GIBBERISH_RE.test(name)) {
+      toast.error('El nombre parece contener caracteres aleatorios o inválidos');
+      return;
+    }
+    if (description.trim().length > ACT_DESC_MAX) {
+      toast.error(`La descripción no puede superar los ${ACT_DESC_MAX} caracteres`);
+      return;
+    }
+    if (GIBBERISH_RE.test(description)) {
+      toast.error('La descripción parece contener caracteres aleatorios o inválidos');
+      return;
+    }
     const parsedGymId = parseInt(gymId, 10);
     if (!parsedGymId || isNaN(parsedGymId)) {
       toast.error('Selecciona un gimnasio');
@@ -416,6 +462,13 @@ const ActivityFormModal = ({
     if (!isFreeAccess && schedules.length === 0) {
       toast.error('Debes agregar al menos un horario de clase o activar Acceso Libre');
       return;
+    }
+    if (isFreeAccess) {
+      const dur = parseInt(duration, 10);
+      if (!duration.trim() || isNaN(dur) || dur <= 0) {
+        toast.error('La duración máxima es obligatoria para servicios de Acceso Libre');
+        return;
+      }
     }
     const parsedDuration = duration.trim() ? parseInt(duration, 10) : 0;
 
@@ -438,9 +491,9 @@ const ActivityFormModal = ({
           description: description.trim(),
           defaultDurationMin: parsedDuration,
           isFreeAccess,
-        }) as any;
-        // El interceptor puede devolver body.data o el body directo
-        const newActivityId: number | undefined = res?.data?.id ?? res?.data?.data?.id;
+        });
+        const resObj = res as { data?: { id?: number; data?: { id?: number } } };
+        const newActivityId: number | undefined = resObj?.data?.id ?? resObj?.data?.data?.id;
         if (newActivityId && schedules.length > 0 && !isFreeAccess) {
           await Promise.allSettled(
             schedules.map(s =>
@@ -448,8 +501,8 @@ const ActivityFormModal = ({
                 dayOfWeek:    s.dayOfWeek,
                 startTime:    s.startTime.substring(0, 5),
                 endTime:      s.endTime.substring(0, 5),
-                instructorId: Number((s as any).instructorId),
-                maxAttendees: Number((s as any).maxAttendees) || 20,
+                instructorId: Number(s.instructorId),
+                maxAttendees: Number(s.maxAttendees) || 20,
                 isRecurring:  true,
               })
             )
@@ -513,21 +566,37 @@ const ActivityFormModal = ({
           )}
 
           <div style={fieldGap}>
-            <label className={labelCls}>Nombre *</label>
+            <div className="flex justify-between items-baseline mb-1">
+              <label className={labelCls} style={{ marginBottom: 0 }}>Nombre *</label>
+              <span className={`text-xs ${name.length > ACT_NAME_MAX ? 'text-red-500' : name.length > ACT_NAME_MAX * 0.9 ? 'text-amber-500' : 'text-slate-400 dark:text-gray-500'}`}>
+                {name.length}/{ACT_NAME_MAX}
+              </span>
+            </div>
             <input className={inputCls} value={name} onChange={e => setName(e.target.value)}
-              placeholder="Ej: Yoga, Spinning, Sauna..." maxLength={100} />
+              placeholder="Ej: Yoga, Spinning, Sauna..." maxLength={ACT_NAME_MAX} />
+            {GIBBERISH_RE.test(name) && (
+              <p className="text-amber-500 text-xs mt-1">El nombre parece contener caracteres aleatorios</p>
+            )}
           </div>
 
           <div style={fieldGap}>
-            <label className={labelCls}>Descripción *</label>
+            <div className="flex justify-between items-baseline mb-1">
+              <label className={labelCls} style={{ marginBottom: 0 }}>Descripción *</label>
+              <span className={`text-xs ${description.length > ACT_DESC_MAX ? 'text-red-500' : description.length > ACT_DESC_MAX * 0.9 ? 'text-amber-500' : 'text-slate-400 dark:text-gray-500'}`}>
+                {description.length}/{ACT_DESC_MAX}
+              </span>
+            </div>
             <textarea
               className={inputCls}
               style={{ minHeight: '100px', resize: 'none', lineHeight: '1.55' }}
               value={description}
               onChange={e => setDescription(e.target.value)}
               placeholder="Breve descripción del servicio..."
-              maxLength={500}
+              maxLength={ACT_DESC_MAX}
             />
+            {GIBBERISH_RE.test(description) && (
+              <p className="text-amber-500 text-xs mt-1">La descripción parece contener caracteres aleatorios</p>
+            )}
           </div>
 
           {/* ── Toggle Acceso Libre ── */}
@@ -544,7 +613,9 @@ const ActivityFormModal = ({
                 Acceso Libre
               </span>
               <span className="block text-slate-400 dark:text-gray-500 text-xs mt-0.5">
-                No requiere horarios de clase — los usuarios entran sin reservar un bloque específico
+                {isFreeAccess
+                  ? 'El cliente elige libremente su horario (hora de inicio y fin). Ej: Musculación, Cardio, Zona Funcional.'
+                  : 'El servicio tiene horarios fijos con instructor asignado. El cliente reserva un bloque disponible. Ej: Zumba, Spinning, Yoga.'}
               </span>
             </div>
           </div>
@@ -571,12 +642,29 @@ const ActivityFormModal = ({
 
           <div style={fieldGap}>
             <label className={labelCls}>
-              Duración por defecto (minutos)
-              <span className="text-slate-400 dark:text-gray-500 font-normal ml-1 text-xs">— opcional</span>
+              {isFreeAccess ? (
+                <>
+                  Duración Máxima Permitida (minutos)
+                  <span className="text-red-500 font-semibold ml-1 text-xs">* obligatorio</span>
+                </>
+              ) : (
+                <>
+                  Duración por defecto (minutos)
+                  <span className="text-slate-400 dark:text-gray-500 font-normal ml-1 text-xs">— opcional</span>
+                </>
+              )}
             </label>
-            <input className={inputCls} type="number" min={0} max={480}
+            <input
+              className={inputCls} type="number" min={1} max={480}
               value={duration} onChange={e => setDuration(e.target.value)}
-              placeholder="Ej: 60 · Dejar vacío si no aplica" />
+              placeholder={isFreeAccess ? 'Ej: 60 · Límite máximo por reserva' : 'Ej: 60 · Dejar vacío si no aplica'}
+              required={isFreeAccess}
+            />
+            {isFreeAccess && (
+              <p className="text-slate-400 dark:text-gray-500 text-xs mt-1 m-0">
+                El cliente no podrá reservar un bloque superior a este límite.
+              </p>
+            )}
           </div>
 
           {/* ── Horarios de clase — disponible en creación y edición, solo si NO es acceso libre ── */}
@@ -598,8 +686,8 @@ const ActivityFormModal = ({
               ) : (
                 <div className="flex flex-col gap-1.5 mb-3">
                   {schedules.map(s => {
-                    const instrLabel = instructors.find(i => i.id === Number((s as any).instructorId))?.label
-                      ?? (s as any).instructor?.email;
+                    const instrLabel = instructors.find(i => i.id === Number(s.instructorId))?.label
+                      ?? s.instructor?.email;
                     return (
                       <div key={s.id} className="flex items-center gap-2.5 bg-gray-50 dark:bg-bg-surface border border-brand-orange rounded-lg px-3 py-2">
                         <span className="font-bold text-xs font-bold min-w-[36px]" style={{ color: '#FF5E00' }}>
@@ -707,14 +795,6 @@ const ActivityFormModal = ({
   );
 };
 
-// ─── Estilos filtros ──────────────────────────────────────────────────────────
-// ── estilos de filtros reemplazados por Tailwind ──────────────────────────────
-const filterBarStyle: CSSProperties = {};
-const filterSelectStyle: CSSProperties = {};
-const filterWrapStyle: CSSProperties = {};
-const filterChevron: CSSProperties = {};
-const searchInputStyle: CSSProperties = {};
-
 const resetBtnStyle: CSSProperties = {
   background: 'none', color: '#8E8E93',
   border: '1px solid #1C1C1E', borderRadius: '8px',
@@ -722,7 +802,7 @@ const resetBtnStyle: CSSProperties = {
   whiteSpace: 'nowrap',
 };
 
-// ─── Select Stellar ───────────────────────────────────────────────────────────
+// ─── Select Stellar 
 const DarkSelect = ({ value, onChange, children, style }: {
   value: string;
   onChange: (v: string) => void;
@@ -742,7 +822,7 @@ const DarkSelect = ({ value, onChange, children, style }: {
   </div>
 );
 
-// ─── Main View ────────────────────────────────────────────────────────────────
+// ─── Main View 
 export const ActividadesView = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -756,8 +836,8 @@ export const ActividadesView = () => {
     queryFn: async () => {
       const params = userGymId ? { gymId: userGymId } : {};
       const data = await apiClient.get<Activity[]>('/activities', { params });
-      let raw: Activity[] = Array.isArray(data) ? data : (data as any)?.data ?? [];
-      if (userGymId) raw = raw.filter((a: Activity) => a.gymId === userGymId);
+      let raw: Activity[] = Array.isArray(data) ? data : ((data as { data?: Activity[] })?.data ?? []);
+      if (userGymId) raw = raw.filter((a) => a.gymId === userGymId);
       return raw;
     },
     enabled: !!user,
@@ -770,11 +850,12 @@ export const ActividadesView = () => {
         apiClient.get<GymOption[]>('/gyms').catch(() => []),
         apiClient.get<GymOption[]>('/gyms/brands').catch(() => []),
       ]);
-      const rawBranches: any[] = Array.isArray(branchesRes) ? branchesRes : (branchesRes as any)?.data ?? [];
-      const rawBrands: any[]   = Array.isArray(brandsRes)   ? brandsRes   : (brandsRes as any)?.data   ?? [];
+      type RawGym = { id: number; name: string; parentId?: number | null; parent_id?: number | null };
+      const rawBranches: RawGym[] = Array.isArray(branchesRes) ? (branchesRes as RawGym[]) : ((branchesRes as { data?: RawGym[] })?.data ?? []);
+      const rawBrands: RawGym[]   = Array.isArray(brandsRes)   ? (brandsRes as RawGym[])   : ((brandsRes as { data?: RawGym[] })?.data   ?? []);
       return [
-        ...rawBrands.map((g: any)    => ({ id: g.id, name: g.name, parentId: null as null })),
-        ...rawBranches.map((g: any)  => ({ id: g.id, name: g.name, parentId: (g.parentId ?? g.parent_id ?? null) as number | null })),
+        ...rawBrands.map((g)   => ({ id: g.id, name: g.name, parentId: null as null })),
+        ...rawBranches.map((g) => ({ id: g.id, name: g.name, parentId: (g.parentId ?? g.parent_id ?? null) as number | null })),
       ] as GymOption[];
     },
     enabled: isSuperAdmin,
@@ -790,7 +871,7 @@ export const ActividadesView = () => {
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
 
 
-  // ── Opciones para barra de filtros (solo sucursales, nunca marcas) ──
+  // ── Opciones para barra de filtros (solo sucursales, nunca marcas)
   const gymOptions = useMemo((): GymOption[] => {
     if (gyms.length) return gyms.filter(g => g.parentId != null);
     const seen = new Map<number, string>();

@@ -151,11 +151,13 @@ export const DashboardLayout = () => {
                 <span className="text-sm font-semibold text-gray-900 dark:text-text-main">{displayName}</span>
                 <span className="text-xs text-gray-500 dark:text-text-muted tracking-wide">
                   {user?.role}
-                  {user?.brandName
-                    ? ` · ${user.brandName}${user.gymName ? ` — ${user.gymName}` : ''}`
-                    : user?.gymName
-                      ? ` · ${user.gymName}`
-                      : (user?.level ?? 0) >= 4 ? ' · Sin sucursal asignada' : ''}
+                  {user?.level === 5
+                    ? (user.brandName ? ` · ${user.brandName}` : ' · Sin marca asignada')
+                    : (user?.brandName
+                      ? ` · ${user.brandName}${user.gymName ? ` — ${user.gymName}` : ''}`
+                      : user?.gymName
+                        ? ` · ${user.gymName}`
+                        : (user?.level ?? 0) >= 4 ? ' · Sin sucursal asignada' : '')}
                 </span>
               </div>
             </div>

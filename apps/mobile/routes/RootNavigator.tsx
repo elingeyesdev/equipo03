@@ -51,12 +51,13 @@ import { ClientePerfilStack, GerentePerfilStack } from './PerfilStack';
 import { EjecutarRutinaScreen }   from '../resources/views/perfil/EjecutarRutinaScreen';
 import { ResumenEjercicioScreen } from '../resources/views/perfil/ResumenEjercicioScreen';
 
-// ── Seguimiento (ENTRENADOR) ──────────────────────────────────────────────────
-import { SeguimientoScreen }       from '../resources/views/seguimiento/SeguimientoScreen';
-import { HistorialRutinaScreen }   from '../resources/views/seguimiento/HistorialRutinaScreen';
-import { RegistroEjercicioScreen } from '../resources/views/seguimiento/RegistroEjercicioScreen';
-import { TrainerReportScreen }     from '../resources/views/seguimiento/TrainerReportScreen';
-import { MisAlumnosScreen }        from '../resources/views/inicio/MisAlumnosScreen';
+// ── Seguimiento (ENTRENADOR / INSTRUCTOR) ─────────────────────────────────────
+import { SeguimientoScreen }        from '../resources/views/seguimiento/SeguimientoScreen';
+import { HistorialRutinaScreen }    from '../resources/views/seguimiento/HistorialRutinaScreen';
+import { RegistroEjercicioScreen }  from '../resources/views/seguimiento/RegistroEjercicioScreen';
+import { TrainerReportScreen }      from '../resources/views/seguimiento/TrainerReportScreen';
+import { InstructorReportScreen }   from '../resources/views/seguimiento/InstructorReportScreen';
+import { MisAlumnosScreen }         from '../resources/views/inicio/MisAlumnosScreen';
 
 // ── Iconos de tabs ────────────────────────────────────────────────────────────
 const TAB_ICON: Record<string, string> = {
@@ -276,6 +277,11 @@ const StaffStack = () => (
     <StaffNav.Screen
       name="TrainerReport"
       component={TrainerReportScreen}
+      options={{ headerShown: false }}
+    />
+    <StaffNav.Screen
+      name="InstructorReport"
+      component={InstructorReportScreen}
       options={{ headerShown: false }}
     />
   </StaffNav.Navigator>

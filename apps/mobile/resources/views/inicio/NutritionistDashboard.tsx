@@ -51,22 +51,28 @@ export const NutritionistDashboard = () => {
   const [processingId, setProcessingId] = useState<number | null>(null);
 
   const {
-    data: requests = [], isLoading: loadingReqs, refetch: refetchReqs,
+    data: requestsRaw, isLoading: loadingReqs, refetch: refetchReqs,
   } = useQuery({
     queryKey: ['nutritionist-pending-requests'],
     queryFn:  staffApi.getPendingTrainerRequests,
     staleTime: 30_000,
     retry: 1,
   });
+  const requests: PendingTrainerRequest[] = Array.isArray(requestsRaw)
+    ? requestsRaw
+    : ((requestsRaw as any)?.data ?? []);
 
   const {
-    data: advisees = [], isLoading: loadingAdvisees, refetch: refetchAdvisees,
+    data: adviseesRaw, isLoading: loadingAdvisees, refetch: refetchAdvisees,
   } = useQuery({
     queryKey: ['nutritionist-active-advisees'],
     queryFn:  staffApi.getActiveAdvisees,
     staleTime: 60_000,
     retry: 1,
   });
+  const advisees: ActiveAdvisee[] = Array.isArray(adviseesRaw)
+    ? adviseesRaw
+    : ((adviseesRaw as any)?.data ?? []);
 
   const isRefreshing = loadingReqs || loadingAdvisees;
   const onRefresh    = () => { refetchReqs(); refetchAdvisees(); };
@@ -184,7 +190,7 @@ export const NutritionistDashboard = () => {
           iconColor="#06d6a0"
           empty={requests.length === 0}
         >
-          {(requests as PendingTrainerRequest[]).map((req) => {
+          {requests.map((req) => {
             const isProcessing = processingId === req.id;
             return (
               <View key={req.id} style={s.requestCard}>
@@ -229,7 +235,7 @@ export const NutritionistDashboard = () => {
           iconColor="#38BDF8"
           empty={advisees.length === 0}
         >
-          {(advisees as ActiveAdvisee[]).map((item) => {
+          {advisees.map((item) => {
             const isCancelling = processingId === item.id;
             return (
               <View key={item.clientId} style={s.patientCard}>

@@ -23,6 +23,15 @@ attach401Guard(staffClient);
 import { attachOfflineInterceptor } from '../../offline/offlineInterceptor';
 attachOfflineInterceptor(staffClient);
 
+export interface PaginatedResponse<T> {
+  data: T[];
+  meta: {
+    total: number;
+    limit: number;
+    offset: number;
+  };
+}
+
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
 export type StaffClass = {
@@ -278,40 +287,36 @@ export const staffApi = {
    * GET /api/staff/agenda/classes
    * Clases de hoy asignadas al entrenador/instructor autenticado.
    */
-  getTodayClasses: async (): Promise<StaffClass[]> => {
-    const response = await staffClient.get('/api/staff/agenda/classes');
-    const data = response.data?.data ?? response.data;
-    return Array.isArray(data) ? data : [];
+  getTodayClasses: async (params?: { limit?: number; offset?: number }): Promise<PaginatedResponse<StaffClass>> => {
+    const response = await staffClient.get('/api/staff/agenda/classes', { params });
+    return response.data;
   },
 
   /**
    * GET /api/staff/agenda/appointments
    * Citas de hoy asignadas al nutricionista autenticado.
    */
-  getTodayAppointments: async (): Promise<StaffAppointment[]> => {
-    const response = await staffClient.get('/api/staff/agenda/appointments');
-    const data = response.data?.data ?? response.data;
-    return Array.isArray(data) ? data : [];
+  getTodayAppointments: async (params?: { limit?: number; offset?: number }): Promise<PaginatedResponse<StaffAppointment>> => {
+    const response = await staffClient.get('/api/staff/agenda/appointments', { params });
+    return response.data;
   },
 
   /**
    * GET /api/routines/my-students
    * Alumnos asignados al entrenador autenticado vía rutinas.
    */
-  getMyStudents: async (): Promise<MyStudent[]> => {
-    const response = await staffClient.get('/api/routines/my-students');
-    const data = response.data?.data ?? response.data;
-    return Array.isArray(data) ? data : [];
+  getMyStudents: async (params?: { limit?: number; offset?: number }): Promise<PaginatedResponse<MyStudent>> => {
+    const response = await staffClient.get('/api/routines/my-students', { params });
+    return response.data;
   },
 
   /**
    * GET /api/staff/appointments
    * Todas las citas del nutricionista autenticado.
    */
-  getMyAppointments: async (): Promise<MyAppointment[]> => {
-    const response = await staffClient.get('/api/staff/appointments');
-    const data = response.data?.data ?? response.data;
-    return Array.isArray(data) ? data : [];
+  getMyAppointments: async (params?: { limit?: number; offset?: number }): Promise<PaginatedResponse<MyAppointment>> => {
+    const response = await staffClient.get('/api/staff/appointments', { params });
+    return response.data;
   },
 
   /**
@@ -322,12 +327,11 @@ export const staffApi = {
     await staffClient.patch(`/api/staff/appointments/${id}/status`, { status });
   },
 
-  getScheduleReservations: async (scheduleId: number): Promise<ScheduleReservation[]> => {
+  getScheduleReservations: async (scheduleId: number, params?: { limit?: number; offset?: number }): Promise<PaginatedResponse<ScheduleReservation>> => {
     const response = await staffClient.get('/api/reservations', {
-      params: { gymActivityScheduleId: scheduleId },
+      params: { gymActivityScheduleId: scheduleId, ...params },
     });
-    const data = response.data?.data ?? response.data;
-    return Array.isArray(data) ? data : [];
+    return response.data;
   },
 
   bulkUpdateStatus: async (
@@ -343,8 +347,7 @@ export const staffApi = {
 
   getExercises: async (): Promise<Exercise[]> => {
     const response = await staffClient.get('/api/exercises');
-    const data = response.data?.data ?? response.data;
-    return Array.isArray(data) ? data : [];
+    return Array.isArray(response.data) ? response.data : (response.data?.data ?? []);
   },
 
   createRoutine: async (payload: {
@@ -376,10 +379,10 @@ export const staffApi = {
    * GET /api/staff/me/students (deduplicated by client)
    * Alumnos únicos de las clases del entrenador/instructor autenticado.
    */
-  getClassStudents: async (): Promise<ClassStudent[]> => {
-    const response = await staffClient.get('/api/staff/me/students');
-    const raw = response.data?.data ?? response.data;
-    const arr = Array.isArray(raw) ? raw : [];
+  getClassStudents: async (params?: { limit?: number; offset?: number }): Promise<PaginatedResponse<ClassStudent>> => {
+    const response = await staffClient.get('/api/staff/me/students', { params });
+    const rawData = response.data;
+    const arr = Array.isArray(rawData.data) ? rawData.data : [];
     const map = new Map<number, { clientName: string; classCount: number }>();
     for (const r of arr) {
       const id = Number(r.clientId ?? 0);
@@ -388,60 +391,62 @@ export const staffApi = {
       if (existing) { existing.classCount++; }
       else { map.set(id, { clientName: String(r.clientName ?? '—'), classCount: 1 }); }
     }
-    return [...map.entries()].map(([clientId, { clientName, classCount }]) => ({
-      clientId, clientName, classCount,
-    }));
+    return {
+      data: [...map.entries()].map(([clientId, { clientName, classCount }]) => ({
+        clientId, clientName, classCount,
+      })),
+      meta: rawData.meta,
+    };
   },
 
   /**
    * GET /api/staff/advisors/my-requests
    * Solicitudes de asesoría enviadas por el cliente autenticado.
    */
-  getMyAdvisorRequests: async (): Promise<AdvisorRequestStatus[]> => {
-    const response = await staffClient.get('/api/staff/advisors/my-requests');
-    const data = response.data?.data ?? response.data;
-    return Array.isArray(data) ? data : [];
+  getMyAdvisorRequests: async (params?: { limit?: number; offset?: number }): Promise<PaginatedResponse<AdvisorRequestStatus>> => {
+    const response = await staffClient.get('/api/staff/advisors/my-requests', { params });
+    return response.data;
   },
 
   /**
    * GET /api/staff/me/weekly-schedules
    * Todos los horarios del instructor en la semana (sin filtro por día).
    */
-  getMyWeeklySchedules: async (): Promise<InstructorWeeklySchedule[]> => {
-    const response = await staffClient.get('/api/staff/me/weekly-schedules');
-    const data = response.data?.data ?? response.data;
-    return Array.isArray(data) ? data : [];
+  getMyWeeklySchedules: async (params?: { limit?: number; offset?: number }): Promise<PaginatedResponse<InstructorWeeklySchedule>> => {
+    const response = await staffClient.get('/api/staff/me/weekly-schedules', { params });
+    return response.data;
   },
 
   /**
    * GET /api/staff/me/stats/attendance
    * Historial de completadas por horario, últimos 30 días.
    */
-  getMyAttendanceStats: async (): Promise<AttendanceStat[]> => {
-    const response = await staffClient.get('/api/staff/me/stats/attendance');
-    const raw = response.data?.data ?? response.data;
-    if (!Array.isArray(raw)) return [];
-    return raw.map((item: any) => ({
-      label: String(item.time ?? item.label ?? '—').slice(0, 5),
-      value: Number(item.totalCompleted ?? item.value ?? 0),
-    }));
+  getMyAttendanceStats: async (params?: { limit?: number; offset?: number }): Promise<PaginatedResponse<AttendanceStat>> => {
+    const response = await staffClient.get('/api/staff/me/stats/attendance', { params });
+    const rawData = response.data;
+    const arr = Array.isArray(rawData.data) ? rawData.data : [];
+    return {
+      data: arr.map((item: any) => ({
+        label: String(item.time ?? item.label ?? '—').slice(0, 5),
+        value: Number(item.totalCompleted ?? item.value ?? 0),
+      })),
+      meta: rawData.meta,
+    };
   },
 
   /**
    * GET /api/staff/advisors/requests
    * Solicitudes PENDIENTES recibidas por el asesor (entrenador/nutricionista) autenticado.
    */
-  getPendingTrainerRequests: async (): Promise<PendingTrainerRequest[]> => {
-    const response = await staffClient.get('/api/staff/advisors/requests');
-    const data = response.data?.data ?? response.data;
-    return Array.isArray(data) ? data : [];
+  getPendingTrainerRequests: async (params?: { limit?: number; offset?: number }): Promise<PaginatedResponse<PendingTrainerRequest>> => {
+    const response = await staffClient.get('/api/staff/advisors/requests', { params });
+    return response.data;
   },
 
   /** @deprecated use getPendingTrainerRequests */
-  getPendingRequests: async (): Promise<AdvisorRequest[]> => {
-    const response = await staffClient.get('/api/staff/advisors/requests');
-    const data = response.data?.data ?? response.data;
-    return Array.isArray(data) ? data : [];
+  getPendingRequests: async (params?: { limit?: number; offset?: number }): Promise<PaginatedResponse<AdvisorRequest>> => {
+    const response = await staffClient.get('/api/staff/advisors/requests', { params });
+    return response.data;
   },
 
   acceptAdvisorRequest: async (requestId: number): Promise<void> => {
@@ -460,10 +465,9 @@ export const staffApi = {
    * GET /api/staff/advisors/active-clients
    * Clientes con relación ACTIVE con el asesor autenticado.
    */
-  getActiveAdvisees: async (): Promise<ActiveAdvisee[]> => {
-    const response = await staffClient.get('/api/staff/advisors/active-clients');
-    const data = response.data?.data ?? response.data;
-    return Array.isArray(data) ? data : [];
+  getActiveAdvisees: async (params?: { limit?: number; offset?: number }): Promise<PaginatedResponse<ActiveAdvisee>> => {
+    const response = await staffClient.get('/api/staff/advisors/active-clients', { params });
+    return response.data;
   },
 
   /**
@@ -541,20 +545,14 @@ export const staffApi = {
    * GET /api/routines/user/:userId
    * Rutinas asignadas al usuario (cliente).
    */
-  getMyRoutines: async (userId: number): Promise<ClientRoutine[]> => {
-    try {
-      const response = await staffClient.get(`/api/routines/user/${userId}`);
-      const data = response.data?.data ?? response.data;
-      return Array.isArray(data) ? data : [];
-    } catch {
-      return [];
-    }
+  getMyRoutines: async (userId: number, params?: { limit?: number; offset?: number }): Promise<PaginatedResponse<ClientRoutine>> => {
+    const response = await staffClient.get(`/api/routines/user/${userId}`, { params });
+    return response.data;
   },
 
-  getCatalog: async (): Promise<StaffCatalogEntry[]> => {
-    const response = await staffClient.get('/api/staff/catalog');
-    const data = response.data?.data ?? response.data;
-    return Array.isArray(data) ? data : [];
+  getCatalog: async (params?: { limit?: number; offset?: number }): Promise<PaginatedResponse<StaffCatalogEntry>> => {
+    const response = await staffClient.get('/api/staff/catalog', { params });
+    return response.data;
   },
 
   /**
@@ -569,29 +567,27 @@ export const staffApi = {
    * GET /api/training/sessions/user/:userId
    * Sesiones de entrenamiento del cliente (requiere level >= 3).
    */
-  getSessionsForUser: async (userId: number): Promise<TrainingSession[]> => {
-    try {
-      const response = await staffClient.get(`/api/training/sessions/user/${userId}`);
-      const data = response.data?.data ?? response.data;
-      return Array.isArray(data) ? data : [];
-    } catch {
-      return [];
-    }
+  getSessionsForUser: async (userId: number, params?: { limit?: number; offset?: number }): Promise<PaginatedResponse<TrainingSession>> => {
+    const response = await staffClient.get(`/api/training/sessions/user/${userId}`, { params });
+    return response.data;
   },
 
-  searchUsers: async (query: string): Promise<UserSearchResult[]> => {
+  searchUsers: async (query: string, params?: { limit?: number; offset?: number }): Promise<PaginatedResponse<UserSearchResult>> => {
     const response = await staffClient.get('/api/users', {
-      params: { search: query, limit: 10 },
+      params: { search: query, limit: params?.limit ?? 10, offset: params?.offset },
     });
-    const data = response.data?.data ?? response.data;
-    if (!Array.isArray(data)) return [];
-    return data.map((u: any) => ({
-      id:       u.id,
-      email:    u.email,
-      fullName: (u.profile?.fullName
-                ?? [u.profile?.firstName, u.profile?.lastName].filter(Boolean).join(' '))
-                || u.email
-                || `#${u.id}`,
-    }));
+    const rawData = response.data;
+    const arr = Array.isArray(rawData.data) ? rawData.data : [];
+    return {
+      data: arr.map((u: any) => ({
+        id:       u.id,
+        email:    u.email,
+        fullName: (u.profile?.fullName
+                  ?? [u.profile?.firstName, u.profile?.lastName].filter(Boolean).join(' '))
+                  || u.email
+                  || `#${u.id}`,
+      })),
+      meta: rawData.meta,
+    };
   },
 };

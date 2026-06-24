@@ -25,12 +25,12 @@ export const useGymActivitiesQuery = (gymId: number | undefined) => {
     queryFn: async (): Promise<GymActivityUI[]> => {
       if (!gymId) return [];
 
-      // 1. Obtener actividades del gimnasio
-      const activities = await reservationApi.getGymActivities(gymId);
+      // 1. Obtener actividades del gimnasio (devuelve GymActivity[] plano)
+      const activitiesList: GymActivity[] = await reservationApi.getGymActivities(gymId);
 
       // 2. Para cada actividad, si no trae schedules embebidos, los pedimos por separado
       const enriched = await Promise.all(
-        activities.map(async (activity) => {
+        activitiesList.map(async (activity) => {
           // Lectura defensiva: el backend puede usar 'schedules' o 'gymActivitySchedules'
           let schedules: GymActivitySchedule[] =
             (activity as any).gymActivitySchedules ??

@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { trainingApi, WorkoutSession, WorkoutSet } from '../../../app/Providers/training/api/training.api';
 
 const { height: SCREEN_H } = Dimensions.get('window');
@@ -474,31 +475,35 @@ const DetailSheet = ({
 export const WorkoutHistoryScreen = () => {
   const navigation = useNavigation<any>();
 
-  const [sessions, setSessions]         = useState<WorkoutSession[]>([]);
-  const [loading, setLoading]           = useState(true);
-  const [refreshing, setRefreshing]     = useState(false);
   const [filter, setFilter]             = useState<FilterKey>('TODOS');
   const [selected, setSelected]         = useState<WorkoutSession | null>(null);
 
-  const load = useCallback(async (isRefresh = false) => {
-    if (!isRefresh) setLoading(true);
-    try {
-      const data = await trainingApi.getHistory();
-      const sorted = [...data].sort((a, b) =>
-        new Date(b.startedAt ?? 0).getTime() - new Date(a.startedAt ?? 0).getTime(),
-      );
-      setSessions(sorted);
-    } catch (e) {
-      console.warn('[WorkoutHistory] Error:', e);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+  const {
+    data: sessionsData,
+    isLoading: loading,
+    refetch,
+    isRefetching: refreshing,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
+  } = useInfiniteQuery({
+    queryKey: ['workout-history'],
+    queryFn: ({ pageParam = 0 }) => trainingApi.getHistory({ limit: 20, offset: pageParam }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => {
+      if (!lastPage?.meta) return undefined;
+      const nextOffset = lastPage.meta.offset + lastPage.meta.limit;
+      return nextOffset < lastPage.meta.total ? nextOffset : undefined;
+    },
+    staleTime: 60_000,
+  });
 
-  useEffect(() => { load(); }, [load]);
+  const sessions = React.useMemo(() => {
+    const all = sessionsData?.pages.flatMap(p => p.data ?? p) ?? [];
+    return all.sort((a, b) => new Date(b.startedAt ?? 0).getTime() - new Date(a.startedAt ?? 0).getTime());
+  }, [sessionsData]);
 
-  const onRefresh = () => { setRefreshing(true); load(true); };
+  const onRefresh = () => { refetch(); };
 
   const filtered = filter === 'TODOS'
     ? sessions
@@ -577,6 +582,15 @@ export const WorkoutHistoryScreen = () => {
                 </TouchableOpacity>
               )}
             </View>
+          }
+          onEndReached={() => {
+            if (hasNextPage && !isFetchingNextPage) {
+              fetchNextPage();
+            }
+          }}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            isFetchingNextPage ? <ActivityIndicator size="small" color="#FF6B00" style={{ marginVertical: 15 }} /> : null
           }
         />
       )}

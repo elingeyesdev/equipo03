@@ -42,8 +42,8 @@ export const useNotifications = () => {
       `[NotificationGateway]: Iniciando conexión WS para rol ${user.role}...`,
     );
 
-    const BASE_URL = import.meta.env.VITE_API_URL ?? window.location.origin;
-    const SOCKET_URL = `${BASE_URL}/events`;
+    const BACKEND_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+    const SOCKET_URL = `${BACKEND_URL}/events`;
 
     const socket = io(SOCKET_URL, {
       path: '/socket.io',

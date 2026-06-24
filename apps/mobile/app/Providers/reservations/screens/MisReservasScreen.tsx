@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
+  FlatList,
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
@@ -11,6 +12,8 @@ import {
   Modal,
   useWindowDimensions,
 } from 'react-native';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
@@ -23,8 +26,8 @@ import { UserReservation } from '../api/reservation.types';
 import { authEvents } from '../../auth/authEvents';
 
 const STATUS_LABEL: Record<string, string> = {
-  CONFIRMADA: 'Recibida',
-  CONFIRMED:  'Recibida',
+  CONFIRMADA: 'Generada',
+  CONFIRMED:  'Generada',
   COMPLETADA: 'Completada',
   CANCELADA:  'Cancelada',
   CANCELLED:  'Cancelada',
@@ -60,7 +63,7 @@ const isCancelable = (r?: UserReservation | null) =>
 const isPaid = (r?: UserReservation | null): boolean =>
   (r as any)?.paymentStatus === 'PAID' || (r as any)?.isPaid === true;
 
-const payLabel = (r?: UserReservation | null) => isPaid(r) ? 'Pagado' : 'Por pagar';
+const payLabel = (r?: UserReservation | null) => isPaid(r) ? 'PAGADO' : 'Por pagar';
 const payColor = (r?: UserReservation | null) => isPaid(r) ? Colors.accent : '#A0AEC0';
 
 const fmt5 = (t?: string | null) => t?.substring(0, 5) ?? '—';
@@ -71,9 +74,11 @@ const CONFIRMED = new Set(['CONFIRMADA', 'CONFIRMED']);
 const DynamicQRCode = ({
   reservationId,
   fallbackToken,
+  onRef,
 }: {
   reservationId: number;
   fallbackToken?: string;
+  onRef?: (ref: any) => void;
 }) => {
   const { width } = useWindowDimensions();
   const qrSize = Math.min(width * 0.55, 260);
@@ -96,6 +101,7 @@ const DynamicQRCode = ({
         size={qrSize}
         backgroundColor="#FFFFFF"
         color={isFetching ? '#AAAAAA' : '#0A0A0A'}
+        getRef={onRef}
       />
       {(isLoading || isFetching) && (
         <View style={{
@@ -117,9 +123,46 @@ type FilterStatus = '' | 'CONFIRMADA' | 'COMPLETADA' | 'CANCELADA' | 'CADUCADA';
 
 export const MisReservasScreen = () => {
   const [qrReservation, setQrReservation] = useState<UserReservation | null>(null);
+  const qrSvgRef = useRef<any>(null);
+
+  const exportQR = useCallback(() => {
+    if (!qrSvgRef.current) {
+      Alert.alert('Error', 'No se pudo acceder al código QR.');
+      return;
+    }
+    try {
+      qrSvgRef.current.toDataURL(async (data: string) => {
+        try {
+          // toDataURL puede devolver base64 puro o con prefijo "data:image/png;base64,"
+          const base64 = data.startsWith('data:') ? data.split(',')[1] : data;
+          const fileUri = `${FileSystem.cacheDirectory}qr_reserva_${qrReservation?.id ?? 'tmp'}.png`;
+          await FileSystem.writeAsStringAsync(fileUri, base64, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          const canShare = await Sharing.isAvailableAsync();
+          if (!canShare) {
+            Alert.alert('No disponible', 'La función de compartir no está disponible en este dispositivo.');
+            return;
+          }
+          await Sharing.shareAsync(fileUri, {
+            mimeType: 'image/png',
+            dialogTitle: 'Compartir QR de reserva',
+            UTI: 'public.png',
+          });
+        } catch {
+          Alert.alert('Error', 'No se pudo guardar el QR.');
+        }
+      });
+    } catch {
+      Alert.alert('Error', 'No se pudo exportar el QR.');
+    }
+  }, [qrReservation]);
   
   // Polling cada 3s solo si el modal del QR está abierto
-  const { data: reservations = [], isLoading, error, refetch } = useMyReservationsQuery(qrReservation ? 3000 : undefined);
+  const { data: reservationsData, isLoading, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useMyReservationsQuery(qrReservation ? 3000 : undefined);
+  const reservations = useMemo(() => {
+    return reservationsData?.pages.flatMap(page => page.data) ?? [];
+  }, [reservationsData]);
   const cancelMutation = useCancelReservationMutation();
   const queryClient    = useQueryClient();
   const [cancelingAll, setCancelingAll] = useState(false);
@@ -228,7 +271,7 @@ export const MisReservasScreen = () => {
 
   const STATUS_CHIPS: { status: FilterStatus; label: string }[] = [
     { status: '',           label: 'Todas' },
-    { status: 'CONFIRMADA', label: 'Recibidas' },
+    { status: 'CONFIRMADA', label: 'Generadas' },
     { status: 'COMPLETADA', label: 'Completadas' },
     { status: 'CANCELADA',  label: 'Canceladas' },
     { status: 'CADUCADA',   label: 'Caducadas' },
@@ -317,11 +360,17 @@ export const MisReservasScreen = () => {
                 <DynamicQRCode
                   reservationId={qrReservation.id}
                   fallbackToken={qrReservation.qrToken}
+                  onRef={(ref) => { qrSvgRef.current = ref; }}
                 />
               )}
             </View>
 
             <Text style={s.qrHint}>Muestra este código al ingreso de la marca.</Text>
+
+            <TouchableOpacity style={s.exportBtn} onPress={exportQR} activeOpacity={0.8}>
+              <MaterialCommunityIcons name="download" size={16} color={Colors.text} />
+              <Text style={s.exportTxt}>Exportar imagen</Text>
+            </TouchableOpacity>
 
             <TouchableOpacity style={s.qrCloseBtn} onPress={() => setQrReservation(null)} activeOpacity={0.8}>
               <Text style={s.qrCloseTxt}>Cerrar</Text>
@@ -353,8 +402,9 @@ export const MisReservasScreen = () => {
       {/* ── Chips de filtro ── */}
       <FilterChips />
 
-      <ScrollView
-        style={s.list}
+      <FlatList
+        data={visible}
+        keyExtractor={(item, index) => String(item?.id ?? index)}
         contentContainerStyle={[s.scroll, { paddingHorizontal: hPad }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -365,17 +415,23 @@ export const MisReservasScreen = () => {
             colors={[Colors.primary]}
           />
         }
-      >
-        {visible.map((r, idx) => (
+        renderItem={({ item: r }) => (
           <ReservationCard
-            key={r?.id ?? idx}
             r={r}
             onCancel={isCancelable(r) ? () => handleCancelOne(r?.id) : undefined}
             onShowQr={CONFIRMED.has(r?.status ?? '') ? () => setQrReservation(r) : undefined}
           />
-        ))}
-        <View style={{ height: 40 }} />
-      </ScrollView>
+        )}
+        onEndReached={() => {
+          if (hasNextPage && !isFetchingNextPage) {
+            fetchNextPage();
+          }
+        }}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          isFetchingNextPage ? <ActivityIndicator size="small" color="#FF6B00" style={{ marginVertical: 15 }} /> : <View style={{ height: 40 }} />
+        }
+      />
     </SafeAreaView>
   );
 };
@@ -500,6 +556,26 @@ const ReservationCard = ({
             </Text>
           </View>
         )}
+
+        {/* AMBOS: número del gerente de la marca */}
+        <View style={s.detailRow}>
+          <MaterialCommunityIcons name="phone-outline" size={14} color={Colors.secondary} />
+          <Text style={s.detailTxt}>
+            <Text style={s.detailLabel}>Gerente: </Text>
+            {r?.gerentePhone ?? 'Número de teléfono no disponible'}
+          </Text>
+        </View>
+
+        {/* SOLO programadas: número del instructor */}
+        {!isFree && (
+          <View style={s.detailRow}>
+            <MaterialCommunityIcons name="phone-outline" size={14} color={Colors.secondary} />
+            <Text style={s.detailTxt}>
+              <Text style={s.detailLabel}>Instructor: </Text>
+              {r?.instructorPhone ?? 'Número de teléfono no disponible'}
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Botón Pase de Acceso — solo CONFIRMADA */}
@@ -586,6 +662,8 @@ const s = StyleSheet.create({
   qrDate:     { color: Colors.textSoft, fontSize: 12, marginBottom: 20, textAlign: 'center' },
   qrBox:      { padding: 14, backgroundColor: '#FFFFFF', borderRadius: 14, marginBottom: 18 },
   qrHint:     { color: Colors.textSoft, fontSize: 12, textAlign: 'center', marginBottom: 20, lineHeight: 17 },
+  exportBtn:  { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, marginBottom: 8 },
+  exportTxt:  { color: Colors.text, fontWeight: '600', fontSize: 14 },
   qrCloseBtn: { width: '100%', paddingVertical: 13, borderRadius: 10, borderWidth: 1, borderColor: '#3A3A3C', alignItems: 'center' },
   qrCloseTxt: { color: Colors.text, fontWeight: '600', fontSize: 14 },
 });

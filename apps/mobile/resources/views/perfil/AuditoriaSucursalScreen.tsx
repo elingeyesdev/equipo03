@@ -199,19 +199,30 @@ export const AuditoriaSucursalScreen = () => {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [detailItem,   setDetailItem]   = useState<AuditReservation | null>(null);
 
-  const { data: reservations = [], isLoading, isRefetching, refetch, error } = useQuery({
+  const { data: reservations = [], isLoading, isRefetching, refetch, error } = useQuery<AuditReservation[]>({
     queryKey: makeQK(filterDate),
-    queryFn:  () => reservationApi.getGymReservationsByGymId(gymId!, filterDate),
+    queryFn: async () => {
+      const raw = await reservationApi.getGymReservationsByGymId(gymId!, filterDate);
+      // Backend returns PaginatedResponse<T> — unwrap .data
+      return Array.isArray(raw) ? raw : ((raw as any)?.data ?? []);
+    },
     enabled:  !!gymId && !isNaN(gymId),
     staleTime: 30_000,
   });
 
   // Filtro local: excluir canceladas + chip de estado
-  const filtered = useMemo(() => {
-    const base = reservations.filter((r: any) => !CANCELLED.has(r?.status ?? ''));
-    if (statusFilter === 'confirmed') return base.filter((r: any) => CONFIRMED.has(r?.status ?? ''));
-    if (statusFilter === 'completed') return base.filter((r: any) => COMPLETED.has(r?.status ?? ''));
-    return base;
+  const filtered = useMemo((): AuditReservation[] => {
+    try {
+      const arr: AuditReservation[] = Array.isArray(reservations)
+        ? reservations
+        : ((reservations as any)?.data ?? []);
+      const base = arr.filter((r) => !CANCELLED.has(r?.status ?? ''));
+      if (statusFilter === 'confirmed') return base.filter((r) => CONFIRMED.has(r?.status ?? ''));
+      if (statusFilter === 'completed') return base.filter((r) => COMPLETED.has(r?.status ?? ''));
+      return base;
+    } catch {
+      return [];
+    }
   }, [reservations, statusFilter]);
 
   // ── Mutación: confirmar (PENDIENTE → CONFIRMADA) ──
@@ -424,7 +435,7 @@ export const AuditoriaSucursalScreen = () => {
                     color={sColor}
                   />
                   <Text style={[s.statusBarTxt, { color: sColor }]}>
-                    {isCompleted ? 'Ya ingresó ✓' : 'Pendiente de ingreso'}
+                    {isCompleted ? 'Ya ingresó' : 'Pendiente de ingreso'}
                   </Text>
                 </View>
               )}
@@ -434,9 +445,12 @@ export const AuditoriaSucursalScreen = () => {
                   {/* a) CLIENTE */}
                   <Text style={s.clientName}>{clientName}</Text>
                   {/* b) ACTIVIDAD */}
-                  <Text style={s.actName} numberOfLines={1}>
-                    {actName !== '—' ? `🏃 ${actName}` : '—'}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    {actName !== '—' && (
+                      <MaterialCommunityIcons name="run" size={12} color="#888" />
+                    )}
+                    <Text style={s.actName} numberOfLines={1}>{actName}</Text>
+                  </View>
                 </View>
                 <View style={s.cardRight}>
                   <View style={[s.badge, { borderColor: sColor, backgroundColor: '#1C1C1E' }]}>

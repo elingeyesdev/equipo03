@@ -195,7 +195,7 @@ export const InstructorDashboard = () => {
 
   // ── Queries ──────────────────────────────────────────────────────────────
   const {
-    data:    weeklySchedules = [],
+    data:    weeklySchedulesRaw,
     isLoading: schedLoading,
     isError:   schedError,
     refetch:   refetchSched,
@@ -205,9 +205,12 @@ export const InstructorDashboard = () => {
     staleTime: 5 * 60_000,
     retry:     1,
   });
+  const weeklySchedules: InstructorWeeklySchedule[] = Array.isArray(weeklySchedulesRaw)
+    ? weeklySchedulesRaw
+    : ((weeklySchedulesRaw as any)?.data ?? []);
 
   const {
-    data:    statsData = [],
+    data:    statsDataRaw,
     refetch: refetchStats,
   } = useQuery({
     queryKey:  ['instructor-attendance-stats'],
@@ -215,6 +218,9 @@ export const InstructorDashboard = () => {
     staleTime: 5 * 60_000,
     retry:     1,
   });
+  const statsData: { label: string; value: number }[] = Array.isArray(statsDataRaw)
+    ? statsDataRaw
+    : ((statsDataRaw as any)?.data ?? []);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const handleRefresh = useCallback(async () => {

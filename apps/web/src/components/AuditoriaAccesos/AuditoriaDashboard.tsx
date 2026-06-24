@@ -18,12 +18,11 @@ export const AuditoriaDashboard: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [errorAcceso, setErrorAcceso] = useState<string | null>(null);
 
-  const cargarAccesos = useCallback(async (resetPage = false) => {
+  const cargarAccesos = useCallback(async (pageArg: number) => {
     if (!user) return;
     setLoading(true);
     setErrorAcceso(null);
-    const currentPage = resetPage ? 1 : page;
-    
+
     const level = user.level ?? 0;
     const resolvedGymId = level >= 4 && level < 10
       ? (user.gymId || (user.brandId ? String(user.brandId) : undefined))
@@ -34,28 +33,33 @@ export const AuditoriaDashboard: React.FC = () => {
       {
         gymId: resolvedGymId,
         estado: filtroEstado || undefined,
-        page: currentPage,
+        page: pageArg,
         limit: 15
       }
     );
-    
+
     if (result.isRight()) {
       const { data, total } = result.value;
-      setAccesos(prev => resetPage ? data : [...prev, ...data]);
-      setHasMore(data.length > 0 && (currentPage * 15) < total);
+      setAccesos(prev => pageArg === 1 ? data : [...prev, ...data]);
+      setHasMore(data.length > 0 && (pageArg * 15) < total);
     } else {
-      // Manejo de Error RBAC
       setErrorAcceso(result.value.message);
       setAccesos([]);
       setHasMore(false);
     }
     setLoading(false);
-  }, [filtroSede, filtroEstado, page, user]);
+  }, [filtroSede, filtroEstado, user]);
 
   useEffect(() => {
-    cargarAccesos(true);
-    setPage(1);
-  }, [filtroSede, filtroEstado, user]);
+    void (async () => {
+      setPage(1);
+      await cargarAccesos(1);
+    })();
+  }, [filtroSede, filtroEstado, user, cargarAccesos]);
+
+  useEffect(() => {
+    if (page > 1) void (async () => { await cargarAccesos(page); })();
+  }, [page, cargarAccesos]);
 
   const cargarMas = () => {
     if (hasMore && !loading) {

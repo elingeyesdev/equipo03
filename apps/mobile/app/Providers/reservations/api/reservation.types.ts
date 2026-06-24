@@ -105,6 +105,8 @@ export interface UserReservation {
   // Solo programada
   dayOfWeek?: string;          // "SAB", "LUN", etc.
   instructorName?: string;     // firstName + lastName del instructor
+  instructorPhone?: string | null;
+  gerentePhone?: string | null;
 }
 
 // Mapa de errores personalizado para la UI

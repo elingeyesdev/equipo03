@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Feather } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import authAxios from '../../../app/Providers/auth/authAxios';
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
@@ -77,8 +78,36 @@ export const ClaseDetalleScreen = () => {
   const [allReservas,      setAllReservas]      = useState<StudentReservation[]>([]);
   const [filteredReservas, setFilteredReservas] = useState<StudentReservation[]>([]);
   const [activeFilter,     setActiveFilter]     = useState<FilterType>('Todos');
-  const [loading,          setLoading]          = useState(true);
-  const [error,            setError]            = useState(false);
+
+  const {
+    data: reservasData,
+    isLoading: loading,
+    isError: error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
+  } = useInfiniteQuery({
+    queryKey: ['staff-class-students'],
+    queryFn: async ({ pageParam = 0 }) => {
+      const res = await authAxios.get('/api/staff/me/students', {
+        params: { limit: 20, offset: pageParam }
+      });
+      return res.data;
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => {
+      if (!lastPage?.meta) return undefined;
+      const nextOffset = lastPage.meta.offset + lastPage.meta.limit;
+      return nextOffset < lastPage.meta.total ? nextOffset : undefined;
+    },
+    staleTime: 60_000,
+  });
+
+  useEffect(() => {
+    const raw = reservasData?.pages.flatMap(p => p.data ?? p) ?? [];
+    const list: StudentReservation[] = Array.isArray(raw) ? raw : [];
+    setAllReservas(list);
+  }, [reservasData]);
 
   // ── Lógica de filtrado ────────────────────────────────────────────────────
 
@@ -118,22 +147,8 @@ export const ClaseDetalleScreen = () => {
   // ── Fetch ─────────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    setLoading(true);
-    setError(false);
-    authAxios
-      .get('/api/staff/me/students')
-      .then(res => {
-        const raw = res.data?.data ?? res.data ?? [];
-        const list: StudentReservation[] = Array.isArray(raw) ? raw : [];
-        setAllReservas(list);
-        setFilteredReservas(list); // sin filtro inicial
-      })
-      .catch(err => {
-        // fetch failed
-        setError(true);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+    applyFilter(activeFilter, allReservas);
+  }, [allReservas, activeFilter, applyFilter]);
 
   const timeRange = endTime
     ? `${fmt5(startTime)} - ${fmt5(endTime)}`
@@ -261,6 +276,15 @@ export const ClaseDetalleScreen = () => {
               </View>
             );
           }}
+          onEndReached={() => {
+            if (hasNextPage && !isFetchingNextPage) {
+              fetchNextPage();
+            }
+          }}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            isFetchingNextPage ? <ActivityIndicator size="small" color="#FF6B00" style={{ marginVertical: 15 }} /> : null
+          }
         />
       )}
 

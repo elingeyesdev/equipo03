@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import toast from 'react-hot-toast';
 import { apiClient } from '../../infrastructure/api.config';
 import './RegisterScreen.css';
 
-// ─── SVG Icons ───────────────────────────────────────────────────────────────
+//SVG Icons 
 const UserIcon = ({ size = 18 }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
@@ -133,18 +132,19 @@ export const RegisterScreen = () => {
           ci: ci.trim(),
           ...(gender ? { gender } : {}),
         },
-        { _skipErrorToast: true } as any,
+        { _skipErrorToast: true },
       );
 
       setRegistered(true);
-    } catch (err: any) {
-      const body   = err?.response?.data;
-      const status = err?.response?.status;
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string | string[] }; status?: number }; message?: string };
+      const body   = e?.response?.data;
+      const status = e?.response?.status;
       if (status === 400 && body) {
-        const raw = body.message || 'Error de validación';
+        const raw = body.message ?? 'Error de validación';
         setApiError(Array.isArray(raw) ? '• ' + raw.join('\n• ') : String(raw));
       } else {
-        setApiError(body?.message || err?.message || 'Ocurrió un error inesperado.');
+        setApiError(body?.message ? String(body.message) : (e?.message ?? 'Ocurrió un error inesperado.'));
       }
     } finally {
       setIsSubmitting(false);

@@ -101,7 +101,7 @@ const s = StyleSheet.create({
   backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#1C1C1E', justifyContent: 'center', alignItems: 'center' },
   headerTitle: { flex: 1, textAlign: 'center', color: '#fff', fontSize: 16, fontWeight: '700' },
   readyTitle: { color: '#fff', fontSize: 24, fontWeight: '800', marginBottom: 16 },
-  heroWrap: { borderRadius: 14, overflow: 'hidden', marginBottom: 12, height: 200, backgroundColor: '#111' },
+  heroWrap: { borderRadius: 14, overflow: 'hidden', marginBottom: 12, height: 280, backgroundColor: '#111' },
   heroImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   heroOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 16, paddingVertical: 14, backgroundColor: 'rgba(0,0,0,0.55)' },
   heroName: { color: '#fff', fontSize: 17, fontWeight: '800' },

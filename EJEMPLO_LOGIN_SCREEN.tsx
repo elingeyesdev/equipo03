@@ -222,28 +222,4 @@ export const LoginScreen = () => {
   );
 };
 
-/**
- * NOTAS DE INTEGRACIÓN:
- * 
- * 1. Crear la carpeta: apps/mobile/resources/views/auth/
- * 
- * 2. Crear el archivo: LoginScreen.tsx en esa carpeta
- * 
- * 3. El componente usa el hook `useAuth()` para:
- *    - Hacer login: await login(email, password)
- *    - Mostrar error: {error}
- *    - Mostrar loading: {isLoading}
- *    - Limpiar error: clearError()
- * 
- * 4. El flujo es:
- *    - Usuario ingresa credenciales
- *    - Click en "Iniciar Sesión"
- *    - login() llama a AuthService.login()
- *    - AuthService.login() hace POST a /api/auth/login
- *    - Backend retorna token
- *    - AuthContext actualiza estado (isAuthenticated = true)
- *    - RootNavigator re-renderiza y muestra AppTabs
- * 
- * 5. El token se envía automáticamente en todas las peticiones
- *    gracias al interceptor en sedes.api.config.ts
- */
+

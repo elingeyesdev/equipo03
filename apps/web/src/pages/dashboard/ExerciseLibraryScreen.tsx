@@ -5,6 +5,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
 
 const isValidYoutubeId = (id?: string | null) => !!id && /^[a-zA-Z0-9_-]{11}$/.test(id);
+const GIBBERISH_RE = /[bcdfghjklmnñpqrstvwxyz]{5,}/i;
+const EX_NAME_MAX = 100;
+const EX_DESC_MAX = 500;
+const EX_EQUIP_MAX = 200;
 
 type Exercise = {
   id: number;
@@ -21,45 +25,57 @@ type Exercise = {
   isActive: boolean;
 };
 
-const MUSCLE_GROUPS = ['Pectorales', 'Dorsales', 'Hombros', 'Bíceps', 'Tríceps', 'Cuádriceps', 'Isquiotibiales', 'Gemelos', 'Core', 'Cardio', 'Funcional', 'HIIT', 'Movilidad'];
-const CATEGORIES = ['FUERZA', 'CARDIO', 'FUNCIONAL'];
-const EXERCISE_TYPES = ['STRENGTH', 'CARDIO', 'HIIT', 'FUNCTIONAL', 'MOBILITY'];
-const DIFFICULTIES = ['BASICO', 'INTERMEDIO', 'AVANZADO'];
-const LOG_TYPES = [
-  { value: 'WEIGHT_REPS', label: 'Peso + Reps' },
-  { value: 'REPS_ONLY', label: 'Solo Reps' },
-  { value: 'TIME_DISTANCE', label: 'Tiempo + Distancia' },
-  { value: 'TIME_ONLY', label: 'Solo Tiempo' },
+const MUSCLE_GROUPS = ['Pecho', 'Espalda', 'Pierna', 'Hombro', 'Brazo', 'Core', 'Cardio', 'HIIT', 'Fondos'];
+
+const DIFFICULTY_OPTIONS = [
+  { label: 'Principiante', value: 'PRINCIPIANTE' },
+  { label: 'Intermedio',   value: 'INTERMEDIO'   },
+  { label: 'Avanzado',     value: 'AVANZADO'     },
+];
+
+const CATEGORY_OPTIONS = [
+  { label: 'Fuerza',       value: 'FUERZA'      },
+  { label: 'Hipertrofia',  value: 'HIPERTROFIA' },
+  { label: 'Resistencia',  value: 'RESISTENCIA' },
+  { label: 'Potencia',     value: 'POTENCIA'    },
+  { label: 'Flexibilidad', value: 'FLEXIBILIDAD' },
+];
+
+const EXERCISE_TYPE_OPTIONS = [
+  { label: 'Musculación / Fuerza',     value: 'STRENGTH'    },
+  { label: 'Cardiovascular',           value: 'CARDIO'      },
+  { label: 'Flexibilidad / Movilidad', value: 'FLEXIBILITY' },
+];
+
+const LOG_TYPE_OPTIONS = [
+  { label: 'Peso + Repeticiones', value: 'WEIGHT_REPS'   },
+  { label: 'Solo Repeticiones',   value: 'REPS_ONLY'     },
+  { label: 'Tiempo + Distancia',  value: 'TIME_DISTANCE' },
+  { label: 'Solo Tiempo',         value: 'TIME_ONLY'     },
 ];
 
 const MUSCLE_COLORS: Record<string, string> = {
-  Pectorales: 'bg-red-500/15 text-red-400 border-red-500/30',
-  Dorsales: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
-  Hombros: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
-  'Bíceps': 'bg-pink-500/15 text-pink-400 border-pink-500/30',
-  'Tríceps': 'bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/30',
-  'Cuádriceps': 'bg-violet-500/15 text-violet-400 border-violet-500/30',
-  Isquiotibiales: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
-  Gemelos: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
-  Core: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-  Cardio: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-  Funcional: 'bg-teal-500/15 text-teal-400 border-teal-500/30',
-  HIIT: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
-  Movilidad: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
+  Pecho:   'bg-red-500/15 text-red-400 border-red-500/30',
+  Espalda: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+  Pierna:  'bg-violet-500/15 text-violet-400 border-violet-500/30',
+  Hombro:  'bg-purple-500/15 text-purple-400 border-purple-500/30',
+  Brazo:   'bg-pink-500/15 text-pink-400 border-pink-500/30',
+  Core:    'bg-amber-500/15 text-amber-400 border-amber-500/30',
+  Cardio:  'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+  HIIT:    'bg-orange-500/15 text-orange-400 border-orange-500/30',
+  Fondos:  'bg-teal-500/15 text-teal-400 border-teal-500/30',
 };
 
 const DIFF_STYLE: Record<string, string> = {
-  BASICO: 'text-emerald-400',
-  INTERMEDIO: 'text-amber-400',
-  AVANZADO: 'text-red-400',
+  PRINCIPIANTE: 'text-emerald-400',
+  INTERMEDIO:   'text-amber-400',
+  AVANZADO:     'text-red-400',
 };
 
-const LOG_LABELS: Record<string, string> = {
-  WEIGHT_REPS: 'Peso+Reps',
-  REPS_ONLY: 'Reps',
-  TIME_DISTANCE: 'Tiempo+Dist',
-  TIME_ONLY: 'Tiempo',
-};
+const DIFF_LABEL  = Object.fromEntries(DIFFICULTY_OPTIONS.map(o => [o.value, o.label]));
+const CAT_LABEL   = Object.fromEntries(CATEGORY_OPTIONS.map(o => [o.value, o.label]));
+const TYPE_LABEL  = Object.fromEntries(EXERCISE_TYPE_OPTIONS.map(o => [o.value, o.label]));
+const LOG_LABELS  = Object.fromEntries(LOG_TYPE_OPTIONS.map(o => [o.value, o.label]));
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MODAL
@@ -78,7 +94,7 @@ const ExerciseModal: React.FC<{
     muscleGroup: exercise?.muscleGroup ?? 'Pectorales',
     category: exercise?.category ?? 'FUERZA',
     exerciseType: exercise?.exerciseType ?? 'STRENGTH',
-    difficultyLevel: exercise?.difficultyLevel ?? 'BASICO',
+    difficultyLevel: exercise?.difficultyLevel ?? 'PRINCIPIANTE',
     equipmentRequired: exercise?.equipmentRequired ?? '',
     youtubeVideoId: exercise?.youtubeVideoId ?? '',
     logType: exercise?.logType ?? 'WEIGHT_REPS',
@@ -96,6 +112,10 @@ const ExerciseModal: React.FC<{
 
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error('El nombre es obligatorio.'); return; }
+    if (form.name.trim().length > EX_NAME_MAX) { toast.error(`El nombre no puede superar los ${EX_NAME_MAX} caracteres.`); return; }
+    if (GIBBERISH_RE.test(form.name)) { toast.error('El nombre parece contener caracteres aleatorios o inválidos.'); return; }
+    if (form.description && GIBBERISH_RE.test(form.description)) { toast.error('La descripción parece contener caracteres aleatorios o inválidos.'); return; }
+    if (form.equipmentRequired && GIBBERISH_RE.test(form.equipmentRequired)) { toast.error('El equipamiento parece contener caracteres aleatorios o inválidos.'); return; }
     setIsSaving(true);
     try {
       if (isNew) {
@@ -188,8 +208,16 @@ const ExerciseModal: React.FC<{
             {/* ── Columna Izquierda: Datos Duros (3/5) ── */}
             <div className="lg:col-span-3 space-y-4">
               <div>
-                <p className={labelClass}>Nombre *</p>
-                <input className={inputClass} value={form.name} onChange={e => updateField('name', e.target.value)} placeholder="Ej: Press de Banca Plano" />
+                <div className="flex justify-between items-baseline mb-1">
+                  <p className={labelClass} style={{ marginBottom: 0 }}>Nombre *</p>
+                  <span className={`text-xs ${form.name.length > EX_NAME_MAX ? 'text-red-500' : form.name.length > EX_NAME_MAX * 0.9 ? 'text-amber-500' : 'text-slate-400 dark:text-gray-500'}`}>
+                    {form.name.length}/{EX_NAME_MAX}
+                  </span>
+                </div>
+                <input className={inputClass} value={form.name} onChange={e => updateField('name', e.target.value)} placeholder="Ej: Press de Banca Plano" maxLength={EX_NAME_MAX} />
+                {GIBBERISH_RE.test(form.name) && (
+                  <p className="text-amber-500 text-xs mt-1">El nombre parece contener caracteres aleatorios</p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -202,7 +230,7 @@ const ExerciseModal: React.FC<{
                 <div>
                   <p className={labelClass}>Dificultad *</p>
                   <select className={inputClass} value={form.difficultyLevel} onChange={e => updateField('difficultyLevel', e.target.value)}>
-                    {DIFFICULTIES.map(d => <option key={d} value={d}>{d}</option>)}
+                    {DIFFICULTY_OPTIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
                   </select>
                 </div>
               </div>
@@ -211,13 +239,13 @@ const ExerciseModal: React.FC<{
                 <div>
                   <p className={labelClass}>Categoría</p>
                   <select className={inputClass} value={form.category} onChange={e => updateField('category', e.target.value)}>
-                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    {CATEGORY_OPTIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                   </select>
                 </div>
                 <div>
                   <p className={labelClass}>Tipo de ejercicio</p>
                   <select className={inputClass} value={form.exerciseType} onChange={e => updateField('exerciseType', e.target.value)}>
-                    {EXERCISE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    {EXERCISE_TYPE_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
                 </div>
               </div>
@@ -226,18 +254,34 @@ const ExerciseModal: React.FC<{
                 <div>
                   <p className={labelClass}>Tipo de Log (App Móvil)</p>
                   <select className={inputClass} value={form.logType} onChange={e => updateField('logType', e.target.value)}>
-                    {LOG_TYPES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+                    {LOG_TYPE_OPTIONS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <p className={labelClass}>Equipamiento</p>
-                  <input className={inputClass} value={form.equipmentRequired} onChange={e => updateField('equipmentRequired', e.target.value)} placeholder="Barra, Mancuernas..." />
+                  <div className="flex justify-between items-baseline mb-1">
+                    <p className={labelClass} style={{ marginBottom: 0 }}>Equipamiento</p>
+                    <span className={`text-xs ${(form.equipmentRequired?.length ?? 0) > EX_EQUIP_MAX ? 'text-red-500' : 'text-slate-400 dark:text-gray-500'}`}>
+                      {form.equipmentRequired?.length ?? 0}/{EX_EQUIP_MAX}
+                    </span>
+                  </div>
+                  <input className={inputClass} value={form.equipmentRequired} onChange={e => updateField('equipmentRequired', e.target.value)} placeholder="Barra, Mancuernas..." maxLength={EX_EQUIP_MAX} />
+                  {form.equipmentRequired && GIBBERISH_RE.test(form.equipmentRequired) && (
+                    <p className="text-amber-500 text-xs mt-1">El equipamiento parece contener caracteres aleatorios</p>
+                  )}
                 </div>
               </div>
 
               <div>
-                <p className={labelClass}>Descripción</p>
-                <textarea className={`${inputClass} resize-none h-20`} value={form.description ?? ''} onChange={e => updateField('description', e.target.value)} placeholder="Instrucciones de ejecución del ejercicio..." />
+                <div className="flex justify-between items-baseline mb-1">
+                  <p className={labelClass} style={{ marginBottom: 0 }}>Descripción</p>
+                  <span className={`text-xs ${(form.description?.length ?? 0) > EX_DESC_MAX ? 'text-red-500' : (form.description?.length ?? 0) > EX_DESC_MAX * 0.9 ? 'text-amber-500' : 'text-slate-400 dark:text-gray-500'}`}>
+                    {form.description?.length ?? 0}/{EX_DESC_MAX}
+                  </span>
+                </div>
+                <textarea className={`${inputClass} resize-none h-20`} value={form.description ?? ''} onChange={e => updateField('description', e.target.value)} placeholder="Instrucciones de ejecución del ejercicio..." maxLength={EX_DESC_MAX} />
+                {form.description && GIBBERISH_RE.test(form.description) && (
+                  <p className="text-amber-500 text-xs mt-1">La descripción parece contener caracteres aleatorios</p>
+                )}
               </div>
 
               {!isNew && (
@@ -445,21 +489,21 @@ export const ExerciseLibraryScreen = () => {
           <Layers className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-500" size={18} />
           <select className={selectClass} value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)}>
             <option value="">Categoría</option>
-            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            {CATEGORY_OPTIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
         </div>
         <div className="relative w-full md:w-40 shrink-0">
           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-500" size={18} />
           <select className={selectClass} value={selectedDifficulty} onChange={e => setSelectedDifficulty(e.target.value)}>
             <option value="">Dificultad</option>
-            {DIFFICULTIES.map(d => <option key={d} value={d}>{d}</option>)}
+            {DIFFICULTY_OPTIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
           </select>
         </div>
         <div className="relative w-full md:w-44 shrink-0">
           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-500" size={18} />
           <select className={selectClass} value={selectedLogType} onChange={e => setSelectedLogType(e.target.value)}>
-            <option value="">Log Type</option>
-            {LOG_TYPES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+            <option value="">Tipo de Log</option>
+            {LOG_TYPE_OPTIONS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
           </select>
         </div>
       </div>
@@ -518,12 +562,12 @@ export const ExerciseLibraryScreen = () => {
                       </td>
                       <td className={tdClass}>
                         <div className="flex flex-col gap-0.5">
-                          <span className="text-slate-700 dark:text-gray-300 text-xs font-medium">{ex.category ?? '—'}</span>
+                          <span className="text-slate-700 dark:text-gray-300 text-xs font-medium">{ex.category ? (CAT_LABEL[ex.category] ?? ex.category) : '—'}</span>
                           <span className="text-slate-400 dark:text-gray-500 text-[11px]">{LOG_LABELS[ex.logType] ?? ex.logType}</span>
                         </div>
                       </td>
                       <td className={tdClass}>
-                        <span className={`font-bold text-xs ${diffStyle}`}>{ex.difficultyLevel}</span>
+                        <span className={`font-bold text-xs ${diffStyle}`}>{DIFF_LABEL[ex.difficultyLevel] ?? ex.difficultyLevel}</span>
                       </td>
                       <td className={tdClass}>
                         <div className="flex items-center gap-1">
@@ -587,18 +631,18 @@ export const ExerciseLibraryScreen = () => {
                     </div>
                     <div>
                       <p className="text-[11px] text-slate-500 dark:text-gray-500 uppercase tracking-wider font-semibold mb-1">Dificultad</p>
-                      <span className={`font-bold text-sm ${DIFF_STYLE[viewingExercise.difficultyLevel] ?? 'text-gray-400'}`}>{viewingExercise.difficultyLevel}</span>
+                      <span className={`font-bold text-sm ${DIFF_STYLE[viewingExercise.difficultyLevel] ?? 'text-gray-400'}`}>{DIFF_LABEL[viewingExercise.difficultyLevel] ?? viewingExercise.difficultyLevel}</span>
                     </div>
                     <div>
                       <p className="text-[11px] text-slate-500 dark:text-gray-500 uppercase tracking-wider font-semibold mb-1">Categoría</p>
-                      <span className="text-slate-800 dark:text-gray-200 text-sm">{viewingExercise.category ?? '—'}</span>
+                      <span className="text-slate-800 dark:text-gray-200 text-sm">{viewingExercise.category ? (CAT_LABEL[viewingExercise.category] ?? viewingExercise.category) : '—'}</span>
                     </div>
                     <div>
                       <p className="text-[11px] text-slate-500 dark:text-gray-500 uppercase tracking-wider font-semibold mb-1">Tipo</p>
-                      <span className="text-slate-800 dark:text-gray-200 text-sm">{viewingExercise.exerciseType ?? '—'}</span>
+                      <span className="text-slate-800 dark:text-gray-200 text-sm">{viewingExercise.exerciseType ? (TYPE_LABEL[viewingExercise.exerciseType] ?? viewingExercise.exerciseType) : '—'}</span>
                     </div>
                     <div>
-                      <p className="text-[11px] text-slate-500 dark:text-gray-500 uppercase tracking-wider font-semibold mb-1">Log Type</p>
+                      <p className="text-[11px] text-slate-500 dark:text-gray-500 uppercase tracking-wider font-semibold mb-1">Tipo de Log</p>
                       <span className="text-slate-800 dark:text-gray-200 text-sm">{LOG_LABELS[viewingExercise.logType] ?? viewingExercise.logType}</span>
                     </div>
                     <div>

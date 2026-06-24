@@ -407,12 +407,13 @@ export const AsignarRutinaScreen = () => {
   const hasLoaded = useRef(false);
 
   // ── Cargar rutina existente del cliente ─────────────────────────────────────
-  const { data: existingRoutines = [], isLoading: loadingRoutine } = useQuery<ClientRoutine[]>({
+  const { data: routinesResponse, isLoading: loadingRoutine } = useQuery({
     queryKey:  ['client-routines', studentId],
     queryFn:   () => staffApi.getMyRoutines(studentId),
     staleTime: 60_000,
     retry: 1,
   });
+  const existingRoutines = routinesResponse?.data ?? [];
 
   const existingRoutine = existingRoutines.find(r => (r.exercises?.length ?? 0) > 0)
     ?? existingRoutines[0]
@@ -429,12 +430,14 @@ export const AsignarRutinaScreen = () => {
     }
   }, [loadingRoutine, existingRoutine]);
 
-  const { data: exercises = [], isLoading: loadingExercises } = useQuery({
+  const { data: exercisesData, isLoading: loadingExercises } = useQuery({
     queryKey:  ['exercises-catalog'],
-    queryFn:   staffApi.getExercises,
+    queryFn:   () => staffApi.getExercises(),
     staleTime: 5 * 60_000,
     retry: 1,
   });
+
+  const exercises: Exercise[] = exercisesData ?? [];
 
   const isLoading = loadingRoutine || loadingExercises;
   const totalExercises = DAYS.reduce((acc, d) => acc + weekPlan[d].length, 0);

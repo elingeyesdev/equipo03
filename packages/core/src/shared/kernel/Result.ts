@@ -1,10 +1,3 @@
-/**
- * Result<T> — Wrapper para operaciones que pueden fallar.
- * 
- * Alternativa más simple a Either cuando solo se necesita
- * éxito/fracaso con mensaje de error.
- */
-
 export class Result<T> {
   public readonly isSuccess: boolean;
   public readonly isFailure: boolean;

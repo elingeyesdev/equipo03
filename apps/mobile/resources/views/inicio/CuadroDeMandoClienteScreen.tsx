@@ -434,24 +434,23 @@ export const CuadroDeMandoClienteScreen: React.FC = () => {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [sessionsRaw, metricsRes] = await Promise.allSettled([
-        trainingApi.getHistory(),
+
+      const [sessionsRes, metricsRes] = await Promise.allSettled([
+        trainingApi.getHistory({ limit: 100, offset: 0 }),
         authAxios.get('/api/users/me/metrics'),
       ]);
 
-      if (sessionsRaw.status === 'fulfilled') {
+      if (sessionsRes.status === 'fulfilled') {
+        const raw = sessionsRes.value;
+        const arr: WorkoutSession[] = Array.isArray(raw) ? raw : (raw?.data ?? []);
         setSessions(
-          [...sessionsRaw.value].sort(
-            (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
-          ),
+          [...arr].sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()),
         );
       }
       if (metricsRes.status === 'fulfilled') {
         const raw: MetricEntry[] = metricsRes.value.data?.data ?? metricsRes.value.data ?? [];
         setMetrics(
-          [...raw].sort(
-            (a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime(),
-          ),
+          [...raw].sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime()),
         );
       }
     } catch {

@@ -26,6 +26,15 @@ attach401Guard(trainingClient);
 import { attachOfflineInterceptor } from '../../offline/offlineInterceptor';
 attachOfflineInterceptor(trainingClient);
 
+export interface PaginatedResponse<T> {
+  data: T[];
+  meta: {
+    total: number;
+    limit: number;
+    offset: number;
+  };
+}
+
 export type WorkoutSet = {
   id:               number;
   setNumber:        number;
@@ -94,28 +103,15 @@ export type GymLocationItem = {
 
 export const trainingApi = {
 
-  getHistory: async (): Promise<WorkoutSession[]> => {
-    try {
-      const response = await trainingClient.get('/api/training/sessions');
-      const raw = response.data?.data ?? response.data;
-      return Array.isArray(raw) ? raw : [];
-    } catch (err: any) {
-      const status = err?.response?.status;
-      console.warn('[Training] Error getHistory:', status ?? err?.message);
-      if (status === 404) return [];
-      throw err;
-    }
+  getHistory: async (params?: { limit?: number; offset?: number }): Promise<PaginatedResponse<WorkoutSession>> => {
+    const response = await trainingClient.get('/api/training/sessions', { params });
+    return response.data;
   },
 
-  getExercises: async (): Promise<any[]> => {
-    try {
-      const response = await trainingClient.get('/api/exercises');
-      const raw = response.data?.data ?? response.data;
-      return Array.isArray(raw) ? raw : [];
-    } catch (err: any) {
-      console.warn('[Training] Error getExercises:', err?.response?.status ?? err?.message);
-      return [];
-    }
+  getExercises: async (filters?: { muscleGroup?: string; category?: string; exerciseType?: string }): Promise<any[]> => {
+    const response = await trainingClient.get('/api/exercises', { params: filters });
+    // Backend returns flat Exercise[] (no pagination wrapper)
+    return Array.isArray(response.data) ? response.data : (response.data?.data ?? []);
   },
 
   saveCompletedSession: async (payload: {
@@ -134,14 +130,9 @@ export const trainingApi = {
     }
   },
 
-  getGymLocations: async (): Promise<GymLocationItem[]> => {
-    try {
-      const response = await trainingClient.get('/api/gyms/locations');
-      const raw = response.data?.data ?? response.data;
-      return Array.isArray(raw) ? raw : [];
-    } catch {
-      return [];
-    }
+  getGymLocations: async (params?: { limit?: number; offset?: number }): Promise<PaginatedResponse<GymLocationItem>> => {
+    const response = await trainingClient.get('/api/gyms/locations', { params });
+    return response.data;
   },
 
   startRoutineSession: async (data: {
@@ -181,15 +172,10 @@ export const trainingApi = {
     return response.data?.data ?? response.data;
   },
 
-  getClientSessions: async (userId: number, routineId?: number): Promise<WorkoutSession[]> => {
-    try {
-      const params: any = {};
-      if (routineId) params.routineId = routineId;
-      const response = await trainingClient.get(`/api/training/sessions/user/${userId}`, { params });
-      const raw = response.data?.data ?? response.data;
-      return Array.isArray(raw) ? raw : [];
-    } catch {
-      return [];
-    }
+  getClientSessions: async (userId: number, routineId?: number, params?: { limit?: number; offset?: number }): Promise<PaginatedResponse<WorkoutSession>> => {
+    const queryParams: any = { ...params };
+    if (routineId) queryParams.routineId = routineId;
+    const response = await trainingClient.get(`/api/training/sessions/user/${userId}`, { params: queryParams });
+    return response.data;
   },
 };

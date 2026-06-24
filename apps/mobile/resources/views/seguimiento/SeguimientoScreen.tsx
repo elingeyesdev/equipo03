@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { staffApi, ActiveAdvisee } from '../../../app/Providers/staff/api/staff.api';
+import { useAuth } from '../../../app/Shared/hooks/useAuth';
 
 // Paleta rotativa de colores por cliente
 const AVATAR_PALETTE = ['#FF5E00', '#38BDF8', '#00E5A3'];
@@ -81,25 +82,28 @@ const ClientCard = ({
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export const SeguimientoScreen = () => {
-  const navigation = useNavigation<any>();
+  const navigation   = useNavigation<any>();
+  const { user }     = useAuth();
+  const isInstructor = user?.role?.toUpperCase() === 'INSTRUCTOR';
 
   const [clients,    setClients]    = useState<ActiveAdvisee[]>([]);
-  const [isLoading,  setIsLoading]  = useState(true);
+  const [isLoading,  setIsLoading]  = useState(!isInstructor);
   const [isError,    setIsError]    = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
+    if (isInstructor) return;
     setIsError(false);
     try {
-      const data = await staffApi.getActiveAdvisees();
-      setClients(data);
+      const raw = await staffApi.getActiveAdvisees();
+      setClients(Array.isArray(raw) ? raw : ((raw as any)?.data ?? []));
     } catch {
       setIsError(true);
     } finally {
       setIsLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [isInstructor]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -108,9 +112,44 @@ export const SeguimientoScreen = () => {
     load();
   }
 
+  // ── Vista para INSTRUCTOR: sin clientes 1:1, solo reporte de clases ──────────
+  if (isInstructor) {
+    return (
+      <SafeAreaView style={s.safe} edges={['top']}>
+        <View style={s.topBar}>
+          <View>
+            <Text style={s.topTitle}>Seguimiento</Text>
+            <Text style={s.topSub}>Gestión de clases grupales</Text>
+          </View>
+          <View style={[s.topBadge, { backgroundColor: '#1a2600', borderColor: '#FF5E0044' }]}>
+            <MaterialCommunityIcons name="chart-timeline-variant" size={22} color="#FF5E00" />
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={s.reportRow}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('InstructorReport')}
+        >
+          <MaterialCommunityIcons name="file-pdf-box" size={16} color="#FF5E00" />
+          <Text style={s.reportRowTxt}>Generar Reporte de Clases</Text>
+          <MaterialCommunityIcons name="chevron-right" size={16} color="#333" style={{ marginLeft: 'auto' }} />
+        </TouchableOpacity>
+
+        <View style={s.center}>
+          <MaterialCommunityIcons name="whistle-outline" size={56} color="#1a1a1a" />
+          <Text style={s.emptyTitle}>Tus clases grupales</Text>
+          <Text style={s.emptySubTxt}>
+            Genera un reporte PDF de asistencia y aforo de tus horarios desde el acceso rápido de arriba.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Vista para ENTRENADOR / NUTRICIONISTA: lista de clientes asesorados ───────
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
-      {/* Header */}
       <View style={s.topBar}>
         <View>
           <Text style={s.topTitle}>Seguimiento</Text>
@@ -123,7 +162,6 @@ export const SeguimientoScreen = () => {
         </View>
       </View>
 
-      {/* Report shortcut */}
       <TouchableOpacity
         style={s.reportRow}
         activeOpacity={0.8}

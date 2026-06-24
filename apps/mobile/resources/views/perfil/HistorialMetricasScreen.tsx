@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LineChart } from 'react-native-chart-kit';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import authAxios from '../../../app/Providers/auth/authAxios';
 
 type MetricEntry = {
@@ -34,27 +35,38 @@ function applyFilter(entries: MetricEntry[], filter: Filter): MetricEntry[] {
 }
 
 export const HistorialMetricasScreen = () => {
-  const [entries,  setEntries]  = useState<MetricEntry[]>([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState<string | null>(null);
-  const [filter,   setFilter]   = useState<Filter>('mes');
+  const [entries, setEntries] = useState<MetricEntry[]>([]);
+  const [filter, setFilter]   = useState<Filter>('todo');
+
+  const {
+    data: metricasData,
+    isLoading: loading,
+    isError,
+    error: queryError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
+  } = useInfiniteQuery({
+    queryKey: ['historial-metricas'],
+    queryFn: async ({ pageParam = 0 }) => {
+      const res = await authAxios.get('/api/users/me/metrics', {
+        params: { limit: 20, offset: pageParam }
+      });
+      return res.data;
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => {
+      if (!lastPage?.meta) return undefined;
+      const nextOffset = lastPage.meta.offset + lastPage.meta.limit;
+      return nextOffset < lastPage.meta.total ? nextOffset : undefined;
+    },
+    staleTime: 60_000,
+  });
 
   useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const res = await authAxios.get('/api/users/me/metrics');
-        if (cancelled) return;
-        setEntries(res.data?.data ?? res.data ?? []);
-      } catch (e: any) {
-        if (!cancelled) setError(e?.response?.data?.message ?? 'No se pudo cargar el historial.');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    load();
-    return () => { cancelled = true; };
-  }, []);
+    const raw = metricasData?.pages.flatMap(p => p.data ?? p) ?? [];
+    setEntries(Array.isArray(raw) ? raw : []);
+  }, [metricasData]);
 
   if (loading) return (
     <SafeAreaView style={[s.container, s.center]}>
@@ -62,9 +74,9 @@ export const HistorialMetricasScreen = () => {
     </SafeAreaView>
   );
 
-  if (error) return (
+  if (isError) return (
     <SafeAreaView style={[s.container, s.center]}>
-      <Text style={s.errorText}>{error}</Text>
+      <Text style={s.errorText}>{(queryError as any)?.response?.data?.message ?? 'No se pudo cargar el historial.'}</Text>
     </SafeAreaView>
   );
 
@@ -163,6 +175,15 @@ export const HistorialMetricasScreen = () => {
             </View>
           </View>
         )}
+        onEndReached={() => {
+          if (hasNextPage && !isFetchingNextPage) {
+            fetchNextPage();
+          }
+        }}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          isFetchingNextPage ? <ActivityIndicator size="small" color="#FF6B00" style={{ marginVertical: 15 }} /> : null
+        }
       />
     </SafeAreaView>
   );

@@ -50,7 +50,7 @@ export const TrainerDashboard = () => {
   const [processingId, setProcessingId] = useState<number | null>(null);
 
   const {
-    data: requests = [], isLoading: loadingReqs, refetch: refetchReqs,
+    data: requestsRaw, isLoading: loadingReqs, refetch: refetchReqs,
   } = useQuery({
     queryKey: ['trainer-pending-requests'],
     queryFn:  staffApi.getPendingTrainerRequests,
@@ -59,13 +59,21 @@ export const TrainerDashboard = () => {
   });
 
   const {
-    data: advisees = [], isLoading: loadingAdvisees, refetch: refetchAdvisees,
+    data: adviseesRaw, isLoading: loadingAdvisees, refetch: refetchAdvisees,
   } = useQuery({
     queryKey: ['trainer-active-advisees'],
     queryFn:  staffApi.getActiveAdvisees,
     staleTime: 60_000,
     retry: 1,
   });
+
+  // Defensive unwrap: both queries return PaginatedResponse<T>, not T[]
+  const requests: PendingTrainerRequest[] = Array.isArray(requestsRaw)
+    ? requestsRaw
+    : ((requestsRaw as any)?.data ?? []);
+  const advisees: any[] = Array.isArray(adviseesRaw)
+    ? adviseesRaw
+    : ((adviseesRaw as any)?.data ?? []);
 
   const isRefreshing = loadingReqs || loadingAdvisees;
   const onRefresh    = () => { refetchReqs(); refetchAdvisees(); };
@@ -161,7 +169,7 @@ export const TrainerDashboard = () => {
           iconColor="#f05b22"
           empty={requests.length === 0}
         >
-          {(requests as PendingTrainerRequest[]).map((req) => {
+          {requests.map((req) => {
             const isProcessing = processingId === req.id;
             const fecha = fmtDate(req.createdAt);
             return (
