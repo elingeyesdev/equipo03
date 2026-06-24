@@ -77,26 +77,30 @@ export const MapScreenController = (
     store.setLoading(true);
     store.setError(null);
 
-    const result = await obtenerSedesUseCase.execute({
-      radioKm: store.radioKm,
-    });
+    try {
+      const result = await obtenerSedesUseCase.execute({
+        radioKm: store.radioKm,
+      });
 
-    if (result.isRight()) {
-      const { sedes, ubicacion } = result.value;
-      store.setSedesConDistancia(sedes);
-      store.setUserLocation(ubicacion);
-    } else {
-      store.setError(result.value.mensajeUsuario ?? result.value.message);
+      if (result.isRight()) {
+        const { sedes, ubicacion } = result.value;
+        store.setSedesConDistancia(sedes);
+        store.setUserLocation(ubicacion);
+      } else {
+        store.setError(result.value.mensajeUsuario ?? result.value.message);
+      }
+    } catch (err) {
+      store.setError('Error de conexión al buscar sedes cercanas.');
+    } finally {
+      store.setLoading(false);
     }
-
-    store.setLoading(false);
   };
 
   const comoLlegar = async (sede: Sede) => {
     try {
       await calcularRutaUseCase.execute(store.userLocation, sede);
     } catch (err) {
-      console.error('Error al abrir navegación:', err);
+      console.warn('Error al abrir navegación:', (err as Error)?.message);
     }
   };
 

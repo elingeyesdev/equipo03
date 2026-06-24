@@ -11,6 +11,7 @@ export * from './domain/value-objects/EstadoAcceso.vo';
 export * from './domain/entities/Sede.entity';
 export * from './domain/entities/PerfilDeportivo.entity';
 export * from './domain/entities/Acceso.entity';
+export * from './domain/entities/Reserva.entity';
 
 // Exportando Errores de Dominio
 export * from './domain/errors/UbicacionNoDisponible.error';
@@ -25,6 +26,9 @@ export * from './application/ports/input/SuscribirseUbicacion.use-case';
 export * from './application/ports/input/ConsultarHistorialAccesos.use-case';
 export * from './application/ports/input/ObtenerUsuarios.use-case';
 export * from './application/ports/input/ObtenerSedesMapa.use-case';
+export * from './application/ports/input/RegistrarCliente.use-case';
+export * from './application/ports/input/ObtenerDetallesSucursalReserva.use-case';
+export * from './application/ports/input/CrearReserva.use-case';
 
 export * from './application/ports/output/IGeolocationService.port';
 export * from './application/ports/output/ISedesApiService.port';
@@ -32,6 +36,8 @@ export * from './application/ports/output/IStorageService.port';
 export * from './application/ports/output/INavigationService.port';
 export * from './application/ports/output/IAccessApiService.port';
 export * from './application/ports/output/IUsersApiService';
+export * from './application/ports/output/IAuthApiService.port';
+export * from './application/ports/output/IReservasApiService.port';
 
 // Exportando Servicios de Dominio
 export * from './domain/services/CalculadoraDistancia.service';

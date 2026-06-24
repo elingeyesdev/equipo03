@@ -6,12 +6,13 @@ import {
   FlatList,
   ActivityIndicator,
   RefreshControl,
-  SafeAreaView,
+  TouchableOpacity,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuditHistory, AuditRecord } from '../../../app/Providers/access/api/useAuditHistory';
 
-export const AuditHistoryScreen = () => {
+export const AuditHistoryScreen = ({ navigation }: any) => {
   const { history, isLoading, error, refetch } = useAuditHistory();
 
   const renderItem = ({ item }: { item: AuditRecord }) => {
@@ -49,8 +50,18 @@ export const AuditHistoryScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Auditoría de Accesos</Text>
-        <Text style={styles.headerSubtitle}>Monitor en tiempo real</Text>
+        <View>
+          <Text style={styles.headerTitle}>Auditoría de Accesos</Text>
+          <Text style={styles.headerSubtitle}>Monitor en tiempo real</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.scanBtn}
+          onPress={() => navigation?.navigate('Escaner')}
+          activeOpacity={0.85}
+        >
+          <MaterialCommunityIcons name="qrcode-scan" size={20} color="#0A0A0A" />
+          <Text style={styles.scanTxt}>Escanear Ingreso</Text>
+        </TouchableOpacity>
       </View>
 
       {error ? (
@@ -92,21 +103,38 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 20,
-    paddingTop: 40,
+    paddingTop: 20,
     backgroundColor: '#1c1c1e',
     borderBottomWidth: 1,
     borderBottomColor: '#333',
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#ffffff',
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#999999',
-    marginTop: 4,
+    marginTop: 3,
+  },
+  scanBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#f05b22',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+  },
+  scanTxt: {
+    color: '#0A0A0A',
+    fontWeight: '700',
+    fontSize: 13,
   },
   listContent: {
     padding: 16,
@@ -116,14 +144,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: '#1c1c1e',
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#3A3A3C',
     padding: 16,
     marginBottom: 12,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
   },
   iconContainer: {
     marginRight: 16,

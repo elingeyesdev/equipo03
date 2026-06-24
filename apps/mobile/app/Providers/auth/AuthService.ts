@@ -15,6 +15,7 @@ import { Env } from '../geolocation/config/environment';
 
 const AUTH_STORAGE_KEY = 'gymsync.user';
 const TOKEN_STORAGE_KEY = 'gymsync.token';
+const PROFILE_CACHE_KEY = 'gymsync.profile';
 const API_BASE_URL = Env.API_BASE_URL;
 
 export interface LoginRequest {
@@ -44,8 +45,6 @@ export class AuthService {
     error?: string;
   }> {
     try {
-      console.log('[AuthService] Iniciando login para:', email);
-      
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
@@ -53,23 +52,18 @@ export class AuthService {
           'Accept': 'application/json',
         },
         body: JSON.stringify({ email, password }),
-        timeout: 10000,
-      });
-
-      console.log('[AuthService] Response status:', response.status);
+      } as any);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.log('[AuthService] Error del servidor:', JSON.stringify(errorData, null, 2));
         const errorMsg = errorData?.message || `HTTP ${response.status}`;
         return { success: false, error: errorMsg };
       }
 
       const body: LoginResponse = await response.json();
-      console.log('[AuthService] Response body:', body);
 
       // Extraer el token (múltiples formatos soportados)
-      const tokenData = body.data || body;
+      const tokenData = (body.data ?? body) as any;
       const jwtToken = tokenData.accessToken || tokenData.access_token || tokenData.token;
       const userData = tokenData.user || {};
 
@@ -77,59 +71,146 @@ export class AuthService {
         return { success: false, error: 'No se recibió token del servidor' };
       }
 
-      // Decodificar JWT
-      let jwtPayload: Record<string, any> = {};
+      // Leer role y gymId del JSON de respuesta (backend los envía en user{})
+      // SIN Buffer.from — evita crash "Buffer doesn't exist" en iOS/Hermes
+      const extractedRole = userData?.role
+        ? (String(userData.role).toUpperCase() as UserRole)
+        : (() => { throw new Error('El servidor no devolvió el rol del usuario.'); })();
+
+      const extractedGymId: string | undefined = userData?.gymId ?? undefined;
+
+      // Extraer level del payload del JWT (campo incluido por el backend en buildJwtPayload)
+      // Permite que roles personalizados (ej: CLIENTE2, DEPORTISTA) sean enrutados
+      // correctamente por nivel jerárquico en lugar de nombre de rol
+      let extractedLevel = 0;
       try {
-        const base64Url = jwtToken.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        jwtPayload = JSON.parse(Buffer.from(base64, 'base64').toString());
-      } catch (e) {
-        console.warn('[AuthService] Error decodificando JWT:', e);
-      }
+        const base64Url = jwtToken.trim().split('.')[1];
+        const base64    = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jwtPayload = JSON.parse(atob(base64));
+        extractedLevel = jwtPayload?.level ?? 0;
+      } catch {}
 
-      // Extraer role
-      let extractedRole: UserRole = 'USER';
-      if (jwtPayload.role) {
-        extractedRole = String(jwtPayload.role).toUpperCase() as UserRole;
-      } else if (userData?.role) {
-        extractedRole = String(userData.role).toUpperCase() as UserRole;
-      } else if (email.includes('admin@')) {
-        extractedRole = 'SUPER_ADMIN';
-      } else if (email.includes('gerente@')) {
-        extractedRole = 'GERENTE';
-      }
-
-      // Validar role
-      if (!['SUPER_ADMIN', 'GERENTE', 'USER'].includes(extractedRole)) {
-        extractedRole = 'USER';
-      }
-
-      // Extraer gym_id
-      let extractedGymId = userData?.gymId || userData?.gym_id || jwtPayload.gym_id || jwtPayload.gymId;
-
-      // Para GERENTE, gym_id es obligatorio
-      if (extractedRole === 'GERENTE' && !extractedGymId) {
-        extractedGymId = '1'; // Default fallback
-      }
-
-      // Crear contexto de autenticación
-      const userId = userData?.id || jwtPayload.sub || jwtPayload.id || email;
+      // userId del objeto user del backend
+      const userId = userData?.id;
       const autenticacionContext: AutenticacionContext = {
         userId,
         role: extractedRole,
         gymId: extractedGymId,
+        level: extractedLevel,
       };
 
       // Guardar en SecureStore (encriptado)
       await SecureStore.setItemAsync(AUTH_STORAGE_KEY, JSON.stringify(autenticacionContext));
       await SecureStore.setItemAsync(TOKEN_STORAGE_KEY, jwtToken);
 
-      console.log('[AuthService] Login exitoso:', autenticacionContext);
       return { success: true, user: autenticacionContext };
     } catch (error: any) {
+      return { success: false, error: error?.message || 'Error de conexión con el servidor' };
+    }
+  }
+
+  /**
+   * Realiza registro de un nuevo cliente público contra el backend
+   */
+  static async register(name: string, email: string, password: string, phone?: string, gender?: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+
+      const parts = String(name || '').trim().split(' ');
+      const firstName = parts[0] || '';
+      const lastName = parts.slice(1).join(' ') || '-';
+
+      const payload: Record<string, string> = {
+        firstName,
+        lastName,
+        email: String(email || '').trim().toLowerCase(),
+        password: String(password || ''),
+      };
+      if (phone?.trim()) payload.phone = phone.trim();
+      if (gender) payload.gender = gender;
+
+      const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        
+        // Mapear los errores 400 (HttpExceptionFilter de NestJS)
+        if (response.status === 400 && errorData && errorData.message) {
+          const rawMessage = errorData.message;
+          if (Array.isArray(rawMessage)) {
+            return { success: false, error: rawMessage.join('\n• ') };
+          }
+          return { success: false, error: String(rawMessage) };
+        }
+
+        const errorMsg = errorData?.message || `HTTP ${response.status}`;
+        return { success: false, error: errorMsg };
+      }
+
+      return { success: true };
+    } catch (error: any) {
       const errorMsg = error?.message || 'Error de conexión con el servidor';
-      console.error('[AuthService] Error:', errorMsg);
+      console.warn('[AuthService] Error en register:', errorMsg);
       return { success: false, error: errorMsg };
+    }
+  }
+
+  /**
+   * POST /api/auth/forgot-password
+   * Solicita OTP al email del usuario.
+   */
+  static async forgotPassword(email: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        return { success: false, error: body?.message ?? `Error ${res.status}` };
+      }
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e?.message ?? 'Error de conexión' };
+    }
+  }
+
+  /**
+   * POST /api/auth/reset-password
+   * Valida OTP y establece la nueva contraseña.
+   */
+  static async resetPassword(
+    email: string,
+    otpCode: string,
+    newPassword: string,
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          email:       email.trim().toLowerCase(),
+          otpCode:     String(otpCode).trim(),
+          newPassword,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        return { success: false, error: body?.message ?? `Error ${res.status}` };
+      }
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e?.message ?? 'Error de conexión' };
     }
   }
 
@@ -141,7 +222,7 @@ export class AuthService {
       const stored = await SecureStore.getItemAsync(AUTH_STORAGE_KEY);
       return stored ? JSON.parse(stored) : null;
     } catch (e) {
-      console.error('[AuthService] Error recuperando usuario:', e);
+      console.warn('[AuthService] Error recuperando usuario:', e);
       return null;
     }
   }
@@ -153,7 +234,7 @@ export class AuthService {
     try {
       return await SecureStore.getItemAsync(TOKEN_STORAGE_KEY);
     } catch (e) {
-      console.error('[AuthService] Error recuperando token:', e);
+      console.warn('[AuthService] Error recuperando token:', e);
       return null;
     }
   }
@@ -165,9 +246,9 @@ export class AuthService {
     try {
       await SecureStore.deleteItemAsync(AUTH_STORAGE_KEY);
       await SecureStore.deleteItemAsync(TOKEN_STORAGE_KEY);
-      console.log('[AuthService] Logout completado');
+      await SecureStore.deleteItemAsync(PROFILE_CACHE_KEY);
     } catch (e) {
-      console.error('[AuthService] Error en logout:', e);
+      console.warn('[AuthService] Error en logout:', e);
     }
   }
 
@@ -178,5 +259,64 @@ export class AuthService {
     const user = await this.getCurrentUser();
     const token = await this.getToken();
     return !!(user && token);
+  }
+
+  /**
+   * GET /api/users/:userId — trae firstName, lastName, email, gender, role del backend.
+   */
+  static async fetchUserProfile(): Promise<Record<string, any> | null> {
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 5000);
+    try {
+      const token = await this.getToken();
+      const user  = await this.getCurrentUser();
+      if (!token || !user?.userId) return null;
+
+      const res = await fetch(`${API_BASE_URL}/api/users/${user.userId}`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+        signal: controller.signal,
+      });
+      clearTimeout(tid);
+      if (!res.ok) {
+        console.warn('[AuthService] fetchUserProfile status:', res.status);
+        return null;
+      }
+      const body = await res.json();
+      return body?.data ?? body ?? null;
+    } catch (e: any) {
+      clearTimeout(tid);
+      if (e?.name !== 'AbortError') {
+        console.warn('[AuthService] fetchUserProfile error:', e?.message ?? e);
+      }
+      return null;
+    }
+  }
+
+  static async saveProfileCache(profile: Record<string, any>): Promise<void> {
+    try {
+      await SecureStore.setItemAsync(PROFILE_CACHE_KEY, JSON.stringify(profile));
+    } catch {}
+  }
+
+  static async getProfileCache(): Promise<Record<string, any> | null> {
+    try {
+      const raw = await SecureStore.getItemAsync(PROFILE_CACHE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  static async getTokenPayload(): Promise<Record<string, any> | null> {
+    try {
+      const token = await this.getToken();
+      if (!token) return null;
+      // atob() nativo — sin Buffer (compatible iOS/Hermes/React Native)
+      const base64Url = token.trim().split('.')[1];
+      const base64    = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      return JSON.parse(atob(base64));
+    } catch {
+      return null;
+    }
   }
 }

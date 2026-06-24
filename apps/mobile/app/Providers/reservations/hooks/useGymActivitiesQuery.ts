@@ -2,15 +2,15 @@ import { useQuery } from '@tanstack/react-query';
 import { reservationApi } from '../api/reservation.api';
 import { GymActivity, GymActivitySchedule, DayOfWeek } from '../api/reservation.types';
 
-// Mapa de abreviaturas del backend a nombre completo en español
-export const DAY_LABELS: Record<DayOfWeek, string> = {
-  LUN: 'Lunes',
-  MAR: 'Martes',
-  MIE: 'Miércoles',
-  JUE: 'Jueves',
-  VIE: 'Viernes',
-  SAB: 'Sábado',
-  DOM: 'Domingo',
+// Nombres de día del backend (completo) → label formateado en español
+export const DAY_LABELS: Record<string, string> = {
+  LUNES: 'Lunes',     LUN: 'Lunes',
+  MARTES: 'Martes',   MAR: 'Martes',
+  MIERCOLES: 'Miércoles', MIE: 'Miércoles',
+  JUEVES: 'Jueves',   JUE: 'Jueves',
+  VIERNES: 'Viernes', VIE: 'Viernes',
+  SABADO: 'Sábado',   SAB: 'Sábado',
+  DOMINGO: 'Domingo', DOM: 'Domingo',
 };
 
 // Actividad enriquecida para la UI
@@ -25,15 +25,20 @@ export const useGymActivitiesQuery = (gymId: number | undefined) => {
     queryFn: async (): Promise<GymActivityUI[]> => {
       if (!gymId) return [];
 
-      // 1. Obtener actividades del gimnasio
-      const activities = await reservationApi.getGymActivities(gymId);
+      // 1. Obtener actividades del gimnasio (devuelve GymActivity[] plano)
+      const activitiesList: GymActivity[] = await reservationApi.getGymActivities(gymId);
 
       // 2. Para cada actividad, si no trae schedules embebidos, los pedimos por separado
       const enriched = await Promise.all(
-        activities.map(async (activity) => {
-          let schedules: GymActivitySchedule[] = activity.schedules ?? [];
+        activitiesList.map(async (activity) => {
+          // Lectura defensiva: el backend puede usar 'schedules' o 'gymActivitySchedules'
+          let schedules: GymActivitySchedule[] =
+            (activity as any).gymActivitySchedules ??
+            activity.schedules ??
+            [];
 
-          if (schedules.length === 0) {
+          if (schedules.length === 0 && activity.isFreeAccess !== true) {
+            // Solo buscar horarios separados si la actividad es programada
             try {
               schedules = await reservationApi.getActivitySchedules(activity.id);
             } catch {
@@ -51,10 +56,11 @@ export const useGymActivitiesQuery = (gymId: number | undefined) => {
         })
       );
 
-      return enriched.filter((a) => a.availableSchedule !== null);
+      return enriched;
     },
     enabled: !!gymId,
-    staleTime: 1000 * 60 * 5, // 5 min de caché
+    staleTime: 0,
+    refetchOnMount: true,
     retry: 1,
   });
 };

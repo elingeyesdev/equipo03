@@ -1,196 +1,521 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  ScrollView,
-  SafeAreaView,
-  Alert,
-  Platform,
-  Keyboard,
-  KeyboardAvoidingView,
+  View, Text, StyleSheet, TouchableOpacity, TextInput,
+  ScrollView, Alert, Platform, Keyboard, KeyboardAvoidingView, ActivityIndicator, Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '../../../app/Shared/hooks/useAuth';
+import { NumericInput } from '../../../app/Shared/components/ui/NumericInput';
+import authAxios from '../../../app/Providers/auth/authAxios';
+import { calculateIMC, getIMCCategory, calculateAge } from '../../../app/Shared/utils/healthMetrics';
+
+type ExperienceLevel = 'PRINCIPIANTE' | 'INTERMEDIO' | 'AVANZADO';
+type SavingSection   = 'basic' | 'metrics' | 'medical' | null;
 
 const AVATARS = [
-  { id: '1', icon: 'face-man-profile', name: 'Man 1' },
-  { id: '2', icon: 'face-woman-profile', name: 'Woman 1' },
-  { id: '3', icon: 'robot-outline', name: 'Robot' },
-  { id: '4', icon: 'incognito', name: 'Ghost' },
-  { id: '5', icon: 'alien-outline', name: 'Alien' },
-  { id: '6', icon: 'cat', name: 'Cat' },
-  { id: '7', icon: 'fire', name: 'Fuego' },
-  { id: '8', icon: 'crown', name: 'Corona' },
-  { id: '9', icon: 'star', name: 'Estrella' },
+  { id: '1', icon: 'face-man-profile'  },
+  { id: '2', icon: 'face-woman-profile' },
+  { id: '3', icon: 'robot-outline'      },
+  { id: '4', icon: 'incognito'          },
+  { id: '5', icon: 'alien-outline'      },
+  { id: '6', icon: 'cat'               },
+  { id: '7', icon: 'fire'              },
+  { id: '8', icon: 'crown'             },
+  { id: '9', icon: 'star'              },
 ];
 
 export const MisDatosPersonalesScreen = () => {
-  const { user, updateProfile } = useAuth();
-  const navigation = useNavigation();
+  const navigation                              = useNavigation();
+  const { user, updateProfile, logout }          = useAuth();
+  const isGerente                               = user?.role === 'GERENTE';
+  const p                                       = (user as any)?.profile;
 
-  const [username, setUsername] = useState(user?.profile?.username || user?.email?.split('@')[0] || '');
-  const [firstName, setFirstName] = useState(user?.profile?.firstName || '');
-  const [lastName, setLastName] = useState(user?.profile?.lastName || '');
-  const [gender, setGender] = useState(user?.profile?.gender || 'Masculino');
-  const [favoriteSports, setFavoriteSports] = useState(user?.profile?.favoriteSports || '');
-  const [selectedAvatar, setSelectedAvatar] = useState(user?.profile?.avatarIcon || 'face-man-profile');
-  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+  const [isEditing,          setIsEditing]          = useState(false);
+  const [username,           setUsername]           = useState<string>(p?.username || (user as any)?.email?.split('@')[0] || '');
+  const [gender,             setGender]             = useState<string>(p?.gender   || 'Masculino');
+  const [favoriteSports,     setFavoriteSports]     = useState<string>(
+    Array.isArray(p?.favoriteSports) ? p.favoriteSports.join(', ') : p?.favoriteSports || ''
+  );
+  const [selectedAvatar,     setSelectedAvatar]     = useState<string>(p?.avatarIcon || 'face-man-profile');
+  const [medicalConditions,  setMedicalConditions]  = useState<string>(p?.medicalConditions || '');
 
+  const pm = (p?.physicalMetrics ?? p) as any;
+  const [weightKg,           setWeightKg]           = useState<string>(String(pm?.weightKg          ?? ''));
+  const [heightCm,           setHeightCm]           = useState<string>(String(pm?.heightCm          ?? ''));
+  const [bodyFatPercentage,  setBodyFatPercentage]  = useState<string>(String(pm?.bodyFatPercentage ?? ''));
+  const [waistCm,            setWaistCm]            = useState<string>(String(pm?.waistCm           ?? ''));
+  const [experienceLevel,    setExperienceLevel]    = useState<ExperienceLevel>(
+    (pm?.experienceLevel ?? 'PRINCIPIANTE') as ExperienceLevel
+  );
+  const [age,                setAge]                = useState<string>(
+    p?.age != null ? String(p.age) : (p?.birthDate ? String(calculateAge(p.birthDate)) : '')
+  );
+
+  // IMC reactivo (solo lectura)
+  const imcResult   = calculateIMC(Number(weightKg), Number(heightCm));
+  const imcCategory = getIMCCategory(imcResult);
+  const imcFloat    = parseFloat(imcResult);
+  const imcColor    = imcFloat >= 18.5 && imcFloat <= 24.9 ? '#00E5A3' : '#FF5E00';
+
+  const [isKeyboardVisible,  setKeyboardVisible]    = useState(false);
+  const [isFetching,         setIsFetching]         = useState(!p);
+  const [savingSection,      setSavingSection]      = useState<SavingSection>(null);
+  const [errors,             setErrors]             = useState<Record<string, string>>({});
+
+
+  // ── Teclado ──────────────────────────────────────────────────────────────────
   useEffect(() => {
-    // Listeners para el teclado en iOS
-    const keyboardDidShowListener = Keyboard.addListener(
-      'keyboardDidShow',
-      () => setKeyboardVisible(true)
-    );
-    const keyboardDidHideListener = Keyboard.addListener(
-      'keyboardDidHide',
-      () => setKeyboardVisible(false)
-    );
-
-    return () => {
-      keyboardDidHideListener.remove();
-      keyboardDidShowListener.remove();
-    };
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    return () => { show.remove(); hide.remove(); };
   }, []);
 
-  const handleSave = () => {
-    updateProfile({
-      username,
-      firstName,
-      lastName,
-      gender,
-      favoriteSports,
-      avatarIcon: selectedAvatar,
-    });
-    Alert.alert('Éxito', 'Perfil actualizado correctamente');
-    navigation.goBack();
+  // ── Hidratación desde contexto ───────────────────────────────────────────────
+  useEffect(() => {
+    const prof: any = (user as any)?.profile;
+    if (!prof) return;
+    const metrics: any = prof?.physicalMetrics ?? {};
+    setUsername(prof.username || (user as any)?.email?.split('@')[0] || '');
+    setGender(prof.gender || 'Masculino');
+    setSelectedAvatar(prof.avatarIcon || 'face-man-profile');
+    setFavoriteSports(
+      Array.isArray(prof.favoriteSports) ? prof.favoriteSports.join(', ') : prof.favoriteSports || ''
+    );
+    setMedicalConditions(prof.medicalConditions || '');
+    setWeightKg(String(metrics.weightKg          ?? ''));
+    setHeightCm(String(metrics.heightCm          ?? ''));
+    setBodyFatPercentage(String(metrics.bodyFatPercentage ?? ''));
+    setWaistCm(String(metrics.waistCm           ?? ''));
+    setExperienceLevel((metrics.experienceLevel  ?? 'PRINCIPIANTE') as ExperienceLevel);
+    const serverAge = prof.age ?? metrics.age;
+    if (serverAge != null) setAge(String(serverAge));
+  }, [user]);
+
+  // ── Hidratación desde GET /api/auth/me ───────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    const fetchProfile = async () => {
+      try {
+        const res = await authAxios.get('/api/auth/me');
+        if (cancelled) return;
+        const data: any    = res.data?.data ?? res.data;
+        const prof: any    = data?.profile ?? {};
+        const metrics: any = prof?.physicalMetrics ?? {};
+        setUsername(prof.username || data?.email?.split('@')[0] || '');
+        setGender(prof.gender || 'Masculino');
+        setSelectedAvatar(prof.avatarIcon || 'face-man-profile');
+        setFavoriteSports(
+          Array.isArray(prof.favoriteSports) ? prof.favoriteSports.join(', ') : prof.favoriteSports || ''
+        );
+        setMedicalConditions(prof.medicalConditions || '');
+        setWeightKg(String(metrics.weightKg          ?? ''));
+        setHeightCm(String(metrics.heightCm          ?? ''));
+        setBodyFatPercentage(String(metrics.bodyFatPercentage ?? ''));
+        setWaistCm(String(metrics.waistCm           ?? ''));
+        setExperienceLevel((metrics.experienceLevel  ?? 'PRINCIPIANTE') as ExperienceLevel);
+        const serverAge = prof.age ?? metrics.age;
+    if (serverAge != null) setAge(String(serverAge));
+      } catch (err: any) {
+        const status = err?.response?.status;
+        if (status === 401) return; // manejado por axios401Guard
+        if (status === 404) {
+          Alert.alert('Sesión expirada', 'Tu sesión ya no es válida. Inicia sesión de nuevo.', [
+            { text: 'OK', onPress: () => logout() },
+          ]);
+        }
+      } finally {
+        if (!cancelled) setIsFetching(false);
+      }
+    };
+    fetchProfile();
+    return () => { cancelled = true; };
+  }, []);
+
+  // ── Fetch específico de métricas (endpoints dedicados) ───────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    const fetchMetrics = async () => {
+      try {
+        const [profileRes, metricsRes] = await Promise.allSettled([
+          authAxios.get('/api/users/me'),
+          authAxios.get('/api/users/me/metrics/latest'),
+        ]);
+
+        if (cancelled) return;
+
+        // 1. Peso viene de /metrics/latest
+        if (metricsRes.status === 'fulfilled') {
+          const m = metricsRes.value.data?.data ?? metricsRes.value.data;
+          if (m?.weightKg != null) setWeightKg(m.weightKg.toString());
+        }
+
+        // 2. Altura y edad vienen de /users/me
+        if (profileRes.status === 'fulfilled') {
+          const raw     = profileRes.value.data?.data ?? profileRes.value.data;
+          const profile = raw?.profile ?? raw;
+          if (profile?.heightCm != null) setHeightCm(profile.heightCm.toString());
+          const serverAge = profile?.age ?? raw?.age;
+          if (serverAge != null) setAge(String(serverAge));
+        }
+      } catch {
+        // silencioso — los datos del auth/me ya hidrataron el estado
+      }
+    };
+    fetchMetrics();
+    return () => { cancelled = true; };
+  }, []);
+
+  // ── PATCH helper ─────────────────────────────────────────────────────────────
+  const patchProfile = async (payload: Record<string, unknown>) => {
+    const res = await authAxios.patch('/api/users/me/profile', payload);
+    return res.data?.data ?? res.data;
   };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-      >
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
-          
-          {/* Avatar Selection */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Elige tu Avatar</Text>
-            <View style={styles.avatarGrid}>
-              {AVATARS.map((avatar) => (
-                <TouchableOpacity
-                  key={avatar.id}
-                  style={[
-                    styles.avatarOption,
-                    selectedAvatar === avatar.icon && styles.avatarSelected,
-                  ]}
-                  onPress={() => setSelectedAvatar(avatar.icon)}
-                >
-                  <MaterialCommunityIcons
-                    name={avatar.icon as any}
-                    size={40}
-                    color={selectedAvatar === avatar.icon ? '#f05b22' : '#ccc'}
-                  />
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
+  const handleApiError = (err: any) => {
+    const status = err?.response?.status;
+    if (status === 401) return; // manejado por axios401Guard
+    const msg = err?.response?.data?.message ?? 'No se pudo guardar.';
+    Alert.alert('Error', Array.isArray(msg) ? msg.join('\n') : msg);
+  };
 
-          {/* Info Form */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Información Básica</Text>
-              
-              {/* Botón para ocultar teclado (Solo iOS) */}
-              {Platform.OS === 'ios' && isKeyboardVisible && (
-                <TouchableOpacity 
-                  style={styles.dismissButton} 
-                  onPress={() => Keyboard.dismiss()}
-                >
-                  <Text style={styles.dismissButtonText}>LISTO</Text>
+  // ── Guardar info básica ───────────────────────────────────────────────────────
+  const handleSaveBasicInfo = async () => {
+    const sportsArray = favoriteSports.split(',').map(s => s.trim()).filter(Boolean);
+    setSavingSection('basic');
+    try {
+      await patchProfile({ gender, username, favoriteSports: sportsArray, avatarUrl: selectedAvatar });
+      updateProfile({ gender, username, favoriteSports: sportsArray as any, avatarUrl: selectedAvatar });
+      setIsEditing(false);
+      Alert.alert('Guardado', 'Información básica actualizada.');
+    } catch (err: any) {
+      handleApiError(err);
+    } finally {
+      setSavingSection(null);
+    }
+  };
+
+  // ── Guardar métricas ─────────────────────────────────────────────────────────
+  const handleSaveMetrics = async () => {
+    const parsedWeight = parseFloat(weightKg);
+    const parsedHeight = parseInt(heightCm, 10);
+    const newErrors: Record<string, string> = {};
+
+    if (isNaN(parsedWeight) || parsedWeight <= 0) {
+      newErrors.weight = 'Solo números permitidos';
+    }
+    if (isNaN(parsedHeight) || parsedHeight <= 0) {
+      newErrors.height = 'Solo números permitidos';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    setErrors({});
+
+    setSavingSection('metrics');
+    try {
+      // POST al endpoint dedicado de métricas con números estrictos
+      await authAxios.post('/api/users/me/metrics', {
+        weightKg: parsedWeight,
+        heightCm: parsedHeight,
+      });
+
+      const parsedAge = parseInt(age, 10);
+      if (parsedAge > 0) {
+        await patchProfile({ age: parsedAge }).catch(() => null);
+      }
+
+      updateProfile({
+        age: parsedAge > 0 ? parsedAge : undefined,
+        physicalMetrics: {
+          weightKg: parsedWeight,
+          heightCm: parsedHeight,
+        }
+      });
+
+      // Solo apaga edición si el servidor respondió OK — sin limpiar valores
+      setIsEditing(false);
+      Alert.alert('Éxito', 'Métricas actualizadas correctamente.');
+    } catch (err: any) {
+      handleApiError(err);
+      // isEditing permanece true — el usuario puede corregir y reintentar
+    } finally {
+      setSavingSection(null);
+    }
+  };
+
+  // ── Guardar condiciones médicas ───────────────────────────────────────────────
+  const handleSaveMedical = async () => {
+    setSavingSection('medical');
+    try {
+      await patchProfile({ medicalConditions });
+      updateProfile({ medicalConditions });
+      Alert.alert('Guardado', 'Condiciones médicas actualizadas.');
+    } catch (err: any) {
+      handleApiError(err);
+    } finally {
+      setSavingSection(null);
+    }
+  };
+
+  // ── Loading inicial ───────────────────────────────────────────────────────────
+  if (isFetching) {
+    return (
+      <SafeAreaView style={[s.container, s.centered]} edges={['top', 'bottom']}>
+        <ActivityIndicator size="large" color="#f05b22" />
+        <Text style={s.loadingText}>Cargando perfil...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={s.container} edges={['top', 'bottom']}>
+      <View style={s.topBar}>
+        <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
+          <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
+        </TouchableOpacity>
+        <Text style={s.topBarTitle}>Mis Datos Personales</Text>
+        <TouchableOpacity
+          style={s.editBtn}
+          onPress={() => setIsEditing(prev => !prev)}
+          disabled={savingSection !== null}
+        >
+          <MaterialCommunityIcons name={isEditing ? 'close' : 'pencil-outline'} size={22} color="#FF5E00" />
+        </TouchableOpacity>
+      </View>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={s.scrollContent} keyboardShouldPersistTaps="handled">
+
+          {/* ── Información Básica ── */}
+          <View style={s.section}>
+            <View style={s.sectionHeader}>
+              <Text style={s.sectionTitle}>Información Básica</Text>
+              {isEditing && Platform.OS === 'ios' && isKeyboardVisible && (
+                <TouchableOpacity style={s.dismissBtn} onPress={() => Keyboard.dismiss()}>
+                  <Text style={s.dismissBtnText}>LISTO</Text>
                 </TouchableOpacity>
               )}
             </View>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Nombre de Usuario</Text>
-              <TextInput
-                style={styles.input}
-                value={username}
-                onChangeText={setUsername}
-                placeholder="Tu nombre de usuario"
-                placeholderTextColor="#555"
-              />
-            </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Nombre</Text>
-              <TextInput
-                style={styles.input}
-                value={firstName}
-                onChangeText={setFirstName}
-                placeholder="Tu nombre"
-                placeholderTextColor="#555"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Apellido</Text>
-              <TextInput
-                style={styles.input}
-                value={lastName}
-                onChangeText={setLastName}
-                placeholder="Tu apellido"
-                placeholderTextColor="#555"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Género</Text>
-              <View style={styles.genderContainer}>
-                {['Masculino', 'Femenino', 'Otro'].map((g) => (
-                  <TouchableOpacity
-                    key={g}
-                    style={[styles.genderBtn, gender === g && styles.genderBtnSelected]}
-                    onPress={() => setGender(g)}
-                  >
-                    <Text style={[styles.genderBtnText, gender === g && styles.genderBtnTextSelected]}>
-                      {g}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+            {/* Avatar */}
+            {isEditing ? (
+              <>
+                <Text style={s.label}>Avatar</Text>
+                <View style={s.avatarGrid}>
+                  {AVATARS.map((av) => (
+                    <TouchableOpacity
+                      key={av.id}
+                      style={[s.avatarOption, selectedAvatar === av.icon && s.avatarSelected]}
+                      onPress={() => setSelectedAvatar(av.icon)}
+                    >
+                      <MaterialCommunityIcons
+                        name={av.icon as any}
+                        size={36}
+                        color={selectedAvatar === av.icon ? '#FF5E00' : '#B0B0B0'}
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            ) : (
+              <View style={s.avatarReadWrap}>
+                <View style={s.avatarReadBadge}>
+                  <MaterialCommunityIcons name={selectedAvatar as any} size={56} color="#FF5E00" />
+                </View>
               </View>
+            )}
+
+            {/* Nombre */}
+            <View style={s.field}>
+              <Text style={s.label}>Nombre de Usuario</Text>
+              {isEditing
+                ? <TextInput style={s.input} value={username} onChangeText={setUsername} placeholder="Tu nombre de usuario" placeholderTextColor="#B0B0B0" />
+                : <Text style={s.readValue}>{username || '—'}</Text>
+              }
             </View>
+
+            {/* Género */}
+            <View style={s.field}>
+              <Text style={s.label}>Género</Text>
+              {isEditing ? (
+                <View style={s.genderRow}>
+                  {['Masculino', 'Femenino', 'Otro'].map((g) => (
+                    <TouchableOpacity
+                      key={g}
+                      style={[s.genderBtn, gender === g && s.genderBtnActive]}
+                      onPress={() => setGender(g)}
+                    >
+                      <Text style={[s.genderBtnText, gender === g && s.genderBtnTextActive]}>{g}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : (
+                <Text style={s.readValue}>{gender || '—'}</Text>
+              )}
+            </View>
+
+            {/* Deportes */}
+            <View style={s.field}>
+              <Text style={s.label}>Deportes Favoritos</Text>
+              {isEditing
+                ? <TextInput
+                    style={[s.input, s.textArea]}
+                    value={favoriteSports}
+                    onChangeText={setFavoriteSports}
+                    placeholder="Ej: Calistenia, Natación, Yoga"
+                    placeholderTextColor="#B0B0B0"
+                    multiline
+                    numberOfLines={3}
+                  />
+                : <Text style={s.readValue}>{favoriteSports || '—'}</Text>
+              }
+            </View>
+
+            {isEditing && (
+              <TouchableOpacity
+                style={[s.saveBtn, savingSection === 'basic' && s.saveBtnOff]}
+                onPress={handleSaveBasicInfo}
+                disabled={savingSection !== null}
+                activeOpacity={0.85}
+              >
+                {savingSection === 'basic'
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={s.saveBtnText}>Guardar Info Básica</Text>
+                }
+              </TouchableOpacity>
+            )}
           </View>
 
-          {/* Favorite Sports */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Personalización</Text>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Deportes Favoritos</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={favoriteSports}
-                onChangeText={setFavoriteSports}
-                placeholder="Ej: Calistenia, Natación, Yoga..."
-                placeholderTextColor="#555"
-                multiline
-                numberOfLines={3}
-              />
-            </View>
-          </View>
+          {/* ── Métricas Físicas — solo clientes ── */}
+          {!isGerente && (
+            <View style={s.section}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+                <MaterialCommunityIcons name="chart-bar" size={15} color="#B0B0B0" />
+                <Text style={s.sectionTitle}>Métricas Físicas</Text>
+              </View>
 
-          <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-            <Text style={styles.saveBtnText}>Guardar Cambios</Text>
-          </TouchableOpacity>
+              {/* Fila 1: Peso + Altura */}
+              <View style={s.metricsRow}>
+                <View style={[s.field, s.metricHalf]}>
+                  <Text style={s.label}>PESO (kg)</Text>
+                  {isEditing
+                    ? <>
+                        <NumericInput 
+                          style={[s.input, errors.weight && { borderColor: '#FF3B30' }]} 
+                          value={weightKg} 
+                          onChangeText={(v) => { setWeightKg(v); if(errors.weight) setErrors(e => ({...e, weight: ''})); }} 
+                          placeholder="0.0" 
+                          placeholderTextColor="#B0B0B0" 
+                          keyboardType="decimal-pad" 
+                        />
+                        {!!errors.weight && <Text style={{ color: '#FF3B30', fontSize: 12, marginTop: 4 }}>{errors.weight}</Text>}
+                      </>
+                    : <View style={s.metricCard}><Text style={s.metricCardValue}>{weightKg || '—'}</Text></View>
+                  }
+                </View>
+                <View style={[s.field, s.metricHalf]}>
+                  <Text style={s.label}>ALTURA (cm)</Text>
+                  {isEditing
+                    ? <>
+                        <NumericInput 
+                          style={[s.input, errors.height && { borderColor: '#FF3B30' }]} 
+                          value={heightCm} 
+                          onChangeText={(v) => { setHeightCm(v); if(errors.height) setErrors(e => ({...e, height: ''})); }} 
+                          placeholder="0" 
+                          placeholderTextColor="#B0B0B0" 
+                          keyboardType="numeric" 
+                        />
+                        {!!errors.height && <Text style={{ color: '#FF3B30', fontSize: 12, marginTop: 4 }}>{errors.height}</Text>}
+                      </>
+                    : <View style={s.metricCard}><Text style={s.metricCardValue}>{heightCm || '—'}</Text></View>
+                  }
+                </View>
+              </View>
+
+              {/* Fila 2: Edad + IMC */}
+              <View style={s.metricsRow}>
+                <View style={[s.field, s.metricHalf]}>
+                  <Text style={s.label}>EDAD</Text>
+                  {isEditing ? (
+                    <TextInput
+                      style={[s.input, { textAlign: 'center', fontSize: 18, fontWeight: '700' }]}
+                      value={age}
+                      onChangeText={v => setAge(v.replace(/[^0-9]/g, ''))}
+                      keyboardType="numeric"
+                      maxLength={3}
+                      placeholder="Ej: 25"
+                      placeholderTextColor="#555"
+                    />
+                  ) : (
+                    <View style={s.metricCard}>
+                      <Text style={s.metricCardValue}>{age || '-'}</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* IMC — solo lectura */}
+                <View style={[s.field, s.metricHalf]}>
+                  <Text style={s.label}>IMC</Text>
+                  <View style={[s.metricCard, { opacity: 0.9 }]}>
+                    <Text style={[s.metricCardValue, { color: imcColor }]}>{imcResult}</Text>
+                    <Text style={[s.imcCategory, { color: imcColor }]}>{imcCategory}</Text>
+                  </View>
+                </View>
+              </View>
+
+              {isEditing && (
+                <TouchableOpacity
+                  style={[s.saveBtn, savingSection === 'metrics' && s.saveBtnOff]}
+                  onPress={handleSaveMetrics}
+                  disabled={savingSection !== null}
+                  activeOpacity={0.85}
+                >
+                  {savingSection === 'metrics'
+                    ? <ActivityIndicator color="#fff" size="small" />
+                    : <Text style={s.saveBtnText}>Guardar Métricas</Text>
+                  }
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+          {/* Modal de fecha eliminado — ahora se usa input directo de edad */}
+
+          {/* ── Condiciones Médicas ── */}
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>⚕️ Condiciones Médicas</Text>
+            <View style={s.field}>
+              <Text style={s.label}>Lesiones o condiciones de salud</Text>
+              {isEditing
+                ? <TextInput
+                    style={[s.input, s.textArea]}
+                    value={medicalConditions}
+                    onChangeText={setMedicalConditions}
+                    placeholder="Ej: Asma, lesión de rodilla, hipertensión..."
+                    placeholderTextColor="#B0B0B0"
+                    multiline
+                    numberOfLines={4}
+                  />
+                : <Text style={s.readValue}>{medicalConditions || '—'}</Text>
+              }
+            </View>
+            {isEditing && (
+              <TouchableOpacity
+                style={[s.saveBtn, savingSection === 'medical' && s.saveBtnOff]}
+                onPress={handleSaveMedical}
+                disabled={savingSection !== null}
+                activeOpacity={0.85}
+              >
+                {savingSection === 'medical'
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={s.saveBtnText}>Guardar Info Médica</Text>
+                }
+              </TouchableOpacity>
+            )}
+          </View>
 
         </ScrollView>
       </KeyboardAvoidingView>
@@ -198,124 +523,77 @@ export const MisDatosPersonalesScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 100, // Ajuste para que el botón de guardar sea visible al final
-  },
-  section: {
-    marginBottom: 30,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    color: '#ffffff',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  avatarGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  avatarOption: {
-    width: '30%',
-    aspectRatio: 1,
-    backgroundColor: '#1E1E1E',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  avatarSelected: {
-    borderColor: '#f05b22',
-    backgroundColor: '#2a1a15',
-  },
-  dismissButton: {
-    backgroundColor: '#1c1c1e',
-    paddingHorizontal: 15,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  dismissButtonText: {
-    color: '#f05b22',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    color: '#888',
-    fontSize: 14,
-    marginBottom: 8,
-    fontWeight: '600',
-  },
-  input: {
-    backgroundColor: '#161618',
-    borderRadius: 12,
-    padding: 15,
-    color: '#ffffff',
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  genderContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  genderBtn: {
-    flex: 1,
-    backgroundColor: '#161618',
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginHorizontal: 4,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  genderBtnSelected: {
-    backgroundColor: '#f05b22',
-    borderColor: '#f05b22',
-  },
-  genderBtnText: {
-    color: '#888',
-    fontWeight: '600',
-  },
-  genderBtnTextSelected: {
-    color: '#ffffff',
-  },
-  saveBtn: {
-    backgroundColor: '#f05b22',
-    paddingVertical: 18,
-    borderRadius: 16,
-    alignItems: 'center',
-    marginTop: 10,
-    shadowColor: '#f05b22',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  saveBtnText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
+const s = StyleSheet.create({
+  container:          { flex: 1, backgroundColor: '#0A0A0A' },
+  centered:           { justifyContent: 'center', alignItems: 'center' },
+  loadingText:        { color: '#B0B0B0', marginTop: 12, fontSize: 14 },
+  topBar:             { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
+  backBtn:            { width: 40, height: 40, backgroundColor: '#1C1C1E', borderRadius: 12, borderWidth: 1, borderColor: '#3A3A3C', justifyContent: 'center', alignItems: 'center' },
+  topBarTitle:        { flex: 1, color: '#fff', fontSize: 18, fontWeight: '700' },
+  editBtn:            { padding: 8 },
+  scrollContent:      { padding: 20, paddingBottom: 100 },
+
+  // ── Secciones
+  section:            { marginBottom: 28, backgroundColor: '#1C1C1E', borderRadius: 16, padding: 20, borderWidth: 1, borderColor: '#3A3A3C' },
+  sectionHeader:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  sectionTitle:       { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', marginBottom: 16 },
+
+  // ── Read mode
+  readValue:          { color: '#FFFFFF', fontSize: 16, paddingVertical: 4 },
+  avatarReadWrap:     { alignItems: 'center', marginBottom: 20 },
+  avatarReadBadge:    { width: 88, height: 88, borderRadius: 44, backgroundColor: '#0A0A0A', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#3A3A3C' },
+  metricsReadGrid:    { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8 },
+  metricCard:         { flex: 1, backgroundColor: '#0A0A0A', borderRadius: 12, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: '#3A3A3C' },
+  metricCardEditable: { borderColor: '#FF5E00' },
+  metricCardLabel:    { color: '#B0B0B0', fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 },
+  metricCardValue:    { color: '#FF5E00', fontSize: 22, fontWeight: '900' },
+  imcCategory:        { fontSize: 11, fontWeight: '700', marginTop: 4 },
+
+  // ── Modal fecha ──
+  modalOverlay:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 32 },
+  modalBox:           { backgroundColor: '#1C1C1E', borderRadius: 16, padding: 24, width: '100%', borderWidth: 1, borderColor: '#3A3A3C', gap: 12 },
+  modalTitle:         { color: '#fff', fontSize: 16, fontWeight: '800' },
+  modalHint:          { color: '#555', fontSize: 12 },
+  modalInput:         { backgroundColor: '#0A0A0A', borderRadius: 10, padding: 14, color: '#fff', fontSize: 16, borderWidth: 1, borderColor: '#3A3A3C' },
+  modalActions:       { flexDirection: 'row', gap: 10, marginTop: 4 },
+  modalCancel:        { flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#3A3A3C', alignItems: 'center' },
+  modalCancelTxt:     { color: '#888', fontWeight: '600' },
+  modalConfirm:       { flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: '#FF5E00', alignItems: 'center' },
+  modalConfirmTxt:    { color: '#fff', fontWeight: '700' },
+
+  // ── Edit mode — campos
+  field:              { marginBottom: 16 },
+  label:              { color: '#B0B0B0', fontSize: 13, marginBottom: 8, fontWeight: '600' },
+  input:              { backgroundColor: '#0A0A0A', borderRadius: 12, padding: 15, color: '#FFFFFF', fontSize: 16, borderWidth: 1, borderColor: '#3A3A3C' },
+  textArea:           { height: 90, textAlignVertical: 'top' },
+
+  // ── Avatar grid
+  avatarGrid:         { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 20 },
+  avatarOption:       { width: '30%', aspectRatio: 1, backgroundColor: '#0A0A0A', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 8, borderWidth: 1, borderColor: '#3A3A3C' },
+  avatarSelected:     { borderColor: '#FF5E00', backgroundColor: '#1C1C1E' },
+
+  // ── Género
+  genderRow:          { flexDirection: 'row', justifyContent: 'space-between' },
+  genderBtn:          { flex: 1, backgroundColor: '#0A0A0A', paddingVertical: 12, borderRadius: 12, alignItems: 'center', marginHorizontal: 4, borderWidth: 1, borderColor: '#3A3A3C' },
+  genderBtnActive:    { backgroundColor: '#FF5E00', borderColor: '#FF5E00' },
+  genderBtnText:      { color: '#B0B0B0', fontWeight: '600', fontSize: 13 },
+  genderBtnTextActive:{ color: '#FFFFFF' },
+
+  // ── Métricas edit
+  metricsRow:         { flexDirection: 'row', gap: 10 },
+  metricHalf:         { flex: 1 },
+  radioRow:           { flexDirection: 'row', gap: 8 },
+  radioItem:          { flex: 1, backgroundColor: '#0A0A0A', paddingVertical: 10, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#3A3A3C' },
+  radioItemActive:    { backgroundColor: '#FF5E00', borderColor: '#FF5E00' },
+  radioText:          { color: '#B0B0B0', fontSize: 11, fontWeight: 'bold' },
+  radioTextActive:    { color: '#FFFFFF' },
+
+  // ── Botones de guardar
+  saveBtn:            { alignSelf: 'flex-end', backgroundColor: '#FF5E00', paddingVertical: 9, paddingHorizontal: 18, borderRadius: 10, marginTop: 10, minWidth: 44, alignItems: 'center' },
+  saveBtnOff:         {},
+  saveBtnText:        { color: '#FFFFFF', fontWeight: 'bold', fontSize: 13 },
+
+  // ── Keyboard dismiss (iOS)
+  dismissBtn:         { backgroundColor: '#1C1C1E', paddingHorizontal: 14, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: '#3A3A3C' },
+  dismissBtnText:     { color: '#FF5E00', fontSize: 12, fontWeight: 'bold' },
 });

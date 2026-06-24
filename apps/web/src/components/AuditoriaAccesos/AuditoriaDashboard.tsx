@@ -18,39 +18,48 @@ export const AuditoriaDashboard: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [errorAcceso, setErrorAcceso] = useState<string | null>(null);
 
-  const cargarAccesos = useCallback(async (resetPage = false) => {
+  const cargarAccesos = useCallback(async (pageArg: number) => {
     if (!user) return;
     setLoading(true);
     setErrorAcceso(null);
-    const currentPage = resetPage ? 1 : page;
-    
+
+    const level = user.level ?? 0;
+    const resolvedGymId = level >= 4 && level < 10
+      ? (user.gymId || (user.brandId ? String(user.brandId) : undefined))
+      : (filtroSede || undefined);
+
     const result = await consultarAccesosUseCase.execute(
-      user, 
+      { ...user, userId: String(user.userId), brandId: user.brandId ? String(user.brandId) : undefined, level },
       {
-        gymId: filtroSede || undefined,
+        gymId: resolvedGymId,
         estado: filtroEstado || undefined,
-        page: currentPage,
+        page: pageArg,
         limit: 15
       }
     );
-    
+
     if (result.isRight()) {
       const { data, total } = result.value;
-      setAccesos(prev => resetPage ? data : [...prev, ...data]);
-      setHasMore(data.length > 0 && (currentPage * 15) < total);
+      setAccesos(prev => pageArg === 1 ? data : [...prev, ...data]);
+      setHasMore(data.length > 0 && (pageArg * 15) < total);
     } else {
-      // Manejo de Error RBAC
       setErrorAcceso(result.value.message);
       setAccesos([]);
       setHasMore(false);
     }
     setLoading(false);
-  }, [filtroSede, filtroEstado, page, user]);
+  }, [filtroSede, filtroEstado, user]);
 
   useEffect(() => {
-    cargarAccesos(true);
-    setPage(1);
-  }, [filtroSede, filtroEstado, user]);
+    void (async () => {
+      setPage(1);
+      await cargarAccesos(1);
+    })();
+  }, [filtroSede, filtroEstado, user, cargarAccesos]);
+
+  useEffect(() => {
+    if (page > 1) void (async () => { await cargarAccesos(page); })();
+  }, [page, cargarAccesos]);
 
   const cargarMas = () => {
     if (hasMore && !loading) {
@@ -62,12 +71,12 @@ export const AuditoriaDashboard: React.FC = () => {
     <div className="admin-layout">
       {/* Sidebar de Navegación Lateral */}
       <aside className="admin-sidebar">
-        <div className="brand">GymSync Pro</div>
+        <div className="brand">GymSync Suite</div>
         <nav className="nav-menu">
-          <button className="nav-item">📊 Resumen</button>
-          <button className="nav-item active">🛡️ Auditoría (Check-Ins)</button>
-          <button className="nav-item">👥 Usuarios</button>
-          <button className="nav-item">🏢 Sedes</button>
+          <button className="nav-item"> Resumen</button>
+          <button className="nav-item active"> Auditoría (Check-Ins)</button>
+          <button className="nav-item"> Usuarios</button>
+          <button className="nav-item"> Marcas</button>
         </nav>
       </aside>
 
@@ -93,7 +102,7 @@ export const AuditoriaDashboard: React.FC = () => {
             <div className="filtros-container">
               {user?.role === 'SUPER_ADMIN' && (
                 <select value={filtroSede} onChange={e => setFiltroSede(e.target.value)} className="filtro-select">
-                  <option value="">Todas las Sedes</option>
+                  <option value="">Todas las Marcas</option>
                   <option value="g1">Smart Fit</option>
                   <option value="g2">Premier</option>
                   <option value="g3">Bio Fitness</option>
@@ -120,7 +129,7 @@ export const AuditoriaDashboard: React.FC = () => {
                     <tr>
                       <th>ID</th>
                       <th>Usuario</th>
-                      <th>Sede</th>
+                      <th>Marca</th>
                       <th>Fecha/Hora</th>
                       <th>Metodo</th>
                       <th>Estado</th>

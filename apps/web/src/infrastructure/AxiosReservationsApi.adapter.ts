@@ -5,7 +5,8 @@ export class AxiosReservationsApiAdapter {
   async getReservations(filters: ReservationFilters = {}): Promise<Reservation[]> {
     try {
       const response = await apiClient.get('/reservations', { params: filters });
-      return Array.isArray(response.data) ? response.data : [];
+      const raw: any[] = Array.isArray(response.data) ? response.data : [];
+      return raw;
     } catch (error) {
       console.error('[Reservations API] Error fetching:', error);
       return [];
@@ -22,34 +23,33 @@ export class AxiosReservationsApiAdapter {
     }
   }
 
-  /**
-   * Acepta la entrada del usuario: marca la reserva como USED y registra el check-in.
-   * Intenta PUT /reservations/{id}/confirm — si no existe, usa POST /checkins.
-   */
-  async acceptReservation(reservationId: number, userId: number, gymId: number): Promise<{ success: boolean; error?: string }> {
+  async acceptReservation(reservationId: number, userId: number): Promise<{ success: boolean; error?: string }> {
+    const is404or405 = (e: any) => e?.response?.status === 404 || e?.response?.status === 405;
+
+    // Intento 1: PUT /reservations/{id}/confirm
     try {
-      // Primer intento: marcar directamente como USED
       await apiClient.put(`/reservations/${reservationId}/confirm`);
       return { success: true };
-    } catch (err: any) {
-      // Fallback: registrar como checkin si el endpoint de confirm no existe
-      if (err?.response?.status === 404) {
-        try {
-          await apiClient.post('/checkins', {
-            reservationId,
-            userId,
-            gymId,
-            checkInTime: new Date().toISOString(),
-            method: 'QR',
-          });
-          return { success: true };
-        } catch (innerErr: any) {
-          const msg = innerErr?.response?.data?.message || innerErr?.message || 'Error desconocido';
-          return { success: false, error: msg };
-        }
-      }
-      const msg = err?.response?.data?.message || err?.message || 'Error desconocido';
-      return { success: false, error: msg };
+    } catch (e: any) { if (!is404or405(e)) return { success: false, error: e?.response?.data?.message || e?.message }; }
+
+    // Intento 2: PATCH /reservations/{id} con status COMPLETADA
+    try {
+      await apiClient.patch(`/reservations/${reservationId}`, { status: 'COMPLETADA' });
+      return { success: true };
+    } catch (e: any) { if (!is404or405(e)) return { success: false, error: e?.response?.data?.message || e?.message }; }
+
+    // Intento 3: PUT /reservations/{id} con status COMPLETADA
+    try {
+      await apiClient.put(`/reservations/${reservationId}`, { status: 'COMPLETADA' });
+      return { success: true };
+    } catch (e: any) { if (!is404or405(e)) return { success: false, error: e?.response?.data?.message || e?.message }; }
+
+    // Intento 4: POST /checkins con los únicos campos que acepta el backend
+    try {
+      await apiClient.post('/checkins', { userId: String(userId), method: 'QR' });
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e?.response?.data?.message || e?.message || 'Error al registrar acceso' };
     }
   }
 
@@ -58,19 +58,36 @@ export class AxiosReservationsApiAdapter {
    * Devuelve la reserva si el token coincide con alguna activa.
    */
   async validateQrToken(token: string): Promise<Reservation | null> {
-    try {
-      // Formato: GS-RES-{id} o token directo del backend
-      const idMatch = token.match(/^GS-RES-(\d+)$/);
-      if (idMatch) {
-        const id = parseInt(idMatch[1]);
-        const response = await apiClient.get(`/reservations/${id}`);
+    // Formato legado GS-RES-{id}
+    const idMatch = token.match(/^GS-RES-(\d+)$/);
+    if (idMatch) {
+      try {
+        const response = await apiClient.get(`/reservations/${parseInt(idMatch[1])}`);
         return response.data;
-      }
-      // Si es un token directo, buscar por token
+      } catch { return null; }
+    }
+
+    // Intento 1: GET /reservations/validate (puede fallar con 403 para GERENTE)
+    try {
       const response = await apiClient.get('/reservations/validate', { params: { token } });
       return response.data;
-    } catch (error) {
-      console.error('[Reservations API] QR validation error:', error);
+    } catch (e: any) {
+      if (e?.response?.status !== 403 && e?.response?.status !== 401) {
+        console.error('[Reservations API] QR validation error:', e);
+        return null;
+      }
+    }
+
+    // Intento 2: POST /reservations/check-in/token (el GERENTE sí puede usar este endpoint)
+    try {
+      const response = await apiClient.post('/reservations/check-in/token', { token });
+      // Si el backend devuelve la reserva completa, usarla; si solo da {success}, retornar token parcial
+      const data = response.data?.reservation ?? response.data?.data ?? response.data;
+      if (data?.id) return data as Reservation;
+      // Reserva aceptada en un solo paso — retornar objeto mínimo para cerrar el flujo
+      return { id: data?.reservationId ?? 0, userId: 0, status: 'CONFIRMADA', reservationDate: '', createdAt: '', qrToken: token } as Reservation;
+    } catch (e: any) {
+      console.error('[Reservations API] QR check-in/token error:', e);
       return null;
     }
   }

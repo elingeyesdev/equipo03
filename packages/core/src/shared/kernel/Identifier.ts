@@ -1,10 +1,3 @@
-/**
- * Identifier — Value Object para IDs fuertemente tipados.
- * 
- * Evita confundir IDs de diferentes entidades (SedeId vs UsuarioId)
- * al darles un tipo explícito en tiempo de compilación.
- */
-
 export class Identifier {
   private constructor(private readonly _value: string) {}
 

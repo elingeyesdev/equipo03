@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import './LoginScreen.css';
@@ -47,7 +47,8 @@ const BACKGROUND_IMAGES = [
   'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?q=80&w=2070&auto=format&fit=crop',
   'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=2070&auto=format&fit=crop',
   'https://images.unsplash.com/photo-1593079831268-3381b0db4a77?q=80&w=2070&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?q=80&w=2070&auto=format&fit=crop'
+  'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?q=80&w=2070&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?q=80&w=1920'
 ];
 
 export const LoginScreen = () => {
@@ -106,10 +107,13 @@ export const LoginScreen = () => {
       </div>
 
       <nav className="landing-navbar">
-        <div className="navbar-logo">GymSync <span>Pro</span></div>
+        <div>
+          <div className="navbar-logo">GymSync <span>Suite</span></div>
+          <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '5px 14px', borderRadius: 6, background: 'rgba(255,255,255,0.1)', color: '#fff', textDecoration: 'none', fontSize: 12, fontWeight: 600 }}>← Inicio</Link>
+        </div>
         <AnimatePresence>
           {!showLogin && (
-            <motion.button 
+            <motion.button
               className="btn-ghost-cyan"
               onClick={() => setShowLogin(true)}
               initial={{ opacity: 0, x: 20 }}
@@ -137,7 +141,7 @@ export const LoginScreen = () => {
               <span className="hero-title-gradient">Gestión Fitness</span>
             </h1>
             <p className="hero-subtitle">
-              La plataforma corporativa integral para administrar sedes, usuarios y actividades con máxima eficiencia.
+              La plataforma corporativa integral para administrar marcas, usuarios y actividades con máxima eficiencia.
             </p>
           </motion.div>
         ) : (
@@ -149,24 +153,26 @@ export const LoginScreen = () => {
             exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
             transition={{ duration: 0.4 }}
           >
-            <motion.div 
-              className="login-card"
+            <motion.div
+              className="w-full max-w-md bg-white dark:bg-bg-surface border border-slate-200 dark:border-bg-deep rounded-2xl p-8 relative"
               initial={{ scale: 0.9, y: 20, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.9, y: 20, opacity: 0 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
             >
-              <button 
-                className="close-btn" 
+              <button
+                className="close-btn"
                 onClick={() => setShowLogin(false)}
                 title="Volver"
               >
                 <XIcon size={24} />
               </button>
 
-              <div className="brand-logo-small">GymSync <span>Pro</span></div>
-              <h1 className="login-title">Acceso Corporativo</h1>
-              <p className="login-subtitle">Introduce tus credenciales para acceder al sistema.</p>
+              <div className="text-xl font-extrabold text-slate-900 dark:text-white text-center mb-1 tracking-tight">
+                GymSync <span style={{ color: '#F97316' }}>Suite</span>
+              </div>
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-white text-center">Acceso Corporativo</h1>
+              <p className="text-sm text-slate-500 dark:text-gray-400 text-center mt-2 mb-6">Introduce tus credenciales para acceder al sistema.</p>
               
               {error && (
                 <motion.div 
@@ -183,28 +189,30 @@ export const LoginScreen = () => {
                   <div className="input-icon">
                     <MailIcon size={18} />
                   </div>
-                  <input 
-                    type="email" 
+                  <input
+                    type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="admin@gymsync.com" 
-                    required 
+                    placeholder="admin@gymsync.com"
+                    required
+                    className="w-full bg-slate-50 dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-white rounded-lg pl-11 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all placeholder:text-slate-400 dark:placeholder:text-gray-500"
                   />
                 </div>
                 <div className="input-group">
                   <div className="input-icon">
                     <LockIcon size={18} />
                   </div>
-                  <input 
-                    type={showPassword ? "text" : "password"} 
+                  <input
+                    type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••" 
-                    required 
+                    placeholder="••••••••"
+                    required
+                    className="w-full bg-slate-50 dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-white rounded-lg pl-11 pr-11 py-3 focus:outline-none focus:ring-2 focus:ring-[#2ecc71] transition-all placeholder:text-slate-400 dark:placeholder:text-gray-500"
                   />
-                  <button 
-                    type="button" 
-                    className="password-toggle-btn" 
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
                     onClick={() => setShowPassword(!showPassword)}
                     tabIndex={-1}
                     title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
@@ -213,9 +221,18 @@ export const LoginScreen = () => {
                   </button>
                 </div>
                 <button type="submit" className="btn-login" disabled={isSubmitting}>
-                  {isSubmitting ? 'Verificando credenciales...' : 'Ingresar al Dashboard'}
+                  {isSubmitting ? 'Verificando...' : 'Iniciar Sesión'}
                 </button>
               </form>
+              <div className="text-sm text-slate-600 dark:text-gray-400 text-center mt-6">
+                ¿No tienes una cuenta?{' '}
+                <span
+                  onClick={() => navigate('/register')}
+                  style={{ color: '#38BDF8', cursor: 'pointer', fontWeight: 600, textDecoration: 'underline' }}
+                >
+                  Regístrate aquí
+                </span>
+              </div>
             </motion.div>
           </motion.div>
         )}

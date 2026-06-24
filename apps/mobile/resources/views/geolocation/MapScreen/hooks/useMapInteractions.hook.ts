@@ -5,43 +5,22 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
-import MapView, { Region } from 'react-native-maps';
 import { Coordenadas } from '@gymsync/core';
+import { LeafletMapHandle } from '../../../geolocation/LeafletMap/LeafletMapView';
 
 export const useMapInteractions = () => {
-  const mapRef = useRef<MapView>(null);
-  const [currentRegion, setCurrentRegion] = useState<Region | null>(null);
+  const mapRef = useRef<LeafletMapHandle>(null);
+  const [currentRegion, setCurrentRegion] = useState<{ lat: number; lng: number } | null>(null);
 
-  /**
-   * Centra el mapa en unas coordenadas específicas con animación.
-   */
   const centrarEnCoordenadas = useCallback((coordenadas: Coordenadas, zoom?: number) => {
-    if (mapRef.current) {
-      mapRef.current.animateToRegion({
-        latitude: coordenadas.latitude,
-        longitude: coordenadas.longitude,
-        latitudeDelta: zoom ?? 0.02,
-        longitudeDelta: zoom ?? 0.02,
-      }, 500);
-    }
+    mapRef.current?.flyTo(coordenadas.latitude, coordenadas.longitude, zoom ? 1 / zoom * 10 : 15);
   }, []);
 
-  /**
-   * Ajusta el mapa para mostrar todas las coordenadas proporcionadas.
-   */
-  const ajustarAMarcadores = useCallback((coordenadas: Coordenadas[]) => {
-    if (mapRef.current && coordenadas.length > 0) {
-      mapRef.current.fitToCoordinates(
-        coordenadas.map(c => c.toMapCoordinate()),
-        {
-          edgePadding: { top: 100, right: 50, bottom: 200, left: 50 },
-          animated: true,
-        }
-      );
-    }
+  const ajustarAMarcadores = useCallback((_coordenadas: Coordenadas[]) => {
+    // fitToCoordinates not supported in Leaflet WebView mode
   }, []);
 
-  const onRegionChange = useCallback((region: Region) => {
+  const onRegionChange = useCallback((region: { lat: number; lng: number }) => {
     setCurrentRegion(region);
   }, []);
 

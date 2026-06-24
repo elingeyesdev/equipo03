@@ -10,8 +10,11 @@ export interface SubscriptionStatus {
   isActive: boolean;
 }
 
-// Días de la semana tal como los devuelve el backend
-export type DayOfWeek = 'LUN' | 'MAR' | 'MIE' | 'JUE' | 'VIE' | 'SAB' | 'DOM';
+// Días de la semana tal como los almacena el backend
+// Acepta tanto nombre completo (LUNES) como abreviación (LUN) por resiliencia
+export type DayOfWeek =
+  | 'LUNES'    | 'MARTES'  | 'MIERCOLES' | 'JUEVES' | 'VIERNES' | 'SABADO'    | 'DOMINGO'
+  | 'LUN'      | 'MAR'     | 'MIE'       | 'JUE'    | 'VIE'     | 'SAB'       | 'DOM';
 
 export interface GymActivitySchedule {
   id: number;
@@ -22,6 +25,15 @@ export interface GymActivitySchedule {
   endTime: string;
   maxAttendees: number;
   isRecurring: boolean;
+  // Instructor populado por el backend (via leftJoinAndSelect)
+  instructor?: {
+    id: number;
+    email?: string;
+    profile?: {
+      firstName?: string;
+      lastName?: string;
+    };
+  };
 }
 
 export interface GymActivity {
@@ -31,6 +43,7 @@ export interface GymActivity {
   description: string;
   defaultDurationMin: number;
   isActive: boolean;
+  isFreeAccess?: boolean;
   gym: {
     id: number;
     name: string;
@@ -39,15 +52,23 @@ export interface GymActivity {
     isActive: boolean;
     isOpen: boolean;
   };
-  schedules: GymActivitySchedule[];
+  // El backend serializa como 'schedules' (propiedad TypeORM).
+  // Se acepta también 'gymActivitySchedules' por si cambia el naming.
+  schedules?: GymActivitySchedule[];
+  gymActivitySchedules?: GymActivitySchedule[];
 }
 
-// Payload exacto según el CreateReservationDto del Swagger
 export interface CreateReservationPayload {
-  userId: number;                // REQUERIDO por el backend
-  gymActivityScheduleId: number; // ID del horario de la actividad
-  reservationDate: string;       // Formato: "YYYY-MM-DD"
-  status?: string;               // Opcional: "CONFIRMED" (default del backend)
+  gymActivityScheduleId: number;
+  reservationDate: string;
+}
+
+export interface CreateFreeReservationPayload {
+  gymId: number;
+  activityId: number;   // REQUERIDO por el backend para flujo isFreeAccess=true
+  reservationDate: string;
+  startTime: string;    // formato HH:mm
+  endTime: string;      // formato HH:mm
 }
 
 export interface ReservationResponse {
@@ -61,26 +82,42 @@ export interface ReservationResponse {
 
 export interface UserReservation {
   id: number;
-  status: 'CONFIRMADA' | 'CANCELADA' | 'USADA' | 'CONFIRMED';
+  status: 'CONFIRMADA' | 'CANCELADA' | 'USADA' | 'USED' | 'CONFIRMED' | 'COMPLETADA' | 'CANCELLED' | 'PENDIENTE';
   reservationDate: string;
   qrToken?: string;
   cancelledAt?: string | null;
   canCancel?: boolean;
-  // Mapeados desde gymActivitySchedule.gymActivity
+
+  // Discriminador de flujo
+  isFreeAccess?: boolean;      // true = Cardio/libre, false = Zumba/programada
+
+  // Datos comunes
   activityName?: string;
   activityDescription?: string;
   gymId?: number;
-  gymName?: string;        // No viene en el response, se deja vacío
-  startTime?: string;      // "HH:mm:ss"
+  gymName?: string;        // nombre de la sucursal (si el backend lo popula en gym.name)
+  createdAt?: string;
+
+  // Tiempos — libre: elegidos por el usuario; programada: copiados del Schedule
+  startTime?: string;          // "HH:mm"
   endTime?: string;
-  dayOfWeek?: string;      // "SAB", "LUN", etc.
+
+  // Solo programada
+  dayOfWeek?: string;          // "SAB", "LUN", etc.
+  instructorName?: string;     // firstName + lastName del instructor
+  instructorPhone?: string | null;
+  gerentePhone?: string | null;
 }
 
 // Mapa de errores personalizado para la UI
 export const ERROR_MAP: Record<string, string> = {
-  SUBSCRIPTION_INACTIVE: 'Necesitas una membresía activa para reservar.',
-  SLOT_FULL: 'Este horario ya está agotado.',
-  DUPLICATE_RESERVATION: 'Ya tienes una reserva para este horario.',
-  TOO_CLOSE_TO_START: 'No se pueden reservar clases con menos de 1h de anticipación.',
-  CANCEL_WINDOW_EXPIRED: 'El plazo de cancelación gratuita ha expirado.',
+  SUBSCRIPTION_INACTIVE:  'Necesitas una membresía activa para reservar.',
+  SLOT_FULL:              'Este horario ya está agotado.',
+  DUPLICATE_RESERVATION:  'Ya tienes una reserva activa para esta actividad en esa fecha. Revisa "Mis Reservas".',
+  TOO_CLOSE_TO_START:     'No se pueden reservar clases con menos de 1h de anticipación.',
+  CANCEL_WINDOW_EXPIRED:  'El plazo de cancelación gratuita ha expirado.',
+  // Variantes en español del backend
+  RESERVA_DUPLICADA:      'Ya tienes una reserva activa para esta actividad en esa fecha. Revisa "Mis Reservas".',
+  CUPO_AGOTADO:           'Este horario ya está agotado.',
+  SUSCRIPCION_INACTIVA:   'Necesitas una membresía activa para reservar.',
 };

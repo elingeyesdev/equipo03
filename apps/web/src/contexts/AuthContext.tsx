@@ -1,28 +1,34 @@
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useEffect,
+} from 'react';
 import type { UserRole } from '@gymsync/core';
 import { apiClient } from '../infrastructure/api.config';
-import { VALID_ROLES, ROLE_ID_TO_NAME } from '../config/rbac.constants';
+import { VALID_ROLES, ROLE_ID_TO_NAME, DB_ROLES } from '../config/rbac.constants';
 
-// ─── Tipo extendido de usuario (solo para la app web) ────────────────────────
-// Extiende el contrato mínimo de @gymsync/core con `id` numérico y `roleId`,
-// sin modificar el paquete compartido.
 export interface WebUser {
-  /** ID numérico del usuario (= sub del JWT). Campo único y consistente. */
   id: number;
-  /** Nombre del rol en mayúsculas, derivado del JWT. */
+  userId: number;
   role: UserRole;
-  /** ID numérico del rol en la BD (sincronizado con DB_ROLES). */
   roleId: number;
-  /** ID del gimnasio asignado. Solo presente en roles con scope de sede. */
+  level: number;
   gymId?: string;
+  brandId?: number;
+  brandName?: string;
+  firstName?: string;
+  lastName?: string;
+  gymName?: string;
 }
 
 interface AuthState {
   isAuthenticated: boolean;
   user: WebUser | null;
   login: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -40,52 +46,101 @@ function decodeJwtPayload(token: string): Record<string, any> {
   }
 }
 
-// ─── Helper: normaliza el nombre del rol a un UserRole válido ─────────────────
-// Fuente de verdad: campo `role` del JWT firmado por el backend.
-// Si no existe, intenta construirlo desde `roleId` usando el mapa de BD.
-// Nunca usa heurísticas de email.
-function resolveRole(jwtPayload: Record<string, any>, userData: Record<string, any>): UserRole {
-  // 1. Campo `role` en el JWT (fuente primaria — asignado por NestJS/Passport)
+// ─── Helpers de resolución de identidad ──────────────────────────────────────
+
+function resolveRole(
+  jwtPayload: Record<string, any>,
+  userData: Record<string, any>,
+): UserRole {
+  const rolesEntry = Array.isArray(jwtPayload.roles)
+    ? jwtPayload.roles[0]
+    : undefined;
   let rawRole: string =
     jwtPayload.role ||
-    // 2. Array `roles` en el JWT (formato alternativo de algunos guards)
-    (Array.isArray(jwtPayload.roles) ? jwtPayload.roles[0] : '') ||
-    // 3. Campo `role` en el objeto user devuelto por el endpoint de login
+    (rolesEntry
+      ? typeof rolesEntry === 'string'
+        ? rolesEntry
+        : (rolesEntry?.name ?? '')
+      : '') ||
     (typeof userData?.role === 'string' ? userData.role : userData?.role?.name) ||
     '';
 
-  // 4. Si aún no hay nombre, intenta construirlo desde el roleId en el JWT
   if (!rawRole && jwtPayload.roleId) {
     rawRole = ROLE_ID_TO_NAME[Number(jwtPayload.roleId)] || '';
   }
 
   const normalized = rawRole.toString().toUpperCase();
-  return (VALID_ROLES.includes(normalized as UserRole) ? normalized : 'USER') as UserRole;
+  return (
+    VALID_ROLES.includes(normalized as UserRole) ? normalized : 'USER'
+  ) as UserRole;
 }
 
-// ─── Helper: resuelve el roleId numérico ─────────────────────────────────────
-function resolveRoleId(jwtPayload: Record<string, any>, roleName: UserRole): number {
-  // Intenta leer el roleId directo del JWT
+function resolveRoleId(
+  jwtPayload: Record<string, any>,
+  roleName: UserRole,
+): number {
   if (jwtPayload.roleId && typeof jwtPayload.roleId === 'number') {
     return jwtPayload.roleId;
   }
-  // Construye el inverso del mapa a partir del nombre resuelto
-  const entry = Object.entries(ROLE_ID_TO_NAME).find(([, name]) => name === roleName);
-  return entry ? Number(entry[0]) : 3; // 3 = USER por defecto
+  const entry = Object.entries(ROLE_ID_TO_NAME).find(
+    ([, name]) => name === roleName,
+  );
+  return entry ? Number(entry[0]) : 3;
 }
 
-// ─── Helper: resuelve gymId SOLO si es necesario para el rol ─────────────────
-// Para GERENTE: requiere gymId — no asigna fallback arbitrario.
-// Para otros roles: puede ser undefined.
-function resolveGymId(jwtPayload: Record<string, any>, userData: Record<string, any>, role: UserRole): string | undefined {
-  const raw = jwtPayload.gymId ?? jwtPayload.gym_id ?? userData?.gymId ?? userData?.gym_id;
-
-  if (raw !== undefined && raw !== null) {
-    return String(raw);
-  }
-
-  // GERENTE sin gymId = identidad incompleta. Retorna undefined (se manejará en el interceptor).
+function resolveGymId(
+  jwtPayload: Record<string, any>,
+  userData: Record<string, any>,
+): string | undefined {
+  const raw =
+    jwtPayload.gymId ?? jwtPayload.gym_id ?? userData?.gymId ?? userData?.gym_id;
+  if (raw !== undefined && raw !== null) return String(raw);
   return undefined;
+}
+
+function resolveBrandId(jwtPayload: Record<string, any>): number | undefined {
+  const raw = jwtPayload.brandId ?? jwtPayload.brand_id;
+  if (raw !== undefined && raw !== null) return Number(raw);
+  return undefined;
+}
+
+// ─── Construye un WebUser a partir de la respuesta de /auth/me ────────────────
+// Se usa durante la hidratación (page refresh) donde no hay token en memoria.
+function buildUserFromMeResponse(data: Record<string, any>): WebUser | null {
+  try {
+    const profile = data.profile ?? {};
+    const roleRaw =
+      typeof data.role === 'string' ? data.role : data.role?.name ?? '';
+    const role = (
+      VALID_ROLES.includes(roleRaw.toUpperCase() as UserRole)
+        ? roleRaw.toUpperCase()
+        : 'USER'
+    ) as UserRole;
+    const roleId =
+      DB_ROLES[role as keyof typeof DB_ROLES] ??
+      Object.entries(ROLE_ID_TO_NAME).find(([, n]) => n === role)?.[0]
+        ? Number(
+            Object.entries(ROLE_ID_TO_NAME).find(([, n]) => n === role)![0],
+          )
+        : 3;
+
+    const id = Number(data.id ?? data.userId ?? 0);
+    return {
+      id,
+      userId: id,
+      role,
+      roleId,
+      level: Number(data.level ?? data.hierarchyLevel ?? 0),
+      gymId: data.gymId ? String(data.gymId) : undefined,
+      brandId: data.brandId ? Number(data.brandId) : undefined,
+      brandName: data.brandName || undefined,
+      firstName: profile.firstName || data.firstName || '',
+      lastName: profile.lastName || data.lastName || '',
+      gymName: data.gymName || data.gym?.name || '',
+    };
+  } catch {
+    return null;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -94,50 +149,118 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<WebUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Restaurar sesión desde localStorage al montar
+  // ── Hidratación: la cookie HttpOnly se envía automáticamente con withCredentials ──
+  // 1. Intento rápido con datos cacheados en localStorage (solo perfil, no token)
+  // 2. Verificación real con /auth/me (valida que la cookie sea aún válida)
   useEffect(() => {
-    const storedUser = localStorage.getItem('gymsync_user');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch {
-        localStorage.removeItem('gymsync_user');
+    const hydrate = async () => {
+      // Arranque optimista con datos de perfil cacheados (no sensibles)
+      const storedRaw = localStorage.getItem('gymsync_user');
+      if (storedRaw) {
+        try {
+          const cached = JSON.parse(storedRaw) as WebUser;
+          setUser(cached);
+        } catch {
+          localStorage.removeItem('gymsync_user');
+        }
       }
-    }
-    setIsLoading(false);
+
+      // Verificar sesión real con el backend (la cookie se envía automáticamente)
+      try {
+        const res  = await apiClient.get('/auth/me', { _skipErrorToast: true } as any);
+        const data = res.data ?? {};
+        const freshUser = buildUserFromMeResponse(data);
+
+        if (freshUser) {
+          setUser(freshUser);
+          localStorage.setItem('gymsync_user', JSON.stringify(freshUser));
+        } else {
+          // /auth/me respondió pero el payload es inválido — limpiar
+          setUser(null);
+          localStorage.removeItem('gymsync_user');
+        }
+      } catch (err: any) {
+        if (err?.response?.status === 401) {
+          // Cookie expirada o inválida — forzar estado limpio
+          setUser(null);
+          localStorage.removeItem('gymsync_user');
+          sessionStorage.clear();
+        }
+        // Otro error (red caída): mantener datos en caché para UX offline
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    hydrate();
   }, []);
 
-  const login = async (email: string, pass: string): Promise<{ success: boolean; error?: string }> => {
-    await new Promise(resolve => setTimeout(resolve, 600));
+  const login = async (
+    email: string,
+    pass: string,
+  ): Promise<{ success: boolean; error?: string }> => {
+    await new Promise((resolve) => setTimeout(resolve, 600));
 
     try {
-      const response = await apiClient.post('/auth/login', { email, password: pass });
+      const response = await apiClient.post('/auth/login', {
+        email,
+        password: pass,
+      });
+      // El backend ya no retorna accessToken — va directo en la cookie HttpOnly.
+      // Solo recibimos { user: {...} }.
       const payload = response.data;
+      const userData: Record<string, any> = payload.user ?? payload ?? {};
 
-      // Extraer token JWT (compatibilidad con naming conventions)
+      // El backend firma el JWT con el payload completo; /me devuelve esos mismos datos.
+      // Para el login, reconstruimos el WebUser desde la respuesta del servidor.
+      // Si el backend devuelve el accessToken (Swagger/Postman), lo ignoramos aquí.
       const jwtToken: string | undefined =
         payload.accessToken || payload.access_token || payload.token;
 
-      if (!jwtToken) {
-        throw new Error('El backend no retornó un token válido.');
+      let webUser: WebUser;
+
+      if (jwtToken) {
+        // Compatibilidad: si el token llega en el body (ej. Postman), lo usamos
+        // solo para decodificar el payload — NO lo guardamos en localStorage.
+        const jwtPayload = decodeJwtPayload(jwtToken);
+        const role   = resolveRole(jwtPayload, userData);
+        const roleId = resolveRoleId(jwtPayload, role);
+        const gymId  = resolveGymId(jwtPayload, userData);
+        const brandId = resolveBrandId(jwtPayload);
+        const id     = Number(jwtPayload.sub || jwtPayload.id || userData.id || 0);
+
+        webUser = {
+          id,
+          userId: id,
+          role,
+          roleId,
+          level: Number(jwtPayload.level ?? userData.level ?? 0),
+          gymId,
+          brandId,
+          brandName: userData.brandName || undefined,
+          firstName: userData.profile?.firstName || userData.firstName || '',
+          lastName:  userData.profile?.lastName  || userData.lastName  || '',
+          gymName:   userData.gymName || userData.gym?.name || '',
+        };
+      } else {
+        // El backend no retornó token en body (comportamiento correcto con cookies)
+        // — construir el usuario desde los datos de la respuesta
+        const built = buildUserFromMeResponse(userData);
+        if (!built) throw new Error('El backend no retornó datos de usuario válidos.');
+        webUser = built;
       }
 
-      const userData: Record<string, any> = payload.user || {};
-      const jwtPayload = decodeJwtPayload(jwtToken);
-
-      // ── Resolución de identidad — solo JWT + metadata del backend ────────
-      const role = resolveRole(jwtPayload, userData);
-      const roleId = resolveRoleId(jwtPayload, role);
-      const gymId = resolveGymId(jwtPayload, userData, role);
-
-      // ID numérico del usuario (sub es el estándar JWT de NestJS)
-      const id: number = Number(jwtPayload.sub || jwtPayload.id || userData.id || 0);
-
-      const webUser: WebUser = { id, role, roleId, gymId };
+      if (webUser.level < 4) {
+        return {
+          success: false,
+          error:
+            'Acceso denegado. Esta plataforma es de uso administrativo. Utiliza la aplicación móvil GymSync.',
+        };
+      }
 
       setUser(webUser);
+      // Guardamos SOLO datos de perfil (no sensibles) para arranque optimista
       localStorage.setItem('gymsync_user', JSON.stringify(webUser));
-      localStorage.setItem('gymsync_token', jwtToken);
 
       return { success: true };
     } catch (error: any) {
@@ -145,19 +268,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { success: false, error: 'Credenciales inválidas.' };
       }
       const apiMessage = error?.response?.data?.message || error?.message;
-      return { success: false, error: apiMessage || 'Error de conexión con el servidor.' };
+      return {
+        success: false,
+        error: apiMessage || 'Error de conexión con el servidor.',
+      };
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('gymsync_user');
-    localStorage.removeItem('gymsync_token');
-    sessionStorage.clear();
+  const logout = async (): Promise<void> => {
+    try {
+      // Pedir al backend que limpie la cookie HttpOnly
+      await apiClient.post('/auth/logout');
+    } catch {
+      // Si falla, igual limpiamos el estado local
+    } finally {
+      setUser(null);
+      localStorage.removeItem('gymsync_user');
+      sessionStorage.clear();
+    }
   };
 
+  const value = React.useMemo(
+    () => ({ isAuthenticated: !!user, user, login, logout, isLoading }),
+    [user, login, logout, isLoading],
+  );
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated: !!user, user, login, logout, isLoading }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

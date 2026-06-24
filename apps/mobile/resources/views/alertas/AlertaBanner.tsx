@@ -19,7 +19,7 @@ export const AlertaBanner = () => {
 
   const firstAlta = alertasAltas[0];
   const mainMessage = hasAltas
-    ? `⚠️ ${firstAlta.condicion}: ${firstAlta.recomendaciones || 'Precaución extrema requerida'}`
+    ? ` ${firstAlta.condicion}: ${firstAlta.recomendaciones || 'Precaución extrema requerida'}`
     : `Tienes ${alertasActivas.length} restricción(es) médica(s) activa(s).`;
 
   const subMessage = hasAltas
@@ -27,7 +27,7 @@ export const AlertaBanner = () => {
     : 'Recuerda tomar precauciones.';
 
   return (
-    <View style={[styles.banner, { backgroundColor: bannerColor + 'DD' }]}>
+    <View style={[styles.banner, { backgroundColor: bannerColor }]}>
       <View style={styles.bannerContent}>
         <MaterialCommunityIcons name={bannerIcon as any} size={28} color="#fff" />
         <View style={styles.bannerText}>
@@ -51,11 +51,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 6,
   },
   bannerContent: {
     flexDirection: 'row',
@@ -73,7 +68,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   bannerSub: {
-    color: 'rgba(255,255,255,0.8)',
+    color: '#FFFFFF',
     fontSize: 12,
     marginTop: 2,
   },

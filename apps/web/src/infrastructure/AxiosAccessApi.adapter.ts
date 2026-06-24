@@ -48,7 +48,7 @@ export class AxiosAccessApiAdapter implements IAccessApiService {
           {
             nombre: item.userProfile?.fullName || item.user?.email || `Usuario #${item.userId}`,
             email: item.userProfile?.email || item.user?.email || 'N/A',
-            avatarUrl: item.userProfile?.avatarUrl || 'https://i.pravatar.cc/150?u=fallback'
+            rol: item.userProfile?.role || item.user?.role || item.userRoles?.[0]?.role?.name || item.role || undefined,
           },
           {
             nombre: item.gym?.name || 'Sede Desconocida',

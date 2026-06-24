@@ -19,25 +19,28 @@ export const useAuditHistory = () => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchHistory = useCallback(async () => {
-    // Solo permitimos buscar si es gerente
-    if (user?.role !== 'GERENTE') {
+    if (!user) return;
+
+    const level = (user as any)?.level ?? 0;
+    if (level < 4) {
       setError('No tienes permisos para ver el historial.');
       return;
     }
+
+    // Verificar token antes de llamar (evita logs "[Sedes API] undefined")
+    const { AuthService } = await import('../../auth/AuthService');
+    const token = await AuthService.getToken();
+    if (!token) return; // sesión aún no restaurada, silencio total
 
     setIsLoading(true);
     setError(null);
 
     try {
       const client = createSedesApiClient();
-      // El backend manejará el scoping por el token JWT
-      // Según la auditoría, el endpoint para listar es /api/checkins
       const response = await client.get('/api/checkins');
-      
-      // La data ya está desempaquetada gracias al interceptor
       setHistory(response.data || []);
     } catch (err: any) {
-      console.error('[useAuditHistory] Error:', err);
+      console.warn('[useAuditHistory] Error:', err?.message);
       setError(err.message || 'Error al obtener el historial de auditoría');
     } finally {
       setIsLoading(false);

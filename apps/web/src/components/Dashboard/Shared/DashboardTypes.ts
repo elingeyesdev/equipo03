@@ -16,6 +16,8 @@ export type GymDto = {
   isActive?: boolean;
   isOpen?: boolean;
   aforoActual?: number;
+  currentOccupancy?: number;
+  infrastructure?: { id?: number; machineCapacity?: number } | null;
   parentId?: number | null;
   parent?: {
     id: number;
@@ -30,6 +32,13 @@ export type GymDto = {
   schedules?: GymScheduleDto[];
 };
 
+export type UserRoleDto = {
+  roleId: number;
+  gymId?: number | null;
+  gym?: { id: number; name?: string; parentId?: number | null; parent?: { id: number; name?: string } } | null;
+  role?: { id?: number; name?: string; hierarchyLevel?: number } | null;
+};
+
 export type UserDto = {
   id: number;
   email: string;
@@ -38,10 +47,9 @@ export type UserDto = {
     firstName?: string;
     lastName?: string;
     phone?: string;
+    ci?: string;
   };
-  userRoles?: Array<{
-    roleId: number;
-  }>;
+  userRoles?: UserRoleDto[];
   gyms?: Array<{
     id: number;
     name?: string;

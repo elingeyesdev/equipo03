@@ -1,5 +1,3 @@
-import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
-import { Inject } from '@nestjs/common';
 import { AccessDeniedDomainEvent } from '../../domain/events/AccessDenied.event';
 import { INotificationsRepository } from '../ports/output/INotificationsRepository';
 import { IUserRolesRepository } from '../ports/output/IUserRolesRepository';
@@ -25,12 +23,11 @@ export interface INotificationGateway {
   }): void;
 }
 
-@EventsHandler(AccessDeniedDomainEvent)
-export class AccessDeniedEventHandler implements IEventHandler<AccessDeniedDomainEvent> {
+export class AccessDeniedEventHandler {
   constructor(
-    @Inject(INotificationsRepository) private notificationsRepo: INotificationsRepository,
-    @Inject(IUserRolesRepository) private userRolesRepo: IUserRolesRepository,
-    @Inject(INotificationGateway) private notificationGateway: INotificationGateway,
+    private notificationsRepo: INotificationsRepository,
+    private userRolesRepo: IUserRolesRepository,
+    private notificationGateway: INotificationGateway,
   ) {}
 
   async handle(event: AccessDeniedDomainEvent) {

@@ -42,12 +42,21 @@
   top: 0;
   left: 0;
   width: 100%;
-  padding: 1.5rem 2rem;
+  padding: 1rem 1.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  z-index: 10;
+  z-index: 30;
   box-sizing: border-box;
+}
+
+@media (max-width: 480px) {
+  .landing-navbar {
+    padding: 0.75rem 1rem;
+  }
+  .navbar-logo {
+    font-size: 1.1rem !important;
+  }
 }
 
 .navbar-logo {
@@ -58,26 +67,19 @@
 }
 
 .navbar-logo span {
-  color: #00D9FF;
+  color: #F97316;
 }
 
 .btn-ghost-cyan {
   background: transparent;
-  color: #00D9FF;
-  border: 1px solid rgba(0, 217, 255, 0.5);
-  padding: 0.6rem 1.2rem;
-  border-radius: 8px;
+  color: #38BDF8;
+  border: 1px solid #38BDF8;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
   font-weight: 600;
   font-size: 0.9rem;
   cursor: pointer;
-  transition: all 0.3s ease;
-  backdrop-filter: blur(8px);
-}
-
-.btn-ghost-cyan:hover {
-  background: rgba(0, 217, 255, 0.1);
-  border-color: #00D9FF;
-  box-shadow: 0 0 15px rgba(0, 217, 255, 0.3);
+  text-decoration: none;
 }
 
 /* Hero Section */
@@ -105,6 +107,7 @@
 .hero-title-gradient {
   background: linear-gradient(135deg, #00D9FF 0%, #0055ff 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -132,19 +135,7 @@
   box-sizing: border-box;
 }
 
-.login-card {
-  background-color: rgba(20, 20, 22, 0.65);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  padding: 3rem 2.5rem;
-  border-radius: 28px;
-  width: 100%;
-  max-width: 460px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.1);
-  position: relative;
-  box-sizing: border-box;
-}
+/* .login-card → migrado a Tailwind (bg-white dark:bg-[#1e1e2d]) */
 
 .close-btn {
   position: absolute;
@@ -152,7 +143,7 @@
   right: 1.5rem;
   background: transparent;
   border: none;
-  color: #8E8E93;
+  color: #64748b;
   cursor: pointer;
   padding: 0.2rem;
   border-radius: 50%;
@@ -163,35 +154,10 @@
 }
 
 .close-btn:hover {
-  color: #FFFFFF;
-  background: rgba(255, 255, 255, 0.1);
+  color: #0f172a;
+  background: rgba(0, 0, 0, 0.06);
 }
 
-.brand-logo-small {
-  font-size: 1.5rem;
-  font-weight: 800;
-  color: #FFFFFF;
-  margin-bottom: 0.5rem;
-  text-align: center;
-  letter-spacing: -1px;
-}
-.brand-logo-small span {
-  color: #00D9FF;
-}
-
-.login-title {
-  color: #FFFFFF;
-  font-size: 1.5rem;
-  text-align: center;
-  margin: 0 0 0.5rem 0;
-}
-
-.login-subtitle {
-  color: #8E8E93;
-  text-align: center;
-  font-size: 0.9rem;
-  margin-bottom: 2rem;
-}
 
 .login-error {
   background-color: rgba(255, 94, 0, 0.15);
@@ -215,48 +181,25 @@
 .input-icon {
   position: absolute;
   left: 1rem;
-  color: #8E8E93;
+  color: #94a3b8;
   pointer-events: none;
   transition: color 0.3s;
   display: flex;
   align-items: center;
 }
 
-.input-group input {
-  width: 100%;
-  background-color: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #FFFFFF;
-  padding: 1.1rem 3rem 1.1rem 3.2rem;
-  border-radius: 14px;
-  font-size: 1.05rem;
-  outline: none;
-  transition: all 0.3s ease;
-  box-sizing: border-box;
-}
+/* .input-group input → migrado a Tailwind (bg-slate-50 dark:bg-[#151521]) */
 
-.input-group input:focus {
-  border-color: #00D9FF;
-  box-shadow: 0 0 0 4px rgba(0, 217, 255, 0.1);
-  background-color: rgba(10, 10, 10, 0.8);
-}
-
-.input-group input:focus ~ .input-icon,
 .input-group:focus-within .input-icon {
-  color: #00D9FF;
+  color: #2ecc71;
 }
 
-.input-group input::placeholder {
-  color: #636366;
-}
-
-/* Ojo de contraseña */
 .password-toggle-btn {
   position: absolute;
   right: 1.2rem;
   background: transparent;
   border: none;
-  color: #8E8E93;
+  color: #94a3b8;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -268,15 +211,15 @@
 
 .password-toggle-btn:hover,
 .password-toggle-btn:focus {
-  color: #FFFFFF;
-  background-color: rgba(255, 255, 255, 0.05);
+  color: #0f172a;
+  background-color: rgba(0, 0, 0, 0.05);
   outline: none;
 }
 
 /* Botón Acción */
 .btn-login {
   width: 100%;
-  background: linear-gradient(135deg, #00D9FF 0%, #0077ff 100%);
+  background: #0088cc;
   color: #FFFFFF;
   border: none;
   padding: 1.1rem;
@@ -284,21 +227,16 @@
   font-weight: 700;
   font-size: 1.05rem;
   cursor: pointer;
-  transition: all 0.3s ease;
   margin-top: 1rem;
-  box-shadow: 0 6px 20px rgba(0, 217, 255, 0.25);
 }
 
 .btn-login:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 217, 255, 0.4);
+  background: #0077b5;
 }
 
 .btn-login:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
 }
 
 .login-loading {
@@ -326,7 +264,4 @@
     font-size: 0.85rem;
   }
   
-  .login-card {
-    padding: 2rem 1.5rem;
-  }
 }

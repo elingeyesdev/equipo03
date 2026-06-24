@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+﻿import React, { useEffect, useRef } from 'react';
 import { Animated, Text, StyleSheet, Platform, Dimensions } from 'react-native';
 
 interface ToastProps {
@@ -50,7 +50,7 @@ export const Toast: React.FC<ToastProps> = ({ message, visible, type = 'error' }
   return (
     <Animated.View style={[
       styles.container, 
-      { opacity, transform: [{ translateY }], backgroundColor: type === 'error' ? 'rgba(255, 59, 48, 0.95)' : 'rgba(0, 229, 163, 0.95)' }
+      { opacity, transform: [{ translateY }], backgroundColor: type === 'error' ? '#FF453A' : '#00E5A3' }
     ]}>
       <Text style={styles.text}>{message}</Text>
     </Animated.View>
@@ -66,11 +66,6 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderRadius: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 8,
     zIndex: 9999,
   },
   text: {

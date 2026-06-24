@@ -1,3 +1,4 @@
+import './app/Shared/suppressExpoGoWarnings'; // must be first — runs before expo-notifications loads
 import { registerRootComponent } from 'expo';
 import App from './App';
 

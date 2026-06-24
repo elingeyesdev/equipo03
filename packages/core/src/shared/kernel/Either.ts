@@ -1,12 +1,3 @@
-/**
- * Either<L, R> — Tipo funcional para manejo de errores sin excepciones.
- * 
- * Left  = caso de error
- * Right = caso de éxito
- * 
- * Inspirado en Either de fp-ts / Scala.
- */
-
 export type Either<L, R> = Left<L, R> | Right<L, R>;
 
 export class Left<L, R> {

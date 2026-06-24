@@ -57,6 +57,7 @@ export const GeolocationModule = {
       suscribirseUbicacionUseCase,
       filtrarSedesUseCase,
       storageAdapter,
+      sedesApiAdapter,
     };
   },
 };

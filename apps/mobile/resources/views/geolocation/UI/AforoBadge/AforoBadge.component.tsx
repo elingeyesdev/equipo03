@@ -1,11 +1,3 @@
-/**
- * AforoBadge — Badge indicador de aforo con colores semáforo.
- * 
- * Verde (bajo):    < 60% ocupación
- * Amarillo (medio): 60% - 85% ocupación
- * Rojo (alto):     > 85% ocupación
- */
-
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Aforo } from '@gymsync/core';
@@ -16,9 +8,9 @@ type AforoBadgeProps = {
 };
 
 const COLORS: Record<'bajo' | 'medio' | 'alto', { bg: string; text: string }> = {
-  bajo: { bg: 'rgba(0, 229, 163, 0.2)', text: '#00E5A3' },   // Verde Evolución
-  medio: { bg: 'rgba(255, 94, 0, 0.2)', text: '#FF5E00' },     // Naranja Acción
-  alto: { bg: 'rgba(255, 0, 0, 0.2)', text: '#FF0000' },       // Rojo (Danger) - fallback para "lleno"
+  bajo: { bg: '#1C1C1E', text: '#00E5A3' },   // Verde Evolución
+  medio: { bg: '#1C1C1E', text: '#FF5E00' },     // Naranja Acción
+  alto: { bg: '#1C1C1E', text: '#FF453A' },       // Rojo Danger
 };
 
 const SIZES = {

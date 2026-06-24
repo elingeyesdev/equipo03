@@ -1,0 +1,1113 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import type { CSSProperties } from 'react';
+import { toast } from 'react-hot-toast';
+import { useAuth } from '../../contexts/AuthContext';
+import { apiClient } from '../../infrastructure/api.config';
+import { ModalOverlay, ConfirmModal } from './Shared/DashboardShared';
+import { DB_ROLES } from '../../config/rbac.constants';
+import { guardClose } from './Shared/DashboardShared.utils';
+import { Eye, Edit, Trash2, Plus, X, Search, GraduationCap } from 'lucide-react';
+
+//Types 
+interface Activity {
+  id: number;
+  gymId: number;
+  name: string;
+  description: string;
+  defaultDurationMin: number;
+  isActive: boolean;
+  isFreeAccess: boolean;
+  gym?: { id: number; name: string };
+}
+
+interface GymOption { id: number; name: string; parentId?: number | null }
+
+interface ActivitySchedule {
+  id: number;
+  dayOfWeek: string;
+  startTime: string;
+  endTime: string;
+  maxAttendees?: number;
+  instructorId?: number;
+  instructor?: { email?: string };
+}
+
+interface RawUser {
+  id: number | string;
+  email?: string;
+  profile?: { firstName?: string; lastName?: string };
+  userProfiles?: { firstName?: string; lastName?: string }[];
+}
+
+const DAY_LABELS: Record<string, string> = {
+  LUN: 'Lunes', MAR: 'Martes', MIE: 'Miércoles',
+  JUE: 'Jueves', VIE: 'Viernes', SAB: 'Sábado', DOM: 'Domingo',
+};
+
+const DAY_ORDER: Record<string, number> = {
+  LUN: 0, LUNES: 0,
+  MAR: 1, MARTES: 1,
+  MIE: 2, MIERCOLES: 2,
+  JUE: 3, JUEVES: 3,
+  VIE: 4, VIERNES: 4,
+  SAB: 5, SABADO: 5,
+  DOM: 6, DOMINGO: 6,
+};
+
+const sortSchedules = <T extends { dayOfWeek: string; startTime: string }>(arr: T[]): T[] =>
+  [...arr].sort((a, b) => {
+    const da = DAY_ORDER[a.dayOfWeek] ?? 99;
+    const db = DAY_ORDER[b.dayOfWeek] ?? 99;
+    return da !== db ? da - db : a.startTime.localeCompare(b.startTime);
+  });
+
+const HOURS_24   = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+const MINUTES_15 = ['00', '15', '30', '45'];
+
+// Selector de hora en formato 24 h — inmune al locale del navegador
+const TimeSelect = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => {
+  const parts = value.split(':');
+  const h = parts[0]?.padStart(2, '0') ?? '08';
+  const m = parts[1]?.substring(0, 2) ?? '00';
+
+  const selCls = "bg-slate-50 dark:bg-[#1C1C1E] text-slate-900 dark:text-[#E5E5EA] border-0 px-[0.4rem] py-[0.45rem] text-sm font-mono font-semibold cursor-pointer outline-none appearance-none text-center";
+
+  return (
+    <div className="inline-flex items-center gap-px bg-slate-100 dark:bg-bg-surface border border-slate-200 dark:border-bg-deep rounded-lg overflow-hidden">
+      <select value={h} onChange={e => onChange(`${e.target.value}:${m}`)} className={selCls}>
+        {HOURS_24.map(hh => <option key={hh} value={hh}>{hh}</option>)}
+      </select>
+      <span className="text-slate-400 dark:text-[#8E8E93] font-bold text-[0.9rem] select-none">:</span>
+      <select value={m} onChange={e => onChange(`${h}:${e.target.value}`)} className={selCls}>
+        {MINUTES_15.map(mm => <option key={mm} value={mm}>{mm}</option>)}
+      </select>
+    </div>
+  );
+};
+
+//Styles
+const GIBBERISH_RE = /[bcdfghjklmnñpqrstvwxyz]{5,}/i;
+const ACT_NAME_MAX = 100;
+const ACT_DESC_MAX = 500;
+
+const panelStyle: CSSProperties = { padding: '2rem', minHeight: '100vh' };
+
+const tableStyle: CSSProperties = {
+  width: '100%', borderCollapse: 'collapse',
+};
+
+const thStyle: CSSProperties = {
+  padding: '0.85rem 1rem', textAlign: 'left',
+};
+
+const tdStyle: CSSProperties = {
+  padding: '0.85rem 1rem',
+  fontSize: '0.9rem', verticalAlign: 'middle',
+};
+
+const badgeActive: CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', gap: 5,
+  padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700,
+  background: 'rgba(0,229,163,0.12)', color: '#00E5A3', border: '1px solid rgba(0,229,163,0.3)',
+};
+
+const badgeInactive: CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', gap: 5,
+  padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700,
+  background: 'rgba(255,94,0,0.12)', color: '#FF5E00', border: '1px solid rgba(255,94,0,0.3)',
+};
+
+const btnPrimary: CSSProperties = {
+  background: '#FF5E00', color: '#fff', border: 'none',
+  borderRadius: '8px', padding: '0.5rem 1.2rem',
+  cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem',
+};
+
+const btnSecondaryCls = "px-4 py-2 bg-slate-100 dark:bg-gray-800 hover:bg-slate-200 dark:hover:bg-gray-700 text-slate-700 dark:text-gray-300 text-sm font-medium rounded-lg border-0 cursor-pointer transition-colors";
+
+
+const inputCls = "w-full bg-slate-50 dark:bg-[#151521] border border-slate-200 dark:border-gray-700 text-slate-900 dark:text-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-celeste transition-colors box-border";
+const labelCls = "block mb-1 text-sm font-medium text-slate-700 dark:text-gray-300";
+const fieldGap: CSSProperties = { marginBottom: '1rem' };
+
+// ─── Activity Detail Modal ────────────────────────────────────────────────────
+const ActivityDetailModal = ({
+  activity, onClose, onEdit,
+}: {
+  activity: Activity;
+  onClose: () => void;
+  onEdit: () => void;
+}) => {
+  const [schedules,    setSchedules]    = useState<ActivitySchedule[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  const [instructorMap, setInstructorMap] = useState<Map<number, string>>(new Map());
+
+  useEffect(() => {
+    void (async () => {
+      setLoading(true);
+      try {
+        const [schedRes, usersRes] = await Promise.all([
+          apiClient.get(`/activities/${activity.id}/schedules`).catch(() => null),
+          apiClient.get('/users').catch(() => null),
+        ]);
+        const rawSched: ActivitySchedule[] = Array.isArray(schedRes)
+          ? (schedRes as ActivitySchedule[])
+          : ((schedRes as { data?: ActivitySchedule[] })?.data ?? []);
+        setSchedules(sortSchedules(rawSched.filter(Boolean)));
+
+        const usersBody = (usersRes as { data?: unknown })?.data;
+        const rawUsers: RawUser[] = Array.isArray(usersBody)
+          ? (usersBody as RawUser[])
+          : Array.isArray((usersBody as { data?: unknown })?.data)
+            ? ((usersBody as { data: RawUser[] }).data)
+            : [];
+        const map = new Map<number, string>();
+        rawUsers.forEach((u) => {
+          const first = u?.profile?.firstName ?? u?.userProfiles?.[0]?.firstName ?? '';
+          const last  = u?.profile?.lastName  ?? u?.userProfiles?.[0]?.lastName  ?? '';
+          const name  = `${first} ${last}`.trim() || u?.email || `#${u?.id}`;
+          map.set(Number(u.id), name);
+        });
+        setInstructorMap(map);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [activity.id]);
+
+  const field = (label: string, value: React.ReactNode, full = false): React.ReactNode => (
+    <div className={`bg-slate-50 dark:bg-bg-surface border border-slate-200 dark:border-bg-deep rounded-xl p-3 ${full ? 'col-span-2' : 'col-span-1'}`}>
+      <div className="text-xs font-semibold text-slate-500 dark:text-gray-500 uppercase tracking-wide mb-1">{label}</div>
+      <div className="text-[0.92rem] font-medium text-slate-900 dark:text-white">{value || <span className="text-slate-400 dark:text-gray-600">—</span>}</div>
+    </div>
+  );
+
+  return (
+    <ModalOverlay onClose={onClose}>
+      {/* Wrapper flex-column ocupa todo el modal */}
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+
+        {/* Header fijo */}
+        <div className="flex justify-between items-start flex-shrink-0 mb-4">
+          <div>
+            <div className="text-xs font-bold uppercase tracking-[0.08em] mb-[0.2rem]" style={{ color: '#FF5E00' }}>
+              Ficha del Servicio · #{activity.id}
+            </div>
+            <h2 className="m-0 text-[1.35rem] font-bold text-slate-900 dark:text-white">{activity.name}</h2>
+          </div>
+          <button onClick={onClose} style={{ background: '#8e8e93', border: 'none', color: '#fff', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', padding: '0.25rem 0.6rem', borderRadius: '6px', flexShrink: 0 }}>X</button>
+        </div>
+
+        {/* Contenido scrollable */}
+        <div style={{ overflowY: 'auto', flex: 1, minHeight: 0, paddingRight: '0.2rem' }}>
+          <div className="grid grid-cols-2 gap-2.5 mb-4">
+            {field('Gimnasio / Sucursal', activity.gym?.name ?? `Gym #${activity.gymId}`)}
+            {field('Duración', activity.defaultDurationMin ? `${activity.defaultDurationMin} min` : 'No definida')}
+            {field('Tipo', activity.isFreeAccess
+              ? <span style={{ color: '#FF5E00', fontWeight: 700 }}>Acceso Libre</span>
+              : <span style={{ color: '#38BDF8', fontWeight: 700 }}>Con Horarios</span>
+            )}
+            {field('Estado', activity.isActive
+              ? <span style={{ color: '#34C759', fontWeight: 700 }}>● Activa</span>
+              : <span style={{ color: '#FF3B30', fontWeight: 700 }}>● Inactiva</span>
+            )}
+            {field('Descripción', activity.description, true)}
+          </div>
+
+          {/* Horarios */}
+          {!activity.isFreeAccess && (
+            <div style={{ borderTop: '1px solid #1C1C1E', paddingTop: '1rem' }}>
+              <div style={{ fontSize: '0.75rem', color: '#FF5E00', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.6rem' }}>
+                Horarios de Clase
+              </div>
+              {loading ? (
+                <p style={{ color: '#8E8E93', fontSize: '0.85rem', textAlign: 'center', padding: '1rem 0' }}>Cargando horarios...</p>
+              ) : schedules.length === 0 ? (
+                <p style={{ color: '#636366', fontSize: '0.85rem', fontStyle: 'italic', textAlign: 'center', padding: '0.5rem 0' }}>Sin horarios configurados</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  {schedules.map(s => (
+                    <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#1C1C1E', border: '1px solid #FF5E00', borderRadius: '8px', padding: '0.55rem 0.85rem' }}>
+                      <span style={{ color: '#FF5E00', fontWeight: 700, fontSize: '0.78rem', minWidth: '42px' }}>{DAY_LABELS[s.dayOfWeek] ?? s.dayOfWeek}</span>
+                      <span style={{ color: '#E5E5EA', fontSize: '0.87rem', flex: 1 }}>
+                        {s.startTime.substring(0, 5)} – {s.endTime.substring(0, 5)}
+                      </span>
+                      {s.maxAttendees && (
+                        <span style={{ color: '#8E8E93', fontSize: '0.75rem' }}>{s.maxAttendees} cupos</span>
+                      )}
+                      {s.instructorId && (
+                        <span style={{ color: '#8E8E93', fontSize: '0.75rem', maxWidth: '130px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          Inst. {instructorMap.get(Number(s.instructorId)) ?? s.instructor?.email ?? `#${s.instructorId}`}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer fijo */}
+        <div className="flex gap-2.5 mt-4 pt-3 border-t border-slate-200 dark:border-bg-deep flex-shrink-0">
+          <button onClick={onClose} className={`${btnSecondaryCls} flex-1`}>Cerrar</button>
+          <button onClick={onEdit} style={{ ...btnPrimary, flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}><Edit size={14} />Editar Servicio</button>
+        </div>
+      </div>
+    </ModalOverlay>
+  );
+};
+
+//Form Modal
+const ActivityFormModal = ({
+  initial, gyms, userGymId, onClose, onSaved,
+}: {
+  initial: Activity | null;
+  gyms: GymOption[];
+  userGymId: number | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) => {
+  const isEdit = !!initial;
+
+  const resolveInitialGymId = () => {
+    if (isEdit) return String(initial!.gymId);
+    if (userGymId) return String(userGymId);
+    if (gyms.length === 1) return String(gyms[0].id);
+    return '';
+  };
+
+  // ── Campos básicos ──
+  const [gymId,       setGymId]       = useState<string>(resolveInitialGymId);
+  const [selectedBrandId, setSelectedBrandId] = useState<string>(() => {
+    if (isEdit && initial?.gymId) {
+      const branch = gyms.find(g => g.id === initial!.gymId);
+      return branch?.parentId ? String(branch.parentId) : '';
+    }
+    return '';
+  });
+  const [name,        setName]        = useState(initial?.name ?? '');
+  const [description, setDescription] = useState(initial?.description ?? '');
+  const [duration,    setDuration]    = useState(
+    initial?.defaultDurationMin ? String(initial.defaultDurationMin) : ''
+  );
+  const [isFreeAccess, setIsFreeAccess] = useState(initial?.isFreeAccess ?? false);
+  const [isActive,     setIsActive]     = useState(initial?.isActive ?? true);
+  const [saving, setSaving] = useState(false);
+  const [touched, setTouched] = useState(false);
+
+  // ── Horarios de clase (solo en edición) ──
+  const [schedules,        setSchedules]        = useState<ActivitySchedule[]>([]);
+  const [schedulesLoading, setSchedulesLoading] = useState(false);
+  const [newDay,           setNewDay]           = useState('LUN');
+  const [newStart,         setNewStart]         = useState('08:00');
+  const [newEnd,           setNewEnd]           = useState('09:00');
+  const [newMaxAttendees,  setNewMaxAttendees]  = useState('20');
+  const [newInstructorId,  setNewInstructorId]  = useState('');
+  const [instructors,      setInstructors]      = useState<{ id: number; label: string }[]>([]);
+  const [addingSchedule,   setAddingSchedule]   = useState(false);
+
+  const needsGymPicker = !userGymId;
+  const brands = gyms.filter(g => g.parentId == null);
+  const filteredBranches = selectedBrandId
+    ? gyms.filter(g => g.parentId === Number(selectedBrandId))
+    : [];
+  const handleBrandChange = (brandId: string) => {
+    setSelectedBrandId(brandId);
+    setGymId('');
+    setInstructors([]);
+    setNewInstructorId('');
+  };
+
+  // Cargar horarios del servidor (solo en edición)
+  useEffect(() => {
+    if (!isEdit || !initial?.id) return;
+    setSchedulesLoading(true);
+    apiClient.get(`/activities/${initial.id}/schedules`)
+      .then((data: unknown) => {
+        const raw: ActivitySchedule[] = Array.isArray(data)
+          ? (data as ActivitySchedule[])
+          : ((data as { data?: ActivitySchedule[] })?.data ?? []);
+        setSchedules(sortSchedules(raw.filter(Boolean)));
+      })
+      .catch(() => {})
+      .finally(() => setSchedulesLoading(false));
+  }, [isEdit, initial?.id]);
+
+  // Para SUPER_ADMIN: re-carga instructores cuando cambia la sucursal seleccionada.
+  // Para GERENTE: carga al montar (gymId viene fijo del JWT).
+  useEffect(() => {
+    if (needsGymPicker && !gymId) {
+      setInstructors([]);
+      setNewInstructorId('');
+      return;
+    }
+    const parse = (rawInstructors: any): RawUser[] => {
+      let safeInstructors: RawUser[] = [];
+      if (Array.isArray(rawInstructors)) safeInstructors = rawInstructors;
+      else safeInstructors = Array.isArray(rawInstructors?.data) 
+        ? rawInstructors.data 
+        : (rawInstructors?.data?.data || []);
+      
+      console.log('INSTRUCTORES DESEMPAQUETADOS:', safeInstructors);
+      return safeInstructors;
+    };
+    const gymFilter = needsGymPicker && gymId ? { gymId: Number(gymId) } : {};
+    apiClient.get('/users', { params: { hierarchyLevel: 2, ...gymFilter } })
+      .catch(() => [])
+      .then((res) => {
+        const seen = new Set<number>();
+        const list = parse(res)
+          .filter((u) => {
+            const uid = Number(u?.id);
+            if (!uid || seen.has(uid)) return false;
+            seen.add(uid);
+            return true;
+          })
+          .map((u) => ({
+            id: u.id as number,
+            label: u.profile
+              ? `${u.profile.firstName ?? ''} ${u.profile.lastName ?? ''}`.trim() || (u.email ?? '')
+              : (u.email ?? ''),
+          }));
+        setInstructors(list);
+        if (list.length === 1) setNewInstructorId(String(list[0].id));
+        else setNewInstructorId('');
+      });
+  }, [gymId, needsGymPicker]);
+
+  const handleAddSchedule = async () => {
+    if (!newStart || !newEnd)        { toast.error('Completa los horarios'); return; }
+    if (newStart >= newEnd)          { toast.error('El inicio debe ser antes del fin'); return; }
+    if (!newInstructorId)            { toast.error('Selecciona un instructor'); return; }
+    const maxAtt = parseInt(newMaxAttendees, 10);
+    if (!maxAtt || maxAtt < 1)       { toast.error('El aforo mínimo es 1'); return; }
+
+    if (isEdit) {
+      // Modo edición: POST inmediato al servidor
+      setAddingSchedule(true);
+      try {
+        const res = await apiClient.post(`/activities/${initial!.id}/schedules`, {
+          dayOfWeek:    newDay,
+          startTime:    newStart,
+          endTime:      newEnd,
+          instructorId: Number(newInstructorId),
+          maxAttendees: maxAtt,
+          isRecurring:  true,
+        });
+        const created: ActivitySchedule = (res as { data?: ActivitySchedule })?.data ?? (res as ActivitySchedule);
+        setSchedules(prev => sortSchedules([...prev, created]));
+        toast.success('Horario agregado');
+      } catch {
+        // interceptor toasts
+      } finally {
+        setAddingSchedule(false);
+      }
+    } else {
+      setSchedules(prev => sortSchedules([...prev, {
+        id:           -(Date.now()),
+        dayOfWeek:    newDay,
+        startTime:    newStart,
+        endTime:      newEnd,
+        instructorId: Number(newInstructorId),
+        maxAttendees: maxAtt,
+      }]));
+    }
+  };
+
+  const handleDeleteSchedule = async (scheduleId: number) => {
+    if (isEdit && scheduleId > 0) {
+      // Modo edición: DELETE en el servidor
+      try {
+        await apiClient.delete(`/activities/${initial!.id}/schedules/${scheduleId}`);
+        setSchedules(prev => prev.filter(s => s.id !== scheduleId));
+        toast.success('Horario eliminado');
+      } catch {
+        // interceptor toasts
+      }
+    } else {
+      // Modo creación o ID temporal: solo quitar del estado local
+      setSchedules(prev => prev.filter(s => s.id !== scheduleId));
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!name.trim() || !description.trim()) {
+      toast.error('Nombre y descripción son obligatorios');
+      return;
+    }
+    if (name.trim().length > ACT_NAME_MAX) {
+      toast.error(`El nombre no puede superar los ${ACT_NAME_MAX} caracteres`);
+      return;
+    }
+    if (GIBBERISH_RE.test(name)) {
+      toast.error('El nombre parece contener caracteres aleatorios o inválidos');
+      return;
+    }
+    if (description.trim().length > ACT_DESC_MAX) {
+      toast.error(`La descripción no puede superar los ${ACT_DESC_MAX} caracteres`);
+      return;
+    }
+    if (GIBBERISH_RE.test(description)) {
+      toast.error('La descripción parece contener caracteres aleatorios o inválidos');
+      return;
+    }
+    const parsedGymId = parseInt(gymId, 10);
+    if (!parsedGymId || isNaN(parsedGymId)) {
+      toast.error('Selecciona un gimnasio');
+      return;
+    }
+    if (!isFreeAccess && schedules.length === 0) {
+      toast.error('Debes agregar al menos un horario de clase o activar Acceso Libre');
+      return;
+    }
+    if (isFreeAccess) {
+      const dur = parseInt(duration, 10);
+      if (!duration.trim() || isNaN(dur) || dur <= 0) {
+        toast.error('La duración máxima es obligatoria para servicios de Acceso Libre');
+        return;
+      }
+    }
+    const parsedDuration = duration.trim() ? parseInt(duration, 10) : 0;
+
+    setSaving(true);
+    try {
+      if (isEdit) {
+        await apiClient.patch(`/activities/${initial!.id}`, {
+          gymId: parsedGymId,
+          name: name.trim(),
+          description: description.trim(),
+          defaultDurationMin: parsedDuration,
+          isFreeAccess,
+          isActive,
+        });
+        toast.success('Servicio actualizado');
+      } else {
+        const res = await apiClient.post('/activities', {
+          gymId: parsedGymId,
+          name: name.trim(),
+          description: description.trim(),
+          defaultDurationMin: parsedDuration,
+          isFreeAccess,
+        });
+        const resObj = res as { data?: { id?: number; data?: { id?: number } } };
+        const newActivityId: number | undefined = resObj?.data?.id ?? resObj?.data?.data?.id;
+        if (newActivityId && schedules.length > 0 && !isFreeAccess) {
+          await Promise.allSettled(
+            schedules.map(s =>
+              apiClient.post(`/activities/${newActivityId}/schedules`, {
+                dayOfWeek:    s.dayOfWeek,
+                startTime:    s.startTime.substring(0, 5),
+                endTime:      s.endTime.substring(0, 5),
+                instructorId: Number(s.instructorId),
+                maxAttendees: Number(s.maxAttendees) || 20,
+                isRecurring:  true,
+              })
+            )
+          );
+        }
+        toast.success('Servicio creado');
+      }
+      onSaved();
+      onClose();
+    } catch {
+      // interceptor toasts
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const selectCls = `${inputCls} appearance-none cursor-pointer pr-10`;
+
+  return (
+    <ModalOverlay onClose={onClose} isDirty={touched} onFormChange={() => setTouched(true)}>
+      {/* Header fijo */}
+      <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-gray-800 mb-4 flex-shrink-0">
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white m-0">
+          {isEdit ? 'Editar Servicio' : 'Nuevo Servicio'}
+        </h2>
+        <button
+          onClick={() => guardClose(touched, onClose)}
+          className="text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-gray-300 bg-slate-100 dark:bg-gray-800 p-1.5 rounded border-0 cursor-pointer transition-colors flex items-center"
+        ><X size={14} /></button>
+      </div>
+
+      {/* Contenido scrollable */}
+      <div className="overflow-y-auto flex-1 pr-1 dark-scrollbar">
+        <form onSubmit={handleSubmit} id="activity-form" style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+          {/* Selectors marca → sucursal — solo SUPER_ADMIN */}
+          {needsGymPicker && (
+            <>
+              <div style={fieldGap}>
+                <label className={labelCls}>Marca *</label>
+                <div className="relative">
+                  <select className={selectCls} value={selectedBrandId} onChange={e => handleBrandChange(e.target.value)}>
+                    <option value="">— Selecciona una marca —</option>
+                    {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  </select>
+                  <span className="absolute right-[0.85rem] top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-gray-500 text-xs">▼</span>
+                </div>
+              </div>
+              {selectedBrandId && (
+                <div style={fieldGap}>
+                  <label className={labelCls}>Sucursal *</label>
+                  <div className="relative">
+                    <select className={selectCls} value={gymId} onChange={e => setGymId(e.target.value)}>
+                      <option value="">— Selecciona una sucursal —</option>
+                      {filteredBranches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                    </select>
+                    <span className="absolute right-[0.85rem] top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-gray-500 text-xs">▼</span>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          <div style={fieldGap}>
+            <div className="flex justify-between items-baseline mb-1">
+              <label className={labelCls} style={{ marginBottom: 0 }}>Nombre *</label>
+              <span className={`text-xs ${name.length > ACT_NAME_MAX ? 'text-red-500' : name.length > ACT_NAME_MAX * 0.9 ? 'text-amber-500' : 'text-slate-400 dark:text-gray-500'}`}>
+                {name.length}/{ACT_NAME_MAX}
+              </span>
+            </div>
+            <input className={inputCls} value={name} onChange={e => setName(e.target.value)}
+              placeholder="Ej: Yoga, Spinning, Sauna..." maxLength={ACT_NAME_MAX} />
+            {GIBBERISH_RE.test(name) && (
+              <p className="text-amber-500 text-xs mt-1">El nombre parece contener caracteres aleatorios</p>
+            )}
+          </div>
+
+          <div style={fieldGap}>
+            <div className="flex justify-between items-baseline mb-1">
+              <label className={labelCls} style={{ marginBottom: 0 }}>Descripción *</label>
+              <span className={`text-xs ${description.length > ACT_DESC_MAX ? 'text-red-500' : description.length > ACT_DESC_MAX * 0.9 ? 'text-amber-500' : 'text-slate-400 dark:text-gray-500'}`}>
+                {description.length}/{ACT_DESC_MAX}
+              </span>
+            </div>
+            <textarea
+              className={inputCls}
+              style={{ minHeight: '100px', resize: 'none', lineHeight: '1.55' }}
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              placeholder="Breve descripción del servicio..."
+              maxLength={ACT_DESC_MAX}
+            />
+            {GIBBERISH_RE.test(description) && (
+              <p className="text-amber-500 text-xs mt-1">La descripción parece contener caracteres aleatorios</p>
+            )}
+          </div>
+
+          {/* ── Toggle Acceso Libre ── */}
+          <div
+            className={`flex items-center gap-3 rounded-xl px-4 py-3 cursor-pointer select-none mb-4 border ${isFreeAccess ? 'bg-gray-100 dark:bg-bg-surface border-brand-orange' : 'bg-slate-50 dark:bg-bg-surface border-slate-200 dark:border-bg-deep'}`}
+            onClick={() => setIsFreeAccess(v => !v)}
+          >
+            <div style={{ width: '40px', height: '22px', borderRadius: '11px', background: isFreeAccess ? '#FF5E00' : undefined, position: 'relative', flexShrink: 0, transition: 'background 0.2s ease' }}
+              className={!isFreeAccess ? 'bg-slate-300 dark:bg-bg-deep' : ''}>
+              <div style={{ position: 'absolute', top: '3px', left: isFreeAccess ? '21px' : '3px', width: '16px', height: '16px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s ease', boxShadow: '0 1px 3px rgba(0,0,0,0.4)' }} />
+            </div>
+            <div>
+              <span className={`font-semibold text-sm ${isFreeAccess ? 'text-brand-orange' : 'text-slate-700 dark:text-gray-200'}`}>
+                Acceso Libre
+              </span>
+              <span className="block text-slate-400 dark:text-gray-500 text-xs mt-0.5">
+                {isFreeAccess
+                  ? 'El cliente elige libremente su horario (hora de inicio y fin). Ej: Musculación, Cardio, Zona Funcional.'
+                  : 'El servicio tiene horarios fijos con instructor asignado. El cliente reserva un bloque disponible. Ej: Zumba, Spinning, Yoga.'}
+              </span>
+            </div>
+          </div>
+
+          {/* ── Toggle Activo/Inactivo — solo visible en edición ── */}
+          {isEdit && (
+            <div
+              className={`flex items-center gap-3 rounded-xl px-4 py-3 cursor-pointer select-none mb-4 border ${isActive ? 'bg-slate-50 dark:bg-bg-surface border-slate-200 dark:border-bg-deep' : 'bg-gray-100 dark:bg-bg-surface border-red-400'}`}
+              onClick={() => setIsActive(v => !v)}
+            >
+              <div style={{ width: '40px', height: '22px', borderRadius: '11px', background: isActive ? '#00E5A3' : '#FF3B30', position: 'relative', flexShrink: 0, transition: 'background 0.2s ease' }}>
+                <div style={{ position: 'absolute', top: '3px', left: isActive ? '21px' : '3px', width: '16px', height: '16px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s ease', boxShadow: '0 1px 3px rgba(0,0,0,0.4)' }} />
+              </div>
+              <div>
+                <span className={`font-semibold text-sm ${isActive ? 'text-green-600 dark:text-[#00E5A3]' : 'text-red-500'}`}>
+                  {isActive ? 'Servicio Activo' : 'Servicio Inactivo'}
+                </span>
+                <span className="block text-slate-400 dark:text-gray-500 text-xs mt-0.5">
+                  {isActive ? 'Los clientes pueden reservar este servicio' : 'Los clientes no pueden ver ni reservar este servicio'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div style={fieldGap}>
+            <label className={labelCls}>
+              {isFreeAccess ? (
+                <>
+                  Duración Máxima Permitida (minutos)
+                  <span className="text-red-500 font-semibold ml-1 text-xs">* obligatorio</span>
+                </>
+              ) : (
+                <>
+                  Duración por defecto (minutos)
+                  <span className="text-slate-400 dark:text-gray-500 font-normal ml-1 text-xs">— opcional</span>
+                </>
+              )}
+            </label>
+            <input
+              className={inputCls} type="number" min={1} max={480}
+              value={duration} onChange={e => setDuration(e.target.value)}
+              placeholder={isFreeAccess ? 'Ej: 60 · Límite máximo por reserva' : 'Ej: 60 · Dejar vacío si no aplica'}
+              required={isFreeAccess}
+            />
+            {isFreeAccess && (
+              <p className="text-slate-400 dark:text-gray-500 text-xs mt-1 m-0">
+                El cliente no podrá reservar un bloque superior a este límite.
+              </p>
+            )}
+          </div>
+
+          {/* ── Horarios de clase — disponible en creación y edición, solo si NO es acceso libre ── */}
+          {!isFreeAccess && (
+            <div className="mt-5 pt-5 border-t border-slate-200 dark:border-bg-deep">
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-sm font-medium text-slate-700 dark:text-gray-300">Horarios de Clase</label>
+                <span className="text-brand-orange text-xs font-semibold">obligatorio</span>
+              </div>
+              <p className="text-slate-400 dark:text-gray-500 text-xs m-0 mb-3 leading-relaxed">
+                Define bloques horarios específicos (Zumba, Natación, Sauna…). Los usuarios podrán reservar en estos bloques desde la app.
+              </p>
+
+              {/* Lista de horarios existentes */}
+              {schedulesLoading ? (
+                <p className="text-slate-400 dark:text-gray-500 text-sm mb-3">Cargando horarios...</p>
+              ) : schedules.length === 0 ? (
+                <p className="text-slate-400 dark:text-gray-500 text-sm italic mb-3">Sin horarios configurados</p>
+              ) : (
+                <div className="flex flex-col gap-1.5 mb-3">
+                  {schedules.map(s => {
+                    const instrLabel = instructors.find(i => i.id === Number(s.instructorId))?.label
+                      ?? s.instructor?.email;
+                    return (
+                      <div key={s.id} className="flex items-center gap-2.5 bg-gray-50 dark:bg-bg-surface border border-brand-orange rounded-lg px-3 py-2">
+                        <span className="font-bold text-xs font-bold min-w-[36px]" style={{ color: '#FF5E00' }}>
+                          {DAY_LABELS[s.dayOfWeek] ?? s.dayOfWeek}
+                        </span>
+                        <span className="text-slate-700 dark:text-gray-200 text-sm flex-1">
+                          {s.startTime.substring(0, 5)} – {s.endTime.substring(0, 5)}
+                          {instrLabel && (
+                            <span className="inline-flex items-center gap-1 text-slate-400 dark:text-gray-500 ml-2 text-xs">
+                              · <GraduationCap size={11} /> {instrLabel}
+                            </span>
+                          )}
+                        </span>
+                        <button type="button" onClick={() => handleDeleteSchedule(s.id)}
+                          className="bg-red-50 dark:bg-bg-surface text-red-500 border border-red-200 dark:border-gray-600 rounded-md p-1 cursor-pointer flex items-center">
+                          <X size={12} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Fila para agregar nuevo horario */}
+              <div className="flex flex-col gap-2.5 bg-slate-50 dark:bg-bg-surface border border-dashed border-slate-300 dark:border-bg-deep rounded-lg p-3">
+                {/* Chips de días */}
+                <div>
+                  <span className="text-xs text-slate-500 dark:text-gray-500 block mb-1 font-medium">Día</span>
+                  <div className="flex gap-1 flex-wrap">
+                    {Object.entries(DAY_LABELS).map(([key]) => (
+                      <button key={key} type="button" onClick={() => setNewDay(key)}
+                        className={`px-2.5 py-1 rounded-full text-xs cursor-pointer transition-colors ${newDay === key ? 'font-semibold border border-brand-orange bg-orange-50 dark:bg-bg-surface text-brand-orange' : 'font-normal border border-slate-300 dark:border-bg-deep bg-white dark:bg-bg-deep text-slate-500 dark:text-text-muted'}`}>
+                        {key}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Horario */}
+                <div className="flex gap-2 items-center flex-wrap">
+                  <TimeSelect value={newStart} onChange={setNewStart} />
+                  <span className="text-slate-400 dark:text-gray-500 font-semibold">–</span>
+                  <TimeSelect value={newEnd} onChange={setNewEnd} />
+                </div>
+
+                {/* Instructor + Aforo */}
+                <div className="flex gap-2 flex-wrap">
+                  {/* Selector instructor */}
+                  <div style={{ flex: 2, minWidth: '140px' }}>
+                    <span className="text-xs text-slate-500 dark:text-gray-500 block mb-1 font-medium">Instructor *</span>
+                    <div className="relative">
+                      <select
+                        value={newInstructorId}
+                        onChange={e => setNewInstructorId(e.target.value)}
+                        className={`${selectCls} text-sm`}
+                      >
+                        <option value="">— Seleccionar —</option>
+                        {instructors.map(i => (
+                          <option key={i.id} value={i.id}>{i.label}</option>
+                        ))}
+                      </select>
+                      <span className="absolute right-[0.6rem] top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-gray-500 text-[0.65rem]">▼</span>
+                    </div>
+                    {instructors.length === 0 && (
+                      <span className="text-xs text-slate-400 dark:text-gray-600 mt-0.5 block">
+                        Sin instructores asignados a esta marca
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Aforo */}
+                  <div style={{ flex: 1, minWidth: '80px' }}>
+                    <span className="text-xs text-slate-500 dark:text-gray-500 block mb-1 font-medium">Aforo *</span>
+                    <input
+                      type="number" min={1} max={500}
+                      value={newMaxAttendees}
+                      onChange={e => setNewMaxAttendees(e.target.value)}
+                      className={`${inputCls} text-sm`}
+                      placeholder="20"
+                    />
+                  </div>
+                </div>
+
+                {/* Botón agregar */}
+                <div className="flex justify-end">
+                  <button type="button" onClick={handleAddSchedule} disabled={addingSchedule}
+                    style={{ ...btnPrimary, padding: '0.45rem 0.9rem', fontSize: '0.82rem', opacity: addingSchedule ? 0.6 : 1 }}>
+                    {addingSchedule ? '...' : '+ Agregar'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </form>
+      </div>
+
+      {/* Botones fijos al fondo */}
+      <div className="flex gap-3 justify-end mt-5 pt-4 pb-1 border-t border-slate-200 dark:border-bg-deep flex-shrink-0">
+        <button type="button" className={btnSecondaryCls} onClick={() => guardClose(touched, onClose)}>Cancelar</button>
+        <button type="submit" form="activity-form" style={btnPrimary} disabled={saving}>
+          {saving ? 'Guardando...' : isEdit ? 'Guardar Cambios' : 'Crear Servicio'}
+        </button>
+      </div>
+    </ModalOverlay>
+  );
+};
+
+const resetBtnStyle: CSSProperties = {
+  background: 'none', color: '#8E8E93',
+  border: '1px solid #1C1C1E', borderRadius: '8px',
+  padding: '0.5rem 0.9rem', cursor: 'pointer', fontSize: '0.8rem',
+  whiteSpace: 'nowrap',
+};
+
+// ─── Select Stellar 
+const DarkSelect = ({ value, onChange, children, style }: {
+  value: string;
+  onChange: (v: string) => void;
+  children: React.ReactNode;
+  style?: CSSProperties;
+}) => (
+  <div className="relative inline-flex items-center">
+    <select
+      className="bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none"
+      style={style}
+      value={value}
+      onChange={e => onChange(e.target.value)}
+    >
+      {children}
+    </select>
+    <span className="absolute right-2.5 pointer-events-none text-slate-400 dark:text-gray-500 text-xs">▼</span>
+  </div>
+);
+
+// ─── Main View 
+export const ActividadesView = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const userGymId = user?.gymId ? Number(user.gymId) : null;
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const activitiesKey = ['activities', userGymId] as const;
+
+  const { data: activities = [], isLoading: loading } = useQuery({
+    queryKey: activitiesKey,
+    queryFn: async () => {
+      const params = userGymId ? { gymId: userGymId } : {};
+      const data = await apiClient.get<Activity[]>('/activities', { params });
+      let raw: Activity[] = Array.isArray(data) ? data : ((data as { data?: Activity[] })?.data ?? []);
+      if (userGymId) raw = raw.filter((a) => a.gymId === userGymId);
+      return raw;
+    },
+    enabled: !!user,
+  });
+
+  const { data: gyms = [] } = useQuery({
+    queryKey: ['gyms-options'],
+    queryFn: async () => {
+      const [branchesRes, brandsRes] = await Promise.all([
+        apiClient.get<GymOption[]>('/gyms').catch(() => []),
+        apiClient.get<GymOption[]>('/gyms/brands').catch(() => []),
+      ]);
+      type RawGym = { id: number; name: string; parentId?: number | null; parent_id?: number | null };
+      const rawBranches: RawGym[] = Array.isArray(branchesRes) ? (branchesRes as RawGym[]) : ((branchesRes as { data?: RawGym[] })?.data ?? []);
+      const rawBrands: RawGym[]   = Array.isArray(brandsRes)   ? (brandsRes as RawGym[])   : ((brandsRes as { data?: RawGym[] })?.data   ?? []);
+      return [
+        ...rawBrands.map((g)   => ({ id: g.id, name: g.name, parentId: null as null })),
+        ...rawBranches.map((g) => ({ id: g.id, name: g.name, parentId: (g.parentId ?? g.parent_id ?? null) as number | null })),
+      ] as GymOption[];
+    },
+    enabled: isSuperAdmin,
+  });
+  const [formTarget,   setFormTarget]   = useState<Activity | null | 'new'>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Activity | null>(null);
+  const [detailTarget, setDetailTarget] = useState<Activity | null>(null);
+
+  // ── Filtros ──
+  const [search, setSearch] = useState('');
+  const [filterGymId, setFilterGymId] = useState('');
+  const [sortOrder, setSortOrder] = useState<'az' | 'za' | 'dur_asc' | 'dur_desc'>('az');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
+
+
+  // ── Opciones para barra de filtros (solo sucursales, nunca marcas)
+  const gymOptions = useMemo((): GymOption[] => {
+    if (gyms.length) return gyms.filter(g => g.parentId != null);
+    const seen = new Map<number, string>();
+    activities.forEach(a => {
+      if (!seen.has(a.gymId)) seen.set(a.gymId, a.gym?.name ?? `Gym #${a.gymId}`);
+    });
+    return [...seen.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [gyms, activities]);
+
+  // ── Pipeline de filtros ──
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+
+    return activities
+      .filter(a => {
+        if (term && !a.name.toLowerCase().includes(term) && !a.description.toLowerCase().includes(term)) return false;
+        if (filterGymId && a.gymId !== Number(filterGymId)) return false;
+        if (filterStatus === 'active' && !a.isActive) return false;
+        if (filterStatus === 'inactive' && a.isActive) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        if (sortOrder === 'az') return a.name.localeCompare(b.name);
+        if (sortOrder === 'za') return b.name.localeCompare(a.name);
+        if (sortOrder === 'dur_asc') return a.defaultDurationMin - b.defaultDurationMin;
+        return b.defaultDurationMin - a.defaultDurationMin;
+      });
+  }, [activities, search, filterGymId, sortOrder, filterStatus]);
+
+  const hasActiveFilters = search || filterGymId || filterStatus !== 'all' || sortOrder !== 'az';
+
+  const resetFilters = () => {
+    setSearch('');
+    setFilterGymId('');
+    setSortOrder('az');
+    setFilterStatus('all');
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await apiClient.delete(`/activities/${deleteTarget.id}`);
+      toast.success('Servicio eliminado');
+      setDeleteTarget(null);
+      queryClient.invalidateQueries({ queryKey: activitiesKey });
+    } catch {
+      // interceptor toasts
+    }
+  };
+
+  return (
+    <section style={panelStyle}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Catálogo de Servicios</h1>
+          <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">Gestión de actividades disponibles en el gimnasio</p>
+        </div>
+        <button style={{ ...btnPrimary, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }} onClick={() => setFormTarget('new')}>
+          <Plus size={15} />
+          Nuevo Servicio
+        </button>
+      </div>
+
+      {/* ── Barra de filtros ── */}
+      <div className="flex flex-col md:flex-row flex-wrap gap-3 items-center mb-6">
+        {/* Búsqueda libre */}
+        <div className="relative flex-1" style={{ minWidth: '220px' }}>
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-500 pointer-events-none" />
+          <input
+            className="w-full bg-white dark:bg-bg-deep border border-gray-300 dark:border-gray-700 text-slate-900 dark:text-gray-100 rounded-md pl-9 pr-4 py-2 text-sm focus:outline-none placeholder:text-slate-400 dark:placeholder:text-gray-500"
+            placeholder="Buscar por nombre o descripción..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+
+        {/* Sucursal — solo SUPER_ADMIN ve múltiples gyms */}
+        {isSuperAdmin && gymOptions.length > 1 && (
+          <DarkSelect value={filterGymId} onChange={setFilterGymId}>
+            <option value="">Todas las sucursales</option>
+            {gymOptions
+              .filter((g, i, a) => a.findIndex(t => t.name === g.name) === i)
+              .map(g => (
+                <option key={g.id} value={g.id}>{g.name}</option>
+              ))}
+          </DarkSelect>
+        )}
+
+        {/* Orden */}
+        <DarkSelect value={sortOrder} onChange={v => setSortOrder(v as typeof sortOrder)}>
+          <option value="az" >Nombre A → Z</option>
+          <option value="za" >Nombre Z → A</option>
+          <option value="dur_asc" >Duración ↑</option>
+          <option value="dur_desc">Duración ↓</option>
+        </DarkSelect>
+
+        {/* Estado */}
+        <DarkSelect value={filterStatus} onChange={v => setFilterStatus(v as typeof filterStatus)}>
+          <option value="all"     >Todos los estados</option>
+          <option value="active"  >Solo Activas</option>
+          <option value="inactive">Solo Inactivas</option>
+        </DarkSelect>
+
+        {hasActiveFilters && (
+          <button style={{ ...resetBtnStyle, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }} onClick={resetFilters}><X size={12} />Limpiar filtros</button>
+        )}
+      </div>
+
+      {/* Contador */}
+      {!loading && (
+        <p style={{ color: '#8E8E93', fontSize: '0.8rem', marginBottom: '0.75rem' }}>
+          {filtered.length === activities.length
+            ? `${activities.length} servicio${activities.length !== 1 ? 's' : ''}`
+            : `${filtered.length} de ${activities.length} servicios`}
+        </p>
+      )}
+
+      {/* Table */}
+      {loading ? (
+        <p style={{ color: '#8E8E93', textAlign: 'center', padding: '3rem 0' }}>Cargando servicios...</p>
+      ) : filtered.length === 0 ? (
+        <p style={{ color: '#8E8E93', textAlign: 'center', padding: '3rem 0' }}>
+          {activities.length === 0 ? 'No hay servicios registrados aún.' : 'Sin resultados para los filtros aplicados.'}
+        </p>
+      ) : (
+        <div className="bg-white dark:bg-bg-surface border border-gray-200 dark:border-bg-deep rounded-xl overflow-hidden mt-4">
+        <div className="overflow-x-auto">
+          <table style={tableStyle}>
+            <thead className="bg-gray-50 dark:bg-bg-deep border-b border-gray-200 dark:border-bg-deep text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">
+              <tr>
+                <th style={thStyle}>ID</th>
+                <th style={thStyle}>Nombre</th>
+                <th style={thStyle}>Descripción</th>
+                {isSuperAdmin && <th style={thStyle}>Gimnasio</th>}
+                <th style={thStyle}>Tipo</th>
+                <th style={thStyle}>Duración</th>
+                <th style={thStyle}>Estado</th>
+                <th style={{ ...thStyle, textAlign: 'right' }}>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(act => (
+                <tr key={act.id}
+                  className="border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-bg-deep transition-colors text-slate-700 dark:text-gray-300 text-sm"
+                >
+                  <td style={{ ...tdStyle, color: '#8E8E93', fontFamily: 'monospace' }}>#{act.id}</td>
+                  <td style={{ ...tdStyle, fontWeight: 600 }}>{act.name}</td>
+                  <td style={{ ...tdStyle, color: '#AEAEB2', maxWidth: '280px' }}>
+                    <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {act.description}
+                    </span>
+                  </td>
+                  {isSuperAdmin && (
+                    <td style={{ ...tdStyle, color: '#AEAEB2' }}>
+                      {act.gym?.name ?? `Gym #${act.gymId}`}
+                    </td>
+                  )}
+                  <td style={tdStyle}>
+                    {act.isFreeAccess
+                      ? <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: '99px', fontSize: '0.75rem', fontWeight: 700, background: '#FF5E00', color: '#fff' }}>Libre</span>
+                      : <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: '99px', fontSize: '0.75rem', fontWeight: 700, background: '#38BDF8', color: '#000' }}>Horarios</span>
+                    }
+                  </td>
+                  <td style={{ ...tdStyle, color: '#AEAEB2' }}>
+                    {act.defaultDurationMin ? `${act.defaultDurationMin} min` : <span style={{ color: '#636366' }}>—</span>}
+                  </td>
+                  <td style={tdStyle}>
+                    <span style={act.isActive ? badgeActive : badgeInactive}>
+                      <span style={{ width: 5, height: 5, borderRadius: '50%', background: act.isActive ? '#00E5A3' : '#FF5E00', flexShrink: 0 }} />
+                      {act.isActive ? 'Activa' : 'Inactiva'}
+                    </span>
+                  </td>
+                  <td style={{ ...tdStyle, textAlign: 'right' }}>
+                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                      <button
+                        title="Ver detalle"
+                        onClick={() => setDetailTarget(act)}
+                        style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(56,189,248,0.12)', color: '#38BDF8', transition: 'background 0.15s' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.26)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.12)'; }}
+                      ><Eye size={15} /></button>
+                      <button
+                        onClick={() => setFormTarget(act)}
+                        title="Editar actividad"
+                        style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(56,189,248,0.12)', color: '#38BDF8', transition: 'background 0.15s' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.26)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.12)'; }}
+                      ><Edit size={15} /></button>
+                      <button
+                        onClick={() => setDeleteTarget(act)}
+                        title="Eliminar actividad"
+                        style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: '#6b7280', transition: 'background 0.15s, color 0.15s' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = '#ef4444'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#6b7280'; }}
+                      ><Trash2 size={15} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        </div>
+      )}
+
+      {/* Detail Modal */}
+      {detailTarget && (
+        <ActivityDetailModal
+          activity={detailTarget}
+          onClose={() => setDetailTarget(null)}
+          onEdit={() => { setFormTarget(detailTarget); setDetailTarget(null); }}
+        />
+      )}
+
+      {/* Form Modal */}
+      {formTarget !== null && (
+        <ActivityFormModal
+          initial={formTarget === 'new' ? null : formTarget}
+          gyms={gyms}
+          userGymId={userGymId}
+          onClose={() => setFormTarget(null)}
+          onSaved={() => queryClient.invalidateQueries({ queryKey: activitiesKey })}
+        />
+      )}
+
+      {/* Confirm Delete */}
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Eliminar Servicio"
+        message={`¿Confirmas eliminar "${deleteTarget?.name}"? Esta acción aplica soft-delete en el servidor.`}
+      />
+    </section>
+  );
+};

@@ -11,6 +11,24 @@ export interface IGymLocationRaw {
   longitude?: number | null;
 }
 
+/** Horario de un día tal como llega del endpoint GET /gyms. */
+export interface IScheduleRaw {
+  id?: number;
+  gymId?: number;
+  dayOfWeek: string;   // Ej: 'LUNES', 'MARTES' ...
+  opensAt: string;     // Ej: '06:00' o '06:00:00'
+  closesAt: string;    // Ej: '22:00' o '22:00:00'
+  isHoliday: boolean;
+}
+
+/** Stats de máquinas por sucursal (calculado en el backend). */
+export interface IMachineStats {
+  total: number;
+  available: number;
+  inUse: number;
+  maintenance: number;
+}
+
 /** Gym crudo tal como llega del endpoint GET /gyms. */
 export interface IGymRaw {
   id: number;
@@ -20,9 +38,13 @@ export interface IGymRaw {
   isActive?: boolean;
   isOpen?: boolean;
   aforoActual?: number;
+  currentOccupancy?: number;
+  infrastructure?: { id: number; machineCapacity: number } | null;
+  machineStats?: IMachineStats | null;
   parentId?: number | null;
   parent?: { id: number; name: string } | null;
   location?: IGymLocationRaw | null;
+  schedules?: IScheduleRaw[];
 }
 
 /**
@@ -40,8 +62,12 @@ export interface SucursalMapaDTO {
   city: string;
   maxCapacity: number;
   aforoActual: number;
+  currentOccupancy: number;
+  machineCapacity: number;
+  machineStats?: IMachineStats;
   isActive: boolean;
   isOpen: boolean;
+  schedules: IScheduleRaw[];
 }
 
 /** Puerto de salida: contrato que deben implementar los adaptadores de infraestructura. */
@@ -125,8 +151,11 @@ export class ObtenerSedesMapaUseCase {
         city: gym.location?.city ?? 'Sin ciudad',
         maxCapacity: gym.maxCapacity ?? 0,
         aforoActual: gym.aforoActual ?? 0,
+        currentOccupancy: gym.currentOccupancy ?? gym.aforoActual ?? 0,
+        machineCapacity: gym.infrastructure?.machineCapacity || 0,
         isActive: gym.isActive ?? true,
         isOpen: gym.isOpen ?? true,
+        schedules: gym.schedules ?? [],
       });
     }
 

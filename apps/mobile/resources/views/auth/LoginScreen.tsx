@@ -1,8 +1,4 @@
-/**
- * LoginScreen.tsx
- * 
- * Pantalla de login moderna con animaciones y UX mejorada.
- */
+
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -13,169 +9,193 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
-  StatusBar,
+  ScrollView,
   Animated,
   Dimensions,
   Keyboard,
+  Linking,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
+import { useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
+const C = {
+  bg:       '#0A0A0A',
+  surface:  '#1C1C1E',
+  border:   '#2A2A2C',
+  orange:   '#FF5E00',
+  white:    '#FFFFFF',
+  textSoft: '#888888',
+  textDim:  '#555555',
+  error:    '#FF453A',
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: C.bg,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 35,
+    paddingHorizontal: 32,
     justifyContent: 'center',
   },
   brandContainer: {
     alignItems: 'center',
-    marginBottom: 50,
+    marginBottom: 48,
   },
-  logoBadge: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    backgroundColor: '#f05b22',
+  logoCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: C.surface,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
-    transform: [{ rotate: '45deg' }],
-    shadowColor: '#f05b22',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 15,
-    elevation: 10,
-  },
-  logoIcon: {
-    transform: [{ rotate: '-45deg' }],
+    marginBottom: 16,
   },
   title: {
-    fontSize: 36,
-    fontWeight: '900',
-    color: '#ffffff',
-    letterSpacing: -1,
+    fontSize: 28,
+    fontWeight: '800',
+    color: C.white,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 5,
-    fontWeight: '400',
+    fontSize: 14,
+    color: C.textSoft,
+    marginTop: 4,
   },
   formContainer: {
     width: '100%',
   },
   inputWrapper: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   label: {
     fontSize: 13,
-    color: '#aaa',
-    marginBottom: 10,
+    color: C.textSoft,
+    marginBottom: 8,
     fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#161618',
-    borderRadius: 16,
+    backgroundColor: C.surface,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#222',
-    paddingHorizontal: 15,
-    height: 60,
+    borderColor: C.border,
+    paddingHorizontal: 14,
+    height: 52,
   },
   inputFocused: {
-    borderColor: '#f05b22',
-    backgroundColor: '#1a1a1c',
+    borderColor: C.orange,
   },
   inputIcon: {
-    marginRight: 12,
+    marginRight: 10,
   },
   input: {
     flex: 1,
-    color: '#ffffff',
-    fontSize: 16,
+    color: C.white,
+    fontSize: 15,
     fontWeight: '500',
   },
   eyeIcon: {
-    padding: 10,
+    padding: 8,
   },
   dismissButton: {
     position: 'absolute',
-    top: -40,
+    top: -36,
     right: 0,
-    backgroundColor: '#1c1c1e',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
+    backgroundColor: C.surface,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: C.border,
   },
   dismissButtonText: {
-    color: '#f05b22',
+    color: C.orange,
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
   loginButton: {
-    backgroundColor: '#f05b22',
-    borderRadius: 16,
-    height: 60,
+    backgroundColor: C.orange,
+    borderRadius: 12,
+    height: 52,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 10,
-    shadowColor: '#f05b22',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    marginTop: 8,
   },
   loginButtonDisabled: {
     backgroundColor: '#333',
-    shadowOpacity: 0,
   },
   loginButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: 'bold',
+    color: C.white,
+    fontSize: 16,
+    fontWeight: '700',
   },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 68, 68, 0.1)',
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 20,
+    backgroundColor: C.surface,
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 68, 68, 0.3)',
+    borderColor: C.error,
   },
   errorText: {
-    color: '#ff4444',
-    fontSize: 14,
+    color: C.error,
+    fontSize: 13,
     marginLeft: 10,
     flex: 1,
+    lineHeight: 18,
+  },
+  forgotContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 20,
+    paddingVertical: 8,
+  },
+  forgotText: {
+    color: C.textSoft,
+    fontSize: 13,
+  },
+  forgotAction: {
+    color: C.orange,
+    fontWeight: '600',
+  },
+  registerContainer: {
+    marginTop: 8,
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  registerText: {
+    color: C.textSoft,
+    fontSize: 13,
+  },
+  registerAction: {
+    color: C.orange,
+    fontWeight: '600',
   },
   footer: {
     marginTop: 40,
     alignItems: 'center',
   },
   footerText: {
-    color: '#444',
-    fontSize: 12,
+    color: C.textDim,
+    fontSize: 11,
     fontWeight: '500',
+    letterSpacing: 0.5,
   },
 });
 
 export const LoginScreen = () => {
+  const navigation = useNavigation<any>();
   const { login, error, isLoading, clearError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -231,66 +251,66 @@ export const LoginScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
         style={{ flex: 1 }}
       >
-        <Animated.View 
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1 }}
+          bounces={false}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+        <Animated.View
           style={[
-            styles.content, 
+            styles.content,
             { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
           ]}
         >
-          {/* Brand Section */}
+          {/* Brand */}
           <View style={styles.brandContainer}>
-            <View style={styles.logoBadge}>
-              <MaterialCommunityIcons 
-                name="lightning-bolt" 
-                size={40} 
-                color="white" 
-                style={styles.logoIcon} 
-              />
+            <View style={styles.logoCircle}>
+              <MaterialCommunityIcons name="dumbbell" size={32} color={C.orange} />
             </View>
             <Text style={styles.title}>GymSync</Text>
             <Text style={styles.subtitle}>Potenciando tu rendimiento</Text>
           </View>
 
-          {/* Error Message */}
+          {/* Error */}
           {error && (
             <View style={styles.errorContainer}>
-              <MaterialCommunityIcons name="alert-circle-outline" size={20} color="#ff4444" />
+              <MaterialCommunityIcons name="alert-circle-outline" size={18} color={C.error} />
               <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
 
           {/* Formulario */}
           <View style={styles.formContainer}>
-            {/* Botón para ocultar teclado (Solo iOS) */}
             {Platform.OS === 'ios' && isKeyboardVisible && (
-              <TouchableOpacity 
-                style={styles.dismissButton} 
+              <TouchableOpacity
+                style={styles.dismissButton}
                 onPress={() => Keyboard.dismiss()}
               >
-                <Text style={styles.dismissButtonText}>LISTO</Text>
+                <Text style={styles.dismissButtonText}>Listo</Text>
               </TouchableOpacity>
             )}
 
-            {/* Email Field */}
+            {/* Email */}
             <View style={styles.inputWrapper}>
-              <Text style={styles.label}>Correo Electrónico</Text>
+              <Text style={styles.label}>Correo electrónico</Text>
               <View style={[styles.inputContainer, emailFocused && styles.inputFocused]}>
-                <MaterialCommunityIcons 
-                  name="email-outline" 
-                  size={20} 
-                  color={emailFocused ? '#f05b22' : '#666'} 
-                  style={styles.inputIcon} 
+                <MaterialCommunityIcons
+                  name="email-outline"
+                  size={18}
+                  color={emailFocused ? C.orange : C.textDim}
+                  style={styles.inputIcon}
                 />
                 <TextInput
                   style={styles.input}
                   placeholder="ejemplo@gymsync.com"
-                  placeholderTextColor="#444"
+                  placeholderTextColor={C.textDim}
                   value={email}
                   onChangeText={setEmail}
                   onFocus={() => {
@@ -305,20 +325,20 @@ export const LoginScreen = () => {
               </View>
             </View>
 
-            {/* Password Field */}
+            {/* Contraseña */}
             <View style={styles.inputWrapper}>
               <Text style={styles.label}>Contraseña</Text>
               <View style={[styles.inputContainer, passwordFocused && styles.inputFocused]}>
-                <MaterialCommunityIcons 
-                  name="lock-outline" 
-                  size={20} 
-                  color={passwordFocused ? '#f05b22' : '#666'} 
-                  style={styles.inputIcon} 
+                <MaterialCommunityIcons
+                  name="lock-outline"
+                  size={18}
+                  color={passwordFocused ? C.orange : C.textDim}
+                  style={styles.inputIcon}
                 />
                 <TextInput
                   style={styles.input}
                   placeholder="••••••••"
-                  placeholderTextColor="#444"
+                  placeholderTextColor={C.textDim}
                   value={password}
                   onChangeText={setPassword}
                   onFocus={() => {
@@ -329,20 +349,20 @@ export const LoginScreen = () => {
                   editable={!isLoading}
                   secureTextEntry={!showPassword}
                 />
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={() => setShowPassword(!showPassword)}
                   style={styles.eyeIcon}
                 >
-                  <MaterialCommunityIcons 
-                    name={showPassword ? "eye-off-outline" : "eye-outline"} 
-                    size={22} 
-                    color="#666" 
+                  <MaterialCommunityIcons
+                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color={C.textDim}
                   />
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* Login Button */}
+            {/* Botón principal */}
             <TouchableOpacity
               activeOpacity={0.8}
               style={[
@@ -353,20 +373,45 @@ export const LoginScreen = () => {
               disabled={isLoading}
             >
               {isLoading ? (
-                <ActivityIndicator color="#ffffff" />
+                <ActivityIndicator color={C.white} />
               ) : (
-                <Text style={styles.loginButtonText}>Entrar al Sistema</Text>
+                <Text style={styles.loginButtonText}>Iniciar sesión</Text>
               )}
+            </TouchableOpacity>
+
+            {/* Recuperar contraseña */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.forgotContainer}
+              onPress={() => navigation.navigate('ForgotPassword')}
+            >
+              <Text style={styles.forgotText}>
+                ¿Olvidaste tu contraseña?{' '}
+                <Text style={styles.forgotAction}>Recupérala</Text>
+              </Text>
+            </TouchableOpacity>
+
+            {/* Registrarse */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.registerContainer}
+              onPress={() => navigation.navigate('Register')}
+            >
+              <Text style={styles.registerText}>
+                ¿No tienes cuenta?{' '}
+                <Text style={styles.registerAction}>Regístrate</Text>
+              </Text>
             </TouchableOpacity>
           </View>
 
           {/* Footer */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>
-              SISTEMA DE GESTIÓN PRO • 2026
+              GymSync Pro · 2026
             </Text>
           </View>
         </Animated.View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

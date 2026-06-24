@@ -1,18 +1,8 @@
-/**
- * MapScreen View — Componente de presentación puro.
- * 
- * Solo recibe props tipadas y renderiza. Cero lógica de negocio.
- * Usa react-native-maps con tiles de OpenStreetMap.
- */
-
-import React, { useRef, useState } from 'react';
+import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Marker, UrlTile } from 'react-native-maps';
-import MapView from 'react-native-maps';
 import { useFilterStore } from '../../../../app/Providers/geolocation/stores/FilterStore';
-
-import { SedeMarker } from '../SedeMarker/SedeMarker.component';
 import { SedeInfoModalView } from '../SedeInfoModal/SedeInfoModal.view';
 import { SedesCatalog } from '../SedesCatalog/SedesCatalog.view';
 import { LoadingOverlay } from '../UI/LoadingOverlay/LoadingOverlay.component';
@@ -25,20 +15,28 @@ import { SedeConDistancia } from '@gymsync/core';
 import { Sede } from '@gymsync/core';
 import { OSMConfig } from '../../../../app/Providers/geolocation/config/osm.config';
 import { styles } from './MapScreen.styles';
+import { useAuth } from '../../../../app/Shared/hooks/useAuth';
+import {
+  LeafletMapView,
+  LeafletMapHandle,
+  LeafletSede,
+} from '../../../../app/Providers/geolocation/components/LeafletMap/LeafletMapView';
 
 type MapScreenViewProps = {
-  userLocation: Coordenadas | null;
-  sedes: SedeConDistancia[];
-  selectedSede: Sede | null;
-  loading: boolean;
-  error: string | null;
-  isListView: boolean;
+  userLocation:    Coordenadas | null;
+  sedes:           SedeConDistancia[];
+  selectedSede:    Sede | null;
+  loading:         boolean;
+  error:           string | null;
+  isListView:      boolean;
+  focusSedeId?:    string | number | null;
   onToggleListView: () => void;
-  onMarkerPress: (sede: Sede) => void;
-  onModalClose: () => void;
-  onNavigate: (sede: Sede) => void;
-  onReserve: (sede: Sede) => void;
-  onRetry: () => void;
+  onMarkerPress:   (sede: Sede) => void;
+  onModalClose:    () => void;
+  onNavigate:      (sede: Sede) => void;
+  onReserve:       (sede: Sede) => void;
+  onRetry:         () => void;
+  onBack:          () => void;
 };
 
 export const MapScreenView: React.FC<MapScreenViewProps> = ({
@@ -48,113 +46,153 @@ export const MapScreenView: React.FC<MapScreenViewProps> = ({
   loading,
   error,
   isListView,
+  focusSedeId,
   onToggleListView,
   onMarkerPress,
   onModalClose,
   onNavigate,
   onReserve,
   onRetry,
+  onBack,
 }) => {
-  const mapRef = useRef<MapView>(null);
+  const { user } = useAuth();
+  const insets   = useSafeAreaInsets();
+  const isGerente = ((user as any)?.level ?? 0) >= 5;
+
+  const mapRef = useRef<LeafletMapHandle>(null);
+
   const [filterVisible, setFilterVisible] = useState(false);
-  const [toastConfig, setToastConfig] = useState<{message: string, type: 'error' | 'success', key: number} | null>(null);
+  const [toastConfig, setToastConfig]     = useState<{ message: string; type: 'error' | 'success'; key: number } | null>(null);
+
+  useEffect(() => {
+    if (selectedSede?.coordenadas && mapRef.current) {
+      setTimeout(() => {
+        mapRef.current?.flyTo(selectedSede.coordenadas.latitude, selectedSede.coordenadas.longitude, 16);
+      }, 400);
+    }
+  }, [selectedSede?.id?.value]);
 
   const showToast = (message: string, type: 'error' | 'success' = 'error') => {
     setToastConfig({ message, type, key: Date.now() });
     setTimeout(() => setToastConfig(null), 3500);
   };
 
-  const { filtros, toggleServicio, toggleBeneficio } = useFilterStore();
-  
-  const activeFiltersCount = (filtros.servicios?.length || 0) + (filtros.beneficios?.length || 0);
+  const { filtros, toggleServicio, toggleBeneficio, toggleMarca } = useFilterStore();
 
+  const activeFiltersCount =
+    (filtros.servicios?.length || 0) +
+    (filtros.beneficios?.length || 0) +
+    (filtros.marcas?.length    || 0);
 
-  if (loading && sedes.length === 0) {
-    return <LoadingOverlay message="Buscando sedes cercanas..." />;
-  }
+  const marcasDisponibles = useMemo(() =>
+    [...new Set(sedes.map(s => s.sede.parentName).filter((n): n is string => !!n))].sort(),
+    [sedes],
+  );
 
-  if (error && sedes.length === 0) {
-    return <ErrorMessage message={error} onRetry={onRetry} />;
-  }
+  // Map SedeConDistancia[] → LeafletSede[]
+  const leafletSedes: LeafletSede[] = useMemo(() =>
+    sedes
+      .filter(({ sede }) => {
+        const lat = sede.coordenadas?.latitude;
+        const lng = sede.coordenadas?.longitude;
+        return lat && lng && !(lat === 0 && lng === 0);
+      })
+      .map(({ sede, distancia }) => ({
+        id:                sede.id.value,
+        nombre:            sede.nombre,
+        lat:               sede.coordenadas.latitude,
+        lng:               sede.coordenadas.longitude,
+        distancia:         distancia.kmCorta,
+        aforoActual:       sede.aforo?.actual       ?? 0,
+        aforoMaximo:       sede.aforo?.maximo        ?? 0,
+        capacidadMaquinas: sede.capacidadMaquinas   ?? 0,
+        isClosed:          !sede.estaAbierta,
+        isAvailable:       sede.estaDisponible,
+      })),
+    [sedes],
+  );
 
-  // Usar ubicación del usuario o centro por defecto (Santa Cruz)
+  const leafletUserLocation = useMemo(() =>
+    userLocation ? { lat: userLocation.latitude, lng: userLocation.longitude } : null,
+    [userLocation],
+  );
+
   const center = userLocation
-    ? {
-        ...OSMConfig.defaults.initialRegion,
-        latitude: userLocation.latitude,
-        longitude: userLocation.longitude,
-      }
-    : OSMConfig.defaults.initialRegion;
+    ? { lat: userLocation.latitude,  lng: userLocation.longitude }
+    : { lat: OSMConfig.defaults.initialRegion.latitude, lng: OSMConfig.defaults.initialRegion.longitude };
 
   const handleReCenter = () => {
     if (userLocation && mapRef.current) {
-      mapRef.current.animateToRegion({
-        latitude: userLocation.latitude,
-        longitude: userLocation.longitude,
-        latitudeDelta: OSMConfig.defaults.initialRegion.latitudeDelta,
-        longitudeDelta: OSMConfig.defaults.initialRegion.longitudeDelta,
-      }, 1000);
+      mapRef.current.flyTo(userLocation.latitude, userLocation.longitude, 15);
     } else {
       const msg = error?.toLowerCase().includes('red') || error?.toLowerCase().includes('internet')
         ? 'No hay conexión a internet para triangular tu área actual.'
         : 'No se puede acceder a tu ubicación. Verifica tus permisos de GPS.';
-        
       showToast(msg, 'error');
     }
   };
 
-
-
   const handleSelectSedeFromCatalog = (sede: Sede) => {
     onMarkerPress(sede);
     onToggleListView();
-
-    // Pequeño retardo para asegurar fluidez en el cierre del catálogo
     setTimeout(() => {
       if (mapRef.current && sede.coordenadas) {
-        mapRef.current.animateToRegion({
-          latitude: sede.coordenadas.latitude,
-          longitude: sede.coordenadas.longitude,
-          latitudeDelta: 0.015,
-          longitudeDelta: 0.015,
-        }, 1000);
+        mapRef.current.flyTo(sede.coordenadas.latitude, sede.coordenadas.longitude, 15);
       }
     }, 300);
   };
 
-  // Encontrar la distancia para la sede seleccionada
+  const handleWebViewMarkerPress = (sedeId: string | number) => {
+    const found = sedes.find(s => String(s.sede.id.value) === String(sedeId));
+    if (found) onMarkerPress(found.sede);
+  };
+
   const selectedSedeDistancia = selectedSede
     ? sedes.find(s => s.sede.id.value === selectedSede.id.value)?.distancia
     : null;
 
+  if (loading && sedes.length === 0) return <LoadingOverlay message="Buscando marcas cercanas..." />;
+  if (error   && sedes.length === 0) return <ErrorMessage message={error} onRetry={onRetry} />;
+
   return (
     <View style={styles.container}>
-      {/* Contenedor del Mapa - Siempre montado debajo */}
       <View style={StyleSheet.absoluteFillObject}>
-        {/* Floating Header with Semi-Transparent Glass Effect */}
+
+        {/* Floating Header */}
         <View style={styles.headerContainer} pointerEvents="box-none">
-          <View style={styles.headerBlur}>
+          <View style={[styles.headerBlur, { paddingTop: insets.top + 10 }]}>
             <View style={styles.headerRow}>
+              <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.8}>
+                <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
+              </TouchableOpacity>
               <View style={styles.headerTextCol}>
                 <Text style={styles.headerTitle}>Sedes Cercanas</Text>
                 <Text style={styles.headerSubtitle}>
                   {sedes.length} {sedes.length === 1 ? 'resultado encontrado' : 'resultados encontrados'}
                 </Text>
               </View>
+              <TouchableOpacity style={styles.catalogBtn} onPress={onToggleListView} activeOpacity={0.8}>
+                <MaterialCommunityIcons name="view-list" size={20} color="#1C1C1E" />
+              </TouchableOpacity>
             </View>
 
-            {/* Active Filter Chips */}
             {activeFiltersCount > 0 && (
               <View style={styles.activeFiltersRow}>
-                {filtros.servicios?.map(servicio => (
-                  <TouchableOpacity key={servicio} style={styles.activeFilterChip} onPress={() => toggleServicio(servicio)}>
-                    <Text style={styles.activeFilterText}>{servicio}</Text>
+                {filtros.servicios?.map(s => (
+                  <TouchableOpacity key={s} style={styles.activeFilterChip} onPress={() => toggleServicio(s)}>
+                    <Text style={styles.activeFilterText}>{s}</Text>
                     <MaterialCommunityIcons name="close" size={14} color="#FFF" />
                   </TouchableOpacity>
                 ))}
-                {filtros.beneficios?.map(beneficio => (
-                  <TouchableOpacity key={beneficio} style={styles.activeFilterChip} onPress={() => toggleBeneficio(beneficio)}>
-                    <Text style={styles.activeFilterText}>{beneficio}</Text>
+                {filtros.beneficios?.map(b => (
+                  <TouchableOpacity key={b} style={styles.activeFilterChip} onPress={() => toggleBeneficio(b)}>
+                    <Text style={styles.activeFilterText}>{b}</Text>
+                    <MaterialCommunityIcons name="close" size={14} color="#FFF" />
+                  </TouchableOpacity>
+                ))}
+                {filtros.marcas?.map(m => (
+                  <TouchableOpacity key={m} style={styles.activeFilterChip} onPress={() => toggleMarca(m)}>
+                    <Text style={styles.activeFilterText}>{m}</Text>
                     <MaterialCommunityIcons name="close" size={14} color="#FFF" />
                   </TouchableOpacity>
                 ))}
@@ -163,98 +201,74 @@ export const MapScreenView: React.FC<MapScreenViewProps> = ({
           </View>
         </View>
 
-        {/* FAB de Catálogo */}
-        <TouchableOpacity style={styles.catalogFab} onPress={onToggleListView} activeOpacity={0.8}>
-          <MaterialCommunityIcons name="view-list" size={24} color="#1C1C1E" />
-        </TouchableOpacity>
-
-        {/* Mapa con OpenStreetMap */}
-        <MapView
+        {/* Leaflet Map */}
+        <LeafletMapView
           ref={mapRef}
+          mode="client"
+          sedes={leafletSedes}
+          userLocation={leafletUserLocation}
+          initialCenter={center}
+          initialZoom={14}
+          interactive
+          onMarkerPress={handleWebViewMarkerPress}
           style={styles.map}
-          initialRegion={center}
-          showsUserLocation={true}
-          showsMyLocationButton={false}
-          showsCompass={true}
-          rotateEnabled={true}
-          zoomEnabled={true}
-          pitchEnabled={false}
-        >
-          {/* Tiles de OpenStreetMap */}
-          <UrlTile
-            urlTemplate={OSMConfig.tileUrlTemplate}
-            maximumZ={OSMConfig.tiles.maximumZ}
-            flipY={OSMConfig.tiles.flipY}
-            tileSize={OSMConfig.tiles.tileSize}
-          />
+        />
 
-          {/* Marcador del usuario */}
-          {userLocation && (
-            <Marker
-              coordinate={userLocation.toMapCoordinate()}
-              title="Tu ubicación"
-              pinColor="#4A90D9"
-              zIndex={1000}
-            />
-          )}
-
-          {/* Marcadores de sedes */}
-          {sedes.map(({ sede, distancia }) => (
-            <SedeMarker
-              key={sede.id.value}
-              sede={sede}
-              distancia={distancia}
-              onPress={() => onMarkerPress(sede)}
-            />
-          ))}
-        </MapView>
-
-        {/* Atribución OSM */}
+        {/* OSM Attribution */}
         <View style={styles.attribution}>
           <Text style={styles.attributionText}>{OSMConfig.attribution}</Text>
         </View>
 
         {/* Filter FAB */}
         <TouchableOpacity style={styles.filterFab} onPress={() => setFilterVisible(true)}>
-          <MaterialCommunityIcons name="filter-variant" size={24} color="#00D9FF" />
+          <MaterialCommunityIcons name="filter-variant" size={24} color="#38BDF8" />
         </TouchableOpacity>
 
-        {/* GPS FAB */}
+        {/* GPS Re-center FAB */}
         <GPSReCenterButton style={styles.gpsFab} onPress={handleReCenter} />
 
-        {/* Modal de información de sede */}
+        {/* Sede Info Modal */}
         {selectedSede && selectedSedeDistancia && !isListView && (
           <SedeInfoModalView
             sede={selectedSede}
             distancia={selectedSedeDistancia}
             visible={!!selectedSede}
-            onClose={onModalClose}
+            onClose={() => {
+              const sedeId = selectedSede.id.value;
+              onModalClose();
+              if (mapRef.current) mapRef.current.pulseMarker(sedeId, 4000);
+            }}
             onNavigate={() => onNavigate(selectedSede)}
-            onReserve={() => onReserve(selectedSede)}
+            onReserve={isGerente ? undefined : () => onReserve(selectedSede)}
+            isAdmin={isGerente}
           />
         )}
       </View>
 
-      {/* Catálogo Superpuesto */}
+      {/* Catalog Overlay */}
       {isListView && (
         <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#0A0A0A', zIndex: 100, elevation: 100 }]}>
-          <SedesCatalog 
-            sedes={sedes} 
-            onSelectSede={handleSelectSedeFromCatalog} 
-            onCerrarCatalogo={onToggleListView} 
+          <SedesCatalog
+            sedes={sedes}
+            onSelectSede={handleSelectSedeFromCatalog}
+            onCerrarCatalogo={onToggleListView}
           />
         </View>
       )}
 
-      {/* Modal de Filtros */}
-      <FilterBottomSheet visible={filterVisible} onClose={() => setFilterVisible(false)} />
+      {/* Filter Bottom Sheet */}
+      <FilterBottomSheet
+        visible={filterVisible}
+        onClose={() => setFilterVisible(false)}
+        marcasDisponibles={marcasDisponibles}
+      />
 
-      {/* Toast Notificador */}
-      <Toast 
-        key={toastConfig?.key} 
-        visible={!!toastConfig} 
-        message={toastConfig?.message || ''} 
-        type={toastConfig?.type} 
+      {/* Toast */}
+      <Toast
+        key={toastConfig?.key}
+        visible={!!toastConfig}
+        message={toastConfig?.message || ''}
+        type={toastConfig?.type}
       />
     </View>
   );

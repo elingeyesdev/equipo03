@@ -2,7 +2,7 @@
  * MapScreen Styles — Estilos separados para el componente MapScreen.
  */
 
-import { StyleSheet, Dimensions, Platform } from 'react-native';
+import { StyleSheet, Dimensions } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -22,21 +22,33 @@ export const styles = StyleSheet.create({
     borderBottomRightRadius: 24,
   },
   headerBlur: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 44,
-    paddingBottom: 20,
+    paddingTop: 12,
+    paddingBottom: 10,
     paddingHorizontal: 20,
-    backgroundColor: 'rgba(28, 28, 30, 0.6)', // Fallback / Base tint
+    backgroundColor: '#1C1C1E',
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    gap: 10,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    backgroundColor: '#2A2A2C',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#3A3A3C',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
   },
   headerTextCol: {
     flex: 1,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 15,
     fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: 0.3,
@@ -56,12 +68,12 @@ export const styles = StyleSheet.create({
   activeFilterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: '#1C1C1E',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: '#3A3A3C',
   },
   activeFilterText: {
     color: '#FFFFFF',
@@ -69,22 +81,14 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
     marginRight: 6,
   },
-  catalogFab: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 60 : 44,
-    right: 20,
-    backgroundColor: '#00D9FF',
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+  catalogBtn: {
+    backgroundColor: '#38BDF8',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#00D9FF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 8,
-    zIndex: 20,
+    flexShrink: 0,
   },
   map: {
     flex: 1,
@@ -94,7 +98,7 @@ export const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 8,
     left: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    backgroundColor: 'rgba(10,10,10,0.7)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 4,
@@ -106,19 +110,16 @@ export const styles = StyleSheet.create({
   },
   filterFab: {
     position: 'absolute',
-    bottom: 170, // Por encima del GPS ReCenter
+    bottom: 170,
     right: 20,
     backgroundColor: '#1C1C1E',
     width: 44,
     height: 44,
     borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#3A3A3C',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 8,
     zIndex: 20,
   },
   gpsFab: {
@@ -127,4 +128,30 @@ export const styles = StyleSheet.create({
     right: 20,
     zIndex: 20,
   },
+  legend: {
+    position: 'absolute',
+    bottom: 28,
+    left: 12,
+    gap: 5,
+    zIndex: 10,
+  },
+  legendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+  },
+  legendTxt: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+    textShadowColor: 'rgba(0,0,0,0.85)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
 });
+

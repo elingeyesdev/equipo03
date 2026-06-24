@@ -7,6 +7,7 @@ export type UserProfileInfo = {
   nombre: string;
   avatarUrl?: string;
   email: string;
+  rol?: string;
 };
 
 export type GymInfo = {

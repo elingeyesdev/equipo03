@@ -23,14 +23,10 @@ const AccesoDenegado = () => (
 
 interface RoleGuardProps {
   children: React.ReactNode;
-  /** Ruta relativa (sin /dashboard/) que se está protegiendo, ej: "usuarios" */
   routePath: string;
 }
 
-/**
- * RoleGuard v2 — consume NAV_ROUTES como fuente de verdad.
- * Si la ruta no existe en el mapa, bloquea por defecto (fail-secure).
- */
+
 export const RoleGuard: React.FC<RoleGuardProps> = ({ children, routePath }) => {
   const { user, isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
@@ -52,20 +48,12 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({ children, routePath }) => 
     return <AccesoDenegado />;
   }
 
-  const hasAccess = routeDef.allowedRoles.includes(user.role as UserRole);
+  const byRole = routeDef.allowedRoles.includes(user.role as UserRole);
+  const byLevel = routeDef.minLevel !== undefined && user.level >= routeDef.minLevel;
+  const hasAccess = byRole || byLevel;
 
   if (!hasAccess) {
-    console.warn(
-      `[RoleGuard]: Acceso denegado a "${routePath}" para rol "${user.role}". ` +
-      `Roles permitidos: [${routeDef.allowedRoles.join(', ')}]`
-    );
-
-    // Clientes ven mensaje de Acceso Denegado en lugar de ser redirigidos
-    if (user.role === 'CLIENTE') {
-      return <AccesoDenegado />;
-    }
-
-    // Resto de roles → redirige al resumen del dashboard
+    if (user.level <= 2) return <AccesoDenegado />;
     return <Navigate to="/dashboard/resumen" replace />;
   }
 

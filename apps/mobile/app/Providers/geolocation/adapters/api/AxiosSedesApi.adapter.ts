@@ -24,8 +24,6 @@ export class AxiosSedesApiAdapter implements ISedesApiService {
 
   async obtenerSedes(params: SedesQueryParams): Promise<Either<Error, Sede[]>> {
     try {
-      console.log('[AxiosSedesApiAdapter] Obteniendo sedes con params:', params);
-      
       const response = await this.client.get('/api/gyms', {
         params: {
           lat: params.userLat,
@@ -39,7 +37,7 @@ export class AxiosSedesApiAdapter implements ISedesApiService {
       const payload = response.data;
 
       if (!Array.isArray(payload)) {
-        console.error('[AxiosSedesApiAdapter] Respuesta no es un array:', payload);
+        console.warn('[AxiosSedesApiAdapter] Respuesta no es un array:', payload);
         return left(new Error('Formato de respuesta inválido'));
       }
 
@@ -47,35 +45,75 @@ export class AxiosSedesApiAdapter implements ISedesApiService {
         SedeDTOMapper.toDomain(dto)
       );
 
-      console.log('[AxiosSedesApiAdapter] Sedes obtenidas:', sedes.length);
       return right(sedes);
     } catch (error: unknown) {
       const message = error instanceof Error
         ? error.message
         : 'Error al obtener sedes del servidor';
-      console.error('[AxiosSedesApiAdapter] Error:', message);
+      console.warn('[AxiosSedesApiAdapter] Error:', message);
       return left(new Error(message));
     }
   }
 
   async obtenerSedePorId(id: string): Promise<Either<Error, Sede>> {
     try {
-      console.log('[AxiosSedesApiAdapter] Obteniendo sede con id:', id);
+      // Consultas en paralelo para gimnasio y sus actividades reales
+      const gymIdParam = Number(id);
+      const [gymResponse, activitiesResponse] = await Promise.all([
+        this.client.get(`/api/gyms/${id}`),
+        this.client.get('/api/activities', { params: { gymId: gymIdParam } })
+          .catch((err) => {
+            console.warn('[AxiosSedesApiAdapter] Error al cargar actividades en obtenerSedePorId:', err?.message);
+            return { data: [] };
+          })
+      ]);
+
+      // El interceptor ya desempaqueta el envelope: response.data ES el payload final
+      const gymDataCruda = gymResponse.data;
+      const rawActividades = activitiesResponse.data;
+      const actividadesCrudas = Array.isArray(rawActividades) ? rawActividades : (rawActividades?.data ?? []);
       
-      const response = await this.client.get(`/api/gyms/${id}`);
-      
-      // El interceptor desempaqueta automáticamente
-      const payload = response.data;
-      
-      const sede = SedeDTOMapper.toDomain(payload);
-      console.log('[AxiosSedesApiAdapter] Sede obtenida:', sede);
-      
+      const DOW_MAP: Record<string, number> = { DOM:0, LUN:1, MAR:2, MIE:3, JUE:4, VIE:5, SAB:6 };
+      const dayTimes: Record<number, { min: string; max: string }> = {};
+      actividadesCrudas.forEach((act: any) => {
+        (act.schedules ?? []).forEach((sch: any) => {
+          const idx = DOW_MAP[sch.dayOfWeek];
+          if (idx === undefined) return;
+          const s = String(sch.startTime ?? '06:00').substring(0, 5);
+          const e = String(sch.endTime   ?? '22:00').substring(0, 5);
+          if (!dayTimes[idx]) dayTimes[idx] = { min: s, max: e };
+          else {
+            if (s < dayTimes[idx].min) dayTimes[idx].min = s;
+            if (e > dayTimes[idx].max) dayTimes[idx].max = e;
+          }
+        });
+      });
+      const derivedSchedules = Object.entries(dayTimes).map(([d, t]) => ({
+        dayOfWeek: Number(d), opensAt: t.min, closesAt: t.max,
+      }));
+
+      const schedules =
+        (gymDataCruda.gymSchedules?.length > 0 ? gymDataCruda.gymSchedules : null) ??
+        (gymDataCruda.schedules?.length    > 0 ? gymDataCruda.schedules    : null) ??
+        (derivedSchedules.length           > 0 ? derivedSchedules          : []);
+
+      const combinedPayload = {
+        ...gymDataCruda,
+        schedules,
+        servicios: actividadesCrudas,
+        services: actividadesCrudas,
+        activities: actividadesCrudas,
+        gym_activities: actividadesCrudas,
+        gym_activity: actividadesCrudas,
+      };
+
+      const sede = SedeDTOMapper.toDomain(combinedPayload);
       return right(sede);
     } catch (error: unknown) {
       const message = error instanceof Error
         ? error.message
         : `Error al obtener sede ${id}`;
-      console.error('[AxiosSedesApiAdapter] Error:', message);
+      console.warn('[AxiosSedesApiAdapter] Error unificado en obtenerSedePorId:', message);
       return left(new Error(message));
     }
   }

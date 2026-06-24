@@ -4,8 +4,10 @@ import { Navigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
-import { ModalOverlay, ConfirmModal, panelStyle } from './Shared/DashboardShared';
+import { ModalOverlay, ConfirmModal } from './Shared/DashboardShared';
+import { guardClose, panelStyle } from './Shared/DashboardShared.utils';
 import type { GymDto, GymScheduleDto, UserDto, CheckinDto, ScheduleEntry } from './Shared/DashboardTypes';
+import { Edit, Trash2, Plus, Shield } from 'lucide-react';
 
 type RoleDto = {
   id: number;
@@ -19,16 +21,21 @@ const HIERARCHY_LABELS: Record<number, string> = {
   10: 'Máximo (10)',
   5: 'Alto (5)',
   3: 'Medio (3)',
+  2: 'Básico-Avanzado (2)',
   1: 'Básico (1)',
 };
 
-const RoleModal = ({ isOpen, onClose, roleToEdit, onSave }: any) => {
+const RoleModal = ({ isOpen, onClose, roleToEdit, onSave, roles }: any) => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     hierarchyLevel: 1,
     isSystemRole: false,
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState(false);
+
+  useEffect(() => { setTouched(false); }, [isOpen]);
 
   useEffect(() => {
     if (roleToEdit) {
@@ -41,70 +48,176 @@ const RoleModal = ({ isOpen, onClose, roleToEdit, onSave }: any) => {
     } else {
       setFormData({ name: '', description: '', hierarchyLevel: 1, isSystemRole: false });
     }
+    setErrors({});
   }, [roleToEdit, isOpen]);
+
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    const editingId = roleToEdit?.id ?? null;
+
+    // Regla 1: Nombre formato + longitud
+    if (!formData.name || formData.name.trim().length < 3) {
+      newErrors.name = 'El nombre debe tener al menos 3 caracteres.';
+    } else if (!/^[A-Z_]+$/.test(formData.name)) {
+      newErrors.name = 'Solo letras mayúsculas y guiones bajos permitidos.';
+    } else {
+      // Regla 2: Unicidad local
+      const isDuplicate = (roles as RoleDto[]).some(
+        r => r.name === formData.name && r.id !== editingId
+      );
+      if (isDuplicate) newErrors.name = 'Este rol ya existe.';
+    }
+
+    // Regla 3: Descripción
+    const descTrimmed = formData.description?.trim() ?? '';
+    if (!descTrimmed || descTrimmed.length < 5) {
+      newErrors.description = 'La descripción es obligatoria (mínimo 5 caracteres).';
+    } else if (descTrimmed.length > 300) {
+      newErrors.description = 'La descripción no puede superar los 300 caracteres.';
+    } else if (/[bcdfghjklmnñpqrstvwxyz]{5,}/i.test(descTrimmed)) {
+      newErrors.description = 'La descripción parece contener caracteres aleatorios.';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = () => {
+    if (validateForm()) onSave(formData);
+  };
 
   if (!isOpen) return null;
 
+  const fgLabel: CSSProperties = { fontSize: '0.8rem', color: '#8E8E93', fontWeight: 600, marginBottom: '0.35rem', display: 'block' };
+  const fgInput  = (hasErr: boolean): CSSProperties => ({
+    width: '100%', boxSizing: 'border-box',
+    background: '#1C1C1E',
+    border: `1px solid ${hasErr ? '#ef4444' : '#3A3A3C'}`,
+    borderRadius: '8px', padding: '0.6rem 0.75rem',
+    color: '#FFFFFF', fontSize: '0.9rem',
+  });
+  const fgGroup: CSSProperties = { display: 'flex', flexDirection: 'column', marginBottom: '1rem' };
+  const errStyle: CSSProperties = { color: '#ef4444', fontSize: '0.72rem', marginTop: '0.3rem' };
+
   return (
-    <ModalOverlay onClose={onClose}>
-      <div className="modal-content glass-panel" style={{ maxWidth: '480px', width: '95vw' }}>
-        <div className="modal-header">
-          <h2>{roleToEdit ? '✏️ Editar Rol' : '🔑 Nuevo Rol'}</h2>
-        </div>
+    <ModalOverlay onClose={onClose} isDirty={touched} onFormChange={() => setTouched(true)}>
+      {/* Header */}
+      <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-gray-800 mb-4">
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white m-0">
+          {roleToEdit ? 'Editar Rol' : 'Nuevo Rol'}
+        </h2>
+        <button
+          onClick={() => guardClose(touched, onClose)}
+          className="text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-gray-300 text-sm font-bold bg-slate-100 dark:bg-gray-800 px-2 py-1 rounded border-0 cursor-pointer transition-colors"
+        >
+          ✕
+        </button>
+      </div>
 
-        <div className="modal-form-group">
-          <label>Nombre del Rol</label>
-          <input
-            type="text"
-            value={formData.name}
-            onChange={e => setFormData({ ...formData, name: e.target.value.toUpperCase().replace(/\s/g, '_') })}
-            placeholder="Ej. COORDINADOR"
-          />
-          <small style={{ color: '#8E8E93', fontSize: '0.75rem' }}>Solo mayúsculas y guión bajo (AUTO)</small>
-        </div>
-
-        <div className="modal-form-group">
-          <label>Descripción</label>
-          <input
-            type="text"
-            value={formData.description}
-            onChange={e => setFormData({ ...formData, description: e.target.value })}
-            placeholder="Descripción del rol y sus permisos"
-          />
-        </div>
-
-        <div className="modal-form-group">
-          <label>Nivel Jerárquico</label>
-          <select value={formData.hierarchyLevel} onChange={e => setFormData({ ...formData, hierarchyLevel: Number(e.target.value) })}>
-            <option value={10}>Máximo (10) — Super Administrador</option>
-            <option value={5}>Alto (5) — Gerentes / Coordinadores</option>
-            <option value={3}>Medio (3) — Entrenadores / Nutricionistas</option>
-            <option value={1}>Básico (1) — Usuarios / Clientes</option>
-          </select>
-        </div>
-
-        <div className="modal-form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <input
-            type="checkbox"
-            style={{ width: 'auto' }}
-            checked={formData.isSystemRole}
-            onChange={e => setFormData({ ...formData, isSystemRole: e.target.checked })}
-          />
-          <label style={{ margin: 0 }}>Rol de Sistema (no puede ser eliminado por usuarios)</label>
-        </div>
-
-        {roleToEdit?.isSystemRole && (
-          <div style={{ padding: '0.6rem 0.75rem', background: 'rgba(255, 159, 10, 0.08)', border: '1px solid rgba(255, 159, 10, 0.3)', borderRadius: '8px', color: '#FF9F0A', fontSize: '0.8rem', marginBottom: '1rem' }}>
-            ⚠️ Este es un rol de sistema. Modifícalo con precaución.
-          </div>
+      {/* Nombre */}
+      <div className="flex flex-col mb-4">
+        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide mb-1">
+          Nombre del Rol
+        </label>
+        <input
+          type="text"
+          className={`w-full bg-slate-50 dark:bg-[#151521] border ${errors.name ? 'border-red-500' : 'border-slate-200 dark:border-gray-700'} text-slate-900 dark:text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors`}
+          value={formData.name}
+          onChange={e => {
+            setFormData({ ...formData, name: e.target.value.toUpperCase().replace(/\s/g, '_') });
+            if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
+          }}
+          placeholder="Ej. COORDINADOR"
+        />
+        {errors.name ? (
+          <span className="text-red-500 text-xs mt-1 block">{errors.name}</span>
+        ) : (
+          <small className="text-slate-400 dark:text-gray-500 text-xs mt-1 block">
+            Solo mayúsculas y guión bajo (AUTO)
+          </small>
         )}
+      </div>
 
-        <div className="modal-actions">
-          <button className="btn-cancel" onClick={onClose}>Cancelar</button>
-          <button className="btn-primary" onClick={() => onSave(formData)}>
-            {roleToEdit ? 'Actualizar Rol' : 'Crear Rol'}
-          </button>
+      {/* Descripción */}
+      <div className="flex flex-col mb-4">
+        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide mb-1">
+          Descripción
+        </label>
+        <textarea
+          maxLength={300}
+          rows={3}
+          className={`w-full bg-slate-50 dark:bg-[#151521] border ${errors.description ? 'border-red-500' : 'border-slate-200 dark:border-gray-700'} text-slate-900 dark:text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors resize-none font-sans`}
+          value={formData.description}
+          onChange={e => {
+            setFormData({ ...formData, description: e.target.value });
+            if (errors.description) setErrors(prev => ({ ...prev, description: '' }));
+          }}
+          placeholder="Descripción del rol y sus permisos"
+        />
+        <div className="flex justify-between items-center mt-1">
+          {errors.description ? (
+            <span className="text-red-500 text-xs block">{errors.description}</span>
+          ) : (
+            <span />
+          )}
+          <span className={`text-xs ml-auto ${formData.description.length >= 300 ? 'text-red-500 font-semibold' : formData.description.length >= 270 ? 'text-amber-500' : 'text-slate-400 dark:text-gray-500'}`}>
+            {formData.description.length} / 300
+          </span>
         </div>
+      </div>
+
+      {/* Nivel Jerárquico */}
+      <div className="flex flex-col mb-4">
+        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide mb-1">
+          Nivel Jerárquico
+        </label>
+        <select
+          className="w-full bg-white dark:bg-bg-surface border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer"
+          value={formData.hierarchyLevel}
+          onChange={e => setFormData({ ...formData, hierarchyLevel: Number(e.target.value) })}
+        >
+          <option value={4} className="bg-white dark:bg-[#151521] text-slate-900 dark:text-white">Medio-Alto (4) — Recepcionistas / Secretarios</option>
+          <option value={3} className="bg-white dark:bg-[#151521] text-slate-900 dark:text-white">Medio (3) — Entrenadores / Nutricionistas</option>
+          <option value={2} className="bg-white dark:bg-[#151521] text-slate-900 dark:text-white">Básico-Avanzado (2) — Instructores de Clases Grupales</option>
+          <option value={1} className="bg-white dark:bg-[#151521] text-slate-900 dark:text-white">Básico (1) — Usuarios / Clientes</option>
+        </select>
+      </div>
+
+      {/* Rol de Sistema */}
+      <div className="flex items-center gap-2 mb-4">
+        <input
+          type="checkbox"
+          className="w-4 h-4 cursor-pointer accent-blue-600 rounded"
+          id="isSystemRoleCheckbox"
+          checked={formData.isSystemRole}
+          onChange={e => setFormData({ ...formData, isSystemRole: e.target.checked })}
+        />
+        <label htmlFor="isSystemRoleCheckbox" className="text-sm font-semibold text-slate-700 dark:text-slate-300 cursor-pointer m-0">
+          Rol de Sistema (no puede ser eliminado por usuarios)
+        </label>
+      </div>
+
+      {/* Warning */}
+      {roleToEdit?.isSystemRole && (
+        <div className="p-3 bg-brand-orange text-white rounded-lg text-xs font-semibold mb-4">
+          Atención: este es un rol de sistema. Modifícalo con precaución.
+        </div>
+      )}
+
+      {/* Acciones */}
+      <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-gray-800">
+        <button
+          onClick={() => guardClose(touched, onClose)}
+          className="px-4 py-2 bg-slate-100 dark:bg-gray-800 hover:bg-slate-200 dark:hover:bg-gray-700 text-slate-700 dark:text-gray-300 text-sm font-semibold rounded-lg border-0 cursor-pointer transition-colors"
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={handleSubmit}
+          className="px-4 py-2 bg-brand-celeste text-black text-sm font-bold rounded-lg border-0 cursor-pointer"
+        >
+          {roleToEdit ? 'Actualizar Rol' : 'Crear Rol'}
+        </button>
       </div>
     </ModalOverlay>
   );
@@ -125,7 +238,7 @@ export const RolesView = () => {
     return (
       <section style={panelStyle} className="glass-panel">
         <div style={{ padding: '3rem', textAlign: 'center', color: '#FF5E00' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔒</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '1rem', letterSpacing: '0.1em' }}>ACCESO DENEGADO</div>
           <h2>Acceso Denegado</h2>
           <p style={{ color: '#8E8E93' }}>Solo el Super Administrador puede gestionar los roles del sistema.</p>
         </div>
@@ -135,42 +248,17 @@ export const RolesView = () => {
 
   useEffect(() => {
     let mounted = true;
+    // Limpiar overrides locales obsoletos para que la BD sea la fuente de verdad
+    localStorage.removeItem('gymsync_local_roles');
+    localStorage.removeItem('gymsync_deleted_role_ids');
+    localStorage.removeItem('gymsync_edited_roles');
+
     const fetchRoles = async () => {
       try {
         setLoading(true);
         const res = await apiClient.get('/roles');
-        const dbRoles = Array.isArray(res.data) ? res.data : res.data?.data || [];
-        
-        // Cargar anulaciones locales
-        const localCreatedStr = localStorage.getItem('gymsync_local_roles');
-        const localCreated: RoleDto[] = localCreatedStr ? JSON.parse(localCreatedStr) : [];
-        
-        const localDeletedStr = localStorage.getItem('gymsync_deleted_role_ids');
-        const localDeleted: number[] = localDeletedStr ? JSON.parse(localDeletedStr) : [];
-        
-        const localEditedStr = localStorage.getItem('gymsync_edited_roles');
-        const localEdited: RoleDto[] = localEditedStr ? JSON.parse(localEditedStr) : [];
-
-        // Integrar cambios
-        let mergedRoles = [...dbRoles];
-        
-        // 1. Filtrar los eliminados
-        mergedRoles = mergedRoles.filter(r => !localDeleted.includes(r.id));
-        
-        // 2. Aplicar ediciones
-        mergedRoles = mergedRoles.map(r => {
-          const edited = localEdited.find(e => e.id === r.id);
-          return edited ? { ...r, ...edited } : r;
-        });
-        
-        // 3. Añadir nuevos
-        localCreated.forEach(newRole => {
-          if (!mergedRoles.some(r => r.id === newRole.id)) {
-            mergedRoles.push(newRole);
-          }
-        });
-
-        if (mounted) setRoles(mergedRoles);
+        const dbRoles: RoleDto[] = Array.isArray(res.data) ? res.data : res.data?.data || [];
+        if (mounted) setRoles(dbRoles);
       } catch (err) {
         if (mounted) setError('No se pudieron cargar los roles.');
       } finally {
@@ -190,51 +278,23 @@ export const RolesView = () => {
         isSystemRole: Boolean(formData.isSystemRole),
       };
 
-      console.log(`[Security Check]: SUPER_ADMIN gestionando Rol`);
-      console.log(`[Final Contract]: Enviando payload a /roles -> ${JSON.stringify(payload)}`);
-
       if (roleToEdit) {
-        // OPERACIÓN EDICIÓN: El backend no implementa PUT /roles/:id, por lo que se gestiona puramente de forma local
-        // para evitar de forma absoluta cualquier error de red 404 en la consola.
-        const localEditedStr = localStorage.getItem('gymsync_edited_roles');
-        const localEdited: RoleDto[] = localEditedStr ? JSON.parse(localEditedStr) : [];
-        const existingIdx = localEdited.findIndex(e => e.id === roleToEdit.id);
-        const updatedRole = { ...roleToEdit, ...payload };
-        
-        if (existingIdx >= 0) {
-          localEdited[existingIdx] = updatedRole;
-        } else {
-          localEdited.push(updatedRole);
-        }
-        localStorage.setItem('gymsync_edited_roles', JSON.stringify(localEdited));
-
-        setRoles(prev => prev.map(r => r.id === roleToEdit.id ? updatedRole : r));
-        toast.success(`Rol "${payload.name}" editado con éxito (Mapeo Local)`);
+        const res = await apiClient.patch(`/roles/${roleToEdit.id}`, payload);
+        const updated: RoleDto = res.data?.id ? res.data : { ...roleToEdit, ...payload };
+        setRoles(prev => prev.map(r => r.id === roleToEdit.id ? updated : r));
+        toast.success(`Rol "${payload.name}" actualizado con éxito`);
       } else {
-        // OPERACIÓN CREACIÓN: Intentamos en el backend, si falla por la secuencia de la BD usamos fallback local.
-        let newRole: RoleDto;
-        try {
-          const res = await apiClient.post('/roles', payload, { _skipErrorToast: true } as any);
-          newRole = res.data?.id ? res.data : { id: res.data?.data?.id || Date.now(), ...payload };
-          toast.success(`Rol "${payload.name}" creado con éxito en el servidor`);
-        } catch (err) {
-          console.warn('[Backend] POST /roles falló (secuencia duplicada), usando fallback local.');
-          newRole = { id: Date.now(), ...payload };
-          
-          const localCreatedStr = localStorage.getItem('gymsync_local_roles');
-          const localCreated: RoleDto[] = localCreatedStr ? JSON.parse(localCreatedStr) : [];
-          localCreated.push(newRole);
-          localStorage.setItem('gymsync_local_roles', JSON.stringify(localCreated));
-          toast.success(`Rol "${payload.name}" creado con éxito (Mapeo Local)`);
-        }
-
+        const res = await apiClient.post('/roles', payload);
+        const newRole: RoleDto = res.data?.id ? res.data : { id: res.data?.data?.id, ...payload };
         setRoles(prev => [...prev, newRole]);
+        toast.success(`Rol "${payload.name}" creado con éxito`);
       }
 
       setIsModalOpen(false);
       setRoleToEdit(null);
-    } catch (err) {
-      toast.error('Ocurrió un error al guardar el rol.');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message ?? err?.message ?? 'Ocurrió un error al guardar el rol.';
+      toast.error(msg);
     }
   };
 
@@ -246,27 +306,12 @@ export const RolesView = () => {
       return;
     }
     try {
-      // El backend no implementa DELETE /roles/:id, por lo que se gestiona puramente de forma local
-      // para evitar de forma absoluta cualquier error de red 404 en la consola.
-      const localDeletedStr = localStorage.getItem('gymsync_deleted_role_ids');
-      const localDeleted: number[] = localDeletedStr ? JSON.parse(localDeletedStr) : [];
-      if (!localDeleted.includes(deleteConfirm.id)) {
-        localDeleted.push(deleteConfirm.id);
-        localStorage.setItem('gymsync_deleted_role_ids', JSON.stringify(localDeleted));
-      }
-
-      // Remover de locales creados si existía
-      const localCreatedStr = localStorage.getItem('gymsync_local_roles');
-      if (localCreatedStr) {
-        const localCreated: RoleDto[] = JSON.parse(localCreatedStr);
-        const filtered = localCreated.filter(r => r.id !== deleteConfirm.id);
-        localStorage.setItem('gymsync_local_roles', JSON.stringify(filtered));
-      }
-
+      await apiClient.delete(`/roles/${deleteConfirm.id}`);
       setRoles(prev => prev.filter(r => r.id !== deleteConfirm.id));
       toast.success(`Rol "${deleteConfirm.name}" eliminado con éxito`);
-    } catch (err) {
-      toast.error('No se pudo eliminar el rol.');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message ?? 'No se pudo eliminar el rol.';
+      toast.error(msg);
     } finally {
       setDeleteConfirm(null);
     }
@@ -275,25 +320,27 @@ export const RolesView = () => {
   const hierarchyColor = (level?: number) => {
     if (!level) return '#8E8E93';
     if (level >= 10) return '#FF5E00';
-    if (level >= 5) return '#FF9F0A';
-    if (level >= 3) return '#00D9FF';
-    return '#30D158';
+    if (level >= 5) return '#FF5E00';
+    if (level >= 4) return '#38BDF8';
+    if (level >= 3) return '#38BDF8';
+    return '#00E5A3';
   };
 
   return (
     <section style={panelStyle} className="glass-panel">
-      <h1 style={{ marginTop: 0 }}>Gestión de Roles</h1>
-      <p style={{ color: '#8E8E93' }}>Administración de roles y jerarquías del sistema. Solo visible para Super Administradores.</p>
+      <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Gestión de Roles</h1>
+      <p className="text-sm text-slate-600 dark:text-gray-400 mt-1">Administración de roles y jerarquías del sistema. Solo visible para Super Administradores.</p>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
-        <div style={{ color: '#8E8E93', fontSize: '0.9rem' }}>
+        <div className="text-sm text-slate-500 dark:text-gray-400">
           {loading ? 'Cargando roles...' : `${roles.length} roles registrados`}
         </div>
         <button
           onClick={() => { setRoleToEdit(null); setIsModalOpen(true); }}
-          style={{ background: '#00D9FF', color: '#0A0A0A', border: 'none', padding: '0.5rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
+          className="bg-brand-orange text-white font-semibold px-4 py-2 rounded-lg border-0 cursor-pointer inline-flex items-center gap-1.5"
         >
-          + Nuevo Rol
+          <Plus size={15} />
+          Nuevo Rol
         </button>
       </div>
 
@@ -304,51 +351,33 @@ export const RolesView = () => {
           {roles.map(role => (
             <div
               key={role.id}
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '1rem 1.25rem',
-                background: 'rgba(255,255,255,0.04)',
-                borderRadius: '12px',
-                border: `1px solid ${role.isSystemRole ? 'rgba(255, 159, 10, 0.25)' : '#3A3A3C'}`,
-                transition: 'border-color 0.2s',
-              }}
+              className={`flex justify-between items-center rounded-xl bg-white dark:bg-bg-surface ${role.isSystemRole ? 'border border-brand-orange' : 'border border-gray-200 dark:border-bg-deep'}`}
+              style={{ padding: '1rem 1.25rem' }}
             >
               {/* Info del Rol */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                 <div
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '8px',
-                    background: `${hierarchyColor(role.hierarchyLevel)}22`,
-                    border: `1px solid ${hierarchyColor(role.hierarchyLevel)}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '1rem',
-                    flexShrink: 0,
-                  }}
+                  className="w-9 h-9 rounded-lg bg-gray-100 dark:bg-bg-deep flex items-center justify-center flex-shrink-0"
+                  style={{ border: `1px solid ${hierarchyColor(role.hierarchyLevel)}` }}
                 >
-                  🔑
+                  <Shield size={17} color={hierarchyColor(role.hierarchyLevel)} />
                 </div>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ fontWeight: 700, fontSize: '0.95rem', fontFamily: 'monospace', color: '#E5E5EA' }}>
+                    <span className="font-bold text-gray-900 dark:text-white" style={{ fontSize: '0.95rem', fontFamily: 'monospace' }}>
                       {role.name}
                     </span>
                     {role.isSystemRole && (
-                      <span style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255, 159, 10, 0.15)', color: '#FF9F0A', border: '1px solid rgba(255,159,10,0.3)' }}>
+                      <span style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', background: '#FF5E00', color: '#fff', fontWeight: 700, border: 'none' }}>
                         SISTEMA
                       </span>
                     )}
-                    <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', background: `${hierarchyColor(role.hierarchyLevel)}22`, color: hierarchyColor(role.hierarchyLevel), border: `1px solid ${hierarchyColor(role.hierarchyLevel)}44` }}>
+                    <span className="bg-gray-100 dark:bg-bg-deep" style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', color: hierarchyColor(role.hierarchyLevel), border: `1px solid ${hierarchyColor(role.hierarchyLevel)}` }}>
                       Nivel {role.hierarchyLevel ?? '—'}
                     </span>
                   </div>
                   {role.description && (
-                    <span style={{ fontSize: '0.82rem', color: '#8E8E93', marginTop: '2px', display: 'block' }}>
+                    <span className="text-sm text-gray-600 dark:text-gray-400 mt-0.5 block">
                       {role.description}
                     </span>
                   )}
@@ -356,36 +385,32 @@ export const RolesView = () => {
               </div>
 
               {/* Acciones */}
-              <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                 <button
                   onClick={() => { setRoleToEdit(role); setIsModalOpen(true); }}
-                  style={{ background: '#00D9FF', color: '#0A0A0A', border: 'none', padding: '0.3rem 0.75rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
+                  title="Editar rol"
+                  style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(56,189,248,0.12)', color: '#38BDF8', transition: 'background 0.15s' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.26)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(56,189,248,0.12)'; }}
                 >
-                  Editar
+                  <Edit size={15} />
                 </button>
                 <button
                   onClick={() => setDeleteConfirm(role)}
                   disabled={role.isSystemRole}
                   title={role.isSystemRole ? 'Los roles de sistema no pueden eliminarse' : 'Eliminar rol'}
-                  style={{
-                    background: role.isSystemRole ? 'rgba(58,58,60,0.5)' : 'rgba(255, 94, 0, 0.1)',
-                    color: role.isSystemRole ? '#555' : '#FF5E00',
-                    border: `1px solid ${role.isSystemRole ? '#3A3A3C' : '#FF5E00'}`,
-                    padding: '0.3rem 0.75rem',
-                    borderRadius: '6px',
-                    cursor: role.isSystemRole ? 'not-allowed' : 'pointer',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                  }}
+                  style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: role.isSystemRole ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: role.isSystemRole ? '#d1d5db' : '#6b7280', opacity: role.isSystemRole ? 0.4 : 1, transition: 'background 0.15s, color 0.15s' }}
+                  onMouseEnter={e => { if (!role.isSystemRole) { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = '#ef4444'; } }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = role.isSystemRole ? '#d1d5db' : '#6b7280'; }}
                 >
-                  Eliminar
+                  <Trash2 size={15} />
                 </button>
               </div>
             </div>
           ))}
 
           {roles.length === 0 && !loading && (
-            <div style={{ textAlign: 'center', color: '#8E8E93', padding: '2rem' }}>
+            <div className="text-center text-slate-500 dark:text-gray-400" style={{ padding: '2rem' }}>
               No hay roles registrados. Crea el primero con el botón de arriba.
             </div>
           )}
@@ -397,6 +422,7 @@ export const RolesView = () => {
         onClose={() => { setIsModalOpen(false); setRoleToEdit(null); }}
         roleToEdit={roleToEdit}
         onSave={handleSaveRole}
+        roles={roles}
       />
 
       <ConfirmModal

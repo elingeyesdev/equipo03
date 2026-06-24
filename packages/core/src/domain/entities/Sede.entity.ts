@@ -26,6 +26,13 @@ export type SedeProps = {
   rating?: number;
   resenasCount?: number;
   telefono?: string;
+  parentName?: string;
+  capacidadMaquinas?: number;
+  machineStats?: {
+    total: number;
+    available: number;
+    maintenance: number;
+  };
 };
 
 export interface SedeDTO {
@@ -43,6 +50,7 @@ export interface SedeDTO {
   rating?: number;
   resenasCount?: number;
   telefono?: string;
+  parentName?: string;
 }
 
 export class Sede {
@@ -71,6 +79,9 @@ export class Sede {
   get rating(): number | undefined { return this.props.rating; }
   get resenasCount(): number | undefined { return this.props.resenasCount; }
   get telefono(): string | undefined { return this.props.telefono; }
+  get parentName(): string | undefined { return this.props.parentName; }
+  get capacidadMaquinas(): number { return this.props.capacidadMaquinas ?? 0; }
+  get machineStats() { return this.props.machineStats; }
 
   // === Métodos de dominio ===
 
@@ -115,6 +126,7 @@ export class Sede {
       rating: this.props.rating,
       resenasCount: this.props.resenasCount,
       telefono: this.props.telefono,
+      parentName: this.props.parentName,
     };
   }
 }

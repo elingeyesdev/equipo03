@@ -16,7 +16,8 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "GymSync necesita tu ubicación para mostrarte las sedes de gimnasio más cercanas.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "GymSync necesita tu ubicación para mostrarte las sedes de gimnasio más cercanas."
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "GymSync necesita tu ubicación para mostrarte las sedes de gimnasio más cercanas.",
+        "LSApplicationQueriesSchemes": ["youtube", "youtube-app"]
       },
       "bundleIdentifier": "com.gymsync.equipo03"
     },
@@ -26,9 +27,26 @@
         "backgroundColor": "#1a1a2e"
       },
       "edgeToEdgeEnabled": true,
+      "queries": {
+        "intent": [
+          {
+            "action": "android.intent.action.VIEW",
+            "data": { "scheme": "youtube" }
+          },
+          {
+            "action": "android.intent.action.VIEW",
+            "data": { "scheme": "https", "host": "www.youtube.com" }
+          }
+        ]
+      },
       "permissions": [
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
+        "ACCESS_COARSE_LOCATION",
+        "NOTIFICATIONS",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ],
       "package": "com.gymsync.equipo03"
     },
@@ -42,7 +60,28 @@
           "locationAlwaysAndWhenInUsePermission": "GymSync necesita tu ubicación para mostrarte sedes cercanas."
         }
       ],
-      "expo-asset"
-    ]
+      "expo-asset",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "GymSync necesita acceso a la cámara para escanear códigos QR."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#f05b22",
+          "sounds": []
+        }
+      ],
+      "expo-font",
+      "expo-sqlite"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "05dedde2-39f5-4da2-9bbb-a805f06fa281"
+      }
+    }
   }
 }

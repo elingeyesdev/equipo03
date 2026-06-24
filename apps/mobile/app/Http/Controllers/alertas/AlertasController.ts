@@ -26,7 +26,7 @@ const DEFAULT_CONFIG: AlertaConfig = {
   condicionesDesactivadas: [],
 };
 
-export const AlertasController = () => {
+export const AlertasController = (medicalConditionsRaw?: string) => {
   const [config, setConfig] = useState<AlertaConfig>(DEFAULT_CONFIG);
   const [alertas, setAlertas] = useState<AlertaItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,36 +34,45 @@ export const AlertasController = () => {
 
   const load = useCallback(async () => {
     try {
-      // Cargar perfil
       const perfilRaw = await AsyncStorage.getItem(PERFIL_KEY);
-      let restricciones: RestriccionMedica[] = [];
-      if (perfilRaw) {
-        const data = JSON.parse(perfilRaw);
-        restricciones = (data.restriccionesMedicas || []).map((r: any) =>
-          RestriccionMedica.create(r)
-        );
-      }
-
-      // Cargar config de alertas
       const configRaw = await AsyncStorage.getItem(ALERTAS_KEY);
       const savedConfig: AlertaConfig = configRaw ? JSON.parse(configRaw) : DEFAULT_CONFIG;
 
-      // Construir lista de alertas
-      const items: AlertaItem[] = restricciones.map((r) => ({
-        condicion: r.condicion,
-        severidad: r.severidad,
-        recomendaciones: r.recomendaciones,
-        enabled: !savedConfig.condicionesDesactivadas.includes(r.condicion),
-      }));
+      let items: AlertaItem[] = [];
+
+      // Fuente 1: AsyncStorage (restriccionesMedicas legacy)
+      if (perfilRaw) {
+        const data = JSON.parse(perfilRaw);
+        const restricciones: RestriccionMedica[] = (data.restriccionesMedicas || []).map(
+          (r: any) => RestriccionMedica.create(r)
+        );
+        items = restricciones.map((r) => ({
+          condicion: r.condicion,
+          severidad: r.severidad,
+          recomendaciones: r.recomendaciones,
+          enabled: !savedConfig.condicionesDesactivadas.includes(r.condicion),
+        }));
+      }
+
+      // Fuente 2: user.profile.medicalConditions del contexto (fallback)
+      if (items.length === 0 && medicalConditionsRaw?.trim()) {
+        const parts = medicalConditionsRaw.split(/[,;\n]/).map(s => s.trim()).filter(Boolean);
+        items = parts.map(c => ({
+          condicion: c,
+          severidad: 'MEDIA' as const,
+          recomendaciones: undefined,
+          enabled: !savedConfig.condicionesDesactivadas.includes(c),
+        }));
+      }
 
       setConfig(savedConfig);
       setAlertas(items);
     } catch (e) {
-      console.error('Error cargando alertas:', e);
+      console.warn('Error cargando alertas:', (e as Error)?.message);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [medicalConditionsRaw]);
 
   useEffect(() => {
     load();

@@ -10,6 +10,8 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import type { AutenticacionContext } from '@gymsync/core';
 import { AuthService } from './AuthService';
+import { authEvents } from './authEvents';
+import { usePushNotifications } from '../notifications/usePushNotifications';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -24,29 +26,71 @@ interface AuthContextType {
 
 const AuthContextInstance = createContext<AuthContextType | undefined>(undefined);
 
+const ALLOWED_PUSH_ROLES = [
+  'GERENTE',
+  'INSTRUCTOR',
+  'ENTRENADOR',
+  'NUTRICIONISTA',
+  'CLIENTE',
+  'USER',
+];
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AutenticacionContext | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { registerToken, clearToken } = usePushNotifications();
 
   /**
    * Al montar el componente, restaurar la sesión si existe
    */
   useEffect(() => {
     const restoreSession = async () => {
-      try {
+      const doRestore = async () => {
         const currentUser = await AuthService.getCurrentUser();
         if (currentUser) {
-          setUser(currentUser);
+          const cachedProfile = await AuthService.getProfileCache();
+          if (cachedProfile) {
+            setUser({ ...currentUser, ...(({ profile: cachedProfile }) as any) });
+          }
+
+          const userData = await AuthService.fetchUserProfile();
+          const freshProfile = userData?.profile ?? cachedProfile ?? undefined;
+          setUser({ ...currentUser, ...(({ profile: freshProfile ?? undefined }) as any) });
+
+          if (freshProfile) {
+            AuthService.saveProfileCache(freshProfile).catch(() => {});
+          }
+
+          if (ALLOWED_PUSH_ROLES.includes(currentUser.role)) {
+            await Promise.race([
+              registerToken(),
+              new Promise<void>((resolve) => setTimeout(resolve, 4000)),
+            ]);
+          }
         }
+      };
+
+      try {
+        // 8-second global safety net: setIsLoading(false) is guaranteed regardless of any hanging fetch/token call
+        await Promise.race([
+          doRestore(),
+          new Promise<void>((resolve) => setTimeout(resolve, 8000)),
+        ]);
       } catch (e) {
-        console.error('[AuthContext] Error restaurando sesión:', e);
+        console.warn('[AuthContext] Error restaurando sesión:', e);
       } finally {
         setIsLoading(false);
       }
     };
-
     restoreSession();
+  }, []);
+
+  useEffect(() => {
+    return authEvents.onForceLogout(() => {
+      setUser(null);
+      setError(null);
+    });
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
@@ -57,7 +101,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const result = await AuthService.login(email, password);
 
       if (result.success && result.user) {
-        setUser(result.user);
+        try {
+          const role = (result.user as any)?.role?.toUpperCase() ?? '';
+          if (role === 'SUPER_ADMIN') {
+            setError('Esta cuenta es exclusiva del panel web administrativo. Accede desde el navegador en tu computadora.');
+            return false;
+          }
+        } catch {}
+
+        try {
+          const { queryClient } = await import('../../../App');
+          queryClient.clear();
+        } catch {}
+
+        const userData = await AuthService.fetchUserProfile();
+        const loginProfile = userData?.profile ?? undefined;
+        setUser({ ...result.user, ...(({ profile: loginProfile }) as any) });
+        if (loginProfile) {
+          AuthService.saveProfileCache(loginProfile).catch(() => {});
+        }
+
+        if (ALLOWED_PUSH_ROLES.includes(result.user.role)) {
+          await Promise.race([
+            registerToken(),
+            new Promise<void>((resolve) => setTimeout(resolve, 4000)),
+          ]);
+        }
+
         return true;
       } else {
         setError(result.error || 'Error al iniciar sesión');
@@ -75,26 +145,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = async (): Promise<void> => {
     setIsLoading(true);
     try {
+      await clearToken();
       await AuthService.logout();
+      const { queryClient } = await import('../../../App');
+      queryClient.clear();
       setUser(null);
       setError(null);
     } catch (err: any) {
-      console.error('[AuthContext] Error en logout:', err);
+      console.warn('[AuthContext] Error en logout:', err);
     } finally {
       setIsLoading(false);
     }
   };
 
   const updateProfile = (data: any) => {
-    if (user) {
-      setUser({
-        ...user,
-        profile: {
-          ...(user.profile || {}),
-          ...data
+    setUser((prev: any) => {
+      if (!prev) return prev;
+      const merged = {
+        ...(prev.profile || {}),
+        ...data,
+        physicalMetrics: {
+          ...(prev.profile?.physicalMetrics || {}),
+          ...(data.physicalMetrics || {}),
         }
-      });
-    }
+      };
+      AuthService.saveProfileCache(merged).catch(() => {});
+      return { ...prev, profile: merged };
+    });
   };
 
   const clearError = () => {

@@ -1,0 +1,238 @@
+.register-wrapper {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  background-color: #0A0A0A;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Background Carousel — fixed para que el contenido pueda scrollear por encima */
+.carousel-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.carousel-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.carousel-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to bottom, rgba(10, 10, 10, 0.45) 0%, rgba(10, 10, 10, 0.9) 100%);
+  z-index: 1;
+}
+
+/* Navbar fija al tope */
+.landing-navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 1rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 30;
+  box-sizing: border-box;
+  background: linear-gradient(to bottom, rgba(10,10,10,0.7) 0%, transparent 100%);
+}
+
+@media (max-width: 480px) {
+  .landing-navbar {
+    padding: 0.75rem 1rem;
+  }
+  .navbar-logo {
+    font-size: 1.1rem !important;
+  }
+}
+
+.navbar-logo {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #FFFFFF;
+  letter-spacing: -1px;
+}
+
+.navbar-logo span {
+  color: #F97316;
+}
+
+.btn-ghost-cyan {
+  background: transparent;
+  color: #38BDF8;
+  border: 1px solid #38BDF8;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* Área de contenido con scroll natural */
+.register-view-container {
+  position: relative;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  padding: 5.5rem 1rem 3rem;
+  background: rgba(10, 10, 10, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-sizing: border-box;
+}
+
+/* En pantallas muy altas centra verticalmente */
+@media (min-height: 900px) {
+  .register-view-container {
+    align-items: center;
+    padding-top: 5rem;
+    padding-bottom: 2rem;
+  }
+}
+
+/* En móviles reducir el padding lateral de la card se hace via Tailwind (p-5 sm:p-8) */
+@media (max-width: 480px) {
+  .register-view-container {
+    padding: 5rem 0.75rem 2.5rem;
+  }
+}
+
+/* Banner de error de API NestJS */
+.register-api-error {
+  display: flex;
+  gap: 0.75rem;
+  background-color: rgba(255, 94, 0, 0.12);
+  color: #FF5E00;
+  padding: 0.8rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 94, 0, 0.25);
+  margin-bottom: 1.25rem;
+  font-size: 0.85rem;
+  text-align: left;
+  line-height: 1.4;
+}
+
+.register-api-error p {
+  margin: 0.2rem 0 0 0;
+  color: #FFD2B8;
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+}
+
+/* Form Fields */
+.register-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.input-icon {
+  position: absolute;
+  left: 1.1rem;
+  color: #94a3b8;
+  pointer-events: none;
+  transition: color 0.3s;
+  display: flex;
+  align-items: center;
+}
+
+.input-group:focus-within .input-icon {
+  color: #2ecc71;
+}
+
+/* Error State */
+.input-group.has-error input,
+.input-group.has-error select {
+  border-color: #FF5E00 !important;
+  box-shadow: 0 0 0 3px rgba(255, 94, 0, 0.15);
+}
+
+.input-group.has-error .input-icon {
+  color: #FF5E00;
+}
+
+.field-error-text {
+  color: #FF5E00;
+  font-size: 0.78rem;
+  padding-left: 0.5rem;
+  font-weight: 500;
+}
+
+/* Password Toggle Eye */
+.password-toggle-btn {
+  position: absolute;
+  right: 1.1rem;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3rem;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.password-toggle-btn:hover {
+  color: #e2e8f0;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Password strength indicator */
+.met {
+  color: #30D158 !important;
+}
+
+.login-link {
+  color: #00D9FF;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.login-link:hover {
+  color: #0086d1;
+  text-decoration: underline;
+}
+
+/* Responsive: teléfonos pequeños */
+@media (max-width: 360px) {
+  .register-form {
+    gap: 0.85rem;
+  }
+  .btn-ghost-cyan {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.8rem;
+  }
+}

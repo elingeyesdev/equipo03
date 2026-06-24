@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ImageBackground, SafeAreaView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ImageBackground, Platform, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { SedeConDistancia, Sede } from '@gymsync/core';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFilterStore } from '../../../../app/Providers/geolocation/stores/FilterStore';
@@ -47,7 +48,8 @@ export const SedesCatalog: React.FC<SedesCatalogProps> = ({
       onPress={() => onSelectSede(item.sede)}
     >
       <ImageBackground 
-        source={{ uri: item.sede.imagenUrl || 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?q=80&w=1000' }} 
+        // TODO: Requerir este dato al backend — endpoint GET /gyms/:id debe devolver imagenUrl real
+        source={item.sede.imagenUrl ? { uri: item.sede.imagenUrl } : require('../../../../assets/icon.png')}
         style={styles.cardImage}
         imageStyle={{ borderRadius: 28 }}
       >
@@ -55,11 +57,12 @@ export const SedesCatalog: React.FC<SedesCatalogProps> = ({
           <View style={styles.topRow}>
             <View style={styles.ratingBadge}>
               <MaterialCommunityIcons name="star" size={14} color="#FFD700" />
-              <Text style={styles.ratingText}>{item.sede.rating?.toFixed(1) || '4.5'}</Text>
-              <Text style={styles.reviewCountText}>({item.sede.resenasCount || 100})</Text>
+              {/* TODO: Requerir rating y resenasCount al backend */}
+              <Text style={styles.ratingText}>{item.sede.rating != null ? item.sede.rating.toFixed(1) : '-'}</Text>
+              <Text style={styles.reviewCountText}>({item.sede.resenasCount ?? 0})</Text>
             </View>
             <View style={styles.distanceBadge}>
-              <MaterialCommunityIcons name="map-marker-distance" size={12} color="#00D9FF" />
+              <MaterialCommunityIcons name="map-marker-distance" size={12} color="#38BDF8" />
               <Text style={styles.distanceText}>{item.distancia.kmCorta}</Text>
             </View>
           </View>
@@ -94,8 +97,7 @@ export const SedesCatalog: React.FC<SedesCatalogProps> = ({
     <SafeAreaView style={styles.container}>
       <View style={styles.topBar}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.magazineLabel}>GYMSYNC PREMIUM</Text>
-          <Text style={styles.headerTitle}>Explorar Sedes</Text>
+          <Text style={styles.headerTitle}>Explorar Sucursales</Text>
           
           {/* Active Filter Chips in Catalog */}
           {activeFiltersCount > 0 && (
@@ -172,10 +174,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 18,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    borderBottomColor: '#3A3A3C',
   },
   magazineLabel: {
-    color: '#00D9FF',
+    color: '#38BDF8',
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 2,
@@ -190,7 +192,7 @@ const styles = StyleSheet.create({
   closeButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 94, 0, 0.1)',
+    backgroundColor: '#1C1C1E',
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
@@ -214,12 +216,12 @@ const styles = StyleSheet.create({
   activeFilterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: '#1C1C1E',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: '#3A3A3C',
   },
   activeFilterText: {
     color: '#FFFFFF',
@@ -237,18 +239,13 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#FF5E00',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 10,
     zIndex: 110,
   },
   filterBadge: {
     position: 'absolute',
     top: -4,
     right: -4,
-    backgroundColor: '#00D9FF',
+    backgroundColor: '#38BDF8',
     width: 22,
     height: 22,
     borderRadius: 11,
@@ -271,11 +268,6 @@ const styles = StyleSheet.create({
     height: 250, // Much smaller to fit 2 vertically
     marginBottom: 16,
     borderRadius: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 8,
   },
   cardImage: {
     width: '100%',
@@ -316,21 +308,21 @@ const styles = StyleSheet.create({
   distanceBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 217, 255, 0.15)',
+    backgroundColor: '#1C1C1E',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#00D9FF',
+    borderColor: '#38BDF8',
   },
   distanceText: {
-    color: '#00D9FF',
+    color: '#38BDF8',
     fontSize: 13,
     fontWeight: '700',
     marginLeft: 4,
   },
   bottomContent: {
-    backgroundColor: 'rgba(20, 20, 22, 0.9)',
+    backgroundColor: '#1C1C1E',
     borderRadius: 16,
     padding: 12,
   },
@@ -354,20 +346,20 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   chip: {
-    backgroundColor: 'rgba(0, 217, 255, 0.1)',
+    backgroundColor: '#1C1C1E',
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderWidth: 1,
-    borderColor: 'rgba(0, 217, 255, 0.3)',
+    borderColor: '#38BDF8',
   },
   chipText: {
-    color: '#00D9FF',
+    color: '#38BDF8',
     fontSize: 10,
     fontWeight: '700',
   },
   chipMore: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#1C1C1E',
     borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -396,7 +388,7 @@ const styles = StyleSheet.create({
   },
   aforoTrack: {
     height: 6,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#3A3A3C',
     borderRadius: 3,
     overflow: 'hidden',
   },
@@ -423,3 +415,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   }
 });
+
