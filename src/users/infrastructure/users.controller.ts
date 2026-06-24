@@ -10,9 +10,11 @@ import {
   Query,
   Req,
   UseGuards,
+  UsePipes,
   ParseIntPipe,
   HttpCode,
   HttpStatus,
+  ValidationPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -34,6 +36,7 @@ import {
   UpdatePushTokenDto,
   SaveMetricsDto,
 } from '../application/dtos/users.dto';
+import { UserQueryDto } from '../application/dtos/user-query.dto';
 import type { RequestWithUser } from '../../common/security/gym-scope';
 
 @ApiTags('Users')
@@ -58,32 +61,34 @@ export class UsersController {
   @ApiBearerAuth('access-token')
   @ApiOperation({
     summary:
-      'Listar usuarios. level >= 5: toda la marca. level 4: solo su sede. level >= 10: sin filtro.',
-  })
-  @ApiQuery({ name: 'role', required: false, example: 'INSTRUCTOR' })
-  @ApiQuery({
-    name: 'gymId',
-    required: false,
-    example: 1,
-    description: 'Solo nivel >= 10',
+      'Listar usuarios paginados. level >= 5: toda la marca. level 4: solo su sede. level >= 10: sin filtro.',
   })
   @ApiResponse({ status: 200 })
-  @ApiResponse({
-    status: 403,
-    description: 'Nivel jerárquico insuficiente (>= 4)',
-  })
+  @ApiResponse({ status: 403, description: 'Nivel jerárquico insuficiente (>= 4)' })
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: false }))
   findAll(
     @Req() req: RequestWithUser,
-    @Query('role') role?: string,
-    @Query('gymId') rawGymId?: string,
+    @Query() query: UserQueryDto,
   ) {
     const authUser = req.user!;
     const level = authUser.level ?? 0;
     const gymId =
       level >= 10
-        ? (rawGymId != null ? Number(rawGymId) : undefined)
-        : (authUser.gymId ?? undefined);
-    return this.usersService.findAll({ role, gymId });
+        ? query.gymId
+        : (authUser.gymId != null ? Number(authUser.gymId) : undefined);
+    return this.usersService.findAll(
+      {
+        search: query.search?.trim() || undefined,
+        roleId: query.roleId,
+        hierarchyLevel: query.hierarchyLevel,
+        noRole: query.noRole ?? false,
+        gymId: query.gymId, // No forzamos override, el service controla la visibilidad
+        status: query.status,
+        sortBy: query.sortBy,
+      },
+      { limit: query.limit ?? 20, offset: query.offset ?? 0 },
+      authUser
+    );
   }
 
   @Get('me')

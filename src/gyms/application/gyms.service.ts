@@ -16,9 +16,9 @@ import { GymSchedule } from '../domain/gym-schedule.entity';
 import { MachineInventory } from '../domain/machine-inventory.entity';
 import { Reservation } from '../../reservations/domain/reservation.entity';
 import { CheckIn } from '../../checkins/domain/check-in.entity';
+import { UserRole } from '../../roles/domain/user-role.entity';
 import {
   getManagerGymId,
-  getStaffGymId,
   type RequestWithUser,
 } from '../../common/security/gym-scope';
 
@@ -56,6 +56,7 @@ export class GymsService {
     @InjectRepository(Reservation)
     private reservationRepo: Repository<Reservation>,
     @InjectRepository(CheckIn) private checkInRepo: Repository<CheckIn>,
+    @InjectRepository(UserRole) private userRoleRepo: Repository<UserRole>,
     @Inject(REQUEST) private readonly request: RequestWithUser,
   ) {}
 
@@ -63,11 +64,70 @@ export class GymsService {
     return getManagerGymId(this.request);
   }
 
-  private staffGymId(): number | null {
-    return getStaffGymId(this.request);
+  private validateScheduleOverlaps(rawSchedules: any) {
+    if (!rawSchedules) return;
+
+    // Blindaje contra JSON stringificado accidental
+    let schedules = rawSchedules;
+    if (typeof schedules === 'string') {
+      try { schedules = JSON.parse(schedules); } catch { return; }
+    }
+
+    if (!Array.isArray(schedules) || schedules.length === 0) return;
+
+    const timeToMinutes = (timeString: string): number => {
+      if (!timeString || typeof timeString !== 'string') return 0;
+      const parts = timeString.split(':').map(Number);
+      return (parts[0] * 60) + (parts[1] || 0);
+    };
+
+    const schedulesByDay: Record<string, { open: string; close: string }[]> = {};
+
+    for (const curr of schedules) {
+      const isHoliday = curr.isHoliday ?? curr.is_holiday ?? curr.isFeriado ?? curr.is_feriado ?? false;
+      if (isHoliday === true || isHoliday === 'true') continue;
+
+      // Extracción agresiva: cubre todas las variantes camelCase / snake_case del frontend y el DTO
+      const day   = curr.dayOfWeek  ?? curr.day_of_week ?? curr.day ?? curr.dia;
+      const open  = curr.opensAt    ?? curr.opens_at    ?? curr.startTime ?? curr.start_time ?? curr.open ?? curr.apertura;
+      const close = curr.closesAt   ?? curr.closes_at   ?? curr.endTime   ?? curr.end_time   ?? curr.close ?? curr.cierre;
+
+      // Si falta un dato vital, reventar la petición para exponer el bug de formato, NO silenciarlo.
+      if (!day || !open || !close) {
+        console.error('[CRÍTICO] Formato de horario irreconocible en el payload:', JSON.stringify(curr));
+        throw new BadRequestException(
+          'Error de integridad: falta el día o la hora en el payload de horarios. Revisa la consola del backend.',
+        );
+      }
+
+      const dayKey = day.toString().trim().toUpperCase();
+      if (!schedulesByDay[dayKey]) schedulesByDay[dayKey] = [];
+      schedulesByDay[dayKey].push({ open: String(open), close: String(close) });
+    }
+
+    // Validación matemática estricta: permite contiguos (06:00–12:00 y 12:00–18:00), rechaza invasiones
+    for (const day in schedulesByDay) {
+      const dayScheds = schedulesByDay[day];
+
+      for (let i = 0; i < dayScheds.length; i++) {
+        for (let j = i + 1; j < dayScheds.length; j++) {
+          const startA = timeToMinutes(dayScheds[i].open);
+          const endA   = timeToMinutes(dayScheds[i].close);
+          const startB = timeToMinutes(dayScheds[j].open);
+          const endB   = timeToMinutes(dayScheds[j].close);
+
+          if (startA < endB && endA > startB) {
+            throw new BadRequestException(
+              `Horarios superpuestos en ${day}: el rango ${dayScheds[i].open}–${dayScheds[i].close} choca con ${dayScheds[j].open}–${dayScheds[j].close}.`,
+            );
+          }
+        }
+      }
+    }
   }
 
   async create(data: any) {
+    this.validateScheduleOverlaps(data.schedules);
     const { location, schedules, ...gymData } = data as {
       location?: { latitude?: number; longitude?: number; [k: string]: any };
       schedules?: any[];
@@ -120,49 +180,53 @@ export class GymsService {
   }
 
   async findAll(lat?: number, lng?: number, radiusKm = 50) {
-    const sg = this.staffGymId();
-    let gymsToMap: Gym[] = [];
+    const currentUser = this.request.user;
 
-    if (sg !== null) {
-      const staffGym = await this.gymsRepo.findOne({
-        where: { id: sg },
-        select: ['id', 'parentId'],
-      });
+    // ── 1. Obtener el rol de mayor jerarquía desde la BD ─────────────────────
+    let callerLevel = 0;
+    let callerGymId = 0;
 
-      if (!staffGym) return [];
+    if (currentUser?.userId) {
+      const callerDbRole = await this.userRoleRepo
+        .createQueryBuilder('ur')
+        .innerJoinAndSelect('ur.role', 'role')
+        .leftJoinAndSelect('ur.gym', 'gym')
+        .where('ur.user_id = :userId', { userId: Number(currentUser.userId) })
+        .orderBy('role.hierarchyLevel', 'DESC')
+        .getOne();
 
-      const brandId = staffGym.parentId;
+      callerLevel = Number(callerDbRole?.role?.hierarchyLevel ?? 0);
+      callerGymId = Number(callerDbRole?.gymId ?? 0);
+    }
 
-      // Si el gym no tiene padre, sg ES la marca → devolver todas sus sucursales activas
-      if (!brandId) {
-        gymsToMap = await this.gymsRepo.find({
-          where: { parentId: sg, isActive: true },
-          relations: ['location', 'schedules', 'parent', 'machines', 'activities'],
-          order: { id: 'ASC' },
-        });
-      } else {
-        // Devolver TODAS las sucursales activas de la misma marca, sin filtro de distancia
-        gymsToMap = await this.gymsRepo.find({
-          where: { parentId: brandId, isActive: true },
-          relations: ['location', 'schedules', 'parent', 'machines', 'activities'],
-          order: { id: 'ASC' },
-        });
-      }
+    // ── 2. Construir QueryBuilder base ────────────────────────────────────────
+    const query = this.gymsRepo
+      .createQueryBuilder('gym')
+      .leftJoinAndSelect('gym.location', 'location')
+      .leftJoinAndSelect('gym.schedules', 'schedules')
+      .leftJoinAndSelect('gym.parent', 'parent')
+      .leftJoinAndSelect('gym.machines', 'machines')
+      .leftJoinAndSelect('gym.activities', 'activities')
+      .where('gym.isActive = :active', { active: true })
+      .orderBy('gym.id', 'ASC')
+      .distinct(true);
+
+    // ── 3. Aplicar filtros territoriales según RBAC ───────────────────────────
+    if (callerLevel >= 10) {
+      // SUPER ADMIN: visibilidad global — sin filtro territorial
+    } else if (callerLevel === 5) {
+      // GERENTE: su Marca (padre) y todas sus sucursales hijas
+      if (!callerGymId) throw new ForbiddenException('Gerente sin marca asignada.');
+      query.andWhere('(gym.id = :callerGymId OR gym.parent_id = :callerGymId)', { callerGymId });
+    } else if (callerLevel === 4) {
+      // RECEPCIONISTA: estrictamente su propia sucursal
+      if (!callerGymId) throw new ForbiddenException('Recepcionista sin sucursal asignada.');
+      query.andWhere('gym.id = :callerGymId', { callerGymId });
     } else {
-      const qb = this.gymsRepo
-        .createQueryBuilder('gym')
-        .leftJoinAndSelect('gym.location', 'location')
-        .leftJoinAndSelect('gym.schedules', 'schedules')
-        .leftJoinAndSelect('gym.parent', 'parent')
-        .leftJoinAndSelect('gym.machines', 'machines')
-        .leftJoinAndSelect('gym.activities', 'activities')
-        .where('gym.isActive = :active', { active: true })
-        .andWhere('gym.parentId IS NOT NULL')
-        .orderBy('gym.id', 'ASC')
-        .distinct(true);
-
+      // Público / clientes / staff sin privilegios admin: solo sucursales con filtro geo opcional
+      query.andWhere('gym.parentId IS NOT NULL');
       if (lat !== undefined && lng !== undefined) {
-        qb.andWhere(
+        query.andWhere(
           `(
             6371 * acos(
               cos(radians(:lat)) * cos(radians(location.latitude)) *
@@ -173,16 +237,9 @@ export class GymsService {
           { lat, lng, radius: radiusKm },
         );
       }
-
-      const gyms = await qb.getMany();
-      const seen = new Set<number>();
-      gymsToMap = gyms.filter((g) => {
-        if (seen.has(g.id)) return false;
-        seen.add(g.id);
-        return true;
-      });
     }
 
+    const gymsToMap = await query.getMany();
     if (gymsToMap.length === 0) return [];
 
     const gymIds = gymsToMap.map((g) => g.id);
@@ -272,6 +329,9 @@ export class GymsService {
   }
 
   async update(id: number, data: any) {
+    if (data.schedules) {
+      this.validateScheduleOverlaps(data.schedules);
+    }
     const rawGym = await this.gymsRepo.findOne({ where: { id } });
     if (!rawGym) throw new NotFoundException(`Gimnasio ${id} no encontrado`);
 

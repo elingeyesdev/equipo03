@@ -7,7 +7,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Brackets, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from '../domain/user.entity';
 import { UserProfile } from '../domain/user-profile.entity';
@@ -44,6 +44,7 @@ export class UsersService {
     gender?: string;
     ci?: string;
     roleId?: number;
+    gymId?: number;
     gymIds?: number[];
     isActive?: boolean;
   }, caller?: RequestUser) {
@@ -51,9 +52,9 @@ export class UsersService {
 
     if (caller && data.roleId !== undefined) {
       const newLevel = await this.resolveNewRoleLevel(data.roleId);
-      if (newLevel >= callerLevel) {
+      if (newLevel > callerLevel) {
         throw new ForbiddenException(
-          'No puedes crear un usuario con un rol de nivel igual o superior al tuyo.',
+          'No puedes asignar un rol superior a tu propio nivel jerárquico.',
         );
       }
     }
@@ -73,6 +74,13 @@ export class UsersService {
 
     if (caller && callerLevel <= 4 && data.gymIds?.length === 0) {
       data.gymIds = caller.gymId ? [Number(caller.gymId)] : undefined;
+    }
+
+    if (data.ci) {
+      const existingProfile = await this.profilesRepo.findOne({ where: { ci: data.ci } });
+      if (existingProfile) {
+        throw new BadRequestException('El Carnet de Identidad (CI) ya está registrado en otra cuenta.');
+      }
     }
 
     const existing = await this.usersRepo.findOne({
@@ -99,27 +107,55 @@ export class UsersService {
     });
     await this.profilesRepo.save(profile);
 
-    // Crear roles y asignaciones de gimnasios si se proporcionan
-    if (data.roleId || (data.gymIds && data.gymIds.length > 0)) {
+    if (data.roleId) {
+      let incomingGymId = data.gymId || (data.gymIds && data.gymIds.length > 0 ? data.gymIds[0] : null);
+
+      if (caller) {
+        if (callerLevel === 4) {
+          incomingGymId = caller.gymId ? Number(caller.gymId) : null;
+        } else if (callerLevel === 5) {
+          if (!incomingGymId) {
+            throw new BadRequestException('Como Gerente, debes seleccionar una Sucursal válida de tu Marca.');
+          }
+          const targetGym = await this.gymRepo.findOne({ where: { id: incomingGymId } });
+          if (!targetGym || (targetGym.id !== Number(caller.gymId) && targetGym.parentId !== Number(caller.gymId))) {
+            throw new ForbiddenException('No tienes permisos para asignar usuarios a una sucursal de otra Marca.');
+          }
+        }
+      }
+
+      const roleToAssign = await this.rolesRepo.findOne({ where: { id: data.roleId } });
+      if (!roleToAssign) throw new NotFoundException(`Rol ${data.roleId} no encontrado.`);
+      
+      const hierarchy = roleToAssign.hierarchyLevel ?? 0;
+      // Nivel 10 (Super Admin) y Nivel 1 (Cliente) NO requieren gimnasio
+      // Niveles intermedios SÍ requieren.
+      const isSystemRole = hierarchy === 10 || hierarchy === 1;
+
+      if (!isSystemRole && !incomingGymId) {
+        throw new BadRequestException('Este nivel jerárquico requiere obligatoriamente una Marca o Sucursal.');
+      }
+
       const roleAssignments: UserRole[] = [];
 
-      if (data.roleId && data.gymIds && data.gymIds.length > 0) {
-        // Crear una asignación de rol por cada gimnasio
-        for (const gymId of data.gymIds) {
+      // Si el frontend envía array de sucursales (caso múltiple), se inserta múltiple
+      if (data.gymIds && data.gymIds.length > 0) {
+        for (const gid of data.gymIds) {
           roleAssignments.push(
             this.userRolesRepo.create({
               userId: saved.id,
               roleId: data.roleId,
-              gymId: gymId,
+              gymId: gid,
             }),
           );
         }
-      } else if (data.roleId) {
-        // Solo asignar rol sin gimnasio específico
+      } else {
+        // Inyección singular directa
         roleAssignments.push(
           this.userRolesRepo.create({
             userId: saved.id,
             roleId: data.roleId,
+            gymId: isSystemRole ? undefined : (incomingGymId ? incomingGymId : undefined),
           }),
         );
       }
@@ -133,33 +169,127 @@ export class UsersService {
     return this.findOne(saved.id);
   }
 
-  async findAll(filters?: { role?: string; gymId?: number }): Promise<User[]> {
+  async findAll(
+    filters?: {
+      search?: string;
+      roleId?: number;
+      hierarchyLevel?: number;
+      noRole?: boolean;
+      gymId?: number;
+      status?: string;
+      sortBy?: string;
+    },
+    pagination?: { limit: number; offset: number },
+    caller?: RequestUser
+  ): Promise<{ data: User[]; meta: { total: number; limit: number; offset: number } }> {
+    const limit = pagination?.limit ?? 20;
+    const offset = pagination?.offset ?? 0;
+
     const qb = this.usersRepo
       .createQueryBuilder('user')
-      .leftJoinAndSelect('user.profile', 'profile')
-      .leftJoinAndSelect('user.userRoles', 'userRole')
-      .leftJoinAndSelect('userRole.role', 'role')
-      .leftJoinAndSelect('userRole.gym', 'gym')
-      .orderBy('user.id', 'ASC');
+      .leftJoin('user.profile', 'profile')
+      .leftJoin('user.userRoles', 'userRole')
+      .leftJoin('userRole.role', 'role')
+      .leftJoin('userRole.gym', 'gym')
+      .select([
+        'user.id',
+        'user.email',
+        'user.isActive',
+        'user.createdAt',
+        'profile.id',
+        'profile.userId',
+        'profile.firstName',
+        'profile.lastName',
+        'profile.phone',
+        'profile.ci',
+        'profile.gender',
+        'userRole.id',
+        'userRole.userId',
+        'userRole.roleId',
+        'userRole.gymId',
+        'role.id',
+        'role.name',
+        'role.hierarchyLevel',
+        'gym.id',
+        'gym.name',
+        'gym.parentId',
+      ]);
 
-    const hasFilter = filters?.role != null || filters?.gymId != null;
+    // ── Filtros territoriales RBAC ─────────────────────────────────────────────
+    if (caller) {
+      const callerLevel = Number(caller.level ?? 0);
+      const callerGymId = caller.gymId ? Number(caller.gymId) : 0;
 
-    if (hasFilter) {
-      // Con filtro: solo usuarios activos que tengan la asignación pedida
-      qb.where('user.isActive = :active', { active: true });
-
-      if (filters?.role) {
-        qb.andWhere('UPPER(role.name) = :roleName', {
-          roleName: filters.role.toUpperCase(),
-        });
-      }
-
-      if (filters?.gymId != null) {
-        qb.andWhere('userRole.gymId = :gymId', { gymId: filters.gymId });
+      if (callerLevel >= 10) {
+        // Super Admin: sin restricción territorial
+      } else if (callerLevel === 5) {
+        // Gerente: marca propia + sucursales hijas
+        if (!callerGymId) throw new ForbiddenException('Gerente sin marca asignada.');
+        qb.andWhere(
+          'user.id IN (SELECT ur.user_id FROM user_roles ur LEFT JOIN gyms g ON g.id = ur.gym_id WHERE ur.gym_id = :callerGymId OR g.parent_id = :callerGymId)',
+          { callerGymId },
+        );
+      } else if (callerLevel === 4) {
+        // Recepcionista: solo su sucursal
+        if (!callerGymId) throw new ForbiddenException('Recepcionista sin sucursal asignada.');
+        qb.andWhere(
+          'user.id IN (SELECT ur.user_id FROM user_roles ur WHERE ur.gym_id = :callerGymId)',
+          { callerGymId },
+        );
+      } else {
+        qb.andWhere('1 = 0');
       }
     }
 
-    return qb.getMany();
+    if (filters?.search) {
+      qb.andWhere(
+        new Brackets(qb2 => {
+          qb2.where('user.email ILIKE :search')
+            .orWhere('profile.firstName ILIKE :search')
+            .orWhere('profile.lastName ILIKE :search')
+            .orWhere("CONCAT(profile.first_name, ' ', profile.last_name) ILIKE :search");
+        }),
+        { search: `%${filters.search}%` },
+      );
+    }
+
+    if (filters?.noRole) {
+      qb.andWhere('userRole.id IS NULL');
+    } else {
+      if (filters?.roleId != null) {
+        qb.andWhere('role.id = :roleId', { roleId: filters.roleId });
+      }
+      if (filters?.hierarchyLevel != null) {
+        qb.andWhere('role.hierarchy_level = :hierarchyLevel', { hierarchyLevel: filters.hierarchyLevel });
+      }
+    }
+
+    if (filters?.gymId != null && !filters?.noRole) {
+      qb.andWhere('userRole.gymId = :gymId', { gymId: filters.gymId });
+    }
+
+    if (filters?.status === 'active') {
+      qb.andWhere('user.isActive = true');
+    } else if (filters?.status === 'inactive') {
+      qb.andWhere('user.isActive = false');
+    }
+
+    // ── Ordenamiento ──────────────────────────────────────────────────────────
+    if (filters?.sortBy === 'za') {
+      qb.orderBy('profile.lastName', 'DESC', 'NULLS LAST')
+        .addOrderBy('profile.firstName', 'DESC', 'NULLS LAST');
+    } else if (filters?.sortBy === 'id_asc') {
+      qb.orderBy('user.id', 'ASC');
+    } else if (filters?.sortBy === 'id_desc') {
+      qb.orderBy('user.id', 'DESC');
+    } else {
+      qb.orderBy('profile.lastName', 'ASC', 'NULLS LAST')
+        .addOrderBy('profile.firstName', 'ASC', 'NULLS LAST');
+    }
+
+    // ── Paginación (SIEMPRE al final, después de todos los WHERE) ─────────────
+    const [data, total] = await qb.take(limit).skip(offset).getManyAndCount();
+    return { data, meta: { total, limit, offset } };
   }
 
   async findOne(id: number): Promise<User> {
@@ -244,6 +374,7 @@ export class UsersService {
       gender: string;
       isActive: boolean;
       roleId?: number;
+      gymId?: number;
       gymIds?: number[];
     }>,
     caller?: RequestUser,
@@ -263,18 +394,18 @@ export class UsersService {
     if (!isSelfEdit && caller) {
       const targetLevel = await this.resolveTargetLevel(id);
 
-      if (targetLevel >= callerLevel) {
+      if (targetLevel > callerLevel) {
         throw new ForbiddenException(
-          'No puedes editar a un usuario de nivel igual o superior al tuyo.',
+          'No puedes editar a un usuario de nivel superior al tuyo.',
         );
       }
 
       if (this.isStructuralChange(data)) {
         if (data.roleId !== undefined) {
           const newLevel = await this.resolveNewRoleLevel(data.roleId);
-          if (newLevel >= callerLevel) {
+          if (newLevel > callerLevel) {
             throw new ForbiddenException(
-              'No puedes asignar un rol de nivel igual o superior al tuyo.',
+              'No puedes asignar un rol superior a tu propio nivel jerárquico.',
             );
           }
         }
@@ -295,6 +426,13 @@ export class UsersService {
     }
 
     // ── Persistencia ──────────────────────────────────────────────────────────
+    if (data.ci) {
+      const existingProfile = await this.profilesRepo.findOne({ where: { ci: data.ci } });
+      if (existingProfile && existingProfile.userId !== id) {
+        throw new BadRequestException('El Carnet de Identidad (CI) ya está registrado en otra cuenta.');
+      }
+    }
+
     const user = await this.findOne(id);
 
     if (data.password) user.passwordHash = await bcrypt.hash(data.password, 10);
@@ -330,30 +468,60 @@ export class UsersService {
       }
     }
 
-    if (data.roleId !== undefined || data.gymIds !== undefined) {
+    if (data.roleId !== undefined || data.gymIds !== undefined || data.gymId !== undefined) {
       await this.userRolesRepo.delete({ userId: id });
 
-      if (data.roleId && data.gymIds && data.gymIds.length > 0) {
+      if (data.roleId) {
+        let incomingGymId = data.gymId || (data.gymIds && data.gymIds.length > 0 ? data.gymIds[0] : null);
+
+        if (caller) {
+          if (callerLevel === 4) {
+            incomingGymId = caller.gymId ? Number(caller.gymId) : null;
+          } else if (callerLevel === 5) {
+            if (!incomingGymId) {
+              throw new BadRequestException('Como Gerente, debes seleccionar una Sucursal válida de tu Marca.');
+            }
+            const targetGym = await this.gymRepo.findOne({ where: { id: incomingGymId } });
+            if (!targetGym || (targetGym.id !== Number(caller.gymId) && targetGym.parentId !== Number(caller.gymId))) {
+              throw new ForbiddenException('No tienes permisos para asignar usuarios a una sucursal de otra Marca.');
+            }
+          }
+        }
+
+        const roleToAssign = await this.rolesRepo.findOne({ where: { id: data.roleId } });
+        if (!roleToAssign) throw new NotFoundException(`Rol ${data.roleId} no encontrado.`);
+
+        const hierarchy = roleToAssign.hierarchyLevel ?? 0;
+        const isSystemRole = hierarchy === 10 || hierarchy === 1;
+
+        if (!isSystemRole && !incomingGymId) {
+          throw new BadRequestException('Este nivel jerárquico requiere obligatoriamente una Marca o Sucursal.');
+        }
+
         const roleAssignments: UserRole[] = [];
-        for (const gymId of data.gymIds) {
+        if (data.gymIds && data.gymIds.length > 0) {
+          for (const gid of data.gymIds) {
+            roleAssignments.push(
+              this.userRolesRepo.create({
+                userId: id,
+                roleId: data.roleId,
+                gymId: gid,
+              }),
+            );
+          }
+        } else {
           roleAssignments.push(
             this.userRolesRepo.create({
               userId: id,
               roleId: data.roleId,
-              gymId: gymId,
+              gymId: isSystemRole ? undefined : (incomingGymId ? incomingGymId : undefined),
             }),
           );
         }
+
         if (roleAssignments.length > 0) {
           await this.userRolesRepo.save(roleAssignments);
         }
-      } else if (data.roleId) {
-        await this.userRolesRepo.save(
-          this.userRolesRepo.create({
-            userId: id,
-            roleId: data.roleId,
-          }),
-        );
       }
     }
 

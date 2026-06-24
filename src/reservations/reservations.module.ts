@@ -9,6 +9,7 @@ import { GymActivitySchedule } from '../activities/domain/gym-activity-schedule.
 import { GymSchedule } from '../gyms/domain/gym-schedule.entity';
 import { User } from '../users/domain/user.entity';
 import { CheckIn } from '../checkins/domain/check-in.entity';
+import { UserRole } from '../roles/domain/user-role.entity';
 import { ReservationsService } from './application/reservations.service';
 import { ReservationsController } from './infrastructure/reservations.controller';
 import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
@@ -25,6 +26,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
       GymSchedule,
       User,
       CheckIn,
+      UserRole,
     ]),
     PushNotificationsModule,
     UsersModule,

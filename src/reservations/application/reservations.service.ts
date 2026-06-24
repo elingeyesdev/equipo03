@@ -22,6 +22,7 @@ import {
   SelectQueryBuilder,
 } from 'typeorm';
 import { Reservation } from '../domain/reservation.entity';
+import { UserRole } from '../../roles/domain/user-role.entity';
 import { Gym } from '../../gyms/domain/gym.entity';
 import { GymActivity } from '../../activities/domain/gym-activity.entity';
 import { GymActivitySchedule } from '../../activities/domain/gym-activity-schedule.entity';
@@ -68,6 +69,7 @@ export class ReservationsService {
     private gymScheduleRepo: Repository<GymSchedule>,
     @InjectRepository(User) private usersRepo: Repository<User>,
     @InjectRepository(CheckIn) private checkInRepo: Repository<CheckIn>,
+    @InjectRepository(UserRole) private userRoleRepo: Repository<UserRole>,
     @Inject(DataSource) private readonly dataSource: DataSource,
     @Inject(REQUEST) private readonly request: RequestWithUser,
     private readonly jwtService: JwtService,
@@ -81,23 +83,52 @@ export class ReservationsService {
   }
 
   /**
-   * Verifica si una reserva pertenece al gym/marca del manager autenticado.
-   * Para gerentes de MARCA (brandId en JWT): la reserva debe estar en la marca o en una sucursal hija.
-   * Para gerentes de SUCURSAL (gymId en JWT): comparación directa de IDs.
+   * Verifica si una reserva pertenece al territorio del usuario autenticado.
+   * Consulta la BD para obtener el rol de mayor jerarquía del caller,
+   * evitando falsos negativos cuando el JWT no lleva gym_id (Super Admin).
+   *
+   * Niveles:
+   *   >= 10 (Super Admin) → acceso automático a cualquier reserva.
+   *      5  (Gerente)     → reserva en su marca padre o en sucursal hija.
+   *      4  (Recepcionista) → reserva en su sucursal exacta.
+   *   otro               → denegado.
    */
   private async gymBelongsToManager(reservationGymId: number | null): Promise<boolean> {
     if (!reservationGymId) return false;
-    const { gymId: jwtGymId, brandId: jwtBrandId } = this.getAuthUser();
 
-    if (jwtBrandId) {
-      if (reservationGymId === jwtBrandId) return true;
-      const gym = await this.gymRepo.findOne({
+    const currentUser = this.getAuthUser();
+
+    // Obtener rol de mayor jerarquía desde BD (ORDER BY evita pick de rol CLIENT en usuarios multi-rol)
+    const callerDbRole = await this.userRoleRepo
+      .createQueryBuilder('ur')
+      .innerJoinAndSelect('ur.role', 'role')
+      .leftJoinAndSelect('ur.gym', 'gym')
+      .where('ur.user_id = :userId', { userId: Number(currentUser.userId) })
+      .orderBy('role.hierarchyLevel', 'DESC')
+      .getOne();
+
+    const callerLevel = Number(callerDbRole?.role?.hierarchyLevel ?? 0);
+    const callerGymId = Number(callerDbRole?.gymId ?? 0);
+
+    // BYPASS CRÍTICO: Super Admin tiene autorización sobre cualquier reserva
+    if (callerLevel >= 10) return true;
+
+    if (callerLevel === 5) {
+      // GERENTE: la reserva debe estar en su marca (padre) o en una sucursal hija
+      if (reservationGymId === callerGymId) return true;
+      const targetGym = await this.gymRepo.findOne({
         where: { id: reservationGymId },
         select: { id: true, parentId: true },
       });
-      return gym?.parentId === jwtBrandId;
+      return targetGym?.parentId === callerGymId;
     }
-    return Number(reservationGymId) === Number(jwtGymId);
+
+    if (callerLevel === 4) {
+      // RECEPCIONISTA: solo su sucursal exacta
+      return Number(reservationGymId) === callerGymId;
+    }
+
+    return false;
   }
 
   private async buildCrossBranchErrorMsg(reservationGymId: number | null): Promise<string> {
@@ -443,6 +474,25 @@ export class ReservationsService {
         throw new BadRequestException(
           'Acceso libre requiere startTime y endTime (HH:mm).',
         );
+      }
+
+      // ── Enforce max duration for free-access activities ───────────────
+      if (activity.defaultDurationMin && activity.defaultDurationMin > 0) {
+        const toMins = (t: string) => {
+          const [h, m] = t.slice(0, 5).split(':').map(Number);
+          return h * 60 + m;
+        };
+        const diff = toMins(data.endTime) - toMins(data.startTime);
+        if (diff <= 0) {
+          throw new BadRequestException(
+            'La hora de fin debe ser posterior a la hora de inicio.',
+          );
+        }
+        if (diff > activity.defaultDurationMin) {
+          throw new BadRequestException(
+            'El tiempo seleccionado supera la duración máxima permitida para este servicio.',
+          );
+        }
       }
 
       const reservationDate = this.parseReservationDateOnly(
@@ -1067,6 +1117,7 @@ export class ReservationsService {
    */
   async checkInByToken(
     token: string,
+    forceCheckIn = false,
   ): Promise<{ reservation: Reservation; checkIn: CheckIn }> {
     const { userId, gymId: tokenGymId } = this.getAuthUser();
     const level = (this.request.user as any)?.level ?? 0;
@@ -1143,10 +1194,11 @@ export class ReservationsService {
         );
       }
 
-      if (reservationDateStr > todayLocal) {
-        throw new BadRequestException(
-          `Esta reserva es para el ${reservationDateStr}${timeRange ? ` (${timeRange})` : ''}. El check-in solo se puede realizar el día de la reserva.`,
-        );
+      if (reservationDateStr > todayLocal && !forceCheckIn) {
+        throw new ConflictException({
+          message: `Esta reserva es para el ${reservationDateStr}${timeRange ? ` (${timeRange})` : ''}. El check-in solo se puede realizar el día de la reserva.`,
+          code: 'FUTURE_RESERVATION_WARNING',
+        });
       }
 
       if (level >= 4 && level < 10) {
@@ -1204,6 +1256,7 @@ export class ReservationsService {
       await queryRunner.rollbackTransaction();
       if (
         error instanceof BadRequestException ||
+        error instanceof ConflictException ||
         error instanceof ForbiddenException ||
         error instanceof NotFoundException
       ) {

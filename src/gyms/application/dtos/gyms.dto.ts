@@ -6,6 +6,9 @@ import {
   IsNumber,
   IsArray,
   ValidateNested,
+  MinLength,
+  MaxLength,
+  Matches,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -58,6 +61,9 @@ export class CreateGymScheduleDto {
 export class CreateGymDto {
   @ApiProperty({ example: 'Corpus Gym - Sede Centro' })
   @IsString({ message: 'El nombre debe ser texto' })
+  @MinLength(2, { message: 'El nombre debe tener al menos 2 caracteres' })
+  @MaxLength(100, { message: 'El nombre no puede superar los 100 caracteres' })
+  @Matches(/^(?!.*[bcdfghjklmnñpqrstvwxyz]{5,}).*$/i, { message: 'El nombre parece contener texto aleatorio o inválido' })
   name: string;
 
   @ApiPropertyOptional({
@@ -66,6 +72,8 @@ export class CreateGymDto {
   })
   @IsOptional()
   @IsString({ message: 'La descripción debe ser texto' })
+  @MaxLength(300, { message: 'La descripción no puede superar los 300 caracteres' })
+  @Matches(/^(?!.*[bcdfghjklmnñpqrstvwxyz]{5,}).*$/i, { message: 'La descripción parece contener texto aleatorio o inválido' })
   description?: string;
 
   @ApiProperty({
@@ -117,6 +125,9 @@ export class UpdateGymDto {
   @ApiPropertyOptional({ example: 'Corpus Gym - Sede Norte' })
   @IsOptional()
   @IsString()
+  @MinLength(2, { message: 'El nombre debe tener al menos 2 caracteres' })
+  @MaxLength(100, { message: 'El nombre no puede superar los 100 caracteres' })
+  @Matches(/^(?!.*[bcdfghjklmnñpqrstvwxyz]{5,}).*$/i, { message: 'El nombre parece contener texto aleatorio o inválido' })
   name?: string;
 
   @ApiPropertyOptional({
@@ -124,6 +135,8 @@ export class UpdateGymDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(300, { message: 'La descripción no puede superar los 300 caracteres' })
+  @Matches(/^(?!.*[bcdfghjklmnñpqrstvwxyz]{5,}).*$/i, { message: 'La descripción parece contener texto aleatorio o inválido' })
   description?: string;
 
   @ApiPropertyOptional({ example: 200 })

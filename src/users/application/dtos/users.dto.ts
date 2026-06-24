@@ -8,7 +8,8 @@ import {
   IsArray,
   IsDateString,
   Matches,
-  IsPhoneNumber,
+  MinLength,
+  MaxLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -17,6 +18,7 @@ const PASSWORD_MSG =
   'La contraseña debe tener mínimo 8 caracteres, incluir un número y un carácter especial';
 const CI_REGEX = /^\d{6,9}(-[a-zA-Z0-9]{1,2})?$/;
 const CI_MSG = 'Formato de documento de identidad inválido';
+const PHONE_REGEX = /^\+\d{7,15}$/;
 const PHONE_MSG =
   'El número de teléfono debe ser un formato internacional válido (ej. +59170000000)';
 
@@ -52,16 +54,24 @@ export class UpdateProfileDto {
   @ApiPropertyOptional({ example: 'Carlos' })
   @IsOptional()
   @IsString()
+  @MinLength(2, { message: 'El nombre debe tener al menos 2 caracteres' })
+  @MaxLength(60, { message: 'El nombre no puede superar los 60 caracteres' })
+  @Matches(/^[a-záéíóúüñA-ZÁÉÍÓÚÜÑ\s'\-]+$/, { message: 'El nombre solo puede contener letras, espacios y guiones' })
+  @Matches(/^(?!.*[bcdfghjklmnñpqrstvwxyz]{5,}).*$/i, { message: 'El nombre parece contener texto aleatorio' })
   firstName?: string;
 
   @ApiPropertyOptional({ example: 'López' })
   @IsOptional()
   @IsString()
+  @MinLength(2, { message: 'El apellido debe tener al menos 2 caracteres' })
+  @MaxLength(60, { message: 'El apellido no puede superar los 60 caracteres' })
+  @Matches(/^[a-záéíóúüñA-ZÁÉÍÓÚÜÑ\s'\-]+$/, { message: 'El apellido solo puede contener letras, espacios y guiones' })
+  @Matches(/^(?!.*[bcdfghjklmnñpqrstvwxyz]{5,}).*$/i, { message: 'El apellido parece contener texto aleatorio' })
   lastName?: string;
 
   @ApiPropertyOptional({ example: '+59170099999' })
   @IsOptional()
-  @IsPhoneNumber(undefined, { message: PHONE_MSG })
+  @Matches(PHONE_REGEX, { message: PHONE_MSG })
   phone?: string;
 
   @ApiPropertyOptional({ example: 'Masculino' })
@@ -165,11 +175,19 @@ export class CreateUserDto {
   @ApiProperty({ example: 'RASB', description: 'Nombre' })
   @IsString({ message: 'El nombre debe ser texto' })
   @IsNotEmpty({ message: 'El nombre es obligatorio' })
+  @MinLength(2, { message: 'El nombre debe tener al menos 2 caracteres' })
+  @MaxLength(60, { message: 'El nombre no puede superar los 60 caracteres' })
+  @Matches(/^[a-záéíóúüñA-ZÁÉÍÓÚÜÑ\s'\-]+$/, { message: 'El nombre solo puede contener letras, espacios y guiones' })
+  @Matches(/^(?!.*[bcdfghjklmnñpqrstvwxyz]{5,}).*$/i, { message: 'El nombre parece contener texto aleatorio' })
   firstName!: string;
 
   @ApiProperty({ example: 'Admin', description: 'Apellido' })
   @IsString({ message: 'El apellido debe ser texto' })
   @IsNotEmpty({ message: 'El apellido es obligatorio' })
+  @MinLength(2, { message: 'El apellido debe tener al menos 2 caracteres' })
+  @MaxLength(60, { message: 'El apellido no puede superar los 60 caracteres' })
+  @Matches(/^[a-záéíóúüñA-ZÁÉÍÓÚÜÑ\s'\-]+$/, { message: 'El apellido solo puede contener letras, espacios y guiones' })
+  @Matches(/^(?!.*[bcdfghjklmnñpqrstvwxyz]{5,}).*$/i, { message: 'El apellido parece contener texto aleatorio' })
   lastName!: string;
 
   @ApiPropertyOptional({
@@ -177,7 +195,7 @@ export class CreateUserDto {
     description: 'Teléfono de contacto',
   })
   @IsOptional()
-  @IsPhoneNumber(undefined, { message: PHONE_MSG })
+  @Matches(PHONE_REGEX, { message: PHONE_MSG })
   phone?: string;
 
   @ApiPropertyOptional({
@@ -205,11 +223,19 @@ export class CreateUserDto {
   roleId?: number;
 
   @ApiPropertyOptional({
+    example: 1,
+    description: 'ID de la sucursal asignada',
+  })
+  @IsOptional()
+  @IsNumber()
+  gymId?: number;
+
+  @ApiPropertyOptional({
     example: [1, 2, 3],
     description: 'Array de IDs de gimnasios asignados al usuario',
   })
   @IsOptional()
-  @IsArray()
+  // @IsArray()
   @IsNumber({}, { each: true })
   gymIds?: number[];
 
@@ -251,7 +277,7 @@ export class UpdateUserDto {
 
   @ApiPropertyOptional({ example: '+59170099999' })
   @IsOptional()
-  @IsPhoneNumber(undefined, { message: PHONE_MSG })
+  @Matches(PHONE_REGEX, { message: PHONE_MSG })
   phone?: string;
 
   @ApiPropertyOptional({
@@ -271,11 +297,19 @@ export class UpdateUserDto {
   roleId?: number;
 
   @ApiPropertyOptional({
+    example: 2,
+    description: 'ID de la sucursal asignada',
+  })
+  @IsOptional()
+  @IsNumber()
+  gymId?: number;
+
+  @ApiPropertyOptional({
     example: [1, 2],
     description: 'Array de IDs de gimnasios asignados al usuario',
   })
   @IsOptional()
-  @IsArray()
+  // @IsArray()
   @IsNumber({}, { each: true })
   gymIds?: number[];
 

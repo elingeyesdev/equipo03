@@ -165,11 +165,12 @@ export class ReservationsController {
 
   @Post('check-in/token')
   @UseGuards(ScannerGuard)
-  @ApiOperation({ summary: 'Check-in por QR token — solo operadores de sucursal (level 4-5, rechaza level >= 10)' })
+  @ApiOperation({ summary: 'Check-in por QR token — operadores de sucursal (level >= 4)' })
   @ApiBody({ type: CheckInByTokenDto })
-  @ApiResponse({ status: 403, description: 'Level >= 10 bloqueado; operador debe coincidir con sucursal de la reserva' })
+  @ApiResponse({ status: 403, description: 'Operador intenta hacer check-in en sucursal ajena' })
+  @ApiResponse({ status: 409, description: 'Reserva futura — se puede forzar con forceCheckIn=true' })
   checkInByToken(@Body() body: CheckInByTokenDto) {
-    return this.svc.checkInByToken(body.token);
+    return this.svc.checkInByToken(body.token, body.forceCheckIn ?? false);
   }
 
   @Put(':id/cancel')

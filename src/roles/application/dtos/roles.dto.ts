@@ -5,6 +5,7 @@ import {
   IsInt,
   IsNotEmpty,
   MinLength,
+  MaxLength,
   Matches,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -43,6 +44,7 @@ export class CreateRoleDto {
   @IsString({ message: 'El nombre del rol debe ser texto' })
   @IsNotEmpty({ message: 'El nombre del rol es obligatorio' })
   @MinLength(3, { message: 'El nombre del rol debe tener al menos 3 caracteres' })
+  @MaxLength(50, { message: 'El nombre del rol no puede superar los 50 caracteres' })
   @Matches(/^[A-Z_]+$/, {
     message: 'El nombre solo puede contener mayúsculas y guiones bajos',
   })
@@ -52,6 +54,7 @@ export class CreateRoleDto {
   @IsOptional()
   @IsString({ message: 'La descripción debe ser texto' })
   @MinLength(5, { message: 'La descripción debe tener al menos 5 caracteres' })
+  @MaxLength(300, { message: 'La descripción no puede superar los 300 caracteres' })
   description?: string;
 
   @ApiPropertyOptional({
@@ -77,6 +80,7 @@ export class UpdateRoleDto {
   @IsString({ message: 'El nombre del rol debe ser texto' })
   @IsNotEmpty({ message: 'El nombre del rol es obligatorio' })
   @MinLength(3, { message: 'El nombre del rol debe tener al menos 3 caracteres' })
+  @MaxLength(50, { message: 'El nombre del rol no puede superar los 50 caracteres' })
   @Matches(/^[A-Z_]+$/, {
     message: 'El nombre solo puede contener mayúsculas y guiones bajos',
   })
@@ -86,6 +90,7 @@ export class UpdateRoleDto {
   @IsOptional()
   @IsString({ message: 'La descripción debe ser texto' })
   @MinLength(5, { message: 'La descripción debe tener al menos 5 caracteres' })
+  @MaxLength(300, { message: 'La descripción no puede superar los 300 caracteres' })
   description?: string;
 
   @ApiPropertyOptional()

@@ -3,6 +3,7 @@ import {
   IsOptional,
   IsInt,
   IsIn,
+  IsBoolean,
   IsArray,
   ArrayNotEmpty,
   Matches,
@@ -47,6 +48,16 @@ export class CheckInByTokenDto {
   })
   @IsString()
   token!: string;
+
+  @ApiPropertyOptional({
+    default: false,
+    description:
+      'Cuando es true, omite la validación de fecha y permite check-in de reservas futuras. ' +
+      'Solo procesado si el operador tiene nivel >= 4.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  forceCheckIn?: boolean;
 }
 
 export class CreateReservationDto {

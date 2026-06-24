@@ -6,6 +6,7 @@ import { GymSchedule } from './domain/gym-schedule.entity';
 import { MachineInventory } from './domain/machine-inventory.entity';
 import { Reservation } from '../reservations/domain/reservation.entity';
 import { CheckIn } from '../checkins/domain/check-in.entity';
+import { UserRole } from '../roles/domain/user-role.entity';
 import { StorageModule } from '../shared/infrastructure/storage/storage.module';
 import { GymsService } from './application/gyms.service';
 import { MachinesService } from './application/machines.service';
@@ -21,6 +22,7 @@ import { MachinesController } from './infrastructure/machines.controller';
       MachineInventory,
       Reservation,
       CheckIn,
+      UserRole,
     ]),
     StorageModule,
   ],

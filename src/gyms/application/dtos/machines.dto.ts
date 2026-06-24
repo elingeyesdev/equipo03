@@ -3,6 +3,9 @@ import {
   IsOptional,
   IsInt,
   IsEnum,
+  MinLength,
+  MaxLength,
+  Matches,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { MachineStatus, MachineCategory } from '../../domain/machine-inventory.entity';
@@ -10,6 +13,9 @@ import { MachineStatus, MachineCategory } from '../../domain/machine-inventory.e
 export class CreateMachineDto {
   @ApiProperty({ example: 'Cinta de Correr Precor 900' })
   @IsString({ message: 'El nombre debe ser texto' })
+  @MinLength(2, { message: 'El nombre debe tener al menos 2 caracteres' })
+  @MaxLength(100, { message: 'El nombre no puede superar los 100 caracteres' })
+  @Matches(/^(?!.*[bcdfghjklmnñpqrstvwxyz]{5,}).*$/i, { message: 'El nombre parece contener texto aleatorio o inválido' })
   name!: string;
 
   @ApiProperty({ example: 11, description: 'ID de la sucursal física' })
@@ -44,6 +50,9 @@ export class UpdateMachineDto {
   @ApiPropertyOptional({ example: 'Cinta de Correr Life Fitness' })
   @IsOptional()
   @IsString()
+  @MinLength(2, { message: 'El nombre debe tener al menos 2 caracteres' })
+  @MaxLength(100, { message: 'El nombre no puede superar los 100 caracteres' })
+  @Matches(/^(?!.*[bcdfghjklmnñpqrstvwxyz]{5,}).*$/i, { message: 'El nombre parece contener texto aleatorio o inválido' })
   name?: string;
 
   @ApiPropertyOptional({
