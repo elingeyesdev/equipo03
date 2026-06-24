@@ -326,31 +326,11 @@ export const RootNavigator = () => {
 
   if (!isAuthenticated) return <AuthStack />;
 
-  switch (user?.role?.toUpperCase()) {
-    case 'SUPER_ADMIN':
-    case 'GERENTE':
-    case 'COORDINADOR':
-    case 'RECEPCIONISTA':
-      return <GerenteStack />;
-
-    case 'ENTRENADOR':
-    case 'INSTRUCTOR':
-    case 'NUTRICIONISTA':
-      return <StaffStack />;
-
-    case 'USER':
-    case 'CLIENTE':
-      return <ClienteStack />;
-
-    default: {
-      // Fallback por nivel jerárquico para roles nuevos/desconocidos (requiere token renovado)
-      const level: number = (user as any)?.level ?? 0;
-      if (level >= 4) return <GerenteStack />;
-      if (level >= 3) return <StaffStack />;
-      if (level >= 1) return <ClienteStack />;
-      return <UnknownRoleScreen />;
-    }
-  }
+  const level: number = (user as any)?.level ?? 0;
+  if (level >= 4) return <GerenteStack />;
+  if (level >= 2) return <StaffStack />;
+  if (level >= 1) return <ClienteStack />;
+  return <UnknownRoleScreen />;
 };
 
 export default RootNavigator;

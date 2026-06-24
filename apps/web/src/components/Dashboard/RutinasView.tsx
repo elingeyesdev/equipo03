@@ -430,7 +430,7 @@ export const RutinasView = () => {
   const [viewingTemplate, setViewingTemplate] = useState<TemplateDto | null>(null);
   const [deleteTarget, setDeleteTarget]     = useState<TemplateDto | null>(null);
 
-  const canWrite = user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE';
+  const canWrite = (user?.level ?? 0) >= 5;
 
   useEffect(() => {
     let mounted = true;

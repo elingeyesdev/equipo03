@@ -8,8 +8,6 @@ import { AuthService } from '../auth/AuthService';
 import { authEvents } from '../auth/authEvents';
 import { useAuth } from '../../Shared/hooks/useAuth';
 
-const MANAGER_ROLES  = new Set(['GERENTE', 'SUPER_ADMIN']);
-const TRAINER_ROLES  = new Set(['ENTRENADOR', 'INSTRUCTOR', 'NUTRICIONISTA']);
 const getLevel = (user: any): number => user?.level ?? 0;
 
 type GymEventPayload = {
@@ -77,7 +75,6 @@ export function useGymEventsSocket(): void {
   const queryClient = useQueryClient();
   const socketRef = useRef<Socket | null>(null);
 
-  const role = user?.role?.toUpperCase() ?? '';
   const level = getLevel(user);
   const shouldConnect = isAuthenticated && level >= 1;
 
@@ -135,7 +132,7 @@ export function useGymEventsSocket(): void {
         void handleReservationEvent('cancel_reservation', payload ?? {});
       });
 
-      if (TRAINER_ROLES.has(role)) {
+      if (level >= 2 && level <= 3) {
         socket.on('routine_session_update', (payload: any) => {
           const userId = payload?.userId ?? payload?.user?.id;
           if (userId != null) {

@@ -98,7 +98,7 @@ interface SucursalFormData {
 interface SucursalModalProps {
   isOpen: boolean;
   onClose: () => void;
-  role: string;
+  level: number;
   sucursalToEdit: GymDto | null;
   onSave: (data: SucursalFormData) => void;
   parentGyms: Record<number, string>;
@@ -123,8 +123,8 @@ const LocationMarker = ({ position, setPosition }: LocationMarkerProps) => {
   );
 };
 
-const SucursalModal = ({ isOpen, onClose, role, sucursalToEdit, onSave, parentGyms, existingGyms = [] }: SucursalModalProps) => {
-  const canEditMachineCapacity = ['SUPER_ADMIN', 'GERENTE'].includes(role);
+const SucursalModal = ({ isOpen, onClose, level, sucursalToEdit, onSave, parentGyms, existingGyms = [] }: SucursalModalProps) => {
+  const canEditMachineCapacity = level >= 5;
   const [showMap, setShowMap] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState(false);
@@ -541,6 +541,11 @@ export const SucursalesView = () => {
   });
   const gyms       = sucursalesData?.gyms       ?? [];
   const parentGyms = sucursalesData?.parentGyms ?? {};
+  // Excluir estrictamente Marcas principales (parent_id === null) — solo sucursales hijas
+  const branches   = useMemo(
+    () => gyms.filter(g => (g.parentId ?? g.parent?.id ?? null) !== null),
+    [gyms],
+  );
   const error = fetchError
     ? ((fetchError as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message
         || (fetchError as Error).message
@@ -566,7 +571,7 @@ export const SucursalesView = () => {
 
   const filteredSucursales = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return gyms
+    return branches
       .filter(g => {
         if (term && !g.name.toLowerCase().includes(term) && !(g.location?.address ?? g.description ?? '').toLowerCase().includes(term)) return false;
         if (filterParent && String(g.parentId ?? g.parent?.id ?? '') !== filterParent) return false;
@@ -582,7 +587,7 @@ export const SucursalesView = () => {
         if (sortOrder === 'cap_asc')  return (a.maxCapacity ?? 0) - (b.maxCapacity ?? 0);
         return (b.maxCapacity ?? 0) - (a.maxCapacity ?? 0);
       });
-  }, [gyms, search, filterParent, filterEstado, sortOrder]);
+  }, [branches, search, filterParent, filterEstado, sortOrder]);
 
   const hasFilters = search || filterParent || filterEstado !== 'all' || sortOrder !== 'az';
   const resetFilters = () => { setSearch(''); setFilterParent(''); setFilterEstado('all'); setSortOrder('az'); };
@@ -710,16 +715,16 @@ export const SucursalesView = () => {
     <section style={panelStyle} className="glass-panel">
       <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Gestión de Sucursales</h1>
       <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">
-        {user.role === 'SUPER_ADMIN'
+        {(user?.level ?? 0) >= 10
           ? 'Administra las sucursales vinculadas a cada marca principal. Cada sucursal pertenece a una marca principal.'
           : `Acceso restringido a tus sucursales (gym_id: ${user.gymId || 'N/A'}).`}
       </p>
 
       <div className="flex flex-wrap justify-between items-center gap-3 mt-4 mb-4">
         <div style={{ color: '#8E8E93', fontSize: '0.9rem' }}>
-          {loading ? 'Cargando sucursales...' : `Total de sucursales: ${gyms.length}`}
+          {loading ? 'Cargando sucursales...' : `Total de sucursales: ${branches.length}`}
         </div>
-        {user.role === 'SUPER_ADMIN' && (
+        {(user?.level ?? 0) >= 10 && (
           <button
             onClick={handleCreateSucursal}
             className="bg-brand-orange text-white font-semibold px-4 py-2 rounded-lg border-0 cursor-pointer whitespace-nowrap"
@@ -731,7 +736,7 @@ export const SucursalesView = () => {
       {error && <div style={{ marginTop: '0.75rem', color: '#FF5E00' }}>{error}</div>}
 
       {/* ── Barra de filtros ── */}
-      {!loading && !error && gyms.length > 0 && (
+      {!loading && !error && branches.length > 0 && (
         <div className="flex flex-col md:flex-row flex-wrap gap-3 items-center mb-6">
           <div className="relative flex-1" style={{ minWidth: '200px' }}>
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-500 pointer-events-none" />
@@ -783,9 +788,9 @@ export const SucursalesView = () => {
           )}
         </div>
       )}
-      {!loading && !error && gyms.length > 0 && (
+      {!loading && !error && branches.length > 0 && (
         <div style={{ color: '#8E8E93', fontSize: '0.8rem', margin: '0.5rem 0' }}>
-          {filteredSucursales.length === gyms.length ? `${gyms.length} sucursales` : `${filteredSucursales.length} de ${gyms.length} sucursales`}
+          {filteredSucursales.length === branches.length ? `${branches.length} sucursales` : `${filteredSucursales.length} de ${branches.length} sucursales`}
         </div>
       )}
 
@@ -807,7 +812,7 @@ export const SucursalesView = () => {
             <tbody>
               {filteredSucursales.length === 0 ? (
                 <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400 dark:text-gray-500">
-                  {gyms.length === 0 ? 'No hay sucursales registradas.' : 'Sin resultados para los filtros aplicados.'}
+                  {branches.length === 0 ? 'No hay sucursales registradas.' : 'Sin resultados para los filtros aplicados.'}
                 </td></tr>
               ) : filteredSucursales.map((g) => (
                 <tr key={g.id} className="border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-bg-deep transition-colors text-slate-700 dark:text-gray-300 text-sm">
@@ -859,7 +864,7 @@ export const SucursalesView = () => {
                       >
                         <Eye size={15} />
                       </button>
-                      {user.role === 'SUPER_ADMIN' && (
+                      {(user?.level ?? 0) >= 10 && (
                         <>
                           <button
                             onClick={() => handleEditSucursal(g)}
@@ -895,7 +900,7 @@ export const SucursalesView = () => {
       <SucursalModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        role={user.role}
+        level={user.level ?? 0}
         sucursalToEdit={sucursalToEdit}
         onSave={handleSaveSucursal}
         parentGyms={parentGyms}

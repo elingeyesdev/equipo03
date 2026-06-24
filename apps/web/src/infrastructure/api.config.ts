@@ -4,17 +4,22 @@ import toast from 'react-hot-toast';
 
 // Limpia el estado local y redirige al login.
 // El token ya NO está en localStorage — la cookie HttpOnly la borra el backend.
-const forceLogout = async () => {
+const forceLogout = async (reason?: string) => {
   try {
-    // Pedirle al backend que limpie la cookie HttpOnly
     await axios.post('/api/auth/logout', {}, { withCredentials: true });
   } catch {
-    // Si falla (ya expiró, red caída) igual se redirige
+    // Si falla (expiró, red caída) igual se redirige
   } finally {
     localStorage.removeItem('gymsync_user');
     sessionStorage.clear();
     if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
-      window.location.href = '/login';
+      if (reason) {
+        toast.error(reason, { duration: 3000 });
+        // Delay para que el toast sea visible antes de la navegación
+        setTimeout(() => { window.location.href = '/login'; }, 1500);
+      } else {
+        window.location.href = '/login';
+      }
     }
   }
 };
@@ -55,7 +60,7 @@ export const createApiClient = (): AxiosInstance => {
           if (body.statusCode === 403 || body.message?.includes('denegado')) {
             handleAccessDenied(body.message);
           } else if (body.statusCode === 401 && !reqUrl.includes('/auth/login') && !reqUrl.includes('/auth/me')) {
-            forceLogout();
+            forceLogout(body.message || 'Tu sesión ha expirado o tu cuenta ya no está disponible.');
           } else {
             toast.error(body.message || 'Error en la operación');
           }
@@ -108,7 +113,10 @@ export const createApiClient = (): AxiosInstance => {
             { duration: 8000 },
           );
         } else if (status === 401) {
-          forceLogout();
+          const sessionMsg =
+            (typeof body?.message === 'string' ? body.message : null) ||
+            'Tu sesión ha expirado o tu cuenta ya no está disponible.';
+          forceLogout(sessionMsg);
         } else if (status === 403) {
           handleAccessDenied(errorMessage);
         } else if (body?.success === false) {
