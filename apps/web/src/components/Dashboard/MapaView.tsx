@@ -143,7 +143,7 @@ const AutoFitBounds = ({ sucursales }: { sucursales: SucursalMapaDTO[] }) => {
 };
 
 // ── Popup JSX ─────────────────────────────────────────────────────────────────
-const PopupCard = ({ s, computedStatus, role }: { s: SucursalMapaDTO; computedStatus: EstadoFiltro; role: string }) => {
+const PopupCard = ({ s, computedStatus, level }: { s: SucursalMapaDTO; computedStatus: EstadoFiltro; level: number }) => {
   const navigate   = useNavigate();
   const sedeColor  = getSedeColor(s.sedePrincipalId);
   const cfg        = ESTADO_CONFIG[computedStatus];
@@ -244,7 +244,7 @@ const PopupCard = ({ s, computedStatus, role }: { s: SucursalMapaDTO; computedSt
         <span style={{ fontSize: '0.68rem', color: '#555', fontFamily: 'monospace' }}>
           {s.latitude.toFixed(4)}, {s.longitude.toFixed(4)}
         </span>
-        {(role === 'GERENTE' || role === 'RECEPCIONISTA') ? (
+        {(level >= 4 && level < 10) ? (
           <button
             onClick={e => { e.stopPropagation(); navigate('/dashboard/reservas'); }}
             style={{
@@ -475,7 +475,7 @@ export const MapaView: React.FC = () => {
   const { theme } = useTheme();
   const s = getStyles(theme === 'dark');
 
-  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const isSuperAdmin = (user?.level ?? 0) >= 10;
 
   // Filtros de UI
   const [filtroSede,    setFiltroSede]    = useState<string | null>(null);
@@ -483,7 +483,7 @@ export const MapaView: React.FC = () => {
   const [filtroEstados, setFiltroEstados] = useState<Set<EstadoFiltro>>(new Set());
 
   // Guard — SUPER_ADMIN, GERENTE y RECEPCIONISTA
-  if (!user || (user.role !== 'SUPER_ADMIN' && user.role !== 'GERENTE' && user.role !== 'RECEPCIONISTA')) {
+  if (!user || (user?.level ?? 0) < 4) {
     return <Navigate to="/dashboard/resumen" replace />;
   }
 
@@ -718,7 +718,7 @@ export const MapaView: React.FC = () => {
                 return (
                   <Marker key={sc.id} position={[sc.latitude, sc.longitude]} icon={icon}>
                     <Popup className="gymsync-popup" maxWidth={280} minWidth={230}>
-                      <PopupCard s={sc} computedStatus={sc.computedStatus} role={user.role} />
+                      <PopupCard s={sc} computedStatus={sc.computedStatus} level={user.level ?? 0} />
                     </Popup>
                   </Marker>
                 );

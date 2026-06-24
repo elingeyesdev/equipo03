@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useId, useCallback } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 type CameraDevice = { id: string; label: string };
 import type { Reservation } from '../../infrastructure/Reservations.types';
@@ -104,13 +104,16 @@ export const QrScannerModal = ({ onClose, onScanned }: QrScannerModalProps) => {
       await new Promise(r => setTimeout(r, 300));
       if (!mounted) return;
 
-      const scanner = new Html5Qrcode(SCANNER_ID);
+      const scanner = new Html5Qrcode(SCANNER_ID, {
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+        verbose: false,
+      });
       scannerRef.current = scanner;
 
       try {
         await scanner.start(
           camConstraint(activeCam),
-          { fps: 12, qrbox: (w, h) => { const s = Math.floor(Math.min(w, h) * 0.55); return { width: s, height: s }; } },
+          { fps: 15, qrbox: { width: 250, height: 250 } },
           async (decoded) => {
             if (processingRef.current || !mounted) return;
             processingRef.current = true;
@@ -153,11 +156,11 @@ export const QrScannerModal = ({ onClose, onScanned }: QrScannerModalProps) => {
           () => {},
         );
         if (mounted) { setStatus('scanning'); setMessage(''); }
-      } catch (err) {
+      } catch {
         if (!mounted) return;
         if (activeCam !== FALLBACK_CAM) {
           try {
-            await scanner.start({ facingMode: 'environment' }, { fps: 12, qrbox: { width: 220, height: 220 } }, async () => {}, () => {});
+            await scanner.start({ facingMode: 'environment' }, { fps: 15, qrbox: { width: 250, height: 250 } }, async () => {}, () => {});
             if (mounted) setStatus('scanning');
             return;
           } catch { void 0; }
@@ -168,7 +171,7 @@ export const QrScannerModal = ({ onClose, onScanned }: QrScannerModalProps) => {
     };
 
     start();
-    return () => { mounted = false; scannerRef.current?.isScanning && scannerRef.current.stop().catch(() => {}); };
+    return () => { mounted = false; if (scannerRef.current?.isScanning) scannerRef.current.stop().catch(() => {}); };
   }, [SCANNER_ID, activeCam]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCameraChange = (id: string) => {

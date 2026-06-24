@@ -202,14 +202,14 @@ const AccesosPanel = () => {
   const [gyms,         setGyms]         = useState<{ id: number; name: string }[]>([]);
 
   useEffect(() => {
-    if (user?.role !== 'SUPER_ADMIN') return;
+    if ((user?.level ?? 0) < 10) return;
     apiClient.get('/gyms')
       .then((res: { data?: Array<{ id: unknown; name: unknown }> }) => {
         const raw = res.data ?? [];
         setGyms(raw.map((g) => ({ id: Number(g.id), name: String(g.name) })));
       })
       .catch(() => {});
-  }, [user?.role]);
+  }, [user?.level]);
 
   const cargarAccesos = useCallback(async (resetPage = false) => {
     if (!user) return;
@@ -311,7 +311,7 @@ const AccesosPanel = () => {
           </p>
         </div>
         <div className="view-filters">
-          {user?.role !== 'SUPER_ADMIN' && (
+          {(user?.level ?? 0) < 10 && (
             <button
               onClick={() => setShowScanner(true)}
               className="bg-brand-orange text-white font-bold px-4 py-2 rounded-lg border-0 cursor-pointer inline-flex items-center gap-2 text-sm whitespace-nowrap"
@@ -325,7 +325,7 @@ const AccesosPanel = () => {
               Escanear QR
             </button>
           )}
-          {user?.role === 'SUPER_ADMIN' && (
+          {(user?.level ?? 0) >= 10 && (
             <select
               value={filtroSede}
               onChange={e => setFiltroSede(e.target.value)}

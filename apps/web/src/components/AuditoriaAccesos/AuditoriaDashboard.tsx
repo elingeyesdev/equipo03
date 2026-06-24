@@ -91,7 +91,7 @@ export const AuditoriaDashboard: React.FC = () => {
             <img src="https://i.pravatar.cc/150?u=admin" alt="Admin" className="avatar-small" />
             <div className="profile-info">
               <span className="profile-name">Administrador</span>
-              <span className="profile-role">{user?.role || 'USER'}</span>
+              <span className="profile-role">{user?.role || 'CLIENTE'}</span>
             </div>
           </div>
         </header>
@@ -100,7 +100,7 @@ export const AuditoriaDashboard: React.FC = () => {
           <div className="dashboard-title-row">
             <h1>Registro de Accesos</h1>
             <div className="filtros-container">
-              {user?.role === 'SUPER_ADMIN' && (
+              {(user?.level ?? 0) >= 10 && (
                 <select value={filtroSede} onChange={e => setFiltroSede(e.target.value)} className="filtro-select">
                   <option value="">Todas las Marcas</option>
                   <option value="g1">Smart Fit</option>

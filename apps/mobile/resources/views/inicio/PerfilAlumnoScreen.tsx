@@ -56,7 +56,7 @@ export const PerfilAlumnoScreen = () => {
   const navigation  = useNavigation<any>();
   const route       = useRoute<RouteProp<Record<string, RouteParams>, string>>();
   const { clientId, clientName } = route.params;
-  const isNutritionist = (user as any)?.role?.toUpperCase() === 'NUTRICIONISTA';
+  const isNutritionist = ((user as any)?.level ?? 0) === 3;
 
   const { data: profile, isLoading, isError, refetch } = useQuery<ClientProfile>({
     queryKey: ['client-profile', clientId],

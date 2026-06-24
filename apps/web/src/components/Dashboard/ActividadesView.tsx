@@ -828,7 +828,7 @@ export const ActividadesView = () => {
   const queryClient = useQueryClient();
 
   const userGymId = user?.gymId ? Number(user.gymId) : null;
-  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const isSuperAdmin = (user?.level ?? 0) >= 10;
   const activitiesKey = ['activities', userGymId] as const;
 
   const { data: activities = [], isLoading: loading } = useQuery({

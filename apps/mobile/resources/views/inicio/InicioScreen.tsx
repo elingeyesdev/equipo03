@@ -570,22 +570,18 @@ const ClientDashboard = () => {
 
 export const StaffInicioScreen = () => {
   const { user } = useAuth();
-  const role = (user?.role ?? '').toUpperCase();
+  const level = (user as any)?.level ?? 0;
 
-  switch (role) {
-    case 'INSTRUCTOR':    return <InstructorDashboard />;
-    case 'ENTRENADOR':    return <TrainerDashboard />;
-    case 'NUTRICIONISTA': return <NutritionistDashboard />;
-    default:
-      return (
-        <SafeAreaView style={ph.safe} edges={['top']}>
-          <View style={ph.center}>
-            <MaterialCommunityIcons name="shield-off-outline" size={48} color="#444" />
-            <Text style={ph.title}>Dashboard no disponible</Text>
-          </View>
-        </SafeAreaView>
-      );
-  }
+  if (level === 2) return <InstructorDashboard />;
+  if (level >= 3) return <TrainerDashboard />;
+  return (
+    <SafeAreaView style={ph.safe} edges={['top']}>
+      <View style={ph.center}>
+        <MaterialCommunityIcons name="shield-off-outline" size={48} color="#444" />
+        <Text style={ph.title}>Dashboard no disponible</Text>
+      </View>
+    </SafeAreaView>
+  );
 };
 
 // ─── Enrutador general (Gerente + Cliente) ────────────────────────────────────

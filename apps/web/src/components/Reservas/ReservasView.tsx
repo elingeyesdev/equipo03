@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { reservationsApi } from '../../infrastructure/AxiosReservationsApi.adapter';
 import { apiClient } from '../../infrastructure/api.config';
-import { DB_ROLES } from '../../config/rbac.constants';
 import type { Reservation } from '../../infrastructure/Reservations.types';
 import { QrScannerModal } from './QrScannerModal';
 import { RecordDetailModal, DetailField } from '../Dashboard/Shared/DashboardShared';
@@ -43,9 +42,8 @@ export const ReservasView = () => {
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [viewingReservation, setViewingReservation] = useState<Reservation | null>(null);
 
-  // Usa roleId numérico de WebUser — no depende de strings ni comparaciones mixtas
-  const isGerente = user?.roleId === DB_ROLES.GERENTE;
-  const isCliente = user?.roleId === DB_ROLES.CLIENTE;
+  const isGerente = (user?.level ?? 0) === 5;
+  const isCliente = (user?.level ?? 0) === 1;
 
   // Carga /gyms una sola vez → construye lookup de sucursales + sedes
   useEffect(() => {

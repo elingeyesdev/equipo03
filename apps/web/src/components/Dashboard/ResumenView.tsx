@@ -431,7 +431,7 @@ export const ResumenView = () => {
   const updatedAt = new Date(dataUpdatedAt);
   const error     = fetchError ? ((fetchError as Error).message || 'No se pudo cargar el resumen.') : null;
 
-  if (user?.role === 'CLIENTE') return <ClienteResumen />;
+  if ((user?.level ?? 0) <= 1) return <ClienteResumen />;
 
   // ── Datos base ──────────────────────────────────────────────────────────────
   const brands   = gymBrands;
@@ -459,7 +459,7 @@ export const ResumenView = () => {
   void adminTotalAforo;
 
   // Distribución de roles
-  const adminClientes = allUsers.filter(u => u.userRoles?.some(ur => ur.roleId === DB_ROLES.CLIENTE || ur.roleId === DB_ROLES.USER)).length;
+  const adminClientes = allUsers.filter(u => u.userRoles?.some(ur => ur.roleId === DB_ROLES.CLIENTE)).length;
   const adminPersonal = allUsers.filter(u => u.userRoles?.some(ur => [DB_ROLES.ENTRENADOR, DB_ROLES.NUTRICIONISTA, DB_ROLES.INSTRUCTOR].includes(ur.roleId))).length;
   const adminGerentes = allUsers.filter(u => u.userRoles?.some(ur => ur.roleId === DB_ROLES.GERENTE || ur.roleId === DB_ROLES.SUPER_ADMIN)).length;
 
@@ -488,13 +488,13 @@ export const ResumenView = () => {
   const nutricionistaCount = allUsers.filter(u => u.userRoles?.some(ur => ur.roleId === DB_ROLES.NUTRICIONISTA)).length;
   const totalStaff         = entrenadorCount + nutricionistaCount;
 
-  const roleText = user?.role === 'SUPER_ADMIN'
+  const roleText = (user?.level ?? 0) >= 10
     ? 'Vista global de toda la cadena de gimnasios.'
     : isGerenteLevel
       ? `Métricas de tu marca ${marcaDisplayName}.`
       : `Métricas de tu sucursal ${gymName}.`;
 
-  const isGerente = user?.role !== 'SUPER_ADMIN';
+  const isGerente = (user?.level ?? 0) < 10;
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (

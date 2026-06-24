@@ -29,7 +29,7 @@ const AVATARS = [
 export const MisDatosPersonalesScreen = () => {
   const navigation                              = useNavigation();
   const { user, updateProfile, logout }          = useAuth();
-  const isGerente                               = user?.role === 'GERENTE';
+  const isGerente                               = ((user as any)?.level ?? 0) === 5;
   const p                                       = (user as any)?.profile;
 
   const [isEditing,          setIsEditing]          = useState(false);

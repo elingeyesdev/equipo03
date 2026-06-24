@@ -234,7 +234,7 @@ export const RolesView = () => {
   const [deleteConfirm, setDeleteConfirm] = useState<RoleDto | null>(null);
 
   // Guard: Solo SUPER_ADMIN
-  if (user?.role !== 'SUPER_ADMIN') {
+  if ((user?.level ?? 0) < 10) {
     return (
       <section style={panelStyle} className="glass-panel">
         <div style={{ padding: '3rem', textAlign: 'center', color: '#FF5E00' }}>
