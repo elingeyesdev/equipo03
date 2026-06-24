@@ -151,10 +151,10 @@ export class UsersController {
     description: 'GERENTE no puede enviar métricas físicas',
   })
   updateMyProfile(@Req() req: RequestWithUser, @Body() body: UpdateProfileDto) {
-    const { userId, role, gymId } = req.user!;
+    const { userId, level, gymId } = req.user!;
     return this.usersService.updateMyProfile(
       Number(userId),
-      role?.toUpperCase() ?? '',
+      level ?? 0,
       gymId ?? undefined,
       body,
     );

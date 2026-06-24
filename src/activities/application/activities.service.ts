@@ -26,7 +26,6 @@ import {
   DayOfWeek,
 } from './dtos/create-activity-schedule.dto';
 
-const INSTRUCTOR_ROLE_NAMES = new Set(['ENTRENADOR', 'TRAINER', 'INSTRUCTOR']);
 
 /** HH:mm o HH:mm:ss → HH:mm para comparar con horarios del gimnasio. */
 function toHHmm(time: string): string {
@@ -255,9 +254,10 @@ export class ActivitiesService {
     if (!user.isActive) {
       throw new ForbiddenException('El instructor indicado no está activo');
     }
-    const ok = user.userRoles?.some((ur) =>
-      INSTRUCTOR_ROLE_NAMES.has(String(ur.role?.name ?? '').toUpperCase()),
-    );
+    const ok = user.userRoles?.some((ur) => {
+      const lvl = ur.role?.hierarchyLevel ?? 0;
+      return lvl >= 2 && lvl <= 3;
+    });
     if (!ok) {
       throw new ForbiddenException(
         'El usuario indicado no tiene rol de instructor',

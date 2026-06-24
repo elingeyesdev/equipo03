@@ -58,17 +58,18 @@ export class GymGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
 
       client.data.userId = payload.sub;
-      client.data.role   = payload.role?.toUpperCase() ?? null;
+      client.data.level  = payload.level ?? 0;
       client.data.gymId  = payload.gymId;
 
-      const role = client.data.role;
+      const level = client.data.level as number;
 
-      if (role === 'GERENTE' && payload.gymId) {
+      if ((level === 5 || level === 4) && payload.gymId) {
+        // Gerente de Marca (5) y Recepcionista (4) se suscriben a la sala de su sucursal
         client.join(`gym_${payload.gymId}`);
-        this.logger.log(`GERENTE userId=${payload.sub} → sala gym_${payload.gymId}`);
-      } else if (role === 'SUPER_ADMIN') {
+        this.logger.log(`[WS] level=${level} userId=${payload.sub} → sala gym_${payload.gymId}`);
+      } else if (level >= 10) {
         client.join('admin_room');
-        this.logger.log(`SUPER_ADMIN userId=${payload.sub} → admin_room`);
+        this.logger.log(`[WS] level=${level} userId=${payload.sub} → admin_room`);
       } else {
         client.join(`user_${payload.sub}`);
       }

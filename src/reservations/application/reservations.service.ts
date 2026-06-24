@@ -1196,7 +1196,7 @@ export class ReservationsService {
         const hasAccess = await this.gymBelongsToManager(reservationGymId);
         if (!hasAccess) {
           const msg = await this.buildCrossBranchErrorMsg(reservationGymId);
-          throw new ForbiddenException(msg);
+          throw new ForbiddenException({ code: 'TERRITORY_VIOLATION', message: msg });
         }
       }
 

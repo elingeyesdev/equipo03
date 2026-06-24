@@ -18,8 +18,6 @@ import {
   type RequestWithUser,
 } from '../../common/security/gym-scope';
 
-const STAFF_ROLES = ['ENTRENADOR', 'INSTRUCTOR', 'NUTRICIONISTA', 'LIMPIEZA'];
-const FORBIDDEN_ROLES = ['CLIENTE', 'USER', 'GERENTE', 'SUPER_ADMIN'];
 
 @Injectable({ scope: Scope.REQUEST })
 export class CheckinsService {
@@ -66,16 +64,14 @@ export class CheckinsService {
       relations: ['role'],
     });
 
-    const hasStaffRole = assignments.some((a) =>
-      STAFF_ROLES.includes(a.role?.name?.toUpperCase() ?? ''),
-    );
-    const hasForbiddenRole = assignments.some((a) =>
-      FORBIDDEN_ROLES.includes(a.role?.name?.toUpperCase() ?? ''),
-    );
+    const isEligibleStaff = assignments.some((a) => {
+      const lvl = a.role?.hierarchyLevel ?? 0;
+      return lvl >= 2 && lvl <= 4;
+    });
 
-    if (!hasStaffRole || hasForbiddenRole) {
+    if (!isEligibleStaff) {
       throw new ForbiddenException(
-        'Solo personal autorizado (ENTRENADOR, INSTRUCTOR, NUTRICIONISTA, LIMPIEZA) puede registrar ingreso.',
+        'Solo personal autorizado puede registrar ingreso.',
       );
     }
 

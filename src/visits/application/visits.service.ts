@@ -25,8 +25,7 @@ export class VisitsService {
     if (!user?.userId) {
       throw new ForbiddenException('Sesión no válida.');
     }
-    const role = user.role?.toUpperCase();
-    if (role !== 'CLIENTE' && role !== 'USER') {
+    if ((user.level ?? 0) > 1) {
       throw new ForbiddenException(
         'Solo los clientes pueden registrar y consultar visitas GPS.',
       );

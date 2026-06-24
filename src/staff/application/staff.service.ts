@@ -704,7 +704,7 @@ export class StaffService {
       .leftJoinAndSelect('u.profile', 'prof')
       .leftJoinAndSelect('ur.gym', 'branch')
       .leftJoinAndSelect('branch.parent', 'brand')
-      .where("UPPER(ro.name) IN ('ENTRENADOR', 'NUTRICIONISTA')")
+      .where('ro.hierarchy_level = 3')
       .andWhere('u.isActive = :active', { active: true })
       .orderBy('ro.name', 'ASC')
       .getMany();

@@ -59,7 +59,7 @@ async function runSeed() {
     { name: 'NUTRICIONISTA', hierarchyLevel: 3, description: 'Nutricionista', isSystemRole: true },
     { name: 'INSTRUCTOR', hierarchyLevel: 2, description: 'Instructor', isSystemRole: true },
     { name: 'COORDINADOR', hierarchyLevel: 2, description: 'Coordinador de Sede', isSystemRole: false },
-    { name: 'USER', hierarchyLevel: 1, description: 'Cliente', isSystemRole: true },
+    { name: 'CLIENTE', hierarchyLevel: 1, description: 'Cliente', isSystemRole: true },
     { name: 'PERSONAL_DE_LIMPIEZA', hierarchyLevel: 1, description: 'Limpieza', isSystemRole: false },
   ];
 
@@ -273,7 +273,7 @@ async function runSeed() {
   for (let i = 0; i < CLIENT_COUNT; i++) {
     const branch = savedBranches[i % savedBranches.length];
     const { fn, ln } = nextName();
-    await createUser(fn, ln, 'USER', branch.id);
+    await createUser(fn, ln, 'CLIENTE', branch.id);
   }
 
   const actRepo = qr.manager.getRepository(GymActivity);

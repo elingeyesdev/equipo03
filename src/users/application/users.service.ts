@@ -532,7 +532,7 @@ export class UsersService {
     const managers = await this.usersRepo
       .createQueryBuilder('u')
       .innerJoin('u.userRoles', 'ur', 'ur.gym_id = :gymId', { gymId })
-      .innerJoin('ur.role', 'r', "UPPER(r.name) = 'GERENTE'")
+      .innerJoin('ur.role', 'r', 'r.hierarchy_level = 5')
       .where('u.is_active = true')
       .andWhere('u.push_token IS NOT NULL')
       .select(['u.id', 'u.pushToken'])
@@ -556,11 +556,10 @@ export class UsersService {
 
   async updateMyProfile(
     userId: number,
-    role: string,
+    level: number,
     gymId: number | null | undefined,
     data: UpdateProfileDto,
   ): Promise<{ profile: UserProfile; metrics?: PhysicalMetricsHistory }> {
-    const roleUp = role?.toUpperCase();
 
     const {
       weightKg,
@@ -578,7 +577,7 @@ export class UsersService {
       chestCm != null ||
       notes != null;
 
-    if (roleUp === 'GERENTE' && hasMetrics) {
+    if (level === 5 && hasMetrics) {
       throw new BadRequestException(
         'Los gerentes no pueden registrar métricas físicas.',
       );
@@ -730,18 +729,8 @@ export class UsersService {
     roleOverride?: string | null,
     gymIdOverride?: number | null,
   ) {
-    const PRIORITY: Record<string, number> = {
-      USER: 10,
-      CLIENTE: 10,
-      ENTRENADOR: 20,
-      INSTRUCTOR: 30,
-      GERENTE: 50,
-      SUPER_ADMIN: 99,
-    };
     const sorted = [...(user.userRoles ?? [])].sort(
-      (a, b) =>
-        (PRIORITY[b.role?.name?.toUpperCase() ?? ''] ?? 0) -
-        (PRIORITY[a.role?.name?.toUpperCase() ?? ''] ?? 0),
+      (a, b) => (b.role?.hierarchyLevel ?? 0) - (a.role?.hierarchyLevel ?? 0),
     );
     const top = sorted[0];
 

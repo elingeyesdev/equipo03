@@ -44,17 +44,6 @@ export class AuthService {
     });
   }
 
-  // Jerarquía de roles: mayor índice = mayor prioridad
-  private static readonly ROLE_PRIORITY: Record<string, number> = {
-    USER: 10,
-    CLIENTE: 10,
-    ENTRENADOR: 20,
-    INSTRUCTOR: 30,
-    RECEPCIONISTA: 40,
-    GERENTE: 50,
-    SUPER_ADMIN: 99,
-  };
-
   private extractGymName(
     userRoles: UserRole[] | undefined | null,
     gymId: number | null,
@@ -78,33 +67,28 @@ export class AuthService {
       return { sub: user.id, email: user.email, role: null, gymId: null, level: 0 };
     }
 
-    const sorted = [...userRoles].sort((a, b) => {
-      const pa =
-        AuthService.ROLE_PRIORITY[a.role?.name?.toUpperCase() ?? ''] ?? 0;
-      const pb =
-        AuthService.ROLE_PRIORITY[b.role?.name?.toUpperCase() ?? ''] ?? 0;
-      return pb - pa; // mayor primero
-    });
+    // Ordena por hierarchy_level descendente — mayor nivel = mayor privilegio
+    const sorted = [...userRoles].sort((a, b) =>
+      (b.role?.hierarchyLevel ?? 0) - (a.role?.hierarchyLevel ?? 0)
+    );
 
     const topAssignment = sorted[0];
-    const topRoleName = topAssignment.role?.name?.toUpperCase() ?? null;
+    const topLevel = topAssignment.role?.hierarchyLevel ?? 0;
 
-    // ── SUPER_ADMIN — sin sede ────────────────────────────────────────────────
-    if (topRoleName === 'SUPER_ADMIN') {
+    // ── Super Admin (level >= 10) — sin sede ──────────────────────────────────
+    if (topLevel >= 10) {
       return {
         sub: user.id,
         email: user.email,
-        role: 'SUPER_ADMIN',
+        role: topAssignment.role?.name ?? null,
         gymId: null,
-        level: topAssignment.role?.hierarchyLevel ?? 10,
+        level: topLevel,
       };
     }
 
-    // ── GERENTE — emite brandId si se asignó a una Marca, gymId si es Sucursal ──
-    if (topRoleName === 'GERENTE') {
-      const gerenteRoles = userRoles.filter(
-        (a) => a.role?.name?.toUpperCase() === 'GERENTE',
-      );
+    // ── Gerente de Marca (level === 5) — brandId si Marca, gymId si Sucursal ──
+    if (topLevel === 5) {
+      const gerenteRoles = userRoles.filter(a => a.role?.hierarchyLevel === 5);
       const gerenteRole =
         gerenteRoles.find((a) => a.gymId !== null && a.gymId !== undefined) ??
         gerenteRoles[0];
@@ -117,36 +101,34 @@ export class AuthService {
           (await this.gymRepo.findOne({ where: { id: resolvedGymId } }));
 
         if (assignedGym && assignedGym.parentId === null) {
-          // Es una Marca → emitir brandId directamente (no buscar sucursal hija)
           return {
             sub: user.id,
             email: user.email,
-            role: 'GERENTE',
+            role: topAssignment.role?.name ?? null,
             gymId: null,
             brandId: resolvedGymId,
-            level: topAssignment.role?.hierarchyLevel ?? 5,
+            level: topLevel,
           };
         }
-
       }
 
       return {
         sub: user.id,
         email: user.email,
-        role: 'GERENTE',
+        role: topAssignment.role?.name ?? null,
         gymId: resolvedGymId,
         brandId: null,
-        level: topAssignment.role?.hierarchyLevel ?? 5,
+        level: topLevel,
       };
     }
 
-    // ── Fallback (INSTRUCTOR, ENTRENADOR, USER/CLIENTE, etc.) ─────────────────
+    // ── Fallback: RECEPCIONISTA, ENTRENADOR, INSTRUCTOR, USER, etc. ───────────
     return {
       sub: user.id,
       email: user.email,
-      role: topRoleName,
+      role: topAssignment.role?.name ?? null,
       gymId: topAssignment.gymId ?? null,
-      level: topAssignment.role?.hierarchyLevel ?? 1,
+      level: topLevel,
     };
   }
 
@@ -165,11 +147,15 @@ export class AuthService {
         `El usuario ${data.email} ya se encuentra registrado. Por favor inicie sesión.`,
       );
 
-    // Buscar ID del rol CLIENTE usando query directa
     const rolesResult = await this.userRolesRepo.manager.query(
-      "SELECT id, name FROM roles WHERE name = 'CLIENTE' OR name = 'USER' LIMIT 1",
+      'SELECT id FROM roles WHERE hierarchy_level = 1 ORDER BY id ASC LIMIT 1',
     );
-    const roleId = rolesResult?.length ? rolesResult[0].id : 2;
+    if (!rolesResult?.length) {
+      throw new InternalServerErrorException(
+        'Error crítico: El rol base (Nivel 1) no existe en el sistema.',
+      );
+    }
+    const roleId = rolesResult[0].id;
 
     const user = await this.usersService.create({
       ...data,
@@ -240,12 +226,14 @@ export class AuthService {
 
   verifyToken(
     token: string,
-  ): { sub: number; role: string | null; gymId: number | null } | null {
+  ): { sub: number; role: string | null; gymId: number | null; brandId?: number | null; level: number } | null {
     try {
       return this.jwtService.verify<{
         sub: number;
         role: string | null;
         gymId: number | null;
+        brandId?: number | null;
+        level: number;
       }>(token);
     } catch {
       return null;

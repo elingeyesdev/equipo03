@@ -15,7 +15,7 @@ export class DashboardService {
 
   private gymId(): number | null {
     const u = this.request.user;
-    return u?.role?.toUpperCase() === 'GERENTE' ? (u?.gymId ?? null) : null;
+    return (u?.level ?? 0) === 5 ? (u?.gymId ?? null) : null;
   }
 
   /** [dateSelect, whereClause, groupBy] para columnas TIMESTAMP */
