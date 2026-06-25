@@ -68,6 +68,18 @@ export class PhysicalMetricsHistory {
   })
   chestCm!: number;
 
+  @Column({ type: 'decimal', precision: 4, scale: 2, name: 'hip_cm', nullable: true })
+  hipCm!: number;
+
+  @Column({ type: 'decimal', precision: 4, scale: 2, name: 'mid_arm_cm', nullable: true })
+  midArmCm!: number;
+
+  @Column({ type: 'decimal', precision: 4, scale: 2, name: 'thigh_cm', nullable: true })
+  thighCm!: number;
+
+  @Column({ type: 'decimal', precision: 4, scale: 2, name: 'calf_cm', nullable: true })
+  calfCm!: number;
+
   @Column({ type: 'text', nullable: true })
   notes!: string;
 

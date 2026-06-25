@@ -75,8 +75,9 @@ export class GymsController {
   }
 
   @Get('brands')
+  @UseGuards(AdminLevelGuard)
   @ApiOperation({
-    summary: 'Listar Marcas corporativas (parentId IS NULL) — panel admin',
+    summary: 'Listar Marcas corporativas (parentId IS NULL) — panel admin. Gerente (5): solo la suya. Recepcionista (4): solo la de su sede.',
   })
   @ApiResponse({ status: 200, description: 'Array de marcas activas' })
   findBrands() {

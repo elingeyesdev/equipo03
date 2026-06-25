@@ -64,7 +64,7 @@ export class AuthService {
 
     if (userRoles.length === 0) {
       this.logger.warn('JWT generado sin roles asignados');
-      return { sub: user.id, email: user.email, role: null, gymId: null, level: 0 };
+      return { sub: user.id, email: user.email, role: null, gymId: null, level: 0, roleId: null };
     }
 
     // Ordena por hierarchy_level descendente — mayor nivel = mayor privilegio
@@ -75,6 +75,8 @@ export class AuthService {
     const topAssignment = sorted[0];
     const topLevel = topAssignment.role?.hierarchyLevel ?? 0;
 
+    const topRoleId: number | null = topAssignment.role?.id ?? topAssignment.roleId ?? null;
+
     // ── Super Admin (level >= 10) — sin sede ──────────────────────────────────
     if (topLevel >= 10) {
       return {
@@ -83,6 +85,7 @@ export class AuthService {
         role: topAssignment.role?.name ?? null,
         gymId: null,
         level: topLevel,
+        roleId: topRoleId,
       };
     }
 
@@ -108,6 +111,7 @@ export class AuthService {
             gymId: null,
             brandId: resolvedGymId,
             level: topLevel,
+            roleId: topRoleId,
           };
         }
       }
@@ -119,6 +123,7 @@ export class AuthService {
         gymId: resolvedGymId,
         brandId: null,
         level: topLevel,
+        roleId: topRoleId,
       };
     }
 
@@ -129,6 +134,7 @@ export class AuthService {
       role: topAssignment.role?.name ?? null,
       gymId: topAssignment.gymId ?? null,
       level: topLevel,
+      roleId: topRoleId,
     };
   }
 
@@ -196,14 +202,26 @@ export class AuthService {
       id: user.id,
       email: user.email,
     });
-    const gymName = this.extractGymName(user.userRoles, payload.gymId);
-    const topUR = user.userRoles?.find(ur => ur.gymId === payload.gymId) ?? user.userRoles?.[0];
-    const gym = topUR?.gym;
+    let gymName: string | null = null;
     let brandName: string | null = null;
     let brandId: number | null = (payload as any).brandId ?? null;
-    if (gym) {
-      if (gym.parentId === null) { brandName = gym.name; brandId = gym.id; }
-      else { brandName = gym.parent?.name ?? null; }
+
+    // Query DB directly — avoids stale gym relation on user.userRoles
+    const gymIdToLookup = brandId ?? payload.gymId;
+    if (gymIdToLookup) {
+      const resolvedGym = await this.gymRepo.findOne({
+        where: { id: gymIdToLookup },
+        relations: ['parent'],
+      });
+      if (resolvedGym) {
+        if (resolvedGym.parentId === null) {
+          brandName = resolvedGym.name;
+          brandId = resolvedGym.id;
+        } else {
+          gymName = resolvedGym.name;
+          brandName = resolvedGym.parent?.name ?? null;
+        }
+      }
     }
 
     return {

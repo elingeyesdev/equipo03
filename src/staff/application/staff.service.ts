@@ -92,7 +92,7 @@ export class StaffService {
     });
     if (target?.pushToken) {
       this.pushService
-        .sendPushMessage(target.pushToken, title, body, { event, ...data })
+        .sendPushMessage(target.pushToken, title, body, { event, type: event.toUpperCase(), ...data })
         .catch(() => {});
     }
   }
@@ -935,12 +935,16 @@ export class StaffService {
     heightCm: number | null;
     medicalConditions: string | null;
     latestMetrics: {
-      recordedAt: string;
-      weightKg: number | null;
+      recordedAt:        string;
+      weightKg:          number | null;
       bodyFatPercentage: number | null;
-      muscleMassKg: number | null;
-      waistCm: number | null;
-      chestCm: number | null;
+      muscleMassKg:      number | null;
+      waistCm:           number | null;
+      chestCm:           number | null;
+      hipCm:             number | null;
+      midArmCm:          number | null;
+      thighCm:           number | null;
+      calfCm:            number | null;
     } | null;
   }> {
     const userId = this.getAuthUserId();
@@ -971,12 +975,16 @@ export class StaffService {
       medicalConditions: profile?.medicalConditions ?? null,
       latestMetrics: latestMetrics
         ? {
-            recordedAt: latestMetrics.recordedAt.toISOString(),
-            weightKg: latestMetrics.weightKg != null ? Number(latestMetrics.weightKg) : null,
+            recordedAt:        latestMetrics.recordedAt.toISOString(),
+            weightKg:          latestMetrics.weightKg          != null ? Number(latestMetrics.weightKg)          : null,
             bodyFatPercentage: latestMetrics.bodyFatPercentage != null ? Number(latestMetrics.bodyFatPercentage) : null,
-            muscleMassKg: latestMetrics.muscleMassKg != null ? Number(latestMetrics.muscleMassKg) : null,
-            waistCm: latestMetrics.waistCm != null ? Number(latestMetrics.waistCm) : null,
-            chestCm: latestMetrics.chestCm != null ? Number(latestMetrics.chestCm) : null,
+            muscleMassKg:      latestMetrics.muscleMassKg      != null ? Number(latestMetrics.muscleMassKg)      : null,
+            waistCm:           latestMetrics.waistCm           != null ? Number(latestMetrics.waistCm)           : null,
+            chestCm:           latestMetrics.chestCm           != null ? Number(latestMetrics.chestCm)           : null,
+            hipCm:             latestMetrics.hipCm             != null ? Number(latestMetrics.hipCm)             : null,
+            midArmCm:          latestMetrics.midArmCm          != null ? Number(latestMetrics.midArmCm)          : null,
+            thighCm:           latestMetrics.thighCm           != null ? Number(latestMetrics.thighCm)           : null,
+            calfCm:            latestMetrics.calfCm            != null ? Number(latestMetrics.calfCm)            : null,
           }
         : null,
     };

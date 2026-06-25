@@ -4,6 +4,10 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
+// 🔹 MENSAJERÍA
+import { Conversation } from '../messages/domain/conversation.entity';
+import { DirectMessage } from '../messages/domain/direct-message.entity';
+
 // 🔹 ROLES & PERMISOS
 import { Role } from '../roles/domain/role.entity';
 import { Permission } from '../roles/domain/permission.entity';
@@ -135,6 +139,10 @@ export const AppDataSource = new DataSource({
 
     // Sistema (1)
     SystemSetting,
+
+    // Mensajería (2)
+    Conversation,
+    DirectMessage,
   ],
 
   migrations: [],
