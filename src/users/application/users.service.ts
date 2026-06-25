@@ -850,6 +850,40 @@ export class UsersService {
     return { success: true };
   }
 
+  async saveMyCircumferences(
+    userId: number,
+    gymId: number | undefined,
+    fields: {
+      waistCm?:  number;
+      hipCm?:    number;
+      chestCm?:  number;
+      midArmCm?: number;
+      thighCm?:  number;
+      calfCm?:   number;
+    },
+  ): Promise<{ success: boolean }> {
+    // Actualiza el último registro existente para no fragmentar el historial.
+    // Si no hay registros previos, crea uno nuevo.
+    let record = await this.metricsRepo.findOne({
+      where: { userId },
+      order: { recordedAt: 'DESC' },
+    });
+
+    if (!record) {
+      record = this.metricsRepo.create({ userId, gymId });
+    }
+
+    if (fields.waistCm  !== undefined) record.waistCm  = fields.waistCm;
+    if (fields.hipCm    !== undefined) record.hipCm    = fields.hipCm;
+    if (fields.chestCm  !== undefined) record.chestCm  = fields.chestCm;
+    if (fields.midArmCm !== undefined) record.midArmCm = fields.midArmCm;
+    if (fields.thighCm  !== undefined) record.thighCm  = fields.thighCm;
+    if (fields.calfCm   !== undefined) record.calfCm   = fields.calfCm;
+
+    await this.metricsRepo.save(record);
+    return { success: true };
+  }
+
   async getChatProfile(targetUserId: number) {
     const userRole = await this.userRolesRepo.findOne({
       where: { user: { id: targetUserId } },

@@ -41,6 +41,26 @@ export class SaveMetricsDto {
   edad?: number;
 }
 
+export class SaveCircumferencesDto {
+  @ApiPropertyOptional({ example: 78.5, description: 'Cintura en cm' })
+  @IsOptional() @IsNumber() waistCm?: number;
+
+  @ApiPropertyOptional({ example: 95.0, description: 'Cadera en cm' })
+  @IsOptional() @IsNumber() hipCm?: number;
+
+  @ApiPropertyOptional({ example: 90.0, description: 'Pecho/Busto en cm' })
+  @IsOptional() @IsNumber() chestCm?: number;
+
+  @ApiPropertyOptional({ example: 32.5, description: 'Brazo medio en cm' })
+  @IsOptional() @IsNumber() midArmCm?: number;
+
+  @ApiPropertyOptional({ example: 55.0, description: 'Muslo/Pierna en cm' })
+  @IsOptional() @IsNumber() thighCm?: number;
+
+  @ApiPropertyOptional({ example: 38.0, description: 'Pantorrilla en cm' })
+  @IsOptional() @IsNumber() calfCm?: number;
+}
+
 export class UpdatePushTokenDto {
   @ApiProperty({
     example: 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]',

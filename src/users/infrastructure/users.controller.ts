@@ -33,6 +33,7 @@ import {
   UpdateProfileDto,
   UpdatePushTokenDto,
   SaveMetricsDto,
+  SaveCircumferencesDto,
 } from '../application/dtos/users.dto';
 import { UserQueryDto } from '../application/dtos/user-query.dto';
 import type { RequestWithUser } from '../../common/security/gym-scope';
@@ -197,6 +198,18 @@ export class UsersController {
       body.heightCm,
       body.edad,
     );
+  }
+
+  // PATCH /api/users/me/metrics/circumferences
+  // Definido antes de GET me/metrics/latest para evitar ambigüedad de segmentos
+  @Patch('me/metrics/circumferences')
+  @ApiBearerAuth('access-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Guardar circunferencias corporales del usuario autenticado' })
+  @ApiBody({ type: SaveCircumferencesDto })
+  saveMyCircumferences(@Req() req: RequestWithUser, @Body() body: SaveCircumferencesDto) {
+    const { userId, gymId } = req.user!;
+    return this.usersService.saveMyCircumferences(Number(userId), gymId ?? undefined, body);
   }
 
   @Get('me/metrics/latest')
