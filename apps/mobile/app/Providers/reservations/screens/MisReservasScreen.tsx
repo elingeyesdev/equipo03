@@ -50,7 +50,9 @@ const isCancelable = (r?: UserReservation | null) =>
   !!r?.canCancel && !UNCANCELABLE.has(r?.status ?? '');
 
 const isPaid = (r?: UserReservation | null): boolean =>
-  (r as any)?.paymentStatus === 'PAID' || (r as any)?.isPaid === true;
+  (r as any)?.paymentStatus === 'PAID' ||
+  (r as any)?.isPaid === true ||
+  COMPLETED_STATUSES.has(r?.status ?? '');
 
 const payLabel = (r?: UserReservation | null) => isPaid(r) ? 'PAGADO' : 'Por pagar';
 const payColor = (r?: UserReservation | null) => isPaid(r) ? Colors.accent : '#A0AEC0';

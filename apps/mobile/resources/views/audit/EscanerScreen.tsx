@@ -124,14 +124,66 @@ export const EscanerScreen = () => {
         ]
       );
     } catch (err: any) {
-      // Intentar decodificar el JWT para obtener el reservationId (funciona incluso si expiró)
+      const httpStatus = err?.response?.status;
+      const errorData  = err?.response?.data;
+
+      // 409: reserva futura — el JWT sigue válido, usar forceCheckIn directamente
+      if (httpStatus === 409 && errorData?.code === 'FUTURE_RESERVATION_WARNING') {
+        const msg = typeof errorData?.message === 'string'
+          ? errorData.message
+          : 'Esta reserva es para una fecha futura.';
+        Alert.alert(
+          'Reserva Futura',
+          `${msg}\n\n¿Confirmar el ingreso de todas formas?`,
+          [
+            {
+              text: 'Forzar Ingreso',
+              onPress: async () => {
+                try {
+                  await reservationApi.checkInByToken(token, true);
+                  await queryClient.invalidateQueries({ queryKey: ['audit-history'] });
+                  await queryClient.invalidateQueries({ queryKey: ['gym-reservations'] });
+                  await queryClient.invalidateQueries({ queryKey: ['gym-audit-reservations'] });
+                  Alert.alert(
+                    '✅ Ingreso Autorizado',
+                    'Reserva del cliente registrada correctamente.',
+                    [
+                      { text: 'Escanear otro', onPress: () => resetScan() },
+                      { text: 'Volver', style: 'cancel', onPress: () => navigation?.goBack() },
+                    ]
+                  );
+                } catch (e: any) {
+                  const emsg = e?.response?.data?.message || e?.message || 'Error al confirmar.';
+                  Alert.alert('Error', emsg, [{ text: 'Entendido', onPress: () => resetScan() }]);
+                }
+              },
+            },
+            { text: 'Cancelar', style: 'cancel', onPress: () => resetScan() },
+          ]
+        );
+        return;
+      }
+
+      // 403: violación territorial — mostrar mensaje estructurado del backend
+      if (httpStatus === 403 && errorData?.code === 'TERRITORY_VIOLATION') {
+        const msg = typeof errorData?.message === 'string'
+          ? errorData.message
+          : 'Esta reserva pertenece a otra sucursal. No tienes acceso para registrar ingresos aquí.';
+        Alert.alert(
+          'Reserva de otra sucursal',
+          msg,
+          [{ text: 'Entendido', onPress: () => resetScan() }]
+        );
+        return;
+      }
+
+      // Fallback: decodificar JWT y usar el flujo rico existente (expirado, cancelada, etc.)
       const jwtPayload = decodeJwtPayload(token);
       const reservationId = typeof jwtPayload?.sub === 'number' ? jwtPayload.sub : null;
 
       if (reservationId) {
         await handleReservationError(reservationId, err);
       } else {
-        // No es un JWT válido de check-in
         Alert.alert(
           '❌ QR no reconocido',
           'Este código QR no es válido para check-in de reservas. Verifica que el cliente muestre el QR correcto desde su pantalla de reservas.',

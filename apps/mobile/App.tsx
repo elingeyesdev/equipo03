@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './app/Providers/auth/AuthContext';
 import { NetworkProvider } from './app/Providers/offline/NetworkContext';
+import { SocketProvider } from './app/Providers/notifications/SocketContext';
 import { RootNavigator } from './routes/RootNavigator';
 import { useGymVisitTracker } from './app/Providers/geolocation/services/useGymVisitTracker';
 import { usePushNotificationListeners } from './app/Providers/notifications/usePushNotifications';
@@ -45,7 +46,9 @@ export default function App() {
         <NetworkProvider>
           <AuthProvider>
             <NavigationContainer>
-              <AppWithTracking />
+              <SocketProvider>
+                <AppWithTracking />
+              </SocketProvider>
             </NavigationContainer>
           </AuthProvider>
         </NetworkProvider>

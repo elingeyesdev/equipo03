@@ -224,8 +224,8 @@ export const reservationApi = {
    * POST /api/reservations/check-in/token
    * Check-in seguro: token opaco del QR → backend resuelve reservationId internamente.
    */
-  checkInByToken: async (token: string): Promise<{ success: boolean; reservationId?: number }> => {
-    const response = await reservationClient.post('/api/reservations/check-in/token', { token });
+  checkInByToken: async (token: string, forceCheckIn = false): Promise<{ success: boolean; reservationId?: number }> => {
+    const response = await reservationClient.post('/api/reservations/check-in/token', { token, forceCheckIn });
     return response.data?.data ?? response.data;
   },
 

@@ -11,11 +11,6 @@ import { guardClose, panelStyle } from './Shared/DashboardShared.utils';
 import type { GymDto, UserDto, UserRoleDto } from './Shared/DashboardTypes';
 import { Eye, Edit, Trash2, Plus, Clock, Building2, Search, X } from 'lucide-react';
 
-//Roles que requieren asignación de sede 
-const SEDE_ROLE_NAMES = new Set([
-  'GERENTE', 'ENTRENADOR', 'NUTRICIONISTA', 'INSTRUCTOR',
-  'COORDINADOR', 'PERSONAL_DE_LIMPIEZA', 'RECEPCIONISTA',
-]);
 
 //Interfaz para roles cargados dinámicamente 
 interface RoleOption { id: number; name: string; label: string; level: number; }
@@ -27,8 +22,7 @@ const formatRoleName = (name: string): string => {
     GERENTE: 'Gerente de Sede',
     ENTRENADOR: 'Entrenador',
     NUTRICIONISTA: 'Nutricionista',
-    CLIENTE: 'Cliente Activo',
-    USER: 'Usuario Estándar',
+    CLIENTE: 'Cliente',
     INSTRUCTOR: 'Instructor',
     COORDINADOR: 'Coordinador',
     PERSONAL_DE_LIMPIEZA: 'Personal de Limpieza',
@@ -417,7 +411,7 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
   const [formData, setFormData] = useState({
     firstName: '', lastName: '', email: '', password: '', phone: '',
     phonePrefix: '+591', phoneNumber: '', ci: '', gender: '' as string,
-    roleId: DB_ROLES.USER as number, gymIds: [] as number[], isActive: true,
+    roleId: DB_ROLES.CLIENTE as number, gymIds: [] as number[], isActive: true,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState(false);
@@ -428,8 +422,8 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
   const [selectedMarcaId, setSelectedMarcaId] = useState<number | ''>(gerenteBrandId || '');
 
   // ── Derivados: marcas (parentId === null) y sucursales físicas (parentId !== null) ─
-  const sedes      = gyms.filter(g => g.parentId === null);
-  const sucursales = gyms.filter(g => g.parentId !== null && g.parentId !== undefined);
+  const sedes      = Array.from(new Map(gyms.filter(g => g.parentId === null).map(g => [g.id, g])).values());
+  const sucursales = Array.from(new Map(gyms.filter(g => g.parentId !== null && g.parentId !== undefined).map(g => [g.id, g])).values());
   // Sucursales que pertenecen a la marca seleccionada
   const sucursalesParaSede = selectedMarcaId !== ''
     ? sucursales.filter(s => (s.parentId ?? s.parent?.id) === selectedMarcaId)
@@ -463,14 +457,14 @@ setTouched(false);
         .filter((g): g is NonNullable<typeof g> => g != null);
       const rawPhone = userToEdit.profile?.phone ?? '';
       const { prefix, number } = splitPhone(rawPhone);
-    const currentRoleId = Number(userToEdit.userRoles?.[0]?.roleId) || DB_ROLES.USER;
+    const currentRoleId = Number(userToEdit.userRoles?.[0]?.roleId) || DB_ROLES.CLIENTE;
       // Si roleOptions aún no cargó (race condition), usar el ID de la BD directamente
-      // sin caer al fallback DB_ROLES.USER que sobreescribiría el rol real del usuario.
+      // sin caer al fallback DB_ROLES.CLIENTE que sobreescribiría el rol real del usuario.
       const validRoleId = roleOptions.length === 0
         ? currentRoleId
         : roleOptions.some(r => r.id === currentRoleId)
           ? currentRoleId
-          : (roleOptions[0]?.id ?? DB_ROLES.USER);
+          : (roleOptions[0]?.id ?? DB_ROLES.CLIENTE);
       setFormData({
         firstName:   userToEdit.profile?.firstName ?? '',
         lastName:    userToEdit.profile?.lastName  ?? '',
@@ -534,6 +528,20 @@ setTouched(false);
     if (!isOpen || !sedeIdDelGerente) return;
     setSelectedMarcaId(sedeIdDelGerente);
   }, [isOpen, formData.roleId, sedeIdDelGerente]);
+
+  // ── Auto-selección: si el backend RBAC devuelve solo 1 marca, seleccionarla ──
+  // Depende de `gyms` (estado React, referencia estable) y NO de `sedes` (nueva
+  // referencia en cada render por Array.from → causaría bucle infinito).
+  useEffect(() => {
+    if (!isOpen || sedeIdDelGerente) return;
+    const uniqueSedes = Array.from(
+      new Map(gyms.filter(g => g.parentId === null).map(g => [g.id, g])).values(),
+    );
+    if (uniqueSedes.length !== 1) return;
+    const soloId = uniqueSedes[0].id;
+    setSelectedMarcaId(soloId);
+    setFormData(p => (p.gymIds.length === 1 && p.gymIds[0] === soloId ? p : { ...p, gymIds: [soloId] }));
+  }, [isOpen, gyms, sedeIdDelGerente]);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -601,13 +609,12 @@ setTouched(false);
   }));
 
   // Determina el nombre del rol seleccionado (usando datos reales de la BD)
-  const selectedRoleName   = roleOptions.find(r => r.id === formData.roleId)?.name ?? '';
   const selectedRoleLevel  = roleOptions.find(r => r.id === formData.roleId)?.level ?? 0;
   const requiresStaffInfo  = selectedRoleLevel >= 3 && selectedRoleLevel < 10 && !userToEdit;
   // Gerente: nivel jerárquico 5 (sin importar el nombre del rol)
   const isGerente          = selectedRoleLevel === 5;
-  const isRecepcionista    = selectedRoleName === 'RECEPCIONISTA';
-  const needsSede          = SEDE_ROLE_NAMES.has(selectedRoleName);
+  const isRecepcionista    = selectedRoleLevel === 4;
+  const needsSede          = selectedRoleLevel >= 2 && selectedRoleLevel < 10;
   // Solo checkboxes múltiples para staff distinto de Gerente y Recepcionista
   const needsMulti         = needsSede && !isGerente && !isRecepcionista;
 
@@ -1136,9 +1143,9 @@ export const UsuariosView = () => {
   }, [gymsCatalog]);
 
 
-  // Gyms para el selector de filtro (catálogo completo, no la página actual)
+  // Gyms para el selector de filtro (catálogo completo, sin duplicados)
   const gymOptions = useMemo(() => {
-    return gymsCatalog
+    return Array.from(new Map(gymsCatalog.map(g => [g.id, g])).values())
       .map(g => ({ id: g.id, name: g.name }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [gymsCatalog]);
@@ -1281,7 +1288,7 @@ export const UsuariosView = () => {
               <select value={filterGym} onChange={e => setFilterGym(e.target.value)}
                 className="bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none" style={{ maxWidth: '180px' }}>
                 <option value="">Todas las marcas</option>
-                {gymOptions.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                {gymOptions.map(g => <option key={`gym-${g.id}`} value={g.id}>{g.name}</option>)}
               </select>
               <span style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#8E8E93', fontSize: '0.7rem' }}>▼</span>
             </div>
@@ -1377,10 +1384,10 @@ export const UsuariosView = () => {
                   .map((ur: UserRoleDto) => ur.gym)
                   .filter((g): g is GymRef => g != null);
                 const gymNames = gymsList.map(g => u.gymsMap?.get(Number(g.id)) ?? g.name ?? '').filter(Boolean);
-                const showSedes = SEDE_ROLE_NAMES.has(roleNameRaw) && gymNames.length > 0;
+                const showSedes = (targetLevel ?? 0) >= 2 && (targetLevel ?? 0) < 10 && gymNames.length > 0;
 
                 return (
-                  <tr key={u.id} className="border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-bg-deep transition-colors text-slate-700 dark:text-gray-300 text-sm">
+                  <tr key={`user-${u.id}`} className="border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-bg-deep transition-colors text-slate-700 dark:text-gray-300 text-sm">
                     <td style={{ padding: '0.6rem' }}>{u.id}</td>
                     <td style={{ padding: '0.6rem' }}>{fullName}</td>
                     <td style={{ padding: '0.6rem' }}>{u.email ?? '-'}</td>
@@ -1454,7 +1461,7 @@ export const UsuariosView = () => {
                         </button>
 
                         {/* Horarios (solo personal de sede) */}
-                        {(user?.level ?? 0) >= 4 && SEDE_ROLE_NAMES.has(roleNameRaw) && roleNameRaw !== 'GERENTE' && roleNameRaw !== 'RECEPCIONISTA' && (
+                        {(user?.level ?? 0) >= 4 && (targetLevel ?? 0) >= 2 && (targetLevel ?? 0) <= 3 && (
                           <button
                             onClick={() => setSchedulingUser(u)}
                             title="Gestionar horarios"
@@ -1479,8 +1486,8 @@ export const UsuariosView = () => {
                           </button>
                         )}
 
-                        {/* Eliminar */}
-                        {(user?.level ?? 0) >= 10 && (
+                        {/* Eliminar: visible para cualquier admin que pueda gestionar a este usuario, nunca para sí mismo */}
+                        {!isSelf && (targetLevel < myLevel || myLevel >= 10) && (
                           <button
                             onClick={() => setDeleteConfirmUser(u)}
                             title="Eliminar usuario"
@@ -1525,6 +1532,8 @@ export const UsuariosView = () => {
         gerenteBrandId={(() => {
           const level = user?.level ?? 0;
           if (level >= 10) return undefined;
+          // Gerente (5): su gymId en el JWT es directamente el ID de la Marca que administra
+          if (level === 5) return user?.gymId ? Number(user.gymId) : undefined;
           if (user?.brandId) return Number(user.brandId);
           if (user?.gymId && gymsCatalog.length) {
             const s = gymsCatalog.find(g => Number(g.id) === Number(user.gymId));
@@ -1576,14 +1585,15 @@ export const UsuariosView = () => {
           value={(() => {
             const ur    = viewingUser?.userRoles?.[0];
             const rId   = Number(ur?.roleId ?? 0);
-            const rawName = ur?.role?.name ?? ROLE_ID_TO_NAME[rId] ?? 'USER';
+            const rawName = ur?.role?.name ?? ROLE_ID_TO_NAME[rId] ?? 'CLIENTE';
             return roleOptions.find(r => r.id === rId)?.label ?? formatRoleName(rawName);
           })()} />
 
         {/* ── Asignación: desglose sede + sucursal según rol ── */}
         {(() => {
           const rId        = Number(viewingUser?.userRoles?.[0]?.roleId ?? 0);
-          const hasAssign  = SEDE_ROLE_NAMES.has(roleOptions.find(r => r.id === rId)?.name ?? ROLE_ID_TO_NAME[rId] ?? '');
+          const targetRoleLevel2 = roleOptions.find(r => r.id === rId)?.level ?? 0;
+          const hasAssign  = targetRoleLevel2 >= 2 && targetRoleLevel2 < 10;
           type GymRef2 = NonNullable<UserRoleDto['gym']>;
           const gymsInRoles = (viewingUser?.userRoles ?? [])
             .map((ur: UserRoleDto) => ur.gym)

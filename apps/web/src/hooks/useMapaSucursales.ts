@@ -85,7 +85,7 @@ async function fetchMapaData(user: WebUser): Promise<MapaQueryResult> {
   }
 
   // ── SUPER_ADMIN: red completa ──────────────────────────────────────────────
-  if (user.role === 'SUPER_ADMIN') {
+  if ((user.level ?? 0) >= 10) {
     return { sucursales: all, sinGeo: sinGeoCount, marcaNombre: null };
   }
 

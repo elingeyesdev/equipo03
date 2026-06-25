@@ -2,7 +2,7 @@ import type { IAccessApiService, AccesoQueryParams } from '../output/IAccessApiS
 import type { Acceso } from '../../../domain/entities/Acceso.entity';
 import { Either, left } from '../../../shared/kernel/Either';
 
-export type UserRole = 'SUPER_ADMIN' | 'GERENTE' | 'ENTRENADOR' | 'NUTRICIONISTA' | 'CLIENTE' | 'USER' | 'RECEPCIONISTA' | string;
+export type UserRole = 'SUPER_ADMIN' | 'GERENTE' | 'ENTRENADOR' | 'NUTRICIONISTA' | 'CLIENTE' | 'RECEPCIONISTA' | string;
 
 export interface AutenticacionContext {
   userId: string;
@@ -10,6 +10,7 @@ export interface AutenticacionContext {
   gymId?: string;
   brandId?: string;
   level?: number;
+  roleId?: number;
 }
 
 export class ConsultarHistorialAccesosUseCase {

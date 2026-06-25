@@ -30,7 +30,30 @@ attach401Guard(userClient);
 import { attachOfflineInterceptor } from '../../offline/offlineInterceptor';
 attachOfflineInterceptor(userClient);
 
+export type ClientSearchResult = {
+  id:        number;
+  email:     string;
+  firstName: string;
+  lastName:  string;
+};
+
+export type ChatProfile = {
+  id:         number;
+  firstName:  string;
+  lastName:   string;
+  gender:     string;
+  roleName:   string;
+  level:      number;
+  brandName:  string | null;
+  branchName: string | null;
+};
+
 export const userApi = {
+  searchClients: async (search: string): Promise<ClientSearchResult[]> => {
+    const response = await userClient.get('/api/users/chat/clients', { params: { search } });
+    return Array.isArray(response.data) ? response.data : (response.data?.data ?? []);
+  },
+
   updatePushToken: async (token: string): Promise<{ registered: boolean }> => {
     const response = await userClient.patch('/api/users/me/push-token', { token });
     if (response.status < 200 || response.status >= 300) {
@@ -45,5 +68,10 @@ export const userApi = {
 
   clearPushToken: async (): Promise<void> => {
     await userClient.delete('/api/users/me/push-token');
+  },
+
+  getChatProfile: async (userId: number): Promise<ChatProfile> => {
+    const response = await userClient.get(`/api/users/${userId}/chat-profile`);
+    return response.data?.data ?? response.data;
   },
 };

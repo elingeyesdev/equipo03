@@ -10,7 +10,7 @@ export const ReservasPlaceholder = () => (
 
 export const MedidasPlaceholder = () => {
   const { user } = useAuth();
-  const canDelete = user?.role === 'SUPER_ADMIN' || user?.role === 'GERENTE' || user?.role === 'RECEPCIONISTA';
+  const canDelete = (user?.level ?? 0) >= 4;
 
   return (
     <section className="glass-panel" style={{ padding: '2rem', borderRadius: '16px' }}>
@@ -20,7 +20,7 @@ export const MedidasPlaceholder = () => {
       <div className="glass-panel" style={{ marginTop: '2rem', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span>Medición Antropométrica - Dummy Data</span>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          {user?.role !== 'CLIENTE' && (
+          {(user?.level ?? 0) > 1 && (
             <button style={{ background: '#38BDF8', color: '#000', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}>Editar</button>
           )}
           {canDelete && (

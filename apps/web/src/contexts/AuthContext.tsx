@@ -71,7 +71,7 @@ function resolveRole(
 
   const normalized = rawRole.toString().toUpperCase();
   return (
-    VALID_ROLES.includes(normalized as UserRole) ? normalized : 'USER'
+    VALID_ROLES.includes(normalized as UserRole) ? normalized : 'CLIENTE'
   ) as UserRole;
 }
 
@@ -114,7 +114,7 @@ function buildUserFromMeResponse(data: Record<string, any>): WebUser | null {
     const role = (
       VALID_ROLES.includes(roleRaw.toUpperCase() as UserRole)
         ? roleRaw.toUpperCase()
-        : 'USER'
+        : 'CLIENTE'
     ) as UserRole;
     const roleId =
       DB_ROLES[role as keyof typeof DB_ROLES] ??

@@ -82,7 +82,7 @@ const ClientCard = ({
 export const SeguimientoScreen = () => {
   const navigation   = useNavigation<any>();
   const { user }     = useAuth();
-  const isInstructor = user?.role?.toUpperCase() === 'INSTRUCTOR';
+  const isInstructor = ((user as any)?.level ?? 0) === 2;
 
   const [clients,    setClients]    = useState<ActiveAdvisee[]>([]);
   const [isLoading,  setIsLoading]  = useState(!isInstructor);

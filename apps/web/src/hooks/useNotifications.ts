@@ -32,14 +32,10 @@ export const useNotifications = () => {
     if (!user?.id) return;
 
     // Solo roles con acceso al módulo de auditoría reciben el socket
-    if (
-      user.role !== 'SUPER_ADMIN' &&
-      user.role !== 'GERENTE' &&
-      user.role !== 'RECEPCIONISTA'
-    ) return;
+    if ((user.level ?? 0) < 4) return;
 
     console.log(
-      `[NotificationGateway]: Iniciando conexión WS para rol ${user.role}...`,
+      `[NotificationGateway]: Iniciando conexión WS para nivel ${user.level}...`,
     );
 
     const BACKEND_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
@@ -70,16 +66,13 @@ export const useNotifications = () => {
       );
 
       // Unirse a la sala correspondiente según rol
-      if (
-        (user.role === 'GERENTE' || user.role === 'RECEPCIONISTA') &&
-        user.gymId
-      ) {
+      if ((user.level ?? 0) >= 4 && (user.level ?? 0) < 10 && user.gymId) {
         const room = `gym_${user.gymId}`;
         socket.emit('join_room', { room });
-        console.log(`[NotificationGateway]: ${user.role} unido a sala: ${room}`);
-      } else if (user.role === 'SUPER_ADMIN') {
+        console.log(`[NotificationGateway]: nivel ${user.level} unido a sala: ${room}`);
+      } else if ((user.level ?? 0) >= 10) {
         socket.emit('join_room', { room: 'admin_room' });
-        console.log(`[NotificationGateway]: SUPER_ADMIN unido a sala: admin_room`);
+        console.log(`[NotificationGateway]: nivel ${user.level} unido a sala: admin_room`);
       }
     });
 
@@ -90,12 +83,12 @@ export const useNotifications = () => {
 
       // Validación de privacidad: el GERENTE no ve alertas de otras sedes
       if (
-        (user.role === 'GERENTE' || user.role === 'RECEPCIONISTA') &&
+        (user.level ?? 0) >= 4 && (user.level ?? 0) < 10 &&
         user.gymId &&
         String(payload.gymId) !== String(user.gymId)
       ) {
         console.warn(
-          `[Security Guard]: Alerta de Sede ajena descartada para rol ${user.role} ID ${user.id}. Sede recibida: ${payload.gymId}`,
+          `[Security Guard]: Alerta de Sede ajena descartada para nivel ${user.level} ID ${user.id}. Sede recibida: ${payload.gymId}`,
         );
         return;
       }
@@ -135,7 +128,7 @@ export const useNotifications = () => {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [user?.id, user?.role, user?.gymId]);
+  }, [user?.id, user?.level, user?.gymId]);
 
   return socketRef;
 };

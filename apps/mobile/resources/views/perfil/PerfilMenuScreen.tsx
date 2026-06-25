@@ -20,7 +20,7 @@ type MenuItem = {
 
 const formatRoleName = (role?: string) => {
   if (!role) return 'Usuario';
-  if (role.toUpperCase() === 'USER') return 'Cliente';
+  if (role.toUpperCase() === 'CLIENTE' || role.toUpperCase() === 'USER') return 'Cliente';
   return role
     .replace(/_/g, ' ')
     .toLowerCase()
@@ -43,10 +43,9 @@ export const PerfilMenuScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const { user, updateProfile } = useAuth();
 
-  const userRole         = user?.role?.toUpperCase() ?? '';
   const userLevel        = (user as any)?.level ?? 0;
-  const isGerente        = userLevel >= 4 || userRole === 'GERENTE' || userRole === 'COORDINADOR' || userRole === 'RECEPCIONISTA';
-  const isStaffOperativo = !isGerente && (userLevel >= 3 || new Set(['ENTRENADOR', 'INSTRUCTOR', 'NUTRICIONISTA']).has(userRole));
+  const isGerente        = userLevel >= 4;
+  const isStaffOperativo = !isGerente && userLevel >= 2;
   const isCliente        = !isGerente && !isStaffOperativo;
   const p           = (user as any)?.profile;
   const displayName = p?.username || (user as any)?.email?.split('@')[0] || 'Sin usuario';

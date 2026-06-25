@@ -7,9 +7,8 @@ import { Env } from '../geolocation/config/environment';
 import { AuthService } from '../auth/AuthService';
 import { authEvents } from '../auth/authEvents';
 import { useAuth } from '../../Shared/hooks/useAuth';
+import { useSocket } from './SocketContext';
 
-const MANAGER_ROLES  = new Set(['GERENTE', 'SUPER_ADMIN']);
-const TRAINER_ROLES  = new Set(['ENTRENADOR', 'INSTRUCTOR', 'NUTRICIONISTA']);
 const getLevel = (user: any): number => user?.level ?? 0;
 
 type GymEventPayload = {
@@ -75,9 +74,9 @@ function invalidateManagerQueries(
 export function useGymEventsSocket(): void {
   const { user, isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
+  const { setSocket } = useSocket();
   const socketRef = useRef<Socket | null>(null);
 
-  const role = user?.role?.toUpperCase() ?? '';
   const level = getLevel(user);
   const shouldConnect = isAuthenticated && level >= 1;
 
@@ -103,6 +102,7 @@ export function useGymEventsSocket(): void {
       });
 
       socketRef.current = socket;
+      setSocket(socket);
 
       socket.on('connect', () => {
         const trimmedToken = token.trim();
@@ -135,7 +135,7 @@ export function useGymEventsSocket(): void {
         void handleReservationEvent('cancel_reservation', payload ?? {});
       });
 
-      if (TRAINER_ROLES.has(role)) {
+      if (level >= 2 && level <= 3) {
         socket.on('routine_session_update', (payload: any) => {
           const userId = payload?.userId ?? payload?.user?.id;
           if (userId != null) {
@@ -151,6 +151,13 @@ export function useGymEventsSocket(): void {
         if (payload?.gymId != null) {
           queryClient.invalidateQueries({ queryKey: ['gym-aforo', payload.gymId] });
         }
+      });
+
+      socket.on('chat_message', () => {
+        // Actualiza la bandeja de entrada cuando llega un mensaje en cualquier conv.
+        // La pantalla ChatScreen escucha este mismo evento directamente via useSocket()
+        // para actualizar su estado local sin necesidad de re-fetch HTTP.
+        queryClient.invalidateQueries({ queryKey: ['inbox'] });
       });
 
       const advisoryEvents = ['advisory_request', 'advisory_accepted', 'advisory_rejected', 'advisory_cancelled'];
@@ -189,6 +196,7 @@ export function useGymEventsSocket(): void {
       offLogout();
       socketRef.current?.disconnect();
       socketRef.current = null;
+      setSocket(null);
     };
-  }, [shouldConnect, queryClient]);
+  }, [shouldConnect, queryClient, setSocket]);
 }

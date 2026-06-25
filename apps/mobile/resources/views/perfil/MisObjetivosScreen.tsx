@@ -16,7 +16,7 @@ type SavedGoal = {
   baselineValue: number;
 };
 
-const STORAGE_KEY = 'gymsync_objetivo';
+const storageKey = (userId: number | string) => `gymsync_objetivo_${userId}`;
 
 const CARDS: { type: GoalType; icon: string; title: string; desc: string; color: string }[] = [
   { type: 'perdida',       icon: 'trending-down', title: 'Pérdida de Peso',               desc: 'Alcanza tu peso ideal con un déficit controlado.',        color: '#f05b22' },
@@ -248,6 +248,8 @@ const RecommendationsPanel = ({ goalType, color }: { goalType: GoalType; color: 
 export const MisObjetivosScreen = () => {
   const navigation = useNavigation();
   const { user } = useAuth();
+  const userId = (user as any)?.id ?? (user as any)?.userId;
+  const KEY = userId ? storageKey(userId) : null;
   const pm = (user as any)?.profile?.physicalMetrics;
 
   const currentWeight = pm?.weightKg     ? Number(pm.weightKg)     : null;
@@ -260,14 +262,27 @@ export const MisObjetivosScreen = () => {
   const [loading,      setLoading]      = useState(true);
 
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY)
-      .then(raw => { if (raw) setSavedGoal(JSON.parse(raw) as SavedGoal); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+    if (!KEY) { setLoading(false); return; }
+    const load = async () => {
+      try {
+        // Migrar clave legacy (sin userId) si existe y aún no tiene clave nueva
+        const legacy = await AsyncStorage.getItem('gymsync_objetivo');
+        const scoped = await AsyncStorage.getItem(KEY);
+        if (legacy && !scoped) {
+          await AsyncStorage.setItem(KEY, legacy);
+          await AsyncStorage.removeItem('gymsync_objetivo');
+          setSavedGoal(JSON.parse(legacy) as SavedGoal);
+        } else if (scoped) {
+          setSavedGoal(JSON.parse(scoped) as SavedGoal);
+        }
+      } catch {}
+      setLoading(false);
+    };
+    load();
+  }, [KEY]);
 
   const handleSave = async () => {
-    if (!selectedType) return;
+    if (!selectedType || !KEY) return;
     const needsValue = selectedType !== 'mantenimiento';
     const target = parseFloat(targetInput);
     if (needsValue && (isNaN(target) || target <= 0)) {
@@ -278,7 +293,7 @@ export const MisObjetivosScreen = () => {
     const goal: SavedGoal = { type: selectedType, targetValue: needsValue ? target : 0, baselineValue: baseline };
     setSaving(true);
     try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(goal));
+      await AsyncStorage.setItem(KEY, JSON.stringify(goal));
       setSavedGoal(goal);
       setSelectedType(null);
       setTargetInput('');
@@ -290,10 +305,11 @@ export const MisObjetivosScreen = () => {
   };
 
   const handleClear = () => {
+    if (!KEY) return;
     Alert.alert('Confirmar', '¿Eliminar objetivo actual?', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: async () => {
-        await AsyncStorage.removeItem(STORAGE_KEY);
+        await AsyncStorage.removeItem(KEY);
         setSavedGoal(null);
         setSelectedType(null);
         setTargetInput('');

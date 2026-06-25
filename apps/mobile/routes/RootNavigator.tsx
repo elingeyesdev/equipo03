@@ -51,6 +51,11 @@ import { ClientePerfilStack, GerentePerfilStack } from './PerfilStack';
 import { EjecutarRutinaScreen }   from '../resources/views/perfil/EjecutarRutinaScreen';
 import { ResumenEjercicioScreen } from '../resources/views/perfil/ResumenEjercicioScreen';
 
+// ── Mensajería (CLIENTE + STAFF) ──────────────────────────────────────────────
+import { InboxScreen }        from '../resources/views/mensajes/InboxScreen';
+import { ChatScreen }         from '../resources/views/mensajes/ChatScreen';
+import { ChatProfileScreen }  from '../resources/views/mensajes/ChatProfileScreen';
+
 // ── Seguimiento (ENTRENADOR / INSTRUCTOR) ─────────────────────────────────────
 import { SeguimientoScreen }        from '../resources/views/seguimiento/SeguimientoScreen';
 import { HistorialRutinaScreen }    from '../resources/views/seguimiento/HistorialRutinaScreen';
@@ -67,6 +72,7 @@ const TAB_ICON: Record<string, string> = {
   'Mis Reservas': 'calendar',
   'Auditoría':    'clipboard-text-outline',
   'Seguimiento':  'chart-line',
+  'Mensajes':     'message-text-outline',
   'Perfil':       'account',
 };
 
@@ -117,6 +123,7 @@ const ClienteTabs = () => (
     <ClienteTab.Screen name="Inicio"      component={InicioScreen} />
     <ClienteTab.Screen name="Buscar"      component={BuscarStack} />
     <ClienteTab.Screen name="Mis Reservas" component={MisReservasScreen} options={{ headerShown: false }} />
+    <ClienteTab.Screen name="Mensajes"    component={InboxScreen} options={{ headerShown: false }} />
     <ClienteTab.Screen name="Perfil"      component={ClientePerfilStack} />
   </ClienteTab.Navigator>
 );
@@ -185,6 +192,16 @@ const ClienteStack = () => (
       component={ResumenEjercicioScreen}
       options={{ headerShown: false, gestureEnabled: false }}
     />
+    <ClienteNav.Screen
+      name="Chat"
+      component={ChatScreen}
+      options={{ headerShown: false }}
+    />
+    <ClienteNav.Screen
+      name="ChatProfile"
+      component={ChatProfileScreen}
+      options={{ headerShown: false }}
+    />
   </ClienteNav.Navigator>
 );
 
@@ -221,6 +238,7 @@ const StaffTabs = () => (
     <StaffTab.Screen name="Inicio"       component={StaffInicioScreen} />
     <StaffTab.Screen name="Buscar"       component={BuscarStack} />
     <StaffTab.Screen name="Seguimiento"  component={SeguimientoScreen} />
+    <StaffTab.Screen name="Mensajes"     component={InboxScreen} options={{ headerShown: false }} />
     <StaffTab.Screen name="Perfil"       component={ClientePerfilStack} />
   </StaffTab.Navigator>
 );
@@ -285,6 +303,16 @@ const StaffStack = () => (
       component={InstructorReportScreen}
       options={{ headerShown: false }}
     />
+    <StaffNav.Screen
+      name="Chat"
+      component={ChatScreen}
+      options={{ headerShown: false }}
+    />
+    <StaffNav.Screen
+      name="ChatProfile"
+      component={ChatProfileScreen}
+      options={{ headerShown: false }}
+    />
   </StaffNav.Navigator>
 );
 
@@ -327,31 +355,11 @@ export const RootNavigator = () => {
 
   if (!isAuthenticated) return <AuthStack />;
 
-  switch (user?.role?.toUpperCase()) {
-    case 'SUPER_ADMIN':
-    case 'GERENTE':
-    case 'COORDINADOR':
-    case 'RECEPCIONISTA':
-      return <GerenteStack />;
-
-    case 'ENTRENADOR':
-    case 'INSTRUCTOR':
-    case 'NUTRICIONISTA':
-      return <StaffStack />;
-
-    case 'USER':
-    case 'CLIENTE':
-      return <ClienteStack />;
-
-    default: {
-      // Fallback por nivel jerárquico para roles nuevos/desconocidos (requiere token renovado)
-      const level: number = (user as any)?.level ?? 0;
-      if (level >= 4) return <GerenteStack />;
-      if (level >= 3) return <StaffStack />;
-      if (level >= 1) return <ClienteStack />;
-      return <UnknownRoleScreen />;
-    }
-  }
+  const level: number = (user as any)?.level ?? 0;
+  if (level >= 4) return <GerenteStack />;
+  if (level >= 2) return <StaffStack />;
+  if (level >= 1) return <ClienteStack />;
+  return <UnknownRoleScreen />;
 };
 
 export default RootNavigator;
