@@ -183,6 +183,30 @@ export const PerfilAlumnoScreen = () => {
                   unit="kg"
                   icon="arm-flex"
                 />
+                <MetricCard
+                  label="Cadera"
+                  value={metrics.hipCm != null ? metrics.hipCm.toFixed(1) : null}
+                  unit="cm"
+                  icon="human-handsdown"
+                />
+                <MetricCard
+                  label="Brazo"
+                  value={metrics.midArmCm != null ? metrics.midArmCm.toFixed(1) : null}
+                  unit="cm"
+                  icon="arm-flex-outline"
+                />
+                <MetricCard
+                  label="Muslo"
+                  value={metrics.thighCm != null ? metrics.thighCm.toFixed(1) : null}
+                  unit="cm"
+                  icon="human-male"
+                />
+                <MetricCard
+                  label="Pantorrilla"
+                  value={metrics.calfCm != null ? metrics.calfCm.toFixed(1) : null}
+                  unit="cm"
+                  icon="walk"
+                />
               </View>
               <Text style={s.metaDate}>
                 Último registro: {fmtDate(metrics.recordedAt)}
