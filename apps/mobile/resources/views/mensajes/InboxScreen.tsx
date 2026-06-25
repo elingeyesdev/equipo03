@@ -14,7 +14,7 @@ import { userApi, ClientSearchResult } from '../../../app/Providers/users/api/us
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 
 type RootParamList = {
-  Chat: { conversationId: number; otherUserName: string };
+  Chat: { conversationId: number; otherUserName: string; otherUserId: number };
 };
 type Nav = NativeStackNavigationProp<RootParamList>;
 
@@ -262,13 +262,17 @@ export const InboxScreen = () => {
   const loadingSearch = isStaff ? loadingClients : loadingCatalog;
 
   // ── Iniciar conversación ──────────────────────────────────────────────────────
-  const handleStartChat = async (trainerId: number, trainerName: string) => {
+  const handleStartChat = async (targetUserId: number, targetName: string) => {
     if (startingChat !== null) return;
-    setStartingChat(trainerId);
+    setStartingChat(targetUserId);
     try {
-      const conv = await messagesApi.startConversation(trainerId);
+      const conv = await messagesApi.startConversation(targetUserId);
       setSearchQuery('');
-      (navigation as any).navigate('Chat', { conversationId: conv.id, otherUserName: trainerName });
+      (navigation as any).navigate('Chat', {
+        conversationId: conv.id,
+        otherUserName:  targetName,
+        otherUserId:    targetUserId,
+      });
     } catch (err: any) {
       const msg = err?.response?.data?.message ?? 'No se pudo iniciar la conversación.';
       Alert.alert('Error', msg);
@@ -282,6 +286,7 @@ export const InboxScreen = () => {
     (navigation as any).navigate('Chat', {
       conversationId: conv.id,
       otherUserName:  resolveFullName(other),
+      otherUserId:    other.id,
     });
   };
 

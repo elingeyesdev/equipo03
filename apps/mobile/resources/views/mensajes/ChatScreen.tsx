@@ -23,7 +23,7 @@ import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { useSocket } from '../../../app/Providers/notifications/SocketContext';
 
 type RouteParams = {
-  Chat: { conversationId: number; otherUserName: string };
+  Chat: { conversationId: number; otherUserName: string; otherUserId: number };
 };
 
 // hiddenLocally: flag de cliente que oculta el mensaje sin hacer re-fetch
@@ -88,7 +88,7 @@ const MessageBubble = ({ msg, isMine, onLongPress }: BubbleProps) => {
 export const ChatScreen = () => {
   const route      = useRoute<RouteProp<RouteParams, 'Chat'>>();
   const navigation = useNavigation();
-  const { conversationId, otherUserName } = route.params;
+  const { conversationId, otherUserName, otherUserId } = route.params;
 
   const { user }    = useAuth();
   const myId        = Number((user as any)?.userId ?? 0);
@@ -320,10 +320,16 @@ export const ChatScreen = () => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
           <MaterialCommunityIcons name="chevron-left" size={28} color="#fff" />
         </TouchableOpacity>
-        <View style={s.avatar}>
-          <MaterialCommunityIcons name="account-circle-outline" size={34} color="#f05b22" />
-        </View>
-        <Text style={s.headerName} numberOfLines={1}>{otherUserName}</Text>
+        <TouchableOpacity
+          style={s.headerProfile}
+          onPress={() => (navigation as any).navigate('ChatProfile', { targetUserId: otherUserId })}
+          activeOpacity={0.75}
+        >
+          <View style={s.avatar}>
+            <MaterialCommunityIcons name="account-circle-outline" size={34} color="#f05b22" />
+          </View>
+          <Text style={s.headerName} numberOfLines={1}>{otherUserName}</Text>
+        </TouchableOpacity>
         <TouchableOpacity
           onPress={() => setShowHeaderMenu(true)}
           style={s.kebabBtn}
@@ -457,11 +463,12 @@ const s = StyleSheet.create({
   flex:      { flex: 1 },
 
   // Header
-  header:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#1C1C1E', gap: 10 },
-  backBtn:    { padding: 4 },
-  kebabBtn:   { padding: 6 },
-  avatar:     { width: 38, height: 38, borderRadius: 19, backgroundColor: '#111', justifyContent: 'center', alignItems: 'center' },
-  headerName: { flex: 1, color: '#fff', fontSize: 16, fontWeight: '600' },
+  header:        { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#1C1C1E', gap: 10 },
+  backBtn:       { padding: 4 },
+  kebabBtn:      { padding: 6 },
+  avatar:        { width: 38, height: 38, borderRadius: 19, backgroundColor: '#111', justifyContent: 'center', alignItems: 'center' },
+  headerProfile: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerName:    { flex: 1, color: '#fff', fontSize: 16, fontWeight: '600' },
 
   // Lista
   centered:    { flex: 1, justifyContent: 'center', alignItems: 'center' },
