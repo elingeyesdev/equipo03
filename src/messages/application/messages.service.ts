@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { DirectMessage } from '../domain/direct-message.entity';
 import { Conversation } from '../domain/conversation.entity';
 import { User } from '../../users/domain/user.entity';
@@ -139,12 +139,92 @@ export class MessagesService {
   }
 
   // ── GET /messages/conversations (inbox) ───────────────────────────────────
-  async getUserConversations(userId: number): Promise<Conversation[]> {
-    return this.conversationRepo.find({
+  async getUserConversations(userId: number): Promise<any[]> {
+    const conversations = await this.conversationRepo.find({
       where: [{ clientId: userId }, { trainerId: userId }],
       relations: ['client', 'client.profile', 'trainer', 'trainer.profile'],
-      order: { createdAt: 'DESC' },
     });
+
+    const enriched = await Promise.all(
+      conversations.map(async (conv) => {
+        const lastMessage = await this.messageRepo.findOne({
+          where: { conversationId: conv.id },
+          order: { createdAt: 'DESC' },
+        });
+
+        const otherUserId = userId === conv.clientId ? conv.trainerId : conv.clientId;
+        const unreadCount = await this.messageRepo.count({
+          where: { conversationId: conv.id, senderId: otherUserId, readAt: IsNull() },
+        });
+
+        return { ...conv, lastMessage: lastMessage ?? null, unreadCount };
+      }),
+    );
+
+    // Ordenar por fecha del último mensaje DESC; chats sin mensajes al final
+    return enriched.sort((a, b) => {
+      if (!a.lastMessage && !b.lastMessage) return 0;
+      if (!a.lastMessage) return 1;
+      if (!b.lastMessage) return -1;
+      return new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime();
+    });
+  }
+
+  // ── PATCH /messages/:id/delete ────────────────────────────────────────────
+  async deleteMessage(
+    messageId: number,
+    requesterId: number,
+    type: 'FOR_ME' | 'FOR_ALL',
+  ): Promise<DirectMessage> {
+    const message = await this.messageRepo.findOne({ where: { id: messageId } });
+    if (!message) throw new NotFoundException('Mensaje no encontrado.');
+
+    // Valida pertenencia del requesterId a la conversación
+    const conv = await this.loadConversationForMember(message.conversationId, requesterId);
+
+    const isSender = message.senderId === requesterId;
+
+    if (type === 'FOR_ALL') {
+      if (!isSender) throw new ForbiddenException('Solo el remitente puede eliminar para todos.');
+      message.isDeletedForAll = true;
+      message.content = 'Mensaje eliminado';
+    } else {
+      if (isSender) message.deletedForSender = true;
+      else message.deletedForReceiver = true;
+    }
+
+    const saved = await this.messageRepo.save(message);
+
+    // Notificar al otro participante para que actualice su UI sin re-fetch
+    const receiverId = requesterId === conv.clientId ? conv.trainerId : conv.clientId;
+    this.gateway.emitToUser(receiverId, 'message_deleted', saved);
+
+    return saved;
+  }
+
+  // ── PATCH /messages/conversations/:id/clear ───────────────────────────────
+  async clearConversation(requesterId: number, conversationId: number) {
+    await this.loadConversationForMember(conversationId, requesterId);
+
+    // Marcar como ocultos los mensajes donde soy remitente
+    await this.messageRepo
+      .createQueryBuilder()
+      .update(DirectMessage)
+      .set({ deletedForSender: true })
+      .where('conversation_id = :conversationId', { conversationId })
+      .andWhere('sender_id = :requesterId', { requesterId })
+      .execute();
+
+    // Marcar como ocultos los mensajes donde soy receptor
+    await this.messageRepo
+      .createQueryBuilder()
+      .update(DirectMessage)
+      .set({ deletedForReceiver: true })
+      .where('conversation_id = :conversationId', { conversationId })
+      .andWhere('sender_id != :requesterId', { requesterId })
+      .execute();
+
+    return { message: 'Chat vaciado correctamente.' };
   }
 
   // ── DELETE /messages/conversations/:id ───────────────────────────────────
@@ -159,7 +239,7 @@ export class MessagesService {
 
   // ── PATCH /messages/conversations/:id/read ────────────────────────────────
   async markAsRead(requesterId: number, conversationId: number): Promise<{ updated: number }> {
-    await this.loadConversationForMember(conversationId, requesterId);
+    const conv = await this.loadConversationForMember(conversationId, requesterId);
 
     const result = await this.messageRepo
       .createQueryBuilder()
@@ -169,6 +249,12 @@ export class MessagesService {
       .andWhere('sender_id != :requesterId', { requesterId })
       .andWhere('read_at IS NULL')
       .execute();
+
+    if (result.affected && result.affected > 0) {
+      // Avisar al remitente que sus mensajes fueron leídos → checks pasan a azul
+      const senderToNotify = requesterId === conv.clientId ? conv.trainerId : conv.clientId;
+      this.gateway.emitToUser(senderToNotify, 'messages_read', { conversationId });
+    }
 
     return { updated: result.affected ?? 0 };
   }

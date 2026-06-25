@@ -12,6 +12,7 @@ import {
 import { MessagesService } from '../application/messages.service';
 import { CreateConversationDto } from '../application/dtos/create-conversation.dto';
 import { SendMessageDto } from '../application/dtos/send-message.dto';
+import { DeleteMessageDto } from '../application/dtos/delete-message.dto';
 
 // JwtAuthGuard ya está aplicado globalmente (APP_GUARD en AppModule).
 // req.user.userId viene de JwtStrategy.validate() → { userId: payload.sub }
@@ -55,6 +56,17 @@ export class MessagesController {
     return this.messagesService.deleteConversation(Number(req.user.userId), id);
   }
 
+  // PATCH /api/messages/:id/delete  →  { type: 'FOR_ME' | 'FOR_ALL' }
+  // Definido antes de :id/read para que NestJS no confunda segmentos
+  @Patch(':id/delete')
+  deleteMessage(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: DeleteMessageDto,
+  ) {
+    return this.messagesService.deleteMessage(id, Number(req.user.userId), body.type);
+  }
+
   // PATCH /api/messages/conversations/:id/read
   @Patch('conversations/:id/read')
   markAsRead(
@@ -62,5 +74,14 @@ export class MessagesController {
     @Param('id', ParseIntPipe) id: number,
   ) {
     return this.messagesService.markAsRead(Number(req.user.userId), id);
+  }
+
+  // PATCH /api/messages/conversations/:id/clear  →  vaciar chat localmente (soft-delete masivo)
+  @Patch('conversations/:id/clear')
+  clearConversation(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.messagesService.clearConversation(Number(req.user.userId), id);
   }
 }

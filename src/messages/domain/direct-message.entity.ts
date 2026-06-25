@@ -31,6 +31,15 @@ export class DirectMessage {
   @Column({ type: 'text' })
   content: string;
 
+  @Column({ type: 'boolean', name: 'deleted_for_sender', default: false })
+  deletedForSender: boolean;
+
+  @Column({ type: 'boolean', name: 'deleted_for_receiver', default: false })
+  deletedForReceiver: boolean;
+
+  @Column({ type: 'boolean', name: 'is_deleted_for_all', default: false })
+  isDeletedForAll: boolean;
+
   @Column({ type: 'timestamp', name: 'read_at', nullable: true, default: null })
   readAt: Date | null;
 
