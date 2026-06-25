@@ -188,6 +188,10 @@ export type ClientProfile = {
     muscleMassKg:      number | null;
     waistCm:           number | null;
     chestCm:           number | null;
+    hipCm:             number | null;
+    midArmCm:          number | null;
+    thighCm:           number | null;
+    calfCm:            number | null;
   } | null;
 };
 
