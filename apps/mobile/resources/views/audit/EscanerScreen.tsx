@@ -1,21 +1,14 @@
 import { useRef, useState, useEffect } from 'react';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-  Dimensions,
-} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { reservationApi } from '../../../app/Providers/reservations/api/reservation.api';
 import { checkinsApi } from '../../../app/Providers/access/api/checkins.api';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 const WIN = Dimensions.get('window');
 const BOX = WIN.width * 0.65;
@@ -360,7 +353,7 @@ export const EscanerScreen = () => {
     return (
       <SafeAreaView style={s.safe}>
         <View style={s.center}>
-          <ActivityIndicator size="large" color="#f05b22" />
+          <DumbbellSpinner size="large" color="#f05b22" />
           <Text style={s.hint}>Verificando permisos de cámara…</Text>
         </View>
       </SafeAreaView>
@@ -413,7 +406,7 @@ export const EscanerScreen = () => {
         <View style={s.overlayBot}>
           {processing ? (
             <View style={s.processingRow}>
-              <ActivityIndicator size="small" color="#f05b22" />
+              <DumbbellSpinner size="small" color="#f05b22" />
               <Text style={s.processingTxt}>Verificando…</Text>
             </View>
           ) : scanning ? (

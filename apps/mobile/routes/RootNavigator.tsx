@@ -1,6 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { ActivityIndicator, View, Text, TouchableOpacity } from 'react-native';
+import {View, Text, TouchableOpacity} from 'react-native';
 
 const backBtnStyle = { width: 40, height: 40, marginLeft: 4, justifyContent: 'center' as const, alignItems: 'center' as const };
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -58,6 +58,7 @@ import { RegistroEjercicioScreen }  from '../resources/views/seguimiento/Registr
 import { TrainerReportScreen }      from '../resources/views/seguimiento/TrainerReportScreen';
 import { InstructorReportScreen }   from '../resources/views/seguimiento/InstructorReportScreen';
 import { MisAlumnosScreen }         from '../resources/views/inicio/MisAlumnosScreen';
+import { DumbbellSpinner } from '../app/Shared/components/ui/DumbbellSpinner';
 
 // ── Iconos de tabs ────────────────────────────────────────────────────────────
 const TAB_ICON: Record<string, string> = {
@@ -319,7 +320,7 @@ export const RootNavigator = () => {
   if (isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
-        <ActivityIndicator size="large" color="#f05b22" />
+        <DumbbellSpinner size="large" color="#f05b22" />
       </View>
     );
   }

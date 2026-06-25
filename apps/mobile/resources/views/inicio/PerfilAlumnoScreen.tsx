@@ -1,14 +1,12 @@
 import React from 'react';
-import {
-  View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, ActivityIndicator,
-} from 'react-native';
+import {View, Text, StyleSheet, ScrollView, TouchableOpacity} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { staffApi, ClientProfile } from '../../../app/Providers/staff/api/staff.api';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 type RouteParams = { clientId: number; clientName: string };
 
@@ -83,7 +81,7 @@ export const PerfilAlumnoScreen = () => {
 
       {isLoading ? (
         <View style={s.center}>
-          <ActivityIndicator size="large" color="#f05b22" />
+          <DumbbellSpinner size="large" color="#f05b22" />
         </View>
       ) : isError ? (
         <View style={s.center}>

@@ -1,14 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  RefreshControl,
-  Dimensions,
-} from 'react-native';
+import {View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Dimensions} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Feather } from '@expo/vector-icons';
@@ -16,6 +7,7 @@ import { BarChart } from 'react-native-chart-kit';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 import {
   staffApi,
   InstructorWeeklySchedule,
@@ -343,7 +335,7 @@ export const InstructorDashboard = () => {
 
         {schedLoading ? (
           <View style={s.center}>
-            <ActivityIndicator color="#f05b22" />
+            <DumbbellSpinner color="#f05b22" />
             <Text style={s.soft}>Cargando itinerario…</Text>
           </View>
         ) : schedError ? (
@@ -372,7 +364,7 @@ export const InstructorDashboard = () => {
 
         {schedLoading ? (
           <View style={s.center}>
-            <ActivityIndicator color="#f05b22" />
+            <DumbbellSpinner color="#f05b22" />
             <Text style={s.soft}>Cargando agenda…</Text>
           </View>
         ) : upcomingClases.length === 0 ? (

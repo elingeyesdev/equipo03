@@ -3,7 +3,8 @@
  */
 
 import React from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import {View, Text, StyleSheet} from 'react-native';
+import { DumbbellSpinner } from '../../../../../app/Shared/components/ui/DumbbellSpinner';
 
 type LoadingOverlayProps = {
   message?: string;
@@ -15,7 +16,7 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.card}>
-        <ActivityIndicator size="large" color="#e94560" />
+        <DumbbellSpinner size="large" color="#e94560" />
         <Text style={styles.message}>{message}</Text>
       </View>
     </View>

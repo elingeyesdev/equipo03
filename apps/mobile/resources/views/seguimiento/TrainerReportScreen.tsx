@@ -1,14 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  ActivityIndicator, Alert, TextInput, Platform,
-} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, TextInput, Platform} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import * as Print   from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { staffApi, ActiveAdvisee, ClientProfile, TrainerPlanData, TrainingSession } from '../../../app/Providers/staff/api/staff.api';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 //Date helpers 
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -285,7 +283,7 @@ export const TrainerReportScreen = () => {
           {!scopeAll && (
             <View style={s.clientList}>
               {isLoading ? (
-                <ActivityIndicator size="small" color="#38BDF8" style={{ padding: 16 }} />
+                <DumbbellSpinner size="small" color="#38BDF8" style={{ padding: 16 }} />
               ) : advisees.length === 0 ? (
                 <Text style={s.emptyTxt}>Sin clientes activos.</Text>
               ) : (
@@ -387,7 +385,7 @@ export const TrainerReportScreen = () => {
           disabled={generating || (!scopeAll && !selectedId)}
         >
           {generating ? (
-            <ActivityIndicator size="small" color="#fff" />
+            <DumbbellSpinner size="small" color="#fff" />
           ) : (
             <MaterialCommunityIcons name="file-pdf-box" size={20} color="#fff" />
           )}

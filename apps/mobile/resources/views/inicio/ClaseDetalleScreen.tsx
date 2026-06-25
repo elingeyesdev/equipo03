@@ -1,14 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import {
-  View, Text, StyleSheet, FlatList, ActivityIndicator,
-  TouchableOpacity, ScrollView,
-} from 'react-native';
+import {View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Feather } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import authAxios from '../../../app/Providers/auth/authAxios';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -207,7 +205,7 @@ export const ClaseDetalleScreen = () => {
       {/* ── Contenido ── */}
       {loading ? (
         <View style={s.center}>
-          <ActivityIndicator color="#FF5E00" size="large" />
+          <DumbbellSpinner color="#FF5E00" size="large" />
         </View>
 
       ) : error ? (
@@ -283,7 +281,7 @@ export const ClaseDetalleScreen = () => {
           }}
           onEndReachedThreshold={0.5}
           ListFooterComponent={
-            isFetchingNextPage ? <ActivityIndicator size="small" color="#FF6B00" style={{ marginVertical: 15 }} /> : null
+            isFetchingNextPage ? <DumbbellSpinner size="small" color="#FF6B00" style={{ marginVertical: 15 }} /> : null
           }
         />
       )}

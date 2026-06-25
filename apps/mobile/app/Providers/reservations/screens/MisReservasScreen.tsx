@@ -1,17 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  RefreshControl,
-  Modal,
-  useWindowDimensions,
-} from 'react-native';
+import {View, Text, StyleSheet, FlatList, ScrollView, TouchableOpacity, Alert, RefreshControl, Modal, useWindowDimensions, Image} from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,6 +12,7 @@ import { useCancelReservationMutation } from '../hooks/useCancelReservationMutat
 import { reservationApi } from '../api/reservation.api';
 import { UserReservation } from '../api/reservation.types';
 import { authEvents } from '../../auth/authEvents';
+import { DumbbellSpinner } from '../../../Shared/components/ui/DumbbellSpinner';
 
 const STATUS_LABEL: Record<string, string> = {
   CONFIRMADA: 'Generada',
@@ -112,7 +101,7 @@ const DynamicQRCode = ({
           alignItems: 'center',
           justifyContent: 'center',
         }}>
-          <ActivityIndicator color="#f05b22" size="large" />
+          <DumbbellSpinner color="#f05b22" size="large" />
         </View>
       )}
     </View>
@@ -227,7 +216,7 @@ export const MisReservasScreen = () => {
   if (isLoading) return (
     <SafeAreaView style={s.safe}>
       <View style={s.center}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+        <DumbbellSpinner size="large" color={Colors.primary} />
         <Text style={s.soft}>Cargando reservas…</Text>
       </View>
     </SafeAreaView>
@@ -263,7 +252,7 @@ export const MisReservasScreen = () => {
     if (filterStatus === 'CONFIRMADA' && !RECEIVED_STATUSES.has(st))  return false;
     if (filterStatus === 'COMPLETADA' && !COMPLETED_STATUSES.has(st)) return false;
     if (filterStatus === 'CANCELADA'  && !CANCELLED_STATUSES.has(st)) return false;
-    if (filterStatus === 'CADUCADA'   && st !== 'CADUCADA')           return false;
+    if (filterStatus === 'CADUCADA'   && (st as string) !== 'CADUCADA') return false;
     if (!filterStatus && (CANCELLED_STATUSES.has(st) || COMPLETED_STATUSES.has(st))) return false;
     return true;
   });
@@ -311,7 +300,7 @@ export const MisReservasScreen = () => {
     <SafeAreaView style={s.safe}>
       <FilterChips />
       <View style={s.center}>
-        <MaterialCommunityIcons name="calendar-blank-outline" size={56} color={Colors.border} />
+        <Image source={require('../../../../assets/reserve_icon.png')} style={{ width: 100, height: 100, resizeMode: 'contain' }} />
         <Text style={s.emptyTitle}>
           {filterStatus ? 'Sin resultados para este filtro' : 'Aún no tienes reservas activas'}
         </Text>
@@ -388,7 +377,7 @@ export const MisReservasScreen = () => {
             activeOpacity={0.8}
           >
             {cancelingAll ? (
-              <ActivityIndicator size="small" color={Colors.danger} />
+              <DumbbellSpinner size="small" color={Colors.danger} />
             ) : (
               <>
                 <MaterialCommunityIcons name="calendar-remove" size={16} color={Colors.danger} />
@@ -429,7 +418,7 @@ export const MisReservasScreen = () => {
         }}
         onEndReachedThreshold={0.5}
         ListFooterComponent={
-          isFetchingNextPage ? <ActivityIndicator size="small" color="#FF6B00" style={{ marginVertical: 15 }} /> : <View style={{ height: 40 }} />
+          isFetchingNextPage ? <DumbbellSpinner size="small" color="#FF6B00" style={{ marginVertical: 15 }} /> : <View style={{ height: 40 }} />
         }
       />
     </SafeAreaView>

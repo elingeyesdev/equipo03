@@ -1,8 +1,5 @@
 import { useState, useEffect } from 'react';
-import {
-  View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ScrollView, Alert, Platform, Keyboard, KeyboardAvoidingView, ActivityIndicator, Modal,
-} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, Platform, Keyboard, KeyboardAvoidingView, Modal, Image} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -10,20 +7,21 @@ import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { NumericInput } from '../../../app/Shared/components/ui/NumericInput';
 import authAxios from '../../../app/Providers/auth/authAxios';
 import { calculateIMC, getIMCCategory, calculateAge } from '../../../app/Shared/utils/healthMetrics';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 type ExperienceLevel = 'PRINCIPIANTE' | 'INTERMEDIO' | 'AVANZADO';
 type SavingSection   = 'basic' | 'metrics' | 'medical' | null;
 
 const AVATARS = [
-  { id: '1', icon: 'face-man-profile'  },
-  { id: '2', icon: 'face-woman-profile' },
-  { id: '3', icon: 'robot-outline'      },
-  { id: '4', icon: 'incognito'          },
-  { id: '5', icon: 'alien-outline'      },
-  { id: '6', icon: 'cat'               },
-  { id: '7', icon: 'fire'              },
-  { id: '8', icon: 'crown'             },
-  { id: '9', icon: 'star'              },
+  { id: '1', icon: 'face-man-profile',  image: require('../../../assets/avatarman.png')       },
+  { id: '2', icon: 'face-woman-profile', image: require('../../../assets/avatarwoman.png')    },
+  { id: '3', icon: 'robot-outline',      image: require('../../../assets/avatarrobot.png')    },
+  { id: '4', icon: 'incognito',          image: require('../../../assets/avatarincognito.png') },
+  { id: '5', icon: 'alien-outline',      image: require('../../../assets/avataralien.png')    },
+  { id: '6', icon: 'cat',               image: require('../../../assets/avatarcat.png')       },
+  { id: '7', icon: 'fire',              image: require('../../../assets/avatarfire.png')      },
+  { id: '8', icon: 'crown',             image: require('../../../assets/avatarcrown.png')     },
+  { id: '9', icon: 'star',              image: require('../../../assets/avatarstar.png')      },
 ];
 
 export const MisDatosPersonalesScreen = () => {
@@ -265,7 +263,7 @@ export const MisDatosPersonalesScreen = () => {
   if (isFetching) {
     return (
       <SafeAreaView style={[s.container, s.centered]} edges={['top', 'bottom']}>
-        <ActivityIndicator size="large" color="#f05b22" />
+        <DumbbellSpinner size="large" color="#f05b22" />
         <Text style={s.loadingText}>Cargando perfil...</Text>
       </SafeAreaView>
     );
@@ -311,10 +309,9 @@ export const MisDatosPersonalesScreen = () => {
                       style={[s.avatarOption, selectedAvatar === av.icon && s.avatarSelected]}
                       onPress={() => setSelectedAvatar(av.icon)}
                     >
-                      <MaterialCommunityIcons
-                        name={av.icon as any}
-                        size={36}
-                        color={selectedAvatar === av.icon ? '#FF5E00' : '#B0B0B0'}
+                      <Image
+                        source={av.image}
+                        style={{ width: 36, height: 36, resizeMode: 'contain', opacity: selectedAvatar === av.icon ? 1 : 0.5 }}
                       />
                     </TouchableOpacity>
                   ))}
@@ -323,7 +320,10 @@ export const MisDatosPersonalesScreen = () => {
             ) : (
               <View style={s.avatarReadWrap}>
                 <View style={s.avatarReadBadge}>
-                  <MaterialCommunityIcons name={selectedAvatar as any} size={56} color="#FF5E00" />
+                  <Image
+                    source={AVATARS.find(av => av.icon === selectedAvatar)?.image ?? AVATARS[0].image}
+                    style={{ width: 56, height: 56, resizeMode: 'contain' }}
+                  />
                 </View>
               </View>
             )}
@@ -382,7 +382,7 @@ export const MisDatosPersonalesScreen = () => {
                 activeOpacity={0.85}
               >
                 {savingSection === 'basic'
-                  ? <ActivityIndicator color="#fff" size="small" />
+                  ? <DumbbellSpinner color="#fff" size="small" />
                   : <Text style={s.saveBtnText}>Guardar Info Básica</Text>
                 }
               </TouchableOpacity>
@@ -474,7 +474,7 @@ export const MisDatosPersonalesScreen = () => {
                   activeOpacity={0.85}
                 >
                   {savingSection === 'metrics'
-                    ? <ActivityIndicator color="#fff" size="small" />
+                    ? <DumbbellSpinner color="#fff" size="small" />
                     : <Text style={s.saveBtnText}>Guardar Métricas</Text>
                   }
                 </TouchableOpacity>
@@ -510,7 +510,7 @@ export const MisDatosPersonalesScreen = () => {
                 activeOpacity={0.85}
               >
                 {savingSection === 'medical'
-                  ? <ActivityIndicator color="#fff" size="small" />
+                  ? <DumbbellSpinner color="#fff" size="small" />
                   : <Text style={s.saveBtnText}>Guardar Info Médica</Text>
                 }
               </TouchableOpacity>

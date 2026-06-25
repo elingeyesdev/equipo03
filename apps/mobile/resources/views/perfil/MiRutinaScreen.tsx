@@ -1,8 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import {
-  View, Text, StyleSheet, ScrollView, FlatList,
-  TouchableOpacity, ActivityIndicator, Image,
-} from 'react-native';
+import {View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity, Image} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
@@ -10,6 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { staffApi, ClientRoutine, ClientRoutineExercise } from '../../../app/Providers/staff/api/staff.api';
 import { ParameterChip } from '../../components/ParameterChip';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DAYS = ['LUNES','MARTES','MIERCOLES','JUEVES','VIERNES','SABADO','DOMINGO'] as const;
@@ -215,7 +213,7 @@ export const MiRutinaScreen = () => {
 
       {isLoading ? (
         <View style={s.center}>
-          <ActivityIndicator size="large" color="#FF5E00" />
+          <DumbbellSpinner size="large" color="#FF5E00" />
         </View>
       ) : isError ? (
         <View style={s.center}>

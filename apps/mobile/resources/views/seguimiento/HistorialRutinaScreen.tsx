@@ -1,14 +1,12 @@
 import React from 'react';
-import {
-  View, Text, StyleSheet, FlatList,
-  TouchableOpacity, ActivityIndicator,
-} from 'react-native';
+import {View, Text, StyleSheet, FlatList, TouchableOpacity} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { trainingApi, WorkoutSession } from '../../../app/Providers/training/api/training.api';
 import { staffApi, ClientRoutineExercise } from '../../../app/Providers/staff/api/staff.api';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -141,7 +139,7 @@ export const HistorialRutinaScreen = () => {
       </View>
 
       {isLoading ? (
-        <View style={s.center}><ActivityIndicator size="large" color="#f05b22" /></View>
+        <View style={s.center}><DumbbellSpinner size="large" color="#f05b22" /></View>
       ) : isError ? (
         <View style={s.center}>
           <MaterialCommunityIcons name="wifi-off" size={40} color="#333" />

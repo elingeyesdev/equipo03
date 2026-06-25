@@ -1,16 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  Dimensions,
-  Modal,
-  TextInput,
-} from 'react-native';
+import {View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Dimensions, Modal, TextInput} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -19,6 +8,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { trainingApi, WorkoutSession } from '../../../app/Providers/training/api/training.api';
 import authAxios from '../../../app/Providers/auth/authAxios';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 // ─── Paleta ────────────────────────────────────────────────────────────────────
 const C = {
@@ -676,10 +666,10 @@ export const CuadroDeMandoClienteScreen: React.FC = () => {
           disabled={exporting || loading}
         >
           {exporting ? (
-            <ActivityIndicator size="small" color={C.celeste} />
+            <DumbbellSpinner size="small" color={C.celeste} />
           ) : (
             <>
-              <Feather name="download" size={16} color={C.celeste} />
+              <Feather name="download" size={16} color={C.primary} />
               <Text style={s.exportBtnTxt}>Exportar Reporte</Text>
             </>
           )}
@@ -698,15 +688,15 @@ export const CuadroDeMandoClienteScreen: React.FC = () => {
             style={s.statCard}
             onPress={() => setSelectedMetric({ title: 'Sesiones', value: totalSesiones.toString(), description: 'Total de rutinas completadas, incluyendo entrenamientos libres y asignados.' })}
           >
-            <Feather name="check-circle" size={16} color={C.green} />
+            <Feather name="check-circle" size={16} color={C.primary} />
             <Text style={s.statVal}>{totalSesiones}</Text>
             <Text style={s.statLbl}>Sesiones</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[s.statCard, { borderColor: C.celeste + '55' }]}
+            style={s.statCard}
             onPress={() => setSelectedMetric({ title: 'Minutos', value: totalMinutos.toString(), description: 'Tiempo total activo de entrenamiento.' })}
           >
-            <Feather name="clock" size={16} color={C.celeste} />
+            <Feather name="clock" size={16} color={C.primary} />
             <Text style={s.statVal}>{totalMinutos}</Text>
             <Text style={s.statLbl}>Minutos</Text>
           </TouchableOpacity>
@@ -719,16 +709,16 @@ export const CuadroDeMandoClienteScreen: React.FC = () => {
             <Text style={s.statLbl}>kcal</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[s.statCard, { borderColor: C.green + '55' }]}
+            style={s.statCard}
             onPress={() => setSelectedMetric({ title: 'Vol. Total', value: volumenTotal.toFixed(0), description: 'Suma de todos los kilogramos levantados (peso × repeticiones) en tu historial. Ideal para medir tu carga de trabajo.' })}
           >
-            <Feather name="layers" size={16} color={C.green} />
+            <Feather name="layers" size={16} color={C.primary} />
             <Text style={s.statVal}>{volumenTotal.toFixed(0)}</Text>
             <Text style={s.statLbl}>Vol. Total</Text>
           </TouchableOpacity>
           {lastWeight != null && (
             <TouchableOpacity 
-              style={[s.statCard, { borderColor: '#FF5E0055' }]}
+              style={s.statCard}
               onPress={() => setSelectedMetric({ title: 'Peso', value: lastWeight.toString(), description: 'Tu peso corporal actual registrado.' })}
             >
               <Feather name="user" size={16} color={C.primary} />
@@ -746,7 +736,7 @@ export const CuadroDeMandoClienteScreen: React.FC = () => {
             <Text style={s.sectionHint}>Naranja · kg</Text>
           </View>
           {loading
-            ? <ActivityIndicator color={C.primary} style={{ marginVertical: 30 }} />
+            ? <DumbbellSpinner color={C.primary} style={{ marginVertical: 30 }} />
             : <PesoChart metrics={metrics} />
           }
         </View>
@@ -759,7 +749,7 @@ export const CuadroDeMandoClienteScreen: React.FC = () => {
             <Text style={s.sectionHint}>Verde · kg máx</Text>
           </View>
           {loading
-            ? <ActivityIndicator color={C.green} style={{ marginVertical: 30 }} />
+            ? <DumbbellSpinner color={C.green} style={{ marginVertical: 30 }} />
             : <FuerzaChart sessions={sessions} />
           }
         </View>
@@ -772,7 +762,7 @@ export const CuadroDeMandoClienteScreen: React.FC = () => {
             <Text style={s.sectionHint}>por tipo de rutina</Text>
           </View>
           {loading
-            ? <ActivityIndicator color={C.celeste} style={{ marginVertical: 30 }} />
+            ? <DumbbellSpinner color={C.celeste} style={{ marginVertical: 30 }} />
             : <ActividadesChart sessions={sessions} />
           }
         </View>
@@ -791,7 +781,7 @@ export const CuadroDeMandoClienteScreen: React.FC = () => {
 
           {loading ? (
             <View style={s.loadingBox}>
-              <ActivityIndicator size="large" color={C.primary} />
+              <DumbbellSpinner size="large" color={C.primary} />
               <Text style={s.loadingTxt}>Cargando historial...</Text>
             </View>
           ) : sessions.length === 0 ? (
@@ -845,12 +835,12 @@ export const CuadroDeMandoClienteScreen: React.FC = () => {
                   onPress={() => setExportRange(opt.key)}
                   activeOpacity={0.7}
                 >
-                  <Feather name={opt.icon} size={18} color={active ? C.celeste : C.soft} />
+                  <Feather name={opt.icon} size={18} color={active ? C.primary : C.soft} />
                   <Text style={[m.rangeBtnLabel, active && m.rangeBtnLabelActive]}>
                     {opt.label}
                   </Text>
                   {active && (
-                    <Feather name="check-circle" size={16} color={C.celeste} style={{ marginLeft: 'auto' }} />
+                    <Feather name="check-circle" size={16} color={C.primary} style={{ marginLeft: 'auto' }} />
                   )}
                 </TouchableOpacity>
               );
@@ -863,7 +853,7 @@ export const CuadroDeMandoClienteScreen: React.FC = () => {
                 <View style={m.dateField}>
                   <Text style={m.dateBtnLabel}>Inicio (DD/MM/AAAA)</Text>
                   <View style={m.dateInputRow}>
-                    <Feather name="calendar" size={13} color={C.celeste} />
+                    <Feather name="calendar" size={13} color={C.primary} />
                     <TextInput
                       style={m.dateInput}
                       value={customStartStr}
@@ -887,7 +877,7 @@ export const CuadroDeMandoClienteScreen: React.FC = () => {
                 <View style={m.dateField}>
                   <Text style={m.dateBtnLabel}>Fin (DD/MM/AAAA)</Text>
                   <View style={m.dateInputRow}>
-                    <Feather name="calendar" size={13} color={C.celeste} />
+                    <Feather name="calendar" size={13} color={C.primary} />
                     <TextInput
                       style={m.dateInput}
                       value={customEndStr}
@@ -914,7 +904,7 @@ export const CuadroDeMandoClienteScreen: React.FC = () => {
               activeOpacity={0.8}
             >
               {exporting
-                ? <ActivityIndicator color="#fff" />
+                ? <DumbbellSpinner color="#fff" />
                 : <Text style={m.generateBtnTxt}>Generar PDF</Text>
               }
             </TouchableOpacity>
@@ -960,8 +950,8 @@ const s = StyleSheet.create({
     gap: 12,
   },
   iconBtn:         { width: 40, height: 40, backgroundColor: C.surface, borderRadius: 12, borderWidth: 1, borderColor: C.border, justifyContent: 'center', alignItems: 'center' },
-  exportBtn:       { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.surface, borderRadius: 12, borderWidth: 1, borderColor: C.celeste + '55', paddingHorizontal: 12, paddingVertical: 9 },
-  exportBtnTxt:    { color: C.celeste, fontSize: 12, fontWeight: '700' },
+  exportBtn:       { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.surface, borderRadius: 12, borderWidth: 1, borderColor: C.primary + '55', paddingHorizontal: 12, paddingVertical: 9 },
+  exportBtnTxt:    { color: C.primary, fontSize: 12, fontWeight: '700' },
   iconBtnDisabled: { opacity: 0.5 },
   headerCenter:    { flex: 1 },
   headerTitle:     { color: C.text, fontSize: 18, fontWeight: '800' },
@@ -977,7 +967,7 @@ const s = StyleSheet.create({
   statCard: {
     flex: 1, minWidth: 70,
     backgroundColor: C.surface, borderRadius: 12,
-    borderWidth: 1, borderColor: C.border,
+    borderWidth: 1, borderColor: C.primary + '55',
     padding: 12, alignItems: 'center', gap: 4,
   },
   statVal: { color: C.text, fontSize: 18, fontWeight: '900' },
@@ -1035,9 +1025,9 @@ const m = StyleSheet.create({
     borderWidth: 1.5, borderColor: C.border,
     backgroundColor: C.surface2,
   },
-  rangeBtnActive:      { borderColor: C.celeste, backgroundColor: C.celeste + '18' },
+  rangeBtnActive:      { borderColor: C.primary, backgroundColor: C.primary + '18' },
   rangeBtnLabel:       { color: C.soft, fontSize: 14, fontWeight: '600', flex: 1 },
-  rangeBtnLabelActive: { color: C.celeste },
+  rangeBtnLabelActive: { color: C.primary },
   generateBtn: {
     backgroundColor: C.primary,
     borderRadius: 14,
@@ -1065,7 +1055,7 @@ const m = StyleSheet.create({
     backgroundColor: C.surface2,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: C.celeste + '55',
+    borderColor: C.primary + '55',
     padding: 12,
   },
   dateBtnLabel: { color: C.soft,   fontSize: 10, fontWeight: '600' },
@@ -1080,11 +1070,11 @@ const m = StyleSheet.create({
     backgroundColor: C.surface2,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: C.celeste + '55',
+    borderColor: C.primary + '55',
     paddingHorizontal: 10,
     paddingVertical: 8,
   },
-  dateInput:    { flex: 1, color: C.celeste, fontSize: 13, fontWeight: '700', padding: 0 },
+  dateInput:    { flex: 1, color: C.primary, fontSize: 13, fontWeight: '700', padding: 0 },
 
   // Botón confirmar fecha en iOS (spinner inline) — ya no se usa, se mantiene por si acaso
   pickerOkBtn: {
@@ -1093,7 +1083,7 @@ const m = StyleSheet.create({
     paddingVertical: 10,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: C.celeste + '55',
+    borderColor: C.primary + '55',
   },
   pickerOkTxt: { color: C.celeste, fontSize: 13, fontWeight: '700' },
 });

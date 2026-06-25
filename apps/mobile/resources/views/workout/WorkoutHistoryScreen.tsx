@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  View, Text, TouchableOpacity, StyleSheet, Modal, Animated,
-  FlatList, ScrollView, ActivityIndicator, RefreshControl, Dimensions,
-} from 'react-native';
+import {View, Text, TouchableOpacity, StyleSheet, Modal, Animated, FlatList, ScrollView, RefreshControl, Dimensions} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { trainingApi, WorkoutSession, WorkoutSet } from '../../../app/Providers/training/api/training.api';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 const { height: SCREEN_H } = Dimensions.get('window');
 
@@ -546,7 +544,7 @@ export const WorkoutHistoryScreen = () => {
       {/* Lista */}
       {loading ? (
         <View style={s.center}>
-          <ActivityIndicator size="large" color="#f05b22" />
+          <DumbbellSpinner size="large" color="#f05b22" />
         </View>
       ) : (
         <FlatList
@@ -590,7 +588,7 @@ export const WorkoutHistoryScreen = () => {
           }}
           onEndReachedThreshold={0.5}
           ListFooterComponent={
-            isFetchingNextPage ? <ActivityIndicator size="small" color="#FF6B00" style={{ marginVertical: 15 }} /> : null
+            isFetchingNextPage ? <DumbbellSpinner size="small" color="#FF6B00" style={{ marginVertical: 15 }} /> : null
           }
         />
       )}

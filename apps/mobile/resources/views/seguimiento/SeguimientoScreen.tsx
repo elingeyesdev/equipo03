@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View, Text, StyleSheet, FlatList,
-  TouchableOpacity, ActivityIndicator, RefreshControl,
-} from 'react-native';
+import {View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { staffApi, ActiveAdvisee } from '../../../app/Providers/staff/api/staff.api';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 // Paleta rotativa de colores por cliente
 const AVATAR_PALETTE = ['#FF5E00', '#38BDF8', '#00E5A3'];
@@ -174,7 +172,7 @@ export const SeguimientoScreen = () => {
 
       {isLoading ? (
         <View style={s.center}>
-          <ActivityIndicator size="large" color="#38BDF8" />
+          <DumbbellSpinner size="large" color="#38BDF8" />
         </View>
       ) : isError ? (
         <View style={s.center}>

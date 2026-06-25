@@ -16,13 +16,13 @@ export class Aforo {
   private constructor(private readonly props: AforoProps) {}
 
   static create(props: AforoProps): Aforo {
-    if (props.maximo <= 0) {
-      throw new Error('El aforo máximo debe ser mayor a 0');
+    if (props.maximo < 0) {
+      throw new Error('El aforo máximo no puede ser negativo');
     }
     if (props.actual < 0) {
       throw new Error('El aforo actual no puede ser negativo');
     }
-    if (props.actual > props.maximo) {
+    if (props.maximo > 0 && props.actual > props.maximo) {
       throw new Error('El aforo actual no puede superar el máximo');
     }
     return new Aforo(props);
@@ -41,13 +41,14 @@ export class Aforo {
   }
 
   get hayCuposDisponibles(): boolean {
-    return this.props.actual < this.props.maximo;
+    return this.props.maximo > 0 && this.props.actual < this.props.maximo;
   }
 
   /**
    * Porcentaje de ocupación [0, 100].
    */
   get porcentajeOcupacion(): number {
+    if (this.props.maximo === 0) return 0;
     return Math.round((this.props.actual / this.props.maximo) * 100);
   }
 

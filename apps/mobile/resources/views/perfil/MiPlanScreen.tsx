@@ -1,14 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import {
-  View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, ActivityIndicator,
-} from 'react-native';
+import {View, Text, StyleSheet, ScrollView, TouchableOpacity} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import { staffApi, TrainerPlanData } from '../../../app/Providers/staff/api/staff.api';
 import { MacroBar } from '../../components/MacroBar';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DAYS = ['LUNES','MARTES','MIERCOLES','JUEVES','VIERNES','SABADO','DOMINGO'] as const;
@@ -123,7 +121,7 @@ export const MiPlanScreen = () => {
 
       {isLoading ? (
         <View style={s.center}>
-          <ActivityIndicator size="large" color="#FF5E00" />
+          <DumbbellSpinner size="large" color="#FF5E00" />
         </View>
       ) : isError ? (
         <View style={s.center}>
