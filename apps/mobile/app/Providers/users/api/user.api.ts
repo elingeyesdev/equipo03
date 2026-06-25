@@ -30,7 +30,19 @@ attach401Guard(userClient);
 import { attachOfflineInterceptor } from '../../offline/offlineInterceptor';
 attachOfflineInterceptor(userClient);
 
+export type ClientSearchResult = {
+  id:        number;
+  email:     string;
+  firstName: string;
+  lastName:  string;
+};
+
 export const userApi = {
+  searchClients: async (search: string): Promise<ClientSearchResult[]> => {
+    const response = await userClient.get('/api/users/chat/clients', { params: { search } });
+    return Array.isArray(response.data) ? response.data : (response.data?.data ?? []);
+  },
+
   updatePushToken: async (token: string): Promise<{ registered: boolean }> => {
     const response = await userClient.patch('/api/users/me/push-token', { token });
     if (response.status < 200 || response.status >= 300) {

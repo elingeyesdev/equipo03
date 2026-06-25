@@ -10,6 +10,7 @@ export interface AutenticacionContext {
   gymId?: string;
   brandId?: string;
   level?: number;
+  roleId?: number;
 }
 
 export class ConsultarHistorialAccesosUseCase {

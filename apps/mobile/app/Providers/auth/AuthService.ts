@@ -83,11 +83,13 @@ export class AuthService {
       // Permite que roles personalizados (ej: CLIENTE2, DEPORTISTA) sean enrutados
       // correctamente por nivel jerárquico en lugar de nombre de rol
       let extractedLevel = 0;
+      let extractedRoleId: number | undefined;
       try {
         const base64Url = jwtToken.trim().split('.')[1];
         const base64    = base64Url.replace(/-/g, '+').replace(/_/g, '/');
         const jwtPayload = JSON.parse(atob(base64));
-        extractedLevel = jwtPayload?.level ?? 0;
+        extractedLevel  = jwtPayload?.level ?? 0;
+        extractedRoleId = jwtPayload?.roleId != null ? Number(jwtPayload.roleId) : undefined;
       } catch {}
 
       // userId del objeto user del backend
@@ -97,6 +99,7 @@ export class AuthService {
         role: extractedRole,
         gymId: extractedGymId,
         level: extractedLevel,
+        roleId: extractedRoleId,
       };
 
       // Guardar en SecureStore (encriptado)
@@ -220,7 +223,27 @@ export class AuthService {
   static async getCurrentUser(): Promise<AutenticacionContext | null> {
     try {
       const stored = await SecureStore.getItemAsync(AUTH_STORAGE_KEY);
-      return stored ? JSON.parse(stored) : null;
+      if (!stored) return null;
+
+      const context: AutenticacionContext = JSON.parse(stored);
+
+      // Backfill roleId for sessions created before it was added to the JWT payload.
+      if (context.roleId == null) {
+        try {
+          const token = await SecureStore.getItemAsync(TOKEN_STORAGE_KEY);
+          if (token) {
+            const base64Url = token.trim().split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jwtPayload = JSON.parse(atob(base64));
+            if (jwtPayload?.roleId != null) {
+              context.roleId = Number(jwtPayload.roleId);
+              await SecureStore.setItemAsync(AUTH_STORAGE_KEY, JSON.stringify(context));
+            }
+          }
+        } catch {}
+      }
+
+      return context;
     } catch (e) {
       console.warn('[AuthService] Error recuperando usuario:', e);
       return null;

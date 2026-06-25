@@ -7,6 +7,7 @@ import { Env } from '../geolocation/config/environment';
 import { AuthService } from '../auth/AuthService';
 import { authEvents } from '../auth/authEvents';
 import { useAuth } from '../../Shared/hooks/useAuth';
+import { useSocket } from './SocketContext';
 
 const getLevel = (user: any): number => user?.level ?? 0;
 
@@ -73,6 +74,7 @@ function invalidateManagerQueries(
 export function useGymEventsSocket(): void {
   const { user, isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
+  const { setSocket } = useSocket();
   const socketRef = useRef<Socket | null>(null);
 
   const level = getLevel(user);
@@ -100,6 +102,7 @@ export function useGymEventsSocket(): void {
       });
 
       socketRef.current = socket;
+      setSocket(socket);
 
       socket.on('connect', () => {
         const trimmedToken = token.trim();
@@ -150,6 +153,13 @@ export function useGymEventsSocket(): void {
         }
       });
 
+      socket.on('chat_message', () => {
+        // Actualiza la bandeja de entrada cuando llega un mensaje en cualquier conv.
+        // La pantalla ChatScreen escucha este mismo evento directamente via useSocket()
+        // para actualizar su estado local sin necesidad de re-fetch HTTP.
+        queryClient.invalidateQueries({ queryKey: ['inbox'] });
+      });
+
       const advisoryEvents = ['advisory_request', 'advisory_accepted', 'advisory_rejected', 'advisory_cancelled'];
       for (const evt of advisoryEvents) {
         socket.on(evt, async (payload: any) => {
@@ -186,6 +196,7 @@ export function useGymEventsSocket(): void {
       offLogout();
       socketRef.current?.disconnect();
       socketRef.current = null;
+      setSocket(null);
     };
-  }, [shouldConnect, queryClient]);
+  }, [shouldConnect, queryClient, setSocket]);
 }

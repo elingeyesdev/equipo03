@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { staffApi, ClientProfile } from '../../../app/Providers/staff/api/staff.api';
+import { DB_ROLES } from '../../../app/constants/db-roles';
 
 type RouteParams = { clientId: number; clientName: string };
 
@@ -56,7 +57,15 @@ export const PerfilAlumnoScreen = () => {
   const navigation  = useNavigation<any>();
   const route       = useRoute<RouteProp<Record<string, RouteParams>, string>>();
   const { clientId, clientName } = route.params;
-  const isNutritionist = ((user as any)?.level ?? 0) === 3;
+  const myRoleId = (user as any)?.roleId as number | undefined;
+  const myLevel  = (user as any)?.level ?? 0;
+  // Both action buttons are available for any trainer/nutritionist (level 3).
+  // roleId check covers new sessions; level fallback covers old cached sessions.
+  const isStaff3 = myLevel === 3
+    || myRoleId === DB_ROLES.ENTRENADOR
+    || myRoleId === DB_ROLES.NUTRICIONISTA;
+  const showRutinaBtn = isStaff3;
+  const showPlanBtn   = isStaff3;
 
   const { data: profile, isLoading, isError, refetch } = useQuery<ClientProfile>({
     queryKey: ['client-profile', clientId],
@@ -194,9 +203,9 @@ export const PerfilAlumnoScreen = () => {
             )}
           </View>
 
-          {/* Acciones */}
+          {/* Acciones — diferenciadas por roleId para separar Entrenador (4) de Nutricionista (5) */}
           <View style={s.actionsRow}>
-            {!isNutritionist && (
+            {showRutinaBtn && (
               <TouchableOpacity
                 style={s.actionBtn}
                 activeOpacity={0.8}
@@ -211,18 +220,20 @@ export const PerfilAlumnoScreen = () => {
               </TouchableOpacity>
             )}
 
-            <TouchableOpacity
-              style={[s.actionBtn, s.planBtn]}
-              activeOpacity={0.8}
-              onPress={() => {
-                try {
-                  navigation.navigate('TrainerPlan', { clientId, clientName });
-                } catch {}
-              }}
-            >
-              <MaterialCommunityIcons name="food-apple-outline" size={18} color="#fff" />
-              <Text style={s.actionTxt}>Plan Nutricional</Text>
-            </TouchableOpacity>
+            {showPlanBtn && (
+              <TouchableOpacity
+                style={[s.actionBtn, s.planBtn]}
+                activeOpacity={0.8}
+                onPress={() => {
+                  try {
+                    navigation.navigate('TrainerPlan', { clientId, clientName });
+                  } catch {}
+                }}
+              >
+                <MaterialCommunityIcons name="food-apple-outline" size={18} color="#fff" />
+                <Text style={s.actionTxt}>Plan Nutricional</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </ScrollView>
       )}
