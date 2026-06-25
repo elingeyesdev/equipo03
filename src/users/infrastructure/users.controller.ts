@@ -123,6 +123,16 @@ export class UsersController {
     return this.usersService.searchClientUsers(search, 30);
   }
 
+  // GET /api/users/:id/chat-profile  →  perfil público para la vista de contacto del chat
+  // Definido antes de GET :id para que NestJS no confunda el segmento literal 'chat-profile'
+  @Get(':id/chat-profile')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Perfil público de un usuario para la vista de contacto del chat' })
+  @ApiParam({ name: 'id', example: 1 })
+  getChatProfile(@Param('id', ParseIntPipe) id: number) {
+    return this.usersService.getChatProfile(id);
+  }
+
   @Get(':id')
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Obtener usuario por ID' })

@@ -850,6 +850,30 @@ export class UsersService {
     return { success: true };
   }
 
+  async getChatProfile(targetUserId: number) {
+    const userRole = await this.userRolesRepo.findOne({
+      where: { user: { id: targetUserId } },
+      relations: ['user', 'user.profile', 'role', 'gym', 'gym.parent'],
+      order: { role: { hierarchyLevel: 'DESC' } } as any,
+    });
+
+    if (!userRole) throw new NotFoundException('Perfil no encontrado.');
+
+    const level    = Number(userRole.role?.hierarchyLevel ?? 0);
+    const isClient = level <= 1;
+
+    return {
+      id:         userRole.user.id,
+      firstName:  userRole.user.profile?.firstName  ?? '',
+      lastName:   userRole.user.profile?.lastName   ?? '',
+      gender:     (userRole.user.profile as any)?.gender ?? 'No especificado',
+      roleName:   userRole.role?.name ?? '',
+      level,
+      brandName:  !isClient && userRole.gym?.parent ? userRole.gym.parent.name : null,
+      branchName: !isClient && userRole.gym         ? userRole.gym.name        : null,
+    };
+  }
+
   toPublicDto(
     user: User,
     roleOverride?: string | null,
