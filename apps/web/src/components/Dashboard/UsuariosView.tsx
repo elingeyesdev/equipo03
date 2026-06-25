@@ -422,8 +422,8 @@ const UserModal = ({ isOpen, onClose, userToEdit, onSave, roleOptions, gerenteBr
   const [selectedMarcaId, setSelectedMarcaId] = useState<number | ''>(gerenteBrandId || '');
 
   // ── Derivados: marcas (parentId === null) y sucursales físicas (parentId !== null) ─
-  const sedes      = gyms.filter(g => g.parentId === null);
-  const sucursales = gyms.filter(g => g.parentId !== null && g.parentId !== undefined);
+  const sedes      = Array.from(new Map(gyms.filter(g => g.parentId === null).map(g => [g.id, g])).values());
+  const sucursales = Array.from(new Map(gyms.filter(g => g.parentId !== null && g.parentId !== undefined).map(g => [g.id, g])).values());
   // Sucursales que pertenecen a la marca seleccionada
   const sucursalesParaSede = selectedMarcaId !== ''
     ? sucursales.filter(s => (s.parentId ?? s.parent?.id) === selectedMarcaId)
@@ -528,6 +528,20 @@ setTouched(false);
     if (!isOpen || !sedeIdDelGerente) return;
     setSelectedMarcaId(sedeIdDelGerente);
   }, [isOpen, formData.roleId, sedeIdDelGerente]);
+
+  // ── Auto-selección: si el backend RBAC devuelve solo 1 marca, seleccionarla ──
+  // Depende de `gyms` (estado React, referencia estable) y NO de `sedes` (nueva
+  // referencia en cada render por Array.from → causaría bucle infinito).
+  useEffect(() => {
+    if (!isOpen || sedeIdDelGerente) return;
+    const uniqueSedes = Array.from(
+      new Map(gyms.filter(g => g.parentId === null).map(g => [g.id, g])).values(),
+    );
+    if (uniqueSedes.length !== 1) return;
+    const soloId = uniqueSedes[0].id;
+    setSelectedMarcaId(soloId);
+    setFormData(p => (p.gymIds.length === 1 && p.gymIds[0] === soloId ? p : { ...p, gymIds: [soloId] }));
+  }, [isOpen, gyms, sedeIdDelGerente]);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -1129,9 +1143,9 @@ export const UsuariosView = () => {
   }, [gymsCatalog]);
 
 
-  // Gyms para el selector de filtro (catálogo completo, no la página actual)
+  // Gyms para el selector de filtro (catálogo completo, sin duplicados)
   const gymOptions = useMemo(() => {
-    return gymsCatalog
+    return Array.from(new Map(gymsCatalog.map(g => [g.id, g])).values())
       .map(g => ({ id: g.id, name: g.name }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [gymsCatalog]);
@@ -1274,7 +1288,7 @@ export const UsuariosView = () => {
               <select value={filterGym} onChange={e => setFilterGym(e.target.value)}
                 className="bg-white dark:bg-bg-surface text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-md py-2 pl-3 pr-8 text-sm cursor-pointer appearance-none focus:outline-none" style={{ maxWidth: '180px' }}>
                 <option value="">Todas las marcas</option>
-                {gymOptions.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                {gymOptions.map(g => <option key={`gym-${g.id}`} value={g.id}>{g.name}</option>)}
               </select>
               <span style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#8E8E93', fontSize: '0.7rem' }}>▼</span>
             </div>
@@ -1373,7 +1387,7 @@ export const UsuariosView = () => {
                 const showSedes = (targetLevel ?? 0) >= 2 && (targetLevel ?? 0) < 10 && gymNames.length > 0;
 
                 return (
-                  <tr key={u.id} className="border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-bg-deep transition-colors text-slate-700 dark:text-gray-300 text-sm">
+                  <tr key={`user-${u.id}`} className="border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-bg-deep transition-colors text-slate-700 dark:text-gray-300 text-sm">
                     <td style={{ padding: '0.6rem' }}>{u.id}</td>
                     <td style={{ padding: '0.6rem' }}>{fullName}</td>
                     <td style={{ padding: '0.6rem' }}>{u.email ?? '-'}</td>
@@ -1472,8 +1486,8 @@ export const UsuariosView = () => {
                           </button>
                         )}
 
-                        {/* Eliminar */}
-                        {(user?.level ?? 0) >= 10 && (
+                        {/* Eliminar: visible para cualquier admin que pueda gestionar a este usuario, nunca para sí mismo */}
+                        {!isSelf && (targetLevel < myLevel || myLevel >= 10) && (
                           <button
                             onClick={() => setDeleteConfirmUser(u)}
                             title="Eliminar usuario"
@@ -1518,6 +1532,8 @@ export const UsuariosView = () => {
         gerenteBrandId={(() => {
           const level = user?.level ?? 0;
           if (level >= 10) return undefined;
+          // Gerente (5): su gymId en el JWT es directamente el ID de la Marca que administra
+          if (level === 5) return user?.gymId ? Number(user.gymId) : undefined;
           if (user?.brandId) return Number(user.brandId);
           if (user?.gymId && gymsCatalog.length) {
             const s = gymsCatalog.find(g => Number(g.id) === Number(user.gymId));

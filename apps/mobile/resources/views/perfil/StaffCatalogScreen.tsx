@@ -13,6 +13,7 @@ import {
   StaffCatalogEntry,
   AdvisorRequestStatus,
 } from '../../../app/Providers/staff/api/staff.api';
+import { messagesApi } from '../../../app/Providers/messages/messages.api';
 import { ClientePerfilParamList } from '../../../routes/PerfilStack';
 
 type Nav = NativeStackNavigationProp<ClientePerfilParamList, 'StaffCatalog'>;
@@ -134,9 +135,11 @@ const StaffCard = ({
 const RequestCard = ({
   item,
   onCancel,
+  onMessage,
 }: {
-  item: AdvisorRequestStatus;
-  onCancel: (id: number) => void;
+  item:      AdvisorRequestStatus;
+  onCancel:  (id: number) => void;
+  onMessage: (advisorId: number, advisorName: string) => void;
 }) => {
   const meta = STATUS_META[item.status] ?? { label: item.status, color: '#888', icon: 'help-circle-outline' };
 
@@ -170,6 +173,18 @@ const RequestCard = ({
       <View style={s.reqFooter}>
         <MaterialCommunityIcons name="calendar-outline" size={12} color="#444" />
         <Text style={s.reqDate}>Enviada el {fmtDate(item.createdAt)}</Text>
+
+        {item.status === 'ACTIVE' && (
+          <TouchableOpacity
+            style={s.msgBtn}
+            activeOpacity={0.8}
+            onPress={() => onMessage(item.advisorId, item.advisorName)}
+          >
+            <MaterialCommunityIcons name="message-text-outline" size={12} color="#38BDF8" />
+            <Text style={s.msgBtnTxt}>Mensaje</Text>
+          </TouchableOpacity>
+        )}
+
         {(item.status === 'ACTIVE' || item.status === 'PENDING') && (
           <TouchableOpacity
             style={s.cancelBtn}
@@ -267,6 +282,18 @@ export const StaffCatalogScreen = () => {
         { text: 'OK' },
       ],
     );
+  };
+
+  const handleMessage = async (advisorId: number, advisorName: string) => {
+    try {
+      const conv = await messagesApi.startConversation(advisorId);
+      (navigation as any).navigate('Chat', { conversationId: conv.id, otherUserName: advisorName });
+    } catch (err: unknown) {
+      const msg = (err as any)?.response?.data?.message
+        ?? (err instanceof Error ? err.message : null)
+        ?? 'No se pudo iniciar la conversación.';
+      Alert.alert('Error', msg);
+    }
   };
 
   const handleCancel = (id: number) => {
@@ -468,7 +495,7 @@ export const StaffCatalogScreen = () => {
               </View>
 
               {myRequests.map(item => (
-                <RequestCard key={item.id} item={item} onCancel={handleCancel} />
+                <RequestCard key={item.id} item={item} onCancel={handleCancel} onMessage={handleMessage} />
               ))}
             </ScrollView>
           )}
@@ -533,6 +560,8 @@ const s = StyleSheet.create({
   reqDate:       { color: '#444', fontSize: 11, flex: 1 },
   cancelBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#1C1C1E', borderRadius: 8, borderWidth: 1, borderColor: '#EF444466', paddingVertical: 5, paddingHorizontal: 10 },
   cancelBtnTxt:  { color: '#EF4444', fontSize: 11, fontWeight: '700' },
+  msgBtn:        { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#0a1929', borderRadius: 8, borderWidth: 1, borderColor: '#38BDF866', paddingVertical: 5, paddingHorizontal: 10 },
+  msgBtnTxt:     { color: '#38BDF8', fontSize: 11, fontWeight: '700' },
 
   // Resumen chips
   summaryRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
