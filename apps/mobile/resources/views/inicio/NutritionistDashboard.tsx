@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
-import {
-  View, Text, StyleSheet, ScrollView, Alert,
-  TouchableOpacity, ActivityIndicator, RefreshControl,
-} from 'react-native';
+import {View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, RefreshControl} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 import {
   staffApi,
   PendingTrainerRequest,
@@ -202,7 +200,7 @@ export const NutritionistDashboard = () => {
                   <Text style={s.requestSub}>{fmtDate(req.createdAt)}</Text>
                 </View>
                 {isProcessing ? (
-                  <ActivityIndicator size="small" color="#06d6a0" style={{ marginLeft: 8 }} />
+                  <DumbbellSpinner size="small" color="#06d6a0" style={{ marginLeft: 8 }} />
                 ) : (
                   <View style={s.requestActions}>
                     <TouchableOpacity
@@ -249,7 +247,7 @@ export const NutritionistDashboard = () => {
                   </Text>
                 </View>
                 {isCancelling ? (
-                  <ActivityIndicator size="small" color="#EF4444" style={{ marginLeft: 8 }} />
+                  <DumbbellSpinner size="small" color="#EF4444" style={{ marginLeft: 8 }} />
                 ) : (
                   <View style={s.patientActions}>
                     <TouchableOpacity

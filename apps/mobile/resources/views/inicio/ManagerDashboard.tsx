@@ -1,14 +1,5 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Dimensions,
-  RefreshControl,
-  ActivityIndicator,
-} from 'react-native';
+import {View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, RefreshControl} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -16,6 +7,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { gymApi, DashboardStats } from '../../../app/Providers/gyms/api/gym.api';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 const { width } = Dimensions.get('window');
 
@@ -90,7 +82,7 @@ export const ManagerDashboard = () => {
           </View>
 
           {isLoading ? (
-            <ActivityIndicator color="#f05b22" style={{ marginVertical: 20 }} />
+            <DumbbellSpinner color="#f05b22" style={{ marginVertical: 20 }} />
           ) : (
             <>
               <Text style={s.aforoNum}>
@@ -171,7 +163,7 @@ export const ManagerDashboard = () => {
           <View style={s.statCard}>
             <MaterialCommunityIcons name="calendar-today" size={22} color="#f05b22" />
             {isLoading
-              ? <ActivityIndicator size="small" color="#f05b22" />
+              ? <DumbbellSpinner size="small" color="#f05b22" />
               : <Text style={s.statNum}>{stats.totalToday}</Text>
             }
             <Text style={s.statLabel}>Reservas hoy</Text>
@@ -179,7 +171,7 @@ export const ManagerDashboard = () => {
           <View style={s.statCard}>
             <MaterialCommunityIcons name="account-check-outline" size={22} color="#22C55E" />
             {isLoading
-              ? <ActivityIndicator size="small" color="#22C55E" />
+              ? <DumbbellSpinner size="small" color="#22C55E" />
               : <Text style={s.statNum}>{stats.completed}</Text>
             }
             <Text style={s.statLabel}>Ingresos</Text>
@@ -187,7 +179,7 @@ export const ManagerDashboard = () => {
           <View style={s.statCard}>
             <MaterialCommunityIcons name="clock-alert-outline" size={22} color="#F97316" />
             {isLoading
-              ? <ActivityIndicator size="small" color="#F97316" />
+              ? <DumbbellSpinner size="small" color="#F97316" />
               : <Text style={s.statNum}>{stats.pending}</Text>
             }
             <Text style={s.statLabel}>Pendientes</Text>

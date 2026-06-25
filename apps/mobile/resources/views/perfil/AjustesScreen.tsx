@@ -1,13 +1,5 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  Platform,
-  ActivityIndicator,
-} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity, Alert, Platform} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -15,6 +7,7 @@ import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { userApi } from '../../../app/Providers/users/api/user.api';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 export const AjustesScreen = () => {
   const navigation = useNavigation();
@@ -107,7 +100,7 @@ export const AjustesScreen = () => {
             activeOpacity={0.7}
           >
             {pushLoading
-              ? <ActivityIndicator size={24} color="#f05b22" style={styles.icon} />
+              ? <DumbbellSpinner size={24} color="#f05b22" style={styles.icon} />
               : <MaterialCommunityIcons name="bell-badge-outline" size={24} color="#f05b22" style={styles.icon} />
             }
             <Text style={styles.menuText}>

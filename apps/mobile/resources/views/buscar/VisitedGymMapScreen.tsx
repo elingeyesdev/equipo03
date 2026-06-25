@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import {View, Text, TouchableOpacity, StyleSheet} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { OSMConfig } from '../../../app/Providers/geolocation/config/osm.config';
 import authAxios from '../../../app/Providers/auth/authAxios';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 import {
   LeafletMapView,
   LeafletMapHandle,
@@ -85,7 +86,7 @@ export const VisitedGymMapScreen: React.FC = () => {
 
       {loading && (
         <View style={s.overlay}>
-          <ActivityIndicator size="large" color="#f05b22" />
+          <DumbbellSpinner size="large" color="#f05b22" />
           <Text style={s.overlayTxt}>Cargando ubicación…</Text>
         </View>
       )}

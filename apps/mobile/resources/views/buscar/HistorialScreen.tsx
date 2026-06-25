@@ -1,19 +1,12 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  ActivityIndicator,
-  TouchableOpacity,
-  ScrollView,
-} from 'react-native';
+import {View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { visitsApi, VisitRecord } from '../../../app/Providers/geolocation/services/visits.api';
 import { VisitStorageService, GymVisitRecord } from '../../../app/Providers/geolocation/services/VisitStorageService';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 const ICON_COLORS = ['#1a1a2e', '#162447', '#1b1b2f', '#0f3460', '#533483', '#0d1b2a', '#1c2541'];
 const ICONS      = ['dumbbell', 'weight-lifter', 'lightning-bolt', 'arm-flex', 'trophy', 'run-fast', 'bike'];
@@ -146,7 +139,7 @@ export const HistorialScreen = () => {
       <SafeAreaView style={s.root} edges={['top']}>
         {header}
         <View style={s.center}>
-          <ActivityIndicator size="large" color="#f05b22" />
+          <DumbbellSpinner size="large" color="#f05b22" />
         </View>
       </SafeAreaView>
     );

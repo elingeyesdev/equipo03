@@ -1,18 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  Animated,
-  Modal,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
+import {View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Animated, Modal, TextInput, KeyboardAvoidingView, Platform} from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
@@ -21,6 +8,7 @@ import { useGymActivitiesQuery, GymActivityUI } from '../hooks/useGymActivitiesQ
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { reservationApi } from '../api/reservation.api';
 import { ERROR_MAP } from '../api/reservation.types';
+import { DumbbellSpinner } from '../../../Shared/components/ui/DumbbellSpinner';
 
 type RootStackParamList = {
   ScheduleSelection: { gymId: number; gymName: string };
@@ -411,7 +399,7 @@ export const ScheduleSelectionScreen = ({ route, navigation }: Props) => {
 
   if (isLoading) return (
     <View style={s.center}>
-      <ActivityIndicator size="large" color={Colors.primary} />
+      <DumbbellSpinner size="large" color={Colors.primary} />
       <Text style={s.soft}>Cargando actividades...</Text>
     </View>
   );
@@ -627,7 +615,7 @@ export const ScheduleSelectionScreen = ({ route, navigation }: Props) => {
           activeOpacity={0.85}
         >
           {isPending
-            ? <ActivityIndicator color="#fff" />
+            ? <DumbbellSpinner color="#fff" />
             : <Text style={s.confirmTxt}>Confirmar Reserva</Text>
           }
         </TouchableOpacity>

@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
-import {
-  View, Text, FlatList, StyleSheet, ActivityIndicator,
-  TouchableOpacity, Dimensions,
-} from 'react-native';
+import {View, Text, FlatList, StyleSheet, TouchableOpacity, Dimensions} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LineChart } from 'react-native-chart-kit';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import authAxios from '../../../app/Providers/auth/authAxios';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 type MetricEntry = {
   id: string;
@@ -70,7 +68,7 @@ export const HistorialMetricasScreen = () => {
 
   if (loading) return (
     <SafeAreaView style={[s.container, s.center]}>
-      <ActivityIndicator size="large" color="#f05b22" />
+      <DumbbellSpinner size="large" color="#f05b22" />
     </SafeAreaView>
   );
 
@@ -182,7 +180,7 @@ export const HistorialMetricasScreen = () => {
         }}
         onEndReachedThreshold={0.5}
         ListFooterComponent={
-          isFetchingNextPage ? <ActivityIndicator size="small" color="#FF6B00" style={{ marginVertical: 15 }} /> : null
+          isFetchingNextPage ? <DumbbellSpinner size="small" color="#FF6B00" style={{ marginVertical: 15 }} /> : null
         }
       />
     </SafeAreaView>

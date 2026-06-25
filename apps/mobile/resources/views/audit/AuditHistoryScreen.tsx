@@ -1,16 +1,9 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  ActivityIndicator,
-  RefreshControl,
-  TouchableOpacity,
-} from 'react-native';
+import {View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuditHistory, AuditRecord } from '../../../app/Providers/access/api/useAuditHistory';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 export const AuditHistoryScreen = ({ navigation }: any) => {
   const { history, isLoading, error, refetch } = useAuditHistory();

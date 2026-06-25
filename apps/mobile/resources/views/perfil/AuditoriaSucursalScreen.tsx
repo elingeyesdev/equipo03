@@ -1,17 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-  RefreshControl,
-  Alert,
-  Modal,
-  ScrollView,
-  Pressable,
-} from 'react-native';
+import {View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert, Modal, ScrollView, Pressable} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -19,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, addDays } from 'date-fns';
 import { reservationApi } from '../../../app/Providers/reservations/api/reservation.api';
 import { useAuth } from '../../../app/Providers/auth/AuthContext';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 const QUERY_BASE = 'gym-audit-reservations';
@@ -300,7 +289,7 @@ export const AuditoriaSucursalScreen = () => {
   if (isLoading) return (
     <SafeAreaView style={s.safe}>
       <View style={s.center}>
-        <ActivityIndicator size="large" color="#f05b22" />
+        <DumbbellSpinner size="large" color="#f05b22" />
         <Text style={s.soft}>Cargando reservas…</Text>
       </View>
     </SafeAreaView>
@@ -500,7 +489,7 @@ export const AuditoriaSucursalScreen = () => {
                     activeOpacity={0.8}
                   >
                     {confirmMutation.isPending && confirmMutation.variables === item.id
-                      ? <ActivityIndicator size="small" color="#fff" />
+                      ? <DumbbellSpinner size="small" color="#fff" />
                       : <>
                           <MaterialCommunityIcons name="check-circle-outline" size={14} color="#fff" />
                           <Text style={s.actionTxt}>Confirmar</Text>
@@ -514,7 +503,7 @@ export const AuditoriaSucursalScreen = () => {
                     activeOpacity={0.8}
                   >
                     {cancelMutation.isPending && cancelMutation.variables === item.id
-                      ? <ActivityIndicator size="small" color="#fff" />
+                      ? <DumbbellSpinner size="small" color="#fff" />
                       : <>
                           <MaterialCommunityIcons name="close-circle-outline" size={14} color="#fff" />
                           <Text style={s.actionTxt}>Rechazar</Text>

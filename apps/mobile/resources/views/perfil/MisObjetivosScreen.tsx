@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react';
-import {
-  View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, ActivityIndicator, Alert,
-} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { NumericInput } from '../../../app/Shared/components/ui/NumericInput';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 type GoalType = 'perdida' | 'muscular' | 'mantenimiento';
 
@@ -321,7 +319,7 @@ export const MisObjetivosScreen = () => {
 
   if (loading) return (
     <SafeAreaView style={[s.container, s.center]}>
-      <ActivityIndicator size="large" color="#f05b22" />
+      <DumbbellSpinner size="large" color="#f05b22" />
     </SafeAreaView>
   );
 
@@ -473,7 +471,7 @@ export const MisObjetivosScreen = () => {
             activeOpacity={0.85}
           >
             {saving
-              ? <ActivityIndicator color="#fff" size="small" />
+              ? <DumbbellSpinner color="#fff" size="small" />
               : <Text style={s.saveBtnText}>Guardar Objetivo</Text>
             }
           </TouchableOpacity>

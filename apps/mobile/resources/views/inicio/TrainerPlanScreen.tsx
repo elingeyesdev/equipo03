@@ -1,14 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View, Text, StyleSheet, ScrollView, TextInput,
-  TouchableOpacity, ActivityIndicator, Alert,
-  KeyboardAvoidingView, Platform,
-} from 'react-native';
+import {View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { staffApi, TrainerPlanData, MealPlan, MealDay } from '../../../app/Providers/staff/api/staff.api';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 type RouteParams = { clientId: number; clientName: string };
 
@@ -255,7 +252,7 @@ export const TrainerPlanScreen = () => {
 
         {isLoading ? (
           <View style={s.center}>
-            <ActivityIndicator size="large" color="#f05b22" />
+            <DumbbellSpinner size="large" color="#f05b22" />
           </View>
         ) : (
           <ScrollView
@@ -331,7 +328,7 @@ export const TrainerPlanScreen = () => {
               disabled={saving}
             >
               {saving
-                ? <ActivityIndicator size="small" color="#fff" />
+                ? <DumbbellSpinner size="small" color="#fff" />
                 : <>
                     <MaterialCommunityIcons name="content-save-outline" size={18} color="#fff" />
                     <Text style={s.saveTxt}>Guardar Plan</Text>

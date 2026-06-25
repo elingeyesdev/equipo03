@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import {
-  View, Text, StyleSheet, ScrollView, TextInput,
-  TouchableOpacity, Alert, ActivityIndicator, Image
-} from 'react-native';
+import {View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, Image} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -11,6 +8,7 @@ import { Audio } from 'expo-av';
 import { ClientRoutine, ClientRoutineExercise } from '../../../app/Providers/staff/api/staff.api';
 import { trainingApi } from '../../../app/Providers/training/api/training.api';
 import { ExerciseDetailModal } from '../../components/ExerciseDetailModal';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -339,7 +337,7 @@ export const EjecutarRutinaScreen = () => {
     return (
       <SafeAreaView style={s.safe}>
         <View style={s.center}>
-          <ActivityIndicator size="large" color="#f05b22" />
+          <DumbbellSpinner size="large" color="#f05b22" />
           <Text style={s.infoTxt}>Detectando ubicación...</Text>
         </View>
       </SafeAreaView>
@@ -350,7 +348,7 @@ export const EjecutarRutinaScreen = () => {
     return (
       <SafeAreaView style={s.safe}>
         <View style={s.center}>
-          <ActivityIndicator size="large" color="#f05b22" />
+          <DumbbellSpinner size="large" color="#f05b22" />
           <Text style={s.infoTxt}>Guardando sesión...</Text>
         </View>
       </SafeAreaView>

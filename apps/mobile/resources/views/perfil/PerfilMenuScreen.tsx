@@ -1,8 +1,5 @@
-import React, { useState } from 'react';
-import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Modal, Pressable, ActivityIndicator, Alert,
-} from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Pressable, Alert, Image} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -31,18 +28,15 @@ const formatRoleName = (role?: string) => {
 };
 
 const AVATARS = [
-  { id: '1',  icon: 'face-man-profile'  },
-  { id: '2',  icon: 'face-woman-profile' },
-  { id: '3',  icon: 'robot-outline'      },
-  { id: '4',  icon: 'incognito'          },
-  { id: '5',  icon: 'alien-outline'      },
-  { id: '6',  icon: 'cat'               },
-  { id: '7',  icon: 'fire'              },
-  { id: '8',  icon: 'crown'             },
-  { id: '9',  icon: 'star'              },
-  { id: '10', icon: 'lightning-bolt'    },
-  { id: '11', icon: 'skull-outline'     },
-  { id: '12', icon: 'heart'             },
+  { id: '1', icon: 'face-man-profile',   image: require('../../../assets/avatarman.png')        },
+  { id: '2', icon: 'face-woman-profile',  image: require('../../../assets/avatarwoman.png')     },
+  { id: '3', icon: 'robot-outline',       image: require('../../../assets/avatarrobot.png')     },
+  { id: '4', icon: 'incognito',           image: require('../../../assets/avatarincognito.png') },
+  { id: '5', icon: 'alien-outline',       image: require('../../../assets/avataralien.png')     },
+  { id: '6', icon: 'cat',                image: require('../../../assets/avatarcat.png')        },
+  { id: '7', icon: 'fire',               image: require('../../../assets/avatarfire.png')       },
+  { id: '8', icon: 'crown',              image: require('../../../assets/avatarcrown.png')      },
+  { id: '9', icon: 'star',               image: require('../../../assets/avatarstar.png')       },
 ];
 
 export const PerfilMenuScreen = () => {
@@ -56,23 +50,24 @@ export const PerfilMenuScreen = () => {
   const p           = (user as any)?.profile;
   const displayName = p?.username || (user as any)?.email?.split('@')[0] || 'Sin usuario';
 
-  const [localAvatar,       setLocalAvatar]       = useState<string>(p?.avatarUrl || p?.avatarIcon || 'face-man-profile');
-  const [pickerVisible,     setPickerVisible]     = useState(false);
-  const [savingAvatar,      setSavingAvatar]      = useState(false);
+  const [localAvatar,   setLocalAvatar]   = useState<string>(p?.avatarUrl || p?.avatarIcon || 'face-man-profile');
+  const [pickerVisible, setPickerVisible] = useState(false);
+
+  useEffect(() => {
+    const synced = p?.avatarUrl || p?.avatarIcon || 'face-man-profile';
+    setLocalAvatar(synced);
+  }, [p?.avatarUrl, p?.avatarIcon]);
 
   const handleAvatarSelect = async (icon: string) => {
     const prev = localAvatar;
     setLocalAvatar(icon);
-    setSavingAvatar(true);
+    setPickerVisible(false);
     try {
       await authAxios.patch('/api/users/me/profile', { avatarUrl: icon });
       updateProfile({ avatarUrl: icon });
-      setPickerVisible(false);
     } catch {
       setLocalAvatar(prev);
       Alert.alert('Error', 'No se pudo guardar el avatar.');
-    } finally {
-      setSavingAvatar(false);
     }
   };
 
@@ -111,7 +106,10 @@ export const PerfilMenuScreen = () => {
             onPress={() => setPickerVisible(true)}
             activeOpacity={0.8}
           >
-            <MaterialCommunityIcons name={localAvatar as any} size={60} color="#f05b22" />
+            <Image
+              source={AVATARS.find(av => av.icon === localAvatar)?.image ?? AVATARS[0].image}
+              style={{ width: 60, height: 60, resizeMode: 'contain' }}
+            />
             <View style={styles.avatarEditBadge}>
               <MaterialCommunityIcons name="pencil" size={12} color="#fff" />
             </View>
@@ -174,46 +172,45 @@ export const PerfilMenuScreen = () => {
 
       </ScrollView>
 
+      {/* Pre-carga PNG avatares para evitar flash al abrir el modal */}
+      <View style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}>
+        {AVATARS.map(av => (
+          <Image key={av.id} source={av.image} style={{ width: 1, height: 1 }} />
+        ))}
+      </View>
+
       {/* ── Modal picker de avatares ── */}
       <Modal
         visible={pickerVisible}
         transparent
         animationType="slide"
-        onRequestClose={() => !savingAvatar && setPickerVisible(false)}
+        onRequestClose={() => setPickerVisible(false)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => !savingAvatar && setPickerVisible(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setPickerVisible(false)}>
           <Pressable style={styles.modalSheet} onPress={() => {}}>
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>Elige tu Avatar</Text>
 
-            {savingAvatar ? (
-              <View style={styles.modalLoading}>
-                <ActivityIndicator size="large" color="#f05b22" />
-                <Text style={styles.modalLoadingText}>Guardando...</Text>
-              </View>
-            ) : (
-              <View style={styles.avatarGrid}>
-                {AVATARS.map((av) => (
-                  <TouchableOpacity
-                    key={av.id}
-                    style={[styles.avatarOption, localAvatar === av.icon && styles.avatarOptionSelected]}
-                    onPress={() => handleAvatarSelect(av.icon)}
-                    activeOpacity={0.7}
-                  >
-                    <MaterialCommunityIcons
-                      name={av.icon as any}
-                      size={42}
-                      color={localAvatar === av.icon ? '#f05b22' : '#999'}
-                    />
-                    {localAvatar === av.icon && (
-                      <View style={styles.avatarCheckBadge}>
-                        <MaterialCommunityIcons name="check-circle" size={16} color="#f05b22" />
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
+            <View style={styles.avatarGrid}>
+              {AVATARS.map((av) => (
+                <TouchableOpacity
+                  key={av.id}
+                  style={[styles.avatarOption, localAvatar === av.icon && styles.avatarOptionSelected]}
+                  onPress={() => handleAvatarSelect(av.icon)}
+                  activeOpacity={0.7}
+                >
+                  <Image
+                    source={av.image}
+                    style={{ width: 42, height: 42, resizeMode: 'contain', opacity: localAvatar === av.icon ? 1 : 0.5 }}
+                  />
+                  {localAvatar === av.icon && (
+                    <View style={styles.avatarCheckBadge}>
+                      <MaterialCommunityIcons name="check-circle" size={16} color="#f05b22" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
           </Pressable>
         </Pressable>
       </Modal>
