@@ -1082,6 +1082,24 @@ export class ReservationsService {
 
       await queryRunner.commitTransaction();
 
+      // Fire-and-forget: confirmar ingreso al cliente (user no cargado en esta ruta)
+      this.usersRepo
+        .findOne({ where: { id: reservation.userId }, select: ['id', 'pushToken'] })
+        .then((owner) => {
+          if (!owner?.pushToken) return;
+          const actName =
+            reservation.activity?.name ??
+            reservation.gymActivitySchedule?.gymActivity?.name ??
+            'tu clase';
+          return this.pushService.sendPushMessage(
+            owner.pushToken,
+            'Ingreso registrado',
+            `Tu ingreso a ${actName} fue registrado. Disfruta tu entrenamiento.`,
+            { type: 'CHECKIN_CONFIRMED', reservationId: savedReservation.id },
+          );
+        })
+        .catch((e) => this.logger.error('[push] Error en push de check-in:', e));
+
       this.logger.debug(
         `Check-in QR: reserva=${reservationId} user=${reservation.userId} gym=${gymIdForCheckIn} by=${userId}`,
       );
@@ -1246,6 +1264,20 @@ export class ReservationsService {
       const savedCheckIn = await queryRunner.manager.save(CheckIn, checkIn);
 
       await queryRunner.commitTransaction();
+
+      // Fire-and-forget: confirmar ingreso al cliente (user cargado con la relación)
+      const pushToken = reservation.user?.pushToken;
+      if (pushToken) {
+        const actName = reservation.gymActivitySchedule?.gymActivity?.name ?? 'tu clase';
+        this.pushService
+          .sendPushMessage(
+            pushToken,
+            'Ingreso registrado',
+            `Tu ingreso a ${actName} fue registrado. Disfruta tu entrenamiento.`,
+            { type: 'CHECKIN_CONFIRMED', reservationId: savedReservation.id },
+          )
+          .catch((e) => this.logger.error('[push] Error en push de check-in QR:', e));
+      }
 
       this.logger.debug(
         `[QR-JWT] Check-in: reserva=${reservation.id} user=${reservation.userId} gym=${gymIdForCheckIn} by=${userId}`,
@@ -1415,6 +1447,22 @@ export class ReservationsService {
     r.status = 'CANCELLED';
     r.cancelledAt = new Date();
     const saved = await this.repo.save(r);
+
+    // Fire-and-forget: alertar al propietario de la reserva
+    this.usersRepo
+      .findOne({ where: { id: r.userId }, select: ['id', 'pushToken'] })
+      .then((owner) => {
+        if (!owner?.pushToken) return;
+        const actName = r.gymActivitySchedule?.gymActivity?.name ?? 'la actividad';
+        return this.pushService.sendPushMessage(
+          owner.pushToken,
+          'Reserva cancelada',
+          `Tu reserva para ${actName} ha sido cancelada.`,
+          { type: 'RESERVATION_CANCELLED', reservationId: saved.id },
+        );
+      })
+      .catch((e) => this.logger.error('[push] Error en cancelación:', e));
+
     // Reload full relations for mapped response
     return this.findOne(saved.id);
   }
@@ -1449,6 +1497,22 @@ export class ReservationsService {
 
     r.status = 'COMPLETADA';
     const saved = await this.repo.save(r);
+
+    // Fire-and-forget: notificar al cliente que su asistencia fue registrada
+    this.usersRepo
+      .findOne({ where: { id: r.userId }, select: ['id', 'pushToken'] })
+      .then((owner) => {
+        if (!owner?.pushToken) return;
+        const actName = r.gymActivitySchedule?.gymActivity?.name ?? 'la actividad';
+        return this.pushService.sendPushMessage(
+          owner.pushToken,
+          'Asistencia registrada',
+          `Tu asistencia a ${actName} fue registrada.`,
+          { type: 'RESERVATION_COMPLETED', reservationId: saved.id },
+        );
+      })
+      .catch((e) => this.logger.error('[push] Error en push de confirmación:', e));
+
     return this.findOne(saved.id);
   }
 }

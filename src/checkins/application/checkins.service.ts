@@ -14,7 +14,6 @@ import { UserRole } from '../../roles/domain/user-role.entity';
 import { Gym } from '../../gyms/domain/gym.entity';
 import { GymGateway } from '../../notifications/infrastructure/gym.gateway';
 import {
-  getManagerGymId,
   type RequestWithUser,
 } from '../../common/security/gym-scope';
 
@@ -33,28 +32,41 @@ export class CheckinsService {
     qb.andWhere("checkIn.status != 'COMPLETED'");
   }
 
-  private applyScopeFilter(qb: SelectQueryBuilder<CheckIn>): void {
+  private async applyScopeFilter(qb: SelectQueryBuilder<CheckIn>): Promise<void> {
     const user = this.request.user;
     const level = user?.level ?? 0;
 
     if (level >= 10) return;
 
-    const scopeId = getManagerGymId(this.request);
-
-    if (level >= 4 && scopeId !== null) {
-      if (user?.brandId) {
-        qb.andWhere(
-          '(checkIn.gym_id = :scopeId OR gym.parent_id = :scopeId)',
-          { scopeId },
-        );
-      } else {
-        qb.andWhere('checkIn.gym_id = :scopeId', { scopeId });
+    if (level < 4) {
+      if (user?.userId) {
+        qb.andWhere('checkIn.user_id = :userId', { userId: user.userId });
       }
       return;
     }
 
-    if (level < 4 && user?.userId) {
-      qb.andWhere('checkIn.user_id = :userId', { userId: user.userId });
+    // level 4 or 5 — resolve gymId from DB (JWT may be stale)
+    const callerRoles = await this.userRoleRepo.find({
+      where: { userId: Number(user!.userId) },
+      relations: ['role', 'gym'],
+    });
+    const topRole = callerRoles.sort(
+      (a, b) => (b.role?.hierarchyLevel ?? 0) - (a.role?.hierarchyLevel ?? 0),
+    )[0];
+    const callerLevel = Number(topRole?.role?.hierarchyLevel ?? level);
+    const callerGymId = Number(topRole?.gym?.id ?? topRole?.gymId ?? 0);
+
+    if (!callerGymId) {
+      throw new ForbiddenException('No tienes una sucursal o marca asignada.');
+    }
+
+    if (callerLevel === 5) {
+      qb.andWhere(
+        '(checkIn.gym_id = :callerGymId OR gym.parent_id = :callerGymId)',
+        { callerGymId },
+      );
+    } else {
+      qb.andWhere('checkIn.gym_id = :callerGymId', { callerGymId });
     }
   }
 
@@ -147,7 +159,7 @@ export class CheckinsService {
       .orderBy('checkIn.checkInTime', 'DESC');
 
     this.applyStaffOnlyFilter(qb);
-    this.applyScopeFilter(qb);
+    await this.applyScopeFilter(qb);
 
     const records = await qb.getMany();
 
@@ -171,7 +183,7 @@ export class CheckinsService {
       .leftJoinAndSelect('checkIn.gym', 'gym')
       .orderBy('checkIn.checkInTime', 'DESC');
     this.applyStaffOnlyFilter(qb);
-    this.applyScopeFilter(qb);
+    await this.applyScopeFilter(qb);
     const records = await qb.getMany();
     return records.map((c) => this.mapCheckIn(c));
   }
@@ -186,7 +198,7 @@ export class CheckinsService {
       .leftJoinAndSelect('checkIn.gym', 'gym')
       .where('checkIn.user_id = :userId', { userId })
       .orderBy('checkIn.checkInTime', 'DESC');
-    this.applyScopeFilter(qb);
+    await this.applyScopeFilter(qb);
     const records = await qb.getMany();
     return records.map((c) => this.mapCheckIn(c));
   }
@@ -202,7 +214,7 @@ export class CheckinsService {
       .where('checkIn.gym_id = :gymId', { gymId })
       .orderBy('checkIn.checkInTime', 'DESC');
     this.applyStaffOnlyFilter(qb);
-    this.applyScopeFilter(qb);
+    await this.applyScopeFilter(qb);
     const records = await qb.getMany();
     return records.map((c) => this.mapCheckIn(c));
   }
@@ -213,7 +225,7 @@ export class CheckinsService {
       .leftJoinAndSelect('checkIn.user', 'user')
       .leftJoinAndSelect('checkIn.gym', 'gym')
       .where('checkIn.id = :id', { id });
-    this.applyScopeFilter(qb);
+    await this.applyScopeFilter(qb);
     const c = await qb.getOne();
     if (!c) throw new NotFoundException(`Check-in ${id} no encontrado`);
     return c;

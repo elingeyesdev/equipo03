@@ -11,6 +11,7 @@ import { User } from '../users/domain/user.entity';
 import { CheckIn } from '../checkins/domain/check-in.entity';
 import { UserRole } from '../roles/domain/user-role.entity';
 import { ReservationsService } from './application/reservations.service';
+import { ReservationRemindersService } from './application/reservation-reminders.service';
 import { ReservationsController } from './infrastructure/reservations.controller';
 import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
 import { UsersModule } from '../users/users.module';
@@ -41,7 +42,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     }),
   ],
   controllers: [ReservationsController],
-  providers: [ReservationsService],
+  providers: [ReservationsService, ReservationRemindersService],
   exports: [ReservationsService],
 })
 export class ReservationsModule {}

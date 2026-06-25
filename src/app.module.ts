@@ -26,6 +26,7 @@ import { SystemModule } from './system/system.module';
 import { StaffModule } from './staff/staff.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { VisitsModule } from './visits/visits.module';
+import { MessagesModule } from './messages/messages.module';
 
 @Module({
   providers: [
@@ -86,6 +87,7 @@ import { VisitsModule } from './visits/visits.module';
     StaffModule,
     DashboardModule,
     VisitsModule,
+    MessagesModule,
   ],
 })
 export class AppModule {}

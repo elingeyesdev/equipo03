@@ -49,6 +49,18 @@ export class UsersService {
     isActive?: boolean;
   }, caller?: RequestUser) {
     const callerLevel = caller?.level ?? 0;
+    // Obtener gymId desde la BD — el JWT puede tenerlo obsoleto o ausente
+    let callerGymId = 0;
+    if (caller && callerLevel >= 4 && callerLevel < 10) {
+      const callerRoles = await this.userRolesRepo.find({
+        where: { userId: Number(caller.userId) },
+        relations: ['role', 'gym'],
+      });
+      const topRole = callerRoles.sort(
+        (a, b) => (b.role?.hierarchyLevel ?? 0) - (a.role?.hierarchyLevel ?? 0),
+      )[0];
+      callerGymId = Number(topRole?.gym?.id ?? topRole?.gymId ?? 0);
+    }
 
     if (caller && data.roleId !== undefined) {
       const newLevel = await this.resolveNewRoleLevel(data.roleId);
@@ -61,8 +73,8 @@ export class UsersService {
 
     if (caller && callerLevel < 10 && data.gymIds?.length) {
       const allowedGyms = callerLevel >= 5
-        ? await this.resolveBrandGymIds(caller)
-        : (caller.gymId ? [Number(caller.gymId)] : []);
+        ? await this.resolveBrandGymIds(callerGymId)
+        : (callerGymId ? [callerGymId] : []);
       for (const gid of data.gymIds) {
         if (!allowedGyms.includes(gid)) {
           throw new ForbiddenException(
@@ -73,7 +85,7 @@ export class UsersService {
     }
 
     if (caller && callerLevel <= 4 && data.gymIds?.length === 0) {
-      data.gymIds = caller.gymId ? [Number(caller.gymId)] : undefined;
+      data.gymIds = callerGymId ? [callerGymId] : undefined;
     }
 
     if (data.ci) {
@@ -112,13 +124,13 @@ export class UsersService {
 
       if (caller) {
         if (callerLevel === 4) {
-          incomingGymId = caller.gymId ? Number(caller.gymId) : null;
+          incomingGymId = callerGymId || null;
         } else if (callerLevel === 5) {
           if (!incomingGymId) {
             throw new BadRequestException('Como Gerente, debes seleccionar una Sucursal válida de tu Marca.');
           }
           const targetGym = await this.gymRepo.findOne({ where: { id: incomingGymId } });
-          if (!targetGym || (targetGym.id !== Number(caller.gymId) && targetGym.parentId !== Number(caller.gymId))) {
+          if (!targetGym || (targetGym.id !== callerGymId && targetGym.parentId !== callerGymId)) {
             throw new ForbiddenException('No tienes permisos para asignar usuarios a una sucursal de otra Marca.');
           }
         }
@@ -217,8 +229,16 @@ export class UsersService {
 
     // ── Filtros territoriales RBAC ─────────────────────────────────────────────
     if (caller) {
-      const callerLevel = Number(caller.level ?? 0);
-      const callerGymId = caller.gymId ? Number(caller.gymId) : 0;
+      // Consulta BD directamente para evitar valores obsoletos o ausentes del JWT
+      const callerRoles = await this.userRolesRepo.find({
+        where: { userId: Number(caller.userId) },
+        relations: ['role', 'gym'],
+      });
+      const callerDbRole = callerRoles.sort(
+        (a, b) => (b.role?.hierarchyLevel ?? 0) - (a.role?.hierarchyLevel ?? 0),
+      )[0];
+      const callerLevel = Number(callerDbRole?.role?.hierarchyLevel ?? caller.level ?? 0);
+      const callerGymId = Number(callerDbRole?.gym?.id ?? callerDbRole?.gymId ?? 0);
 
       if (callerLevel >= 10) {
         // Super Admin: sin restricción territorial
@@ -292,6 +312,42 @@ export class UsersService {
     return { data, meta: { total, limit, offset } };
   }
 
+  // Búsqueda de clientes (nivel 1) sin filtro territorial — los clientes son entidades globales
+  async searchClientUsers(
+    search?: string,
+    limit = 20,
+  ): Promise<{ id: number; email: string; firstName: string; lastName: string }[]> {
+    const qb = this.usersRepo
+      .createQueryBuilder('user')
+      .leftJoin('user.profile', 'profile')
+      .innerJoin('user.userRoles', 'userRole')
+      .innerJoin('userRole.role', 'role')
+      .select(['user.id', 'user.email', 'profile.firstName', 'profile.lastName'])
+      .where('role.hierarchy_level = :level', { level: 1 })
+      .andWhere('user.isActive = true');
+
+    if (search?.trim()) {
+      qb.andWhere(
+        new Brackets(qb2 => {
+          qb2
+            .where('user.email ILIKE :q')
+            .orWhere('profile.firstName ILIKE :q')
+            .orWhere('profile.lastName ILIKE :q')
+            .orWhere("CONCAT(profile.first_name, ' ', profile.last_name) ILIKE :q");
+        }),
+        { q: `%${search.trim()}%` },
+      );
+    }
+
+    const rows = await qb.take(limit).getMany();
+    return rows.map(u => ({
+      id:        u.id,
+      email:     u.email,
+      firstName: (u as any).profile?.firstName ?? '',
+      lastName:  (u as any).profile?.lastName  ?? '',
+    }));
+  }
+
   async findOne(id: number): Promise<User> {
     const user = await this.usersRepo.findOne({
       where: { id },
@@ -330,24 +386,24 @@ export class UsersService {
     return role.hierarchyLevel ?? 0;
   }
 
-  private async resolveBrandGymIds(caller: RequestUser): Promise<number[]> {
-    const brandId = caller.brandId ? Number(caller.brandId) : null;
-    const gymId = caller.gymId ? Number(caller.gymId) : null;
-    const anchorId = brandId ?? gymId;
-    if (!anchorId) return [];
+  private async resolveBrandGymIds(callerGymId: number): Promise<number[]> {
+    if (!callerGymId) return [];
 
     const anchor = await this.gymRepo.findOne({
-      where: { id: anchorId },
+      where: { id: callerGymId },
       select: ['id', 'parentId'],
     });
     if (!anchor) return [];
 
-    const resolvedBrandId = anchor.parentId ?? anchor.id;
+    // Si callerGymId ya es la Marca (parentId = null), usarlo directamente.
+    // Si es una Sucursal, sube al padre para obtener la Marca raíz.
+    const brandId = anchor.parentId ?? anchor.id;
     const branches = await this.gymRepo.find({
-      where: { parentId: resolvedBrandId, isActive: true },
+      where: { parentId: brandId, isActive: true },
       select: ['id'],
     });
-    return branches.map((b) => b.id);
+    // Incluye la Marca misma (caso: Gerente crea otro Gerente → gymIds = [brandId])
+    return [brandId, ...branches.map((b) => b.id)];
   }
 
   private isStructuralChange(data: {
@@ -382,6 +438,18 @@ export class UsersService {
     const callerLevel = caller?.level ?? 0;
     const callerId = caller?.userId ? Number(caller.userId) : 0;
     const isSelfEdit = callerId === id;
+    // Obtener gymId desde la BD — el JWT puede tenerlo obsoleto o ausente
+    let callerGymId = 0;
+    if (caller && callerLevel >= 4 && callerLevel < 10) {
+      const callerRoles = await this.userRolesRepo.find({
+        where: { userId: callerId },
+        relations: ['role', 'gym'],
+      });
+      const topRole = callerRoles.sort(
+        (a, b) => (b.role?.hierarchyLevel ?? 0) - (a.role?.hierarchyLevel ?? 0),
+      )[0];
+      callerGymId = Number(topRole?.gym?.id ?? topRole?.gymId ?? 0);
+    }
 
     // ── DEFENSA 1: Anti-escalada en auto-edición ──────────────────────────────
     if (isSelfEdit && this.isStructuralChange(data)) {
@@ -412,8 +480,8 @@ export class UsersService {
 
         if (callerLevel < 10 && data.gymIds?.length) {
           const brandGyms = callerLevel >= 5
-            ? await this.resolveBrandGymIds(caller)
-            : (caller.gymId ? [Number(caller.gymId)] : []);
+            ? await this.resolveBrandGymIds(callerGymId)
+            : (callerGymId ? [callerGymId] : []);
           for (const gid of data.gymIds) {
             if (!brandGyms.includes(gid)) {
               throw new ForbiddenException(
@@ -476,13 +544,13 @@ export class UsersService {
 
         if (caller) {
           if (callerLevel === 4) {
-            incomingGymId = caller.gymId ? Number(caller.gymId) : null;
+            incomingGymId = callerGymId || null;
           } else if (callerLevel === 5) {
             if (!incomingGymId) {
               throw new BadRequestException('Como Gerente, debes seleccionar una Sucursal válida de tu Marca.');
             }
             const targetGym = await this.gymRepo.findOne({ where: { id: incomingGymId } });
-            if (!targetGym || (targetGym.id !== Number(caller.gymId) && targetGym.parentId !== Number(caller.gymId))) {
+            if (!targetGym || (targetGym.id !== callerGymId && targetGym.parentId !== callerGymId)) {
               throw new ForbiddenException('No tienes permisos para asignar usuarios a una sucursal de otra Marca.');
             }
           }
@@ -540,18 +608,76 @@ export class UsersService {
     return managers.map((m) => m.pushToken as string);
   }
 
-  async savePushToken(userId: number, token: string): Promise<void> {
+  async savePushToken(userId: number, token: string): Promise<{ registered: boolean }> {
     await this.usersRepo.update(userId, { pushToken: token });
+    return { registered: true };
   }
 
   async clearPushToken(userId: number): Promise<void> {
     await this.usersRepo.update(userId, { pushToken: null });
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(id: number, caller?: RequestUser): Promise<void> {
+    if (caller) {
+      const callerId = Number(caller.userId);
+
+      // 1. Auto-eliminación prohibida
+      if (callerId === id) {
+        throw new ForbiddenException('Medida de seguridad: No puedes eliminar tu propia cuenta.');
+      }
+
+      // 2. Extraer nivel y gymId del caller desde la BD (JWT puede ser obsoleto)
+      const callerRoles = await this.userRolesRepo.find({
+        where: { userId: callerId },
+        relations: ['role', 'gym'],
+      });
+      const topCallerRole = callerRoles.sort(
+        (a, b) => (b.role?.hierarchyLevel ?? 0) - (a.role?.hierarchyLevel ?? 0),
+      )[0];
+      const callerLevel = Number(topCallerRole?.role?.hierarchyLevel ?? caller.level ?? 0);
+      const callerGymId = Number(topCallerRole?.gym?.id ?? topCallerRole?.gymId ?? 0);
+
+      if (callerLevel < 4) {
+        throw new ForbiddenException('Tu nivel jerárquico no permite eliminar usuarios.');
+      }
+
+      // 3. No puede eliminar a alguien de nivel igual o superior
+      const targetLevel = await this.resolveTargetLevel(id);
+      if (targetLevel >= callerLevel) {
+        throw new ForbiddenException('No puedes eliminar a un usuario de nivel igual o superior al tuyo.');
+      }
+
+      // 4. Validación territorial para niveles 4 y 5
+      if (callerLevel < 10) {
+        const targetRoles = await this.userRolesRepo.find({
+          where: { userId: id },
+          select: ['gymId'],
+        });
+        const targetGymIds = targetRoles.map(ur => ur.gymId).filter(Boolean) as number[];
+
+        if (callerLevel === 5) {
+          const allowed = await this.resolveBrandGymIds(callerGymId);
+          const hasAccess = targetGymIds.some(gid => allowed.includes(gid));
+          if (!hasAccess) {
+            throw new ForbiddenException('No tienes permisos para eliminar usuarios fuera de tu marca.');
+          }
+        } else if (callerLevel === 4) {
+          if (!targetGymIds.includes(callerGymId)) {
+            throw new ForbiddenException('No tienes permisos para eliminar usuarios de otra sucursal.');
+          }
+        }
+      }
+    }
+
+    // Eliminar relaciones hijas explícitamente antes de borrar el padre.
+    // Previene FK violations si la BD no tiene ON DELETE CASCADE configurado.
+    await this.userRolesRepo.delete({ userId: id });
+    await this.profilesRepo.delete({ userId: id });
+    await this.metricsRepo.delete({ userId: id });
+
     const result = await this.usersRepo.delete(id);
     if (result.affected === 0)
-      throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
+      throw new NotFoundException(`Usuario con ID ${id} no encontrado o ya eliminado.`);
   }
 
   async updateMyProfile(

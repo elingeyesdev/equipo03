@@ -26,8 +26,6 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { AdminLevelGuard } from '../../auth/infrastructure/guards/admin-level.guard';
-import { SuperAdminGuard } from '../../auth/infrastructure/guards/super-admin.guard';
-import { StaffLevelGuard } from '../../auth/infrastructure/guards/staff-level.guard';
 import { UsersService } from '../application/users.service';
 import {
   CreateUserDto,
@@ -112,6 +110,17 @@ export class UsersController {
       age,
       profile: dto.profile ? { ...dto.profile, birthDate, age } : null,
     };
+  }
+
+  // GET /api/users/chat/clients?search=... — accesible a cualquier usuario autenticado.
+  // Sólo devuelve usuarios de nivel 1 (clientes); sin filtro territorial porque los
+  // clientes son entidades globales (no tienen gym_id).
+  @Get('chat/clients')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Buscar clientes (nivel 1) para iniciar chat. Accesible a todos los roles.' })
+  @ApiQuery({ name: 'search', required: false, description: 'Nombre o email del cliente' })
+  searchClients(@Query('search') search?: string) {
+    return this.usersService.searchClientUsers(search, 30);
   }
 
   @Get(':id')
@@ -202,16 +211,14 @@ export class UsersController {
   }
 
   @Patch('me/push-token')
-  @UseGuards(StaffLevelGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({
     summary:
-      'Registrar token push del dispositivo (Expo) para el usuario autenticado',
+      'Registrar token push del dispositivo (Expo) para el usuario autenticado. Accesible a todos los roles.',
   })
   @ApiBody({ type: UpdatePushTokenDto })
-  @ApiResponse({ status: 200, description: 'Token registrado' })
+  @ApiResponse({ status: 200, description: 'Token registrado', schema: { example: { registered: true } } })
   @ApiResponse({ status: 401, description: 'Token JWT inválido' })
-  @ApiResponse({ status: 403, description: 'Nivel jerárquico insuficiente (>= 3)' })
   savePushToken(@Req() req: RequestWithUser, @Body() body: UpdatePushTokenDto) {
     return this.usersService.savePushToken(
       Number(req.user!.userId),
@@ -220,25 +227,23 @@ export class UsersController {
   }
 
   @Delete('me/push-token')
-  @UseGuards(StaffLevelGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({
-    summary: 'Eliminar token push del dispositivo del usuario autenticado',
+    summary: 'Eliminar token push del dispositivo del usuario autenticado. Accesible a todos los roles.',
   })
   @ApiResponse({ status: 200, description: 'Token eliminado' })
-  @ApiResponse({ status: 403, description: 'Nivel jerárquico insuficiente (>= 3)' })
   clearPushToken(@Req() req: RequestWithUser) {
     return this.usersService.clearPushToken(Number(req.user!.userId));
   }
 
   @Delete(':id')
-  @UseGuards(SuperAdminGuard)
+  @UseGuards(AdminLevelGuard)
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Eliminar usuario' })
+  @ApiOperation({ summary: 'Eliminar usuario. Nivel >= 4, dentro de su jurisdicción. Nunca a sí mismo.' })
   @ApiParam({ name: 'id', example: 1 })
-  @ApiResponse({ status: 403, description: 'Nivel jerárquico insuficiente (>= 10)' })
-  async remove(@Param('id', ParseIntPipe) id: number) {
-    await this.usersService.remove(id);
+  @ApiResponse({ status: 403, description: 'Auto-eliminación, nivel insuficiente o fuera de jurisdicción' })
+  async remove(@Req() req: RequestWithUser, @Param('id', ParseIntPipe) id: number) {
+    await this.usersService.remove(id, req.user!);
     return { message: 'Usuario eliminado' };
   }
 }

@@ -251,12 +251,41 @@ export class GymsService {
   }
 
   async findBrands() {
-    const brands = await this.gymsRepo
+    const currentUser = this.request?.user;
+
+    const qb = this.gymsRepo
       .createQueryBuilder('gym')
       .where('gym.isActive = :active', { active: true })
       .andWhere('gym.parentId IS NULL')
-      .orderBy('gym.id', 'ASC')
-      .getMany();
+      .orderBy('gym.id', 'ASC');
+
+    if (currentUser?.userId) {
+      const callerDbRole = await this.userRoleRepo
+        .createQueryBuilder('ur')
+        .innerJoinAndSelect('ur.role', 'role')
+        .where('ur.user_id = :userId', { userId: Number(currentUser.userId) })
+        .orderBy('role.hierarchyLevel', 'DESC')
+        .getOne();
+
+      const callerLevel = Number(callerDbRole?.role?.hierarchyLevel ?? currentUser.level ?? 0);
+      const callerGymId = Number(callerDbRole?.gymId ?? currentUser.gymId ?? 0);
+
+      if (callerLevel >= 10) {
+        // Super Admin: todas las marcas, sin restricción territorial
+      } else if (callerLevel === 5 && callerGymId) {
+        // Gerente: únicamente su propia Marca
+        qb.andWhere('gym.id = :callerGymId', { callerGymId });
+      } else if (callerLevel === 4 && callerGymId) {
+        // Recepcionista: la Marca padre de su sucursal
+        qb.andWhere(
+          'gym.id = (SELECT g2.parent_id FROM gyms g2 WHERE g2.id = :callerGymId)',
+          { callerGymId },
+        );
+      }
+      // Niveles < 4 (staff, clientes): sin restricción adicional
+    }
+
+    const brands = await qb.getMany();
     return brands.map((g) => ({
       id: g.id,
       name: g.name,

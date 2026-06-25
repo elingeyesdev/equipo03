@@ -92,7 +92,7 @@ export class StaffService {
     });
     if (target?.pushToken) {
       this.pushService
-        .sendPushMessage(target.pushToken, title, body, { event, ...data })
+        .sendPushMessage(target.pushToken, title, body, { event, type: event.toUpperCase(), ...data })
         .catch(() => {});
     }
   }

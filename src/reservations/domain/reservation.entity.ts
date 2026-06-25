@@ -64,6 +64,9 @@ export class Reservation {
   @Column({ type: 'timestamp', name: 'cancelled_at', nullable: true })
   cancelledAt!: Date;
 
+  @Column({ type: 'boolean', name: 'reminder_sent', default: false })
+  reminderSent!: boolean;
+
   @Column({ type: 'integer', name: 'created_by' })
   createdBy!: number;
 
