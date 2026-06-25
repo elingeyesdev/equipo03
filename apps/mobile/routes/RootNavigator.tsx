@@ -52,8 +52,9 @@ import { EjecutarRutinaScreen }   from '../resources/views/perfil/EjecutarRutina
 import { ResumenEjercicioScreen } from '../resources/views/perfil/ResumenEjercicioScreen';
 
 // ── Mensajería (CLIENTE + STAFF) ──────────────────────────────────────────────
-import { InboxScreen } from '../resources/views/mensajes/InboxScreen';
-import { ChatScreen }  from '../resources/views/mensajes/ChatScreen';
+import { InboxScreen }        from '../resources/views/mensajes/InboxScreen';
+import { ChatScreen }         from '../resources/views/mensajes/ChatScreen';
+import { ChatProfileScreen }  from '../resources/views/mensajes/ChatProfileScreen';
 
 // ── Seguimiento (ENTRENADOR / INSTRUCTOR) ─────────────────────────────────────
 import { SeguimientoScreen }        from '../resources/views/seguimiento/SeguimientoScreen';
@@ -195,6 +196,11 @@ const ClienteStack = () => (
       component={ChatScreen}
       options={{ headerShown: false }}
     />
+    <ClienteNav.Screen
+      name="ChatProfile"
+      component={ChatProfileScreen}
+      options={{ headerShown: false }}
+    />
   </ClienteNav.Navigator>
 );
 
@@ -299,6 +305,11 @@ const StaffStack = () => (
     <StaffNav.Screen
       name="Chat"
       component={ChatScreen}
+      options={{ headerShown: false }}
+    />
+    <StaffNav.Screen
+      name="ChatProfile"
+      component={ChatProfileScreen}
       options={{ headerShown: false }}
     />
   </StaffNav.Navigator>

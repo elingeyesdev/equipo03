@@ -14,7 +14,7 @@ import { userApi, ClientSearchResult } from '../../../app/Providers/users/api/us
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 
 type RootParamList = {
-  Chat: { conversationId: number; otherUserName: string };
+  Chat: { conversationId: number; otherUserName: string; otherUserId: number };
 };
 type Nav = NativeStackNavigationProp<RootParamList>;
 
@@ -25,6 +25,13 @@ const ROLE_LABELS: Record<string, string> = {
   NUTRICIONISTA: 'Nutricionista',
   INSTRUCTOR:    'Instructor',
   COORDINADOR:   'Coordinador',
+};
+
+const fmtTime = (iso: string) => {
+  try {
+    const d = new Date(iso);
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  } catch { return ''; }
 };
 
 const resolveOtherUser = (conv: Conversation, myId: number) =>
@@ -55,15 +62,22 @@ const ConversationCard = ({
   myId:    number;
   onPress: () => void;
 }) => {
-  const other    = resolveOtherUser(conv, myId);
-  const name     = resolveFullName(other);
-  const anyOther = other as any;
-  const role     = anyOther?.role
-    ? (ROLE_LABELS[String(anyOther.role).toUpperCase()] ?? String(anyOther.role))
-    : null;
-  const branch = anyOther?.gymName ?? anyOther?.branchName ?? null;
-  const brand  = anyOther?.brandName ?? null;
-  const subtitle = [role, branch, brand].filter(Boolean).join(' · ') || 'Chat activo';
+  const other       = resolveOtherUser(conv, myId);
+  const name        = resolveFullName(other);
+  const unreadCount = conv.unreadCount ?? 0;
+  const lastMsg     = conv.lastMessage;
+  const time        = lastMsg ? fmtTime(lastMsg.createdAt) : '';
+
+  let previewText    = 'Sin mensajes aún';
+  let previewDeleted = false;
+  if (lastMsg) {
+    if (lastMsg.isDeletedForAll) {
+      previewText    = 'Mensaje eliminado';
+      previewDeleted = true;
+    } else {
+      previewText = lastMsg.content;
+    }
+  }
 
   return (
     <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.75}>
@@ -71,10 +85,30 @@ const ConversationCard = ({
         <MaterialCommunityIcons name="account-circle-outline" size={40} color="#f05b22" />
       </View>
       <View style={s.cardBody}>
-        <Text style={s.cardName} numberOfLines={1}>{name}</Text>
-        <Text style={s.cardSub} numberOfLines={1}>{subtitle}</Text>
+        {/* Fila 1: nombre + hora */}
+        <View style={s.cardRow}>
+          <Text style={s.cardName} numberOfLines={1}>{name}</Text>
+          {time ? <Text style={s.timeText}>{time}</Text> : null}
+        </View>
+        {/* Fila 2: preview + badge */}
+        <View style={s.cardRow}>
+          <Text
+            style={[
+              s.cardPreview,
+              unreadCount > 0 && s.cardPreviewUnread,
+              (!lastMsg || previewDeleted) && s.cardPreviewMuted,
+            ]}
+            numberOfLines={1}
+          >
+            {previewText}
+          </Text>
+          {unreadCount > 0 && (
+            <View style={s.badge}>
+              <Text style={s.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+            </View>
+          )}
+        </View>
       </View>
-      <MaterialCommunityIcons name="chevron-right" size={22} color="#555" />
     </TouchableOpacity>
   );
 };
@@ -228,13 +262,17 @@ export const InboxScreen = () => {
   const loadingSearch = isStaff ? loadingClients : loadingCatalog;
 
   // ── Iniciar conversación ──────────────────────────────────────────────────────
-  const handleStartChat = async (trainerId: number, trainerName: string) => {
+  const handleStartChat = async (targetUserId: number, targetName: string) => {
     if (startingChat !== null) return;
-    setStartingChat(trainerId);
+    setStartingChat(targetUserId);
     try {
-      const conv = await messagesApi.startConversation(trainerId);
+      const conv = await messagesApi.startConversation(targetUserId);
       setSearchQuery('');
-      (navigation as any).navigate('Chat', { conversationId: conv.id, otherUserName: trainerName });
+      (navigation as any).navigate('Chat', {
+        conversationId: conv.id,
+        otherUserName:  targetName,
+        otherUserId:    targetUserId,
+      });
     } catch (err: any) {
       const msg = err?.response?.data?.message ?? 'No se pudo iniciar la conversación.';
       Alert.alert('Error', msg);
@@ -248,6 +286,7 @@ export const InboxScreen = () => {
     (navigation as any).navigate('Chat', {
       conversationId: conv.id,
       otherUserName:  resolveFullName(other),
+      otherUserId:    other.id,
     });
   };
 
@@ -392,8 +431,15 @@ const s = StyleSheet.create({
   avatar:      { width: 48, height: 48, borderRadius: 24, backgroundColor: '#1C1C1E', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#FF5E0044' },
   avatarBlue:  { borderColor: '#38BDF844', backgroundColor: '#0a1929' },
   avatarGreen: { borderColor: '#22C55E44', backgroundColor: '#052e16' },
-  cardBody:   { flex: 1, gap: 3 },
-  cardName:   { color: '#fff', fontSize: 15, fontWeight: '600' },
+  cardBody:   { flex: 1, gap: 4 },
+  cardRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
+  cardName:   { flex: 1, color: '#fff', fontSize: 15, fontWeight: '600' },
+  cardPreview:      { flex: 1, color: '#666', fontSize: 12 },
+  cardPreviewUnread: { color: '#E5E7EB', fontWeight: '600' },
+  cardPreviewMuted:  { color: '#444', fontStyle: 'italic' },
+  timeText:   { color: '#555', fontSize: 11, flexShrink: 0 },
+  badge:      { minWidth: 20, height: 20, borderRadius: 10, backgroundColor: '#f05b22', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 5, flexShrink: 0 },
+  badgeText:  { color: '#fff', fontSize: 10, fontWeight: '700' },
   cardSub:    { color: '#666', fontSize: 12 },
   cardSubMuted: { color: '#444', fontSize: 11 },
   metaRow:    { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
