@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -7,6 +7,10 @@ import { Loader2 } from 'lucide-react';
 import { apiClient } from '../../../infrastructure/api.config';
 import type { ReportFilters } from '../types';
 import { fmtDate, inRange } from '../types';
+import type { ConsolidadoPdfData } from '../pdf/ReporteConsolidadoPdf';
+import { ReportHeader, ReportMetaStrip, ReportKpiGrid, ReportSectionTitle, ReportFooter } from './preview-shared';
+import { AutoInsights } from '../AutoInsights';
+import { insightsConsolidado } from '../../../lib/insightsEngine';
 
 const ORANGE  = '#FF5E00';
 const BLUE    = '#2563EB';
@@ -19,20 +23,13 @@ interface MachItem { id: string; gymId: number; status: string; }
 interface CIItem   { id: number; gymId: number; checkInTime: string; }
 interface RsvItem  { id: number; reservationDate: string; gym?: { id: number } | null; }
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ marginBottom: 18, marginTop: 32 }}>
-      <h3 style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '2px', color: '#FF5E00', margin: 0 }}>
-        {children}
-      </h3>
-      <div style={{ height: 2, background: '#FF5E00', width: 28, marginTop: 6, borderRadius: 1 }} />
-    </div>
-  );
+interface Props {
+  filters: ReportFilters;
+  onCsvReady?: (rows: string[][]) => void;
+  onPdfDataReady?: (data: ConsolidadoPdfData, chartIds: string[]) => void;
 }
 
-interface Props { filters: ReportFilters; }
-
-export function ReporteConsolidado({ filters }: Props) {
+export function ReporteConsolidado({ filters, onCsvReady, onPdfDataReady }: Props) {
   const { data: gyms = [],     isLoading: lG  } = useQuery<GymItem[]>({
     queryKey: ['rpt-con-gyms'],
     queryFn: async () => { const r = await apiClient.get('/gyms'); return Array.isArray(r.data) ? r.data : []; },
@@ -60,7 +57,7 @@ export function ReporteConsolidado({ filters }: Props) {
   const { data: reservations = [], isLoading: lRsv } = useQuery<RsvItem[]>({
     queryKey: ['rpt-con-rsv', filters.range.from, filters.range.to],
     queryFn: async () => {
-      const r = await apiClient.get('/reservations', { params: { limit: 100 } });
+      const r = await apiClient.get('/reservations', { params: { limit: 2000 } });
       return Array.isArray(r.data) ? r.data : (r.data?.data ?? []);
     },
     staleTime: 60_000,
@@ -94,6 +91,7 @@ export function ReporteConsolidado({ filters }: Props) {
     });
 
     users.forEach(u => {
+      if (!u.isActive) return;
       u.userRoles?.forEach(ur => {
         if (ur.gym?.id) {
           if (!memPer[ur.gym.id]) memPer[ur.gym.id] = new Set();
@@ -143,6 +141,49 @@ export function ReporteConsolidado({ filters }: Props) {
 
   const genAt = new Date().toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
+  useEffect(() => {
+    if (!onCsvReady || loading) return;
+    const header = ['Sede', 'Marca', 'Check-ins', 'Reservas', 'Miembros activos', 'Máquinas'];
+    const rows = branchData.map(b => [b.name, b.brandName, String(b.checkins), String(b.reservations), String(b.members), String(b.machines)]);
+    onCsvReady([header, ...rows]);
+  }, [branchData, loading, onCsvReady]);
+
+  useEffect(() => {
+    if (!onPdfDataReady || loading) return;
+    onPdfDataReady(
+      {
+        period: `${fmtDate(filters.range.from)} — ${fmtDate(filters.range.to)}`,
+        genAt,
+        kpis: [
+          { label: 'Marcas',              value: String(totals.brands),       accent: '#7C3AED' },
+          { label: 'Sucursales',          value: String(totals.branches),     accent: '#6B7280' },
+          { label: 'Miembros activos',    value: String(totals.members),      accent: '#2563EB' },
+          { label: 'Check-ins período',   value: String(totals.checkins),     accent: '#FF5E00' },
+          { label: 'Reservas período',    value: String(totals.reservations), accent: '#10B981' },
+          { label: 'Máquinas',            value: String(totals.machines),     accent: '#F59E0B' },
+        ],
+        brandGroups: brandGroups.map(([brand, branches]) => ({
+          brand,
+          rows: branches.map(b => ({
+            name:         b.name,
+            members:      String(b.members),
+            checkins:     String(b.checkins),
+            reservations: String(b.reservations),
+            machines:     String(b.machines),
+          })),
+        })),
+        totals: {
+          members:      String(totals.members),
+          checkins:     String(totals.checkins),
+          reservations: String(totals.reservations),
+          machines:     String(totals.machines),
+        },
+        charts: {},
+      },
+      ['chart-consolidado-bar'],
+    );
+  }, [branchData, loading, onPdfDataReady]);
+
   if (loading) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 400, gap: 14 }}>
@@ -158,62 +199,26 @@ export function ReporteConsolidado({ filters }: Props) {
       id="report-content"
       style={{ width: 900, backgroundColor: '#ffffff', fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif", color: '#111827' }}
     >
-      {/* Header */}
-      <div style={{ background: 'linear-gradient(135deg, #111827 0%, #1f2937 100%)', padding: '26px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <div style={{ color: '#FF5E00', fontSize: 21, fontWeight: 800, letterSpacing: '-0.5px' }}>GYMSYNC</div>
-          <div style={{ color: '#9CA3AF', fontSize: 10, letterSpacing: '2.5px', textTransform: 'uppercase', marginTop: 3 }}>Sistema de Gestión Deportiva</div>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ color: '#ffffff', fontSize: 17, fontWeight: 700 }}>Consolidado de Sucursales</div>
-          <div style={{ color: '#9CA3AF', fontSize: 12, marginTop: 4 }}>Todas las marcas y sucursales</div>
-        </div>
-      </div>
-
-      {/* Meta strip */}
-      <div style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB', padding: '10px 40px', display: 'flex', gap: 48, alignItems: 'center' }}>
-        <div>
-          <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px' }}>Período</div>
-          <div style={{ color: '#111827', fontSize: 13, fontWeight: 600, marginTop: 2 }}>{fmtDate(filters.range.from)} — {fmtDate(filters.range.to)}</div>
-        </div>
-        <div>
-          <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px' }}>Generado</div>
-          <div style={{ color: '#111827', fontSize: 13, fontWeight: 600, marginTop: 2 }}>{genAt}</div>
-        </div>
-      </div>
+      <ReportHeader title="Consolidado de Sucursales" />
+      <ReportMetaStrip from={filters.range.from} to={filters.range.to} genAt={genAt} />
 
       <div style={{ padding: '28px 40px 40px' }}>
-        {/* Global KPIs */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
-          {[
-            { label: 'Marcas',         value: totals.brands,       accent: '#7C3AED' },
-            { label: 'Sucursales',     value: totals.branches,     accent: '#6B7280' },
-            { label: 'Usuarios activos', value: totals.members,    accent: '#2563EB' },
-          ].map(kpi => (
-            <div key={kpi.label} style={{ border: '1px solid #E5E7EB', borderLeft: `3px solid ${kpi.accent}`, borderRadius: 8, padding: '14px 18px' }}>
-              <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 8 }}>{kpi.label}</div>
-              <div style={{ color: '#111827', fontSize: 22, fontWeight: 700, lineHeight: 1 }}>{kpi.value.toLocaleString('es-BO')}</div>
-            </div>
-          ))}
-        </div>
+        <ReportKpiGrid kpis={[
+          { label: 'Marcas',              value: totals.brands.toLocaleString('es-BO'),       accent: '#7C3AED' },
+          { label: 'Sucursales',          value: totals.branches.toLocaleString('es-BO'),     accent: '#6B7280' },
+          { label: 'Miembros activos',    value: totals.members.toLocaleString('es-BO'),      accent: '#2563EB' },
+          { label: 'Check-ins período',   value: totals.checkins.toLocaleString('es-BO'),     accent: ORANGE },
+          { label: 'Reservas período',    value: totals.reservations.toLocaleString('es-BO'), accent: GREEN  },
+          { label: 'Máquinas registradas', value: totals.machines.toLocaleString('es-BO'),   accent: '#F59E0B' },
+        ]} />
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginTop: 14 }}>
-          {[
-            { label: 'Check-ins período',    value: totals.checkins,     accent: ORANGE },
-            { label: 'Reservas período',     value: totals.reservations, accent: GREEN  },
-            { label: 'Máquinas registradas', value: totals.machines,     accent: '#F59E0B' },
-          ].map(kpi => (
-            <div key={kpi.label} style={{ border: '1px solid #E5E7EB', borderLeft: `3px solid ${kpi.accent}`, borderRadius: 8, padding: '14px 18px' }}>
-              <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 8 }}>{kpi.label}</div>
-              <div style={{ color: '#111827', fontSize: 22, fontWeight: 700, lineHeight: 1 }}>{kpi.value.toLocaleString('es-BO')}</div>
-            </div>
-          ))}
-        </div>
+        <AutoInsights insights={insightsConsolidado({ branchData, totals })} />
 
         {/* Bar chart: top branches by activity */}
         {chartData.length > 0 && (
           <>
-            <SectionTitle>Actividad por Sucursal — Top {chartData.length}</SectionTitle>
+            <ReportSectionTitle>Actividad por Sucursal — Top {chartData.length}</ReportSectionTitle>
+            <div id="chart-consolidado-bar">
             <BarChart width={820} height={240} data={chartData} margin={{ top: 4, right: 16, bottom: 20, left: -16 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
               <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} angle={-20} textAnchor="end" height={50} />
@@ -223,18 +228,19 @@ export function ReporteConsolidado({ filters }: Props) {
               <Bar dataKey="checkins" name="Check-ins" fill={ORANGE} radius={[3, 3, 0, 0]} />
               <Bar dataKey="reservas" name="Reservas"   fill={BLUE}   radius={[3, 3, 0, 0]} />
             </BarChart>
+            </div>
           </>
         )}
 
         {/* Summary table per brand */}
         {brandGroups.map(([brand, branches]) => (
           <div key={brand} style={{ marginBottom: 28 }}>
-            <SectionTitle>{brand}</SectionTitle>
+            <ReportSectionTitle>{brand}</ReportSectionTitle>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
-                <tr style={{ borderBottom: '2px solid #E5E7EB' }}>
+                <tr style={{ background: '#1f2937' }}>
                   {['Sucursal', 'Usuarios', 'Check-ins', 'Reservas', 'Máquinas'].map((h, i) => (
-                    <th key={h} style={{ padding: '8px 12px', textAlign: i === 0 ? 'left' : 'right', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', color: '#9CA3AF', fontWeight: 600 }}>
+                    <th key={h} style={{ padding: '9px 12px', textAlign: i === 0 ? 'left' : 'right', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', color: '#ffffff', fontWeight: 600 }}>
                       {h}
                     </th>
                   ))}
@@ -286,11 +292,7 @@ export function ReporteConsolidado({ filters }: Props) {
           </div>
         </div>
 
-        {/* Footer */}
-        <div style={{ marginTop: 32, paddingTop: 14, borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ color: '#D1D5DB', fontSize: 11 }}>GymSync — Reporte Consolidado Interno</span>
-          <span style={{ color: '#D1D5DB', fontSize: 11 }}>{genAt}</span>
-        </div>
+        <ReportFooter genAt={genAt} />
       </div>
     </div>
   );

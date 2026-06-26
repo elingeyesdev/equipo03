@@ -633,7 +633,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   sectionSubtitle: {
-    fontSize: 12,
+    fontSize: 15,
     color: '#666',
     marginTop: 2,
   },
