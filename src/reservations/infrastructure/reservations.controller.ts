@@ -87,7 +87,7 @@ export class ReservationsController {
       status,
       gymId,
       page: Number(page),
-      limit: Math.min(Number(limit) || 20, 100),
+      limit: Math.min(Number(limit) || 20, 5000),
     });
   }
 
@@ -129,7 +129,7 @@ export class ReservationsController {
       date,
       status,
       page: Number(page),
-      limit: Math.min(Number(limit) || 20, 100),
+      limit: Math.min(Number(limit) || 20, 5000),
     });
   }
 

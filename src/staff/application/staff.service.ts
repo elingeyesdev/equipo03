@@ -925,6 +925,14 @@ export class StaffService {
     }));
   }
 
+  async getDashboardStats(): Promise<{ activeClients: number; pendingRequests: number }> {
+    const [pending, active] = await Promise.all([
+      this.getPendingAdvisorRequests(),
+      this.getActiveAdvisees(),
+    ]);
+    return { activeClients: active.length, pendingRequests: pending.length };
+  }
+
   async getClientProfile(clientId: number): Promise<{
     clientId: number;
     firstName: string;
