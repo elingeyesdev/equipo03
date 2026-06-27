@@ -147,9 +147,9 @@ export function ReporteAuditoria({ filters, onCsvReady, onPdfDataReady }: Props)
         <ReportSectionTitle>Registro Completo de Accesos ({filtered.length} entradas)</ReportSectionTitle>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
           <thead>
-            <tr style={{ background: '#1f2937' }}>
-              {['#', 'Fecha y hora', 'Usuario', 'Rol', 'Sede'].map((h, i) => (
-                <th key={h} style={{ padding: '9px 10px', textAlign: 'left', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', color: '#ffffff', fontWeight: 600 }}>{h}</th>
+            <tr style={{ borderBottom: '2px solid #111111' }}>
+              {['#', 'Fecha y hora', 'Usuario', 'Rol', 'Sede'].map((h) => (
+                <th key={h} style={{ padding: '9px 10px', textAlign: 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: '#111111' }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -157,7 +157,7 @@ export function ReporteAuditoria({ filters, onCsvReady, onPdfDataReady }: Props)
             {filtered.map((c, i) => {
               const gymName = c.gym?.name ?? gymMap[c.gymId] ?? `Sede #${c.gymId}`;
               return (
-                <tr key={c.id} style={{ background: i % 2 === 0 ? '#F9FAFB' : '#ffffff', borderBottom: '1px solid #F3F4F6' }}>
+                <tr key={c.id} style={{ background: '#ffffff', borderBottom: '1px solid #E5E7EB' }}>
                   <td style={{ padding: '7px 10px', color: '#D1D5DB', width: 40 }}>{i + 1}</td>
                   <td style={{ padding: '7px 10px', color: '#374151', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{fmtDateTime(c.checkInTime)}</td>
                   <td style={{ padding: '7px 10px', color: '#111827', fontWeight: 600 }}>{c.userProfile?.fullName ?? '—'}</td>

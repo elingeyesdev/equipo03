@@ -38,7 +38,10 @@ export function ReporteConsolidado({ filters, onCsvReady, onPdfDataReady }: Prop
 
   const { data: users = [],    isLoading: lU  } = useQuery<UserItem[]>({
     queryKey: ['rpt-con-users'],
-    queryFn: async () => { const r = await apiClient.get('/users'); return Array.isArray(r.data) ? r.data : []; },
+    queryFn: async () => {
+      const r = await apiClient.get('/users', { params: { limit: 10000, offset: 0 } });
+      return Array.isArray(r.data) ? r.data : (r.data?.data ?? []);
+    },
     staleTime: 60_000,
   });
 
@@ -65,8 +68,8 @@ export function ReporteConsolidado({ filters, onCsvReady, onPdfDataReady }: Prop
 
   const loading = lG || lU || lM || lCI || lRsv;
 
-  // GET /gyms already returns only branches; no client-side filter needed
-  const branches = gyms;
+  // Super Admin receives brands (parentId=null) + branches — keep only branches
+  const branches = useMemo(() => gyms.filter(g => g.parentId !== null), [gyms]);
 
   const branchData = useMemo(() => {
     const ciPer: Record<number, number>  = {};
@@ -238,31 +241,30 @@ export function ReporteConsolidado({ filters, onCsvReady, onPdfDataReady }: Prop
             <ReportSectionTitle>{brand}</ReportSectionTitle>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
-                <tr style={{ background: '#1f2937' }}>
+                <tr style={{ borderBottom: '2px solid #111111' }}>
                   {['Sucursal', 'Usuarios', 'Check-ins', 'Reservas', 'Máquinas'].map((h, i) => (
-                    <th key={h} style={{ padding: '9px 12px', textAlign: i === 0 ? 'left' : 'right', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', color: '#ffffff', fontWeight: 600 }}>
+                    <th key={h} style={{ padding: '9px 12px', textAlign: i === 0 ? 'left' : 'right', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: '#111111' }}>
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {branches.map((b, i) => (
-                  <tr key={b.id} style={{ background: i % 2 === 0 ? '#F9FAFB' : '#ffffff', borderBottom: '1px solid #F3F4F6' }}>
+                {branches.map((b) => (
+                  <tr key={b.id} style={{ background: '#ffffff', borderBottom: '1px solid #E5E7EB' }}>
                     <td style={{ padding: '10px 12px', color: '#111827', fontWeight: 600 }}>{b.name}</td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right', color: '#374151' }}>{b.members.toLocaleString('es-BO')}</td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right', color: '#FF5E00', fontWeight: 700 }}>{b.checkins.toLocaleString('es-BO')}</td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right', color: '#2563EB', fontWeight: 700 }}>{b.reservations.toLocaleString('es-BO')}</td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right', color: '#374151' }}>{b.machines.toLocaleString('es-BO')}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', color: '#374151', fontFamily: 'monospace' }}>{b.members.toLocaleString('es-BO')}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', color: '#374151', fontWeight: 700, fontFamily: 'monospace' }}>{b.checkins.toLocaleString('es-BO')}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', color: '#374151', fontWeight: 700, fontFamily: 'monospace' }}>{b.reservations.toLocaleString('es-BO')}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', color: '#374151', fontFamily: 'monospace' }}>{b.machines.toLocaleString('es-BO')}</td>
                   </tr>
                 ))}
-                {/* Brand subtotal */}
-                <tr style={{ background: '#F3F4F6', borderTop: '1px solid #D1D5DB' }}>
-                  <td style={{ padding: '8px 12px', color: '#374151', fontWeight: 700, fontSize: 11 }}>Subtotal {brand}</td>
-                  <td style={{ padding: '8px 12px', textAlign: 'right', color: '#374151', fontWeight: 700 }}>{branches.reduce((s, b) => s + b.members, 0).toLocaleString('es-BO')}</td>
-                  <td style={{ padding: '8px 12px', textAlign: 'right', color: '#FF5E00', fontWeight: 700 }}>{branches.reduce((s, b) => s + b.checkins, 0).toLocaleString('es-BO')}</td>
-                  <td style={{ padding: '8px 12px', textAlign: 'right', color: '#2563EB', fontWeight: 700 }}>{branches.reduce((s, b) => s + b.reservations, 0).toLocaleString('es-BO')}</td>
-                  <td style={{ padding: '8px 12px', textAlign: 'right', color: '#374151', fontWeight: 700 }}>{branches.reduce((s, b) => s + b.machines, 0).toLocaleString('es-BO')}</td>
+                <tr style={{ background: '#F9FAFB', borderTop: '2px solid #111111' }}>
+                  <td style={{ padding: '8px 12px', color: '#111111', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: '1px' }}>Subtotal {brand}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', color: '#374151', fontWeight: 700, fontFamily: 'monospace' }}>{branches.reduce((s, b) => s + b.members, 0).toLocaleString('es-BO')}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', color: '#374151', fontWeight: 700, fontFamily: 'monospace' }}>{branches.reduce((s, b) => s + b.checkins, 0).toLocaleString('es-BO')}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', color: '#374151', fontWeight: 700, fontFamily: 'monospace' }}>{branches.reduce((s, b) => s + b.reservations, 0).toLocaleString('es-BO')}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', color: '#374151', fontWeight: 700, fontFamily: 'monospace' }}>{branches.reduce((s, b) => s + b.machines, 0).toLocaleString('es-BO')}</td>
                 </tr>
               </tbody>
             </table>
@@ -270,24 +272,24 @@ export function ReporteConsolidado({ filters, onCsvReady, onPdfDataReady }: Prop
         ))}
 
         {/* Grand total row */}
-        <div style={{ border: '1px solid #E5E7EB', borderLeft: '3px solid #FF5E00', borderRadius: 8, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#FFFBF9' }}>
-          <span style={{ color: '#111827', fontWeight: 700, fontSize: 13 }}>Total General</span>
+        <div style={{ borderTop: '2px solid #111111', borderBottom: '2px solid #111111', padding: '16px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ color: '#111111', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: '2px' }}>Total General</span>
           <div style={{ display: 'flex', gap: 48 }}>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase' }}>Usuarios</div>
-              <div style={{ color: '#111827', fontSize: 16, fontWeight: 700 }}>{totals.members.toLocaleString('es-BO')}</div>
+              <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px' }}>Usuarios</div>
+              <div style={{ color: '#111111', fontSize: 18, fontWeight: 800, fontFamily: 'monospace' }}>{totals.members.toLocaleString('es-BO')}</div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase' }}>Check-ins</div>
-              <div style={{ color: '#FF5E00', fontSize: 16, fontWeight: 700 }}>{totals.checkins.toLocaleString('es-BO')}</div>
+              <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px' }}>Check-ins</div>
+              <div style={{ color: '#111111', fontSize: 18, fontWeight: 800, fontFamily: 'monospace' }}>{totals.checkins.toLocaleString('es-BO')}</div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase' }}>Reservas</div>
-              <div style={{ color: '#2563EB', fontSize: 16, fontWeight: 700 }}>{totals.reservations.toLocaleString('es-BO')}</div>
+              <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px' }}>Reservas</div>
+              <div style={{ color: '#111111', fontSize: 18, fontWeight: 800, fontFamily: 'monospace' }}>{totals.reservations.toLocaleString('es-BO')}</div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase' }}>Máquinas</div>
-              <div style={{ color: '#374151', fontSize: 16, fontWeight: 700 }}>{totals.machines.toLocaleString('es-BO')}</div>
+              <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px' }}>Máquinas</div>
+              <div style={{ color: '#111111', fontSize: 18, fontWeight: 800, fontFamily: 'monospace' }}>{totals.machines.toLocaleString('es-BO')}</div>
             </div>
           </div>
         </div>

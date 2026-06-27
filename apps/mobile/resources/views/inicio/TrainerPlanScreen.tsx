@@ -88,7 +88,7 @@ const MacroField = ({ label, value, unit, onChangeText }: {
         value={value}
         onChangeText={onChangeText}
         placeholder="—"
-        placeholderTextColor="#333"
+        placeholderTextColor="#4B5563"
         keyboardType="decimal-pad"
         returnKeyType="done"
       />
@@ -119,7 +119,7 @@ const DayCard = ({ day, meals, onChange, expanded, onToggle }: {
         </View>
         <MaterialCommunityIcons
           name={expanded ? 'chevron-up' : 'chevron-down'}
-          size={20} color="#555"
+          size={20} color="#9CA3AF"
         />
       </TouchableOpacity>
 
@@ -144,7 +144,7 @@ const DayCard = ({ day, meals, onChange, expanded, onToggle }: {
                     value={val}
                     onChangeText={v => onChange(meal, v)}
                     placeholder="Ej: Avena con frutas y leche"
-                    placeholderTextColor="#2a2a2a"
+                    placeholderTextColor="#4B5563"
                     returnKeyType="next"
                     multiline={false}
                     maxLength={MAX_MEAL}
@@ -292,11 +292,11 @@ export const TrainerPlanScreen = () => {
                 value={macro.planNotes}
                 onChangeText={setMacroField('planNotes')}
                 placeholder="Instrucciones, restricciones, timing de comidas..."
-                placeholderTextColor="#333"
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
                 maxLength={MAX_NOTES}
+                placeholderTextColor="#4B5563"
               />
               <Text style={[s.charCount, macro.planNotes.length >= Math.floor(MAX_NOTES * 0.85) && s.charCountWarn, { textAlign: 'right', marginTop: 4 }]}>
                 {macro.planNotes.length}/{MAX_NOTES}
@@ -351,41 +351,41 @@ const s = StyleSheet.create({
   backBtn:  { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
   topTitle: { flex: 1, color: '#fff', fontSize: 18, fontWeight: '800', textAlign: 'center' },
 
-  clientName: { color: '#888', fontSize: 15, marginBottom: 16, textAlign: 'center' },
+  clientName: { color: '#D1D5DB', fontSize: 15, marginBottom: 16, textAlign: 'center' },
 
-  card:      { backgroundColor: '#0e0e0e', borderRadius: 14, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: '#1a1a1a' },
-  cardTitle: { color: '#888', fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 14 },
+  card:      { backgroundColor: '#111111', borderRadius: 14, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: '#2A2A2D' },
+  cardTitle: { color: '#D1D5DB', fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 14 },
 
   fieldWrap:  { marginBottom: 12 },
-  fieldLabel: { color: '#555', fontSize: 13, marginBottom: 6 },
+  fieldLabel: { color: '#D1D5DB', fontSize: 13, marginBottom: 6 },
   inputRow:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  input:      { flex: 1, backgroundColor: '#1a1a1a', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, color: '#fff', fontSize: 15, borderWidth: 1, borderColor: '#2a2a2a' },
+  input:      { flex: 1, backgroundColor: '#1a1a1a', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, color: '#fff', fontSize: 15, borderWidth: 1, borderColor: '#2A2A2D' },
   textArea:   { height: 90, paddingTop: 10 },
-  unitTxt:    { color: '#555', fontSize: 13, minWidth: 36 },
+  unitTxt:    { color: '#D1D5DB', fontSize: 13, minWidth: 36 },
 
-  calcRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#1a1a1a' },
-  calcTxt: { color: '#555', fontSize: 13 },
+  calcRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#2A2A2D' },
+  calcTxt: { color: '#D1D5DB', fontSize: 13 },
   calcNum: { color: '#f05b22', fontWeight: '700' },
 
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12, marginTop: 4 },
-  sectionTitle:  { color: '#888', fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase' },
+  sectionTitle:  { color: '#D1D5DB', fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase' },
 
-  dayCard:       { backgroundColor: '#0e0e0e', borderRadius: 14, marginBottom: 10, borderWidth: 1, borderColor: '#1a1a1a', overflow: 'hidden' },
+  dayCard:       { backgroundColor: '#111111', borderRadius: 14, marginBottom: 10, borderWidth: 1, borderColor: '#2A2A2D', overflow: 'hidden' },
   dayHeader:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14 },
   dayHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   dayName:       { color: '#fff', fontSize: 15, fontWeight: '700' },
   filledBadge:   { backgroundColor: '#1a3320', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2, borderWidth: 1, borderColor: '#22c55e44' },
   filledBadgeTxt:{ color: '#22c55e', fontSize: 11, fontWeight: '600' },
 
-  dayBody:      { borderTopWidth: 1, borderTopColor: '#1a1a1a', padding: 14, gap: 12 },
+  dayBody:      { borderTopWidth: 1, borderTopColor: '#2A2A2D', padding: 14, gap: 12 },
   mealRow:      { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   mealInputWrap:{ flex: 1 },
-  mealLabel:    { color: '#555', fontSize: 13, fontWeight: '600', marginBottom: 4 },
-  mealInput:    { backgroundColor: '#141414', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9, color: '#ddd', fontSize: 14, borderWidth: 1, borderColor: '#2a2a2a' },
+  mealLabel:    { color: '#D1D5DB', fontSize: 13, fontWeight: '600', marginBottom: 4 },
+  mealInput:    { backgroundColor: '#141414', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9, color: '#FFFFFF', fontSize: 14, borderWidth: 1, borderColor: '#2A2A2D' },
 
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#f05b22', borderRadius: 12, paddingVertical: 14, marginTop: 8 },
   saveTxt: { color: '#fff', fontSize: 15, fontWeight: '700' },
 
-  charCount:     { color: '#444', fontSize: 11 },
+  charCount:     { color: '#9CA3AF', fontSize: 11 },
   charCountWarn: { color: '#f05b22' },
 });

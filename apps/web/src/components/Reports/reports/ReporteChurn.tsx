@@ -6,7 +6,7 @@ import { apiClient } from '../../../infrastructure/api.config';
 import type { ReportFilters } from '../types';
 import { fmtDate, today } from '../types';
 import type { ChurnPdfData } from '../pdf/ReporteChurnPdf';
-import { ReportHeader, ReportMetaStripSingle, ReportKpiGrid, ReportSectionTitle, ReportFooter } from './preview-shared';
+import { ReportHeader, ReportMetaStripSingle, ReportKpiGrid, ReportSectionTitle, ReportFooter, ChartEmpty } from './preview-shared';
 import { AutoInsights } from '../AutoInsights';
 import { insightsChurn } from '../../../lib/insightsEngine';
 
@@ -41,7 +41,10 @@ interface Props {
 export function ReporteChurn({ filters, onCsvReady, onPdfDataReady }: Props) {
   const { data: allUsers = [], isLoading: lU } = useQuery<UserItem[]>({
     queryKey: ['rpt-churn-users'],
-    queryFn: async () => { const r = await apiClient.get('/users'); return Array.isArray(r.data) ? r.data : []; },
+    queryFn: async () => {
+      const r = await apiClient.get('/users', { params: { limit: 10000, offset: 0 } });
+      return Array.isArray(r.data) ? r.data : (r.data?.data ?? []);
+    },
     staleTime: 60_000,
   });
 
@@ -171,16 +174,18 @@ export function ReporteChurn({ filters, onCsvReady, onPdfDataReady }: Props) {
         {/* Donut chart */}
         <ReportSectionTitle>Distribución por Estado de Retención</ReportSectionTitle>
         <div id="chart-churn-pie" style={{ display: 'flex', justifyContent: 'center' }}>
-          <PieChart width={500} height={240}>
-            <Pie data={pieData} dataKey="value" nameKey="name" cx={250} cy={100} outerRadius={90} innerRadius={50} paddingAngle={3}>
-              {pieData.map((e, i) => <Cell key={i} fill={e.color} />)}
-            </Pie>
-            <Tooltip
-              formatter={(v: number, name: string) => [`${v} usuarios (${categorized.length > 0 ? Math.round((v / categorized.length) * 100) : 0}%)`, name]}
-              contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', borderRadius: 6, background: '#fff' }}
-            />
-            <Legend iconType="circle" iconSize={10} formatter={v => <span style={{ fontSize: 12, color: '#374151' }}>{v}</span>} />
-          </PieChart>
+          {pieData.length > 0 ? (
+            <PieChart width={500} height={240}>
+              <Pie data={pieData} dataKey="value" nameKey="name" cx={250} cy={100} outerRadius={90} innerRadius={50} paddingAngle={3}>
+                {pieData.map((e, i) => <Cell key={i} fill={e.color} />)}
+              </Pie>
+              <Tooltip
+                formatter={(v: number, name: string) => [`${v} usuarios (${categorized.length > 0 ? Math.round((v / categorized.length) * 100) : 0}%)`, name]}
+                contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', background: '#fff' }}
+              />
+              <Legend iconType="circle" iconSize={10} formatter={v => <span style={{ fontSize: 12, color: '#374151' }}>{v}</span>} />
+            </PieChart>
+          ) : <ChartEmpty />}
         </div>
 
         {/* Tabla usuarios en riesgo */}
@@ -189,19 +194,19 @@ export function ReporteChurn({ filters, onCsvReady, onPdfDataReady }: Props) {
             <ReportSectionTitle>Usuarios en Riesgo — Requieren Intervención ({enRiesgo.length})</ReportSectionTitle>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
-                <tr style={{ background: '#1f2937' }}>
+                <tr style={{ borderBottom: '2px solid #111111' }}>
                   {['Usuario', 'Email', 'Rol', 'Días sin check-in', 'Acción sugerida'].map((h, i) => (
-                    <th key={h} style={{ padding: '9px 10px', textAlign: i >= 3 ? 'right' : 'left', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', color: '#ffffff', fontWeight: 600 }}>{h}</th>
+                    <th key={h} style={{ padding: '9px 10px', textAlign: i >= 3 ? 'right' : 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: '#111111' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {enRiesgo.sort((a, b) => (b.diffDays ?? 0) - (a.diffDays ?? 0)).map((u, i) => (
-                  <tr key={u.id} style={{ background: i % 2 === 0 ? '#FFFBF0' : '#ffffff', borderBottom: '1px solid #F3F4F6' }}>
+                {enRiesgo.sort((a, b) => (b.diffDays ?? 0) - (a.diffDays ?? 0)).map((u) => (
+                  <tr key={u.id} style={{ background: '#ffffff', borderBottom: '1px solid #E5E7EB' }}>
                     <td style={{ padding: '9px 10px', color: '#111827', fontWeight: 600 }}>{u.name}</td>
                     <td style={{ padding: '9px 10px', color: '#6B7280' }}>{u.email}</td>
                     <td style={{ padding: '9px 10px', color: '#6B7280' }}>{u.role}</td>
-                    <td style={{ padding: '9px 10px', textAlign: 'right', color: YELLOW, fontWeight: 700 }}>{u.diffDays ?? '—'}</td>
+                    <td style={{ padding: '9px 10px', textAlign: 'right', color: '#374151', fontWeight: 700, fontFamily: 'monospace' }}>{u.diffDays ?? '—'}</td>
                     <td style={{ padding: '9px 10px', textAlign: 'right', color: '#374151', fontSize: 11 }}>Contactar y ofrecer incentivo</td>
                   </tr>
                 ))}
@@ -216,19 +221,19 @@ export function ReporteChurn({ filters, onCsvReady, onPdfDataReady }: Props) {
             <ReportSectionTitle>Usuarios Inactivos o Dados de Baja ({inactivos.length})</ReportSectionTitle>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
-                <tr style={{ background: '#1f2937' }}>
+                <tr style={{ borderBottom: '2px solid #111111' }}>
                   {['Usuario', 'Email', 'Rol', 'Días sin check-in'].map((h, i) => (
-                    <th key={h} style={{ padding: '9px 10px', textAlign: i >= 3 ? 'right' : 'left', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', color: '#ffffff', fontWeight: 600 }}>{h}</th>
+                    <th key={h} style={{ padding: '9px 10px', textAlign: i >= 3 ? 'right' : 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: '#111111' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {inactivos.slice(0, 30).map((u, i) => (
-                  <tr key={u.id} style={{ background: i % 2 === 0 ? '#FFF5F5' : '#ffffff', borderBottom: '1px solid #F3F4F6' }}>
+                {inactivos.slice(0, 30).map((u) => (
+                  <tr key={u.id} style={{ background: '#ffffff', borderBottom: '1px solid #E5E7EB' }}>
                     <td style={{ padding: '9px 10px', color: '#111827', fontWeight: 600 }}>{u.name}</td>
                     <td style={{ padding: '9px 10px', color: '#6B7280' }}>{u.email}</td>
                     <td style={{ padding: '9px 10px', color: '#6B7280' }}>{u.role}</td>
-                    <td style={{ padding: '9px 10px', textAlign: 'right', color: RED }}>{u.diffDays !== null ? u.diffDays : '—'}</td>
+                    <td style={{ padding: '9px 10px', textAlign: 'right', color: '#374151', fontFamily: 'monospace' }}>{u.diffDays !== null ? u.diffDays : '—'}</td>
                   </tr>
                 ))}
                 {inactivos.length > 30 && (

@@ -181,22 +181,22 @@ export function ReporteActividades({ filters, onCsvReady, onPdfDataReady }: Prop
         <ReportSectionTitle>Detalle por Actividad</ReportSectionTitle>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
-            <tr style={{ background: '#1f2937' }}>
+            <tr style={{ borderBottom: '2px solid #111111' }}>
               {['Actividad', 'Total', 'Confirmadas', 'Completadas', 'Canceladas', 'Pend.', 'Cancelación%'].map((h, i) => (
-                <th key={h} style={{ padding: '9px 10px', textAlign: i === 0 ? 'left' : 'right', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', color: '#ffffff', fontWeight: 600 }}>{h}</th>
+                <th key={h} style={{ padding: '9px 10px', textAlign: i === 0 ? 'left' : 'right', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: '#111111' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {byActivity.map((a, i) => (
-              <tr key={a.name} style={{ background: i % 2 === 0 ? '#F9FAFB' : '#ffffff', borderBottom: '1px solid #F3F4F6' }}>
+            {byActivity.map((a) => (
+              <tr key={a.name} style={{ background: '#ffffff', borderBottom: '1px solid #E5E7EB' }}>
                 <td style={{ padding: '9px 10px', color: '#111827', fontWeight: 600, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</td>
-                <td style={{ padding: '9px 10px', textAlign: 'right', color: '#374151', fontWeight: 600 }}>{a.total}</td>
-                <td style={{ padding: '9px 10px', textAlign: 'right', color: ORANGE }}>{a.confirmada}</td>
-                <td style={{ padding: '9px 10px', textAlign: 'right', color: GREEN }}>{a.completada}</td>
-                <td style={{ padding: '9px 10px', textAlign: 'right', color: RED }}>{a.cancelada}</td>
-                <td style={{ padding: '9px 10px', textAlign: 'right', color: GRAY }}>{a.pendiente}</td>
-                <td style={{ padding: '9px 10px', textAlign: 'right', color: a.cancelRate >= 30 ? RED : '#374151', fontWeight: a.cancelRate >= 30 ? 700 : 400 }}>{a.cancelRate}%</td>
+                <td style={{ padding: '9px 10px', textAlign: 'right', color: '#374151', fontWeight: 600, fontFamily: 'monospace' }}>{a.total}</td>
+                <td style={{ padding: '9px 10px', textAlign: 'right', color: '#374151', fontFamily: 'monospace' }}>{a.confirmada}</td>
+                <td style={{ padding: '9px 10px', textAlign: 'right', color: '#374151', fontFamily: 'monospace' }}>{a.completada}</td>
+                <td style={{ padding: '9px 10px', textAlign: 'right', color: '#374151', fontFamily: 'monospace' }}>{a.cancelada}</td>
+                <td style={{ padding: '9px 10px', textAlign: 'right', color: '#374151', fontFamily: 'monospace' }}>{a.pendiente}</td>
+                <td style={{ padding: '9px 10px', textAlign: 'right', color: '#374151', fontWeight: a.cancelRate >= 30 ? 700 : 400, fontFamily: 'monospace' }}>{a.cancelRate}%</td>
               </tr>
             ))}
           </tbody>

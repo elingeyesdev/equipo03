@@ -31,7 +31,7 @@ export interface RankingPdfData {
 
 const podioHeights = [80, 110, 60]; // 2nd, 1st, 3rd
 const podioColors  = [SILVER, GOLD, BRONZE];
-const medals       = ['🥈', '🥇', '🥉'];
+const positions    = ['2°', '1°', '3°'];
 
 export function ReporteRankingPdf({ data }: { data: RankingPdfData }) {
   const display = [data.top3[1], data.top3[0], data.top3[2]]; // 2nd 1st 3rd
@@ -51,7 +51,7 @@ export function ReporteRankingPdf({ data }: { data: RankingPdfData }) {
                   if (!sede) return <View key={idx} style={{ width: 120 }} />;
                   return (
                     <View key={sede.name} style={s.podioItem}>
-                      <Text style={s.podioMedal}>{medals[idx]}</Text>
+                      <Text style={s.podioMedal}>{positions[idx]}</Text>
                       <Text style={s.podioName}>{sede.name}</Text>
                       <Text style={s.podioBrand}>{sede.brand}</Text>
                       <View style={[s.podioBar, { height: podioHeights[idx], backgroundColor: podioColors[idx] }]}>

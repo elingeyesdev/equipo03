@@ -30,7 +30,7 @@ export function ReporteRanking({ filters, onCsvReady, onPdfDataReady }: Props) {
   const { data: allGyms = [],  isLoading: lG  } = useQuery<GymItem[]>({ queryKey: ['rpt-rank-gyms'],  queryFn: async () => { const r = await apiClient.get('/gyms');                                                    return Array.isArray(r.data) ? r.data : []; }, staleTime: 60_000 });
   const { data: checkins  = [], isLoading: lCI } = useQuery<CIItem[]>({  queryKey: ['rpt-rank-ci'],   queryFn: async () => { const r = await apiClient.get('/checkins');                                               return Array.isArray(r.data) ? r.data : []; }, staleTime: 60_000 });
   const { data: reservas  = [], isLoading: lRsv } = useQuery<RsvItem[]>({ queryKey: ['rpt-rank-rsv'], queryFn: async () => { const r = await apiClient.get('/reservations', { params: { limit: 2000 } }); return Array.isArray(r.data) ? r.data : (r.data?.data ?? []); }, staleTime: 60_000 });
-  const { data: users     = [], isLoading: lU  } = useQuery<UserItem[]>({ queryKey: ['rpt-rank-users'], queryFn: async () => { const r = await apiClient.get('/users');                                              return Array.isArray(r.data) ? r.data : []; }, staleTime: 60_000 });
+  const { data: users     = [], isLoading: lU  } = useQuery<UserItem[]>({ queryKey: ['rpt-rank-users'], queryFn: async () => { const r = await apiClient.get('/users', { params: { limit: 10000, offset: 0 } }); return Array.isArray(r.data) ? r.data : (r.data?.data ?? []); }, staleTime: 60_000 });
 
   const loading = lG || lCI || lRsv || lU;
 
@@ -172,10 +172,10 @@ export function ReporteRanking({ filters, onCsvReady, onPdfDataReady }: Props) {
                 const realIdx = idx === 0 ? 1 : idx === 1 ? 0 : 2;
                 const h = podioHeights[realIdx];
                 const c = badgeColor(realIdx);
-                const medals = ['🥇', '🥈', '🥉'];
+                const positions = ['1°', '2°', '3°'];
                 return (
                   <div key={sede.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 160 }}>
-                    <div style={{ fontSize: 22, marginBottom: 6 }}>{medals[realIdx]}</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: c, marginBottom: 6, letterSpacing: '-0.5px' }}>{positions[realIdx]}</div>
                     <div style={{ fontSize: 12, fontWeight: 700, color: '#111827', textAlign: 'center', marginBottom: 4, lineHeight: 1.2 }}>{sede.name}</div>
                     <div style={{ fontSize: 10, color: '#9CA3AF', marginBottom: 8 }}>{sede.brand}</div>
                     <div style={{ width: '100%', height: h, background: c, borderRadius: '6px 6px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -211,23 +211,23 @@ export function ReporteRanking({ filters, onCsvReady, onPdfDataReady }: Props) {
         <ReportSectionTitle>Tabla Completa</ReportSectionTitle>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
-            <tr style={{ background: '#1f2937' }}>
+            <tr style={{ borderBottom: '2px solid #111111' }}>
               {['Pos.', 'Sede', 'Marca', 'Check-ins', 'Reservas', 'Miembros', 'Ocup.%', 'Score'].map((h, i) => (
-                <th key={h} style={{ padding: '9px 10px', textAlign: i >= 3 ? 'right' : 'left', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', color: '#ffffff', fontWeight: 600 }}>{h}</th>
+                <th key={h} style={{ padding: '9px 10px', textAlign: i >= 3 ? 'right' : 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: '#111111' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {rankedVisible.map((r, i) => (
-              <tr key={r.id} style={{ background: i % 2 === 0 ? '#F9FAFB' : '#ffffff', borderBottom: '1px solid #F3F4F6' }}>
-                <td style={{ padding: '9px 10px', color: i < 3 ? badgeColor(i) : '#9CA3AF', fontWeight: 700 }}>#{i + 1}</td>
+              <tr key={r.id} style={{ background: '#ffffff', borderBottom: '1px solid #E5E7EB' }}>
+                <td style={{ padding: '9px 10px', color: '#9CA3AF', fontWeight: 700, fontFamily: 'monospace' }}>#{i + 1}</td>
                 <td style={{ padding: '9px 10px', color: '#111827', fontWeight: 600 }}>{r.name}</td>
                 <td style={{ padding: '9px 10px', color: '#6B7280' }}>{r.brand}</td>
-                <td style={{ padding: '9px 10px', textAlign: 'right', color: '#374151' }}>{r.ci.toLocaleString('es-BO')}</td>
-                <td style={{ padding: '9px 10px', textAlign: 'right', color: '#374151' }}>{r.rsv.toLocaleString('es-BO')}</td>
-                <td style={{ padding: '9px 10px', textAlign: 'right', color: '#374151' }}>{r.mem.toLocaleString('es-BO')}</td>
-                <td style={{ padding: '9px 10px', textAlign: 'right', color: '#374151' }}>{r.occPct !== null ? `${r.occPct}%` : '—'}</td>
-                <td style={{ padding: '9px 10px', textAlign: 'right', color: ORANGE, fontWeight: 800, fontSize: 13 }}>{r.score}</td>
+                <td style={{ padding: '9px 10px', textAlign: 'right', color: '#374151', fontFamily: 'monospace' }}>{r.ci.toLocaleString('es-BO')}</td>
+                <td style={{ padding: '9px 10px', textAlign: 'right', color: '#374151', fontFamily: 'monospace' }}>{r.rsv.toLocaleString('es-BO')}</td>
+                <td style={{ padding: '9px 10px', textAlign: 'right', color: '#374151', fontFamily: 'monospace' }}>{r.mem.toLocaleString('es-BO')}</td>
+                <td style={{ padding: '9px 10px', textAlign: 'right', color: '#374151', fontFamily: 'monospace' }}>{r.occPct !== null ? `${r.occPct}%` : '—'}</td>
+                <td style={{ padding: '9px 10px', textAlign: 'right', color: '#111111', fontWeight: 800, fontSize: 13, fontFamily: 'monospace' }}>{r.score}</td>
               </tr>
             ))}
           </tbody>

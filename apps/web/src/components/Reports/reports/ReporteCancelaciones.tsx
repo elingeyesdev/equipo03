@@ -6,7 +6,7 @@ import { apiClient } from '../../../infrastructure/api.config';
 import type { ReportFilters } from '../types';
 import { fmtDate, inRange, normalizeStatus, DAY_LABELS, DAY_ORDER } from '../types';
 import type { CancelacionesPdfData } from '../pdf/ReporteCancelacionesPdf';
-import { ReportHeader, ReportMetaStrip, ReportKpiGrid, ReportSectionTitle, ReportFooter } from './preview-shared';
+import { ReportHeader, ReportMetaStrip, ReportKpiGrid, ReportSectionTitle, ReportFooter, ChartEmpty } from './preview-shared';
 import { AutoInsights } from '../AutoInsights';
 import { insightsCancelaciones } from '../../../lib/insightsEngine';
 
@@ -164,23 +164,27 @@ export function ReporteCancelaciones({ filters, onCsvReady, onPdfDataReady }: Pr
         <div id="chart-cancelaciones-charts" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
           <div>
             <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>Por estado</div>
-            <PieChart width={398} height={220}>
-              <Pie data={pieData} dataKey="value" nameKey="name" cx={199} cy={95} outerRadius={70} innerRadius={35} paddingAngle={3}>
-                {pieData.map((e, i) => <Cell key={i} fill={e.color} />)}
-              </Pie>
-              <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', borderRadius: 6, background: '#fff' }} />
-              <Legend iconType="circle" iconSize={8} formatter={v => <span style={{ fontSize: 11, color: '#374151' }}>{v}</span>} />
-            </PieChart>
+            {pieData.length > 0 ? (
+              <PieChart width={398} height={220}>
+                <Pie data={pieData} dataKey="value" nameKey="name" cx={199} cy={95} outerRadius={70} innerRadius={35} paddingAngle={3}>
+                  {pieData.map((e, i) => <Cell key={i} fill={e.color} />)}
+                </Pie>
+                <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', background: '#fff' }} />
+                <Legend iconType="circle" iconSize={8} formatter={v => <span style={{ fontSize: 11, color: '#374151' }}>{v}</span>} />
+              </PieChart>
+            ) : <ChartEmpty />}
           </div>
           <div>
             <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>Cancelaciones por día</div>
-            <BarChart width={398} height={200} data={dayData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', borderRadius: 6, background: '#fff' }} />
-              <Bar dataKey="canceladas" fill={RED} radius={[3, 3, 0, 0]} name="Canceladas" />
-            </BarChart>
+            {dayData.some(d => d.canceladas > 0) ? (
+              <BarChart width={398} height={200} data={dayData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', background: '#fff' }} />
+                <Bar dataKey="canceladas" fill={RED} radius={[3, 3, 0, 0]} name="Canceladas" />
+              </BarChart>
+            ) : <ChartEmpty />}
           </div>
         </div>
 
@@ -190,19 +194,19 @@ export function ReporteCancelaciones({ filters, onCsvReady, onPdfDataReady }: Pr
             <ReportSectionTitle>Actividades con Más Cancelaciones</ReportSectionTitle>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
-                <tr style={{ background: '#1f2937' }}>
+                <tr style={{ borderBottom: '2px solid #111111' }}>
                   {['Actividad', 'Total reservas', 'Canceladas', 'Tasa cancelación%'].map((h, i) => (
-                    <th key={h} style={{ padding: '9px 10px', textAlign: i === 0 ? 'left' : 'right', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', color: '#ffffff', fontWeight: 600 }}>{h}</th>
+                    <th key={h} style={{ padding: '9px 10px', textAlign: i === 0 ? 'left' : 'right', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: '#111111' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {byActivity.map((a, i) => (
-                  <tr key={a.name} style={{ background: i % 2 === 0 ? '#F9FAFB' : '#ffffff', borderBottom: '1px solid #F3F4F6' }}>
+                {byActivity.map((a) => (
+                  <tr key={a.name} style={{ background: '#ffffff', borderBottom: '1px solid #E5E7EB' }}>
                     <td style={{ padding: '9px 10px', color: '#111827', fontWeight: 600 }}>{a.name}</td>
-                    <td style={{ padding: '9px 10px', textAlign: 'right', color: '#374151' }}>{a.total}</td>
-                    <td style={{ padding: '9px 10px', textAlign: 'right', color: RED, fontWeight: 700 }}>{a.cancelada}</td>
-                    <td style={{ padding: '9px 10px', textAlign: 'right', color: a.tasa >= 30 ? RED : '#374151', fontWeight: a.tasa >= 30 ? 700 : 400 }}>{a.tasa}%</td>
+                    <td style={{ padding: '9px 10px', textAlign: 'right', color: '#374151', fontFamily: 'monospace' }}>{a.total}</td>
+                    <td style={{ padding: '9px 10px', textAlign: 'right', color: '#374151', fontWeight: 700, fontFamily: 'monospace' }}>{a.cancelada}</td>
+                    <td style={{ padding: '9px 10px', textAlign: 'right', color: '#374151', fontWeight: a.tasa >= 30 ? 700 : 400, fontFamily: 'monospace' }}>{a.tasa}%</td>
                   </tr>
                 ))}
               </tbody>

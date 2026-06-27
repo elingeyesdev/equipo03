@@ -9,7 +9,7 @@ import type { ReportFilters } from '../types';
 import { fmtDate, inRange, DAY_LABELS, DAY_ORDER } from '../types';
 import type { GymScheduleDto } from '../../../components/Dashboard/Shared/DashboardTypes';
 import type { AsistenciaPdfData } from '../pdf/ReporteAsistenciaPdf';
-import { ReportHeader, ReportMetaStrip, ReportKpiGrid, ReportSectionTitle, ReportFooter } from './preview-shared';
+import { ReportHeader, ReportMetaStrip, ReportKpiGrid, ReportSectionTitle, ReportFooter, ChartEmpty } from './preview-shared';
 import { AutoInsights } from '../AutoInsights';
 import { insightsAsistencia } from '../../../lib/insightsEngine';
 
@@ -211,38 +211,52 @@ export function ReporteAsistencia({ filters, onCsvReady, onPdfDataReady }: Props
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
           <div id="chart-asistencia-dia">
             <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>Por día de semana</div>
-            <BarChart width={398} height={200} data={dayData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', borderRadius: 6, background: '#fff' }} cursor={{ fill: '#FFF5F0' }} />
-              <Bar dataKey="total" fill={ORANGE} radius={[3, 3, 0, 0]} name="Check-ins" />
-            </BarChart>
+            {dayData.some(d => d.total > 0) ? (
+              <BarChart width={398} height={200} data={dayData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', background: '#fff' }} cursor={{ fill: '#F9FAFB' }} />
+                <Bar dataKey="total" fill={ORANGE} radius={[3, 3, 0, 0]} name="Check-ins" />
+              </BarChart>
+            ) : <ChartEmpty />}
           </div>
           <div id="chart-asistencia-hora">
             <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>Por franja horaria</div>
-            <BarChart width={398} height={200} data={hourData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', borderRadius: 6, background: '#fff' }} cursor={{ fill: '#EFF6FF' }} />
-              <Bar dataKey="total" fill={BLUE} radius={[3, 3, 0, 0]} name="Check-ins" />
-            </BarChart>
+            {hourData.some(d => d.total > 0) ? (
+              <BarChart width={398} height={200} data={hourData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', background: '#fff' }} cursor={{ fill: '#F9FAFB' }} />
+                <Bar dataKey="total" fill={BLUE} radius={[3, 3, 0, 0]} name="Check-ins" />
+              </BarChart>
+            ) : <ChartEmpty />}
           </div>
         </div>
 
         {/* Monthly comparison */}
         <ReportSectionTitle>Comparativo Mensual</ReportSectionTitle>
         <div id="chart-asistencia-mensual">
-        <BarChart width={820} height={160} data={monthlyData} layout="vertical" margin={{ top: 4, right: 40, bottom: 0, left: 16 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" horizontal={false} />
-          <XAxis type="number" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
-          <YAxis type="category" dataKey="name" tick={{ fontSize: 12, fill: '#374151' }} axisLine={false} tickLine={false} width={72} />
-          <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', borderRadius: 6, background: '#fff' }} />
-          <Bar dataKey="total" radius={[0, 4, 4, 0]} name="Check-ins">
-            {monthlyData.map((_, i) => <Cell key={i} fill={i === 1 ? ORANGE : '#D1D5DB'} />)}
-          </Bar>
-        </BarChart>
+          {monthlyData.some(d => d.total > 0) ? (
+            <BarChart width={820} height={160} data={monthlyData} layout="vertical" margin={{ top: 4, right: 40, bottom: 0, left: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" horizontal={false} />
+              <XAxis type="number" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <YAxis
+                type="category"
+                dataKey="name"
+                tick={{ fontSize: 10, fill: '#374151' }}
+                axisLine={false}
+                tickLine={false}
+                width={148}
+                tickFormatter={(v: string) => v.length > 20 ? v.slice(0, 18) + '…' : v}
+              />
+              <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', background: '#fff' }} />
+              <Bar dataKey="total" radius={[0, 4, 4, 0]} name="Check-ins">
+                {monthlyData.map((_, i) => <Cell key={i} fill={i === 1 ? ORANGE : '#D1D5DB'} />)}
+              </Bar>
+            </BarChart>
+          ) : <ChartEmpty height={160} />}
         </div>
 
         {/* Top activities */}
@@ -251,20 +265,20 @@ export function ReporteAsistencia({ filters, onCsvReady, onPdfDataReady }: Props
             <ReportSectionTitle>Actividades con Más Reservas</ReportSectionTitle>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
-                <tr style={{ background: '#1f2937' }}>
+                <tr style={{ borderBottom: '2px solid #111111' }}>
                   {['#', 'Actividad', 'Reservas totales'].map((h, i) => (
-                    <th key={h} style={{ padding: '9px 12px', textAlign: i === 2 ? 'right' : 'left', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', color: '#ffffff', fontWeight: 600 }}>
+                    <th key={h} style={{ padding: '9px 12px', textAlign: i === 2 ? 'right' : 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: '#111111' }}>
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {topActivities.map((a, i) => (
-                  <tr key={a.name} style={{ background: i % 2 === 0 ? '#F9FAFB' : '#ffffff', borderBottom: '1px solid #F3F4F6' }}>
-                    <td style={{ padding: '10px 12px', width: 36, color: '#9CA3AF', fontWeight: 600 }}>{a.rank}</td>
+                {topActivities.map((a) => (
+                  <tr key={a.name} style={{ background: '#ffffff', borderBottom: '1px solid #E5E7EB' }}>
+                    <td style={{ padding: '10px 12px', width: 36, color: '#9CA3AF', fontWeight: 600, fontFamily: 'monospace' }}>{a.rank}</td>
                     <td style={{ padding: '10px 12px', color: '#111827', fontWeight: 500 }}>{a.name}</td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right', color: '#FF5E00', fontWeight: 700 }}>{a.total}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', color: '#374151', fontWeight: 700, fontFamily: 'monospace' }}>{a.total}</td>
                   </tr>
                 ))}
               </tbody>

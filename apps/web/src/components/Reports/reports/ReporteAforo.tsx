@@ -199,19 +199,19 @@ export function ReporteAforo({ filters, onCsvReady, onPdfDataReady }: Props) {
         <ReportSectionTitle>Detalle por Sucursal</ReportSectionTitle>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
-            <tr style={{ background: '#1f2937' }}>
+            <tr style={{ borderBottom: '2px solid #111111' }}>
               {['Sucursal', 'Marca', 'Ocupación', 'Cap. máx.', 'Utilización', 'Estado'].map((h, i) => (
-                <th key={h} style={{ padding: '9px 12px', textAlign: i >= 2 ? 'right' : 'left', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', color: '#ffffff', fontWeight: 600 }}>
+                <th key={h} style={{ padding: '9px 12px', textAlign: i >= 2 ? 'right' : 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: '#111111' }}>
                   {h}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {rows.map((r, i) => {
+            {rows.map((r) => {
               const color = pctColor(r.pct, r.hasData);
               return (
-                <tr key={r.id} style={{ background: i % 2 === 0 ? '#F9FAFB' : '#ffffff', borderBottom: '1px solid #F3F4F6' }}>
+                <tr key={r.id} style={{ background: '#ffffff', borderBottom: '1px solid #E5E7EB' }}>
                   <td style={{ padding: '10px 12px', color: '#111827', fontWeight: 600 }}>{r.name}</td>
                   <td style={{ padding: '10px 12px', color: '#6B7280' }}>{r.brand}</td>
                   <td style={{ padding: '10px 12px', textAlign: 'right', color: '#374151', fontWeight: 600 }}>
@@ -246,20 +246,20 @@ export function ReporteAforo({ filters, onCsvReady, onPdfDataReady }: Props) {
             <ReportSectionTitle>Capacidad de Máquinas por Sucursal</ReportSectionTitle>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
-                <tr style={{ background: '#1f2937' }}>
+                <tr style={{ borderBottom: '2px solid #111111' }}>
                   {['Sucursal', 'Marca', 'Cap. máquinas'].map((h, i) => (
-                    <th key={h} style={{ padding: '9px 12px', textAlign: i === 2 ? 'right' : 'left', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', color: '#ffffff', fontWeight: 600 }}>
+                    <th key={h} style={{ padding: '9px 12px', textAlign: i === 2 ? 'right' : 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: '#111111' }}>
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {rows.filter(r => r.machCap !== null).map((r, i) => (
-                  <tr key={r.id} style={{ background: i % 2 === 0 ? '#F9FAFB' : '#ffffff', borderBottom: '1px solid #F3F4F6' }}>
+                {rows.filter(r => r.machCap !== null).map((r) => (
+                  <tr key={r.id} style={{ background: '#ffffff', borderBottom: '1px solid #E5E7EB' }}>
                     <td style={{ padding: '10px 12px', color: '#111827', fontWeight: 600 }}>{r.name}</td>
                     <td style={{ padding: '10px 12px', color: '#6B7280' }}>{r.brand}</td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right', color: '#2563EB', fontWeight: 700 }}>{r.machCap}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', color: '#374151', fontWeight: 700, fontFamily: 'monospace' }}>{r.machCap}</td>
                   </tr>
                 ))}
               </tbody>

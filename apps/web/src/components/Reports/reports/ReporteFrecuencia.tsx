@@ -6,7 +6,7 @@ import { apiClient } from '../../../infrastructure/api.config';
 import type { ReportFilters } from '../types';
 import { fmtDate, inRange, DAY_LABELS, DAY_ORDER } from '../types';
 import type { FrecuenciaPdfData } from '../pdf/ReporteFrecuenciaPdf';
-import { ReportHeader, ReportMetaStrip, ReportKpiGrid, ReportSectionTitle, ReportFooter } from './preview-shared';
+import { ReportHeader, ReportMetaStrip, ReportKpiGrid, ReportSectionTitle, ReportFooter, ChartEmpty } from './preview-shared';
 import { AutoInsights } from '../AutoInsights';
 import { insightsFrecuencia } from '../../../lib/insightsEngine';
 
@@ -150,23 +150,27 @@ export function ReporteFrecuencia({ filters, onCsvReady, onPdfDataReady }: Props
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
           <div id="chart-frecuencia-dia">
             <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>Check-ins por día de semana</div>
-            <BarChart width={398} height={200} data={dayData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', borderRadius: 6, background: '#fff' }} cursor={{ fill: '#FFF5F0' }} />
-              <Bar dataKey="total" fill={ORANGE} radius={[3, 3, 0, 0]} name="Check-ins" />
-            </BarChart>
+            {dayData.some(d => d.total > 0) ? (
+              <BarChart width={398} height={200} data={dayData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', background: '#fff' }} cursor={{ fill: '#F9FAFB' }} />
+                <Bar dataKey="total" fill={ORANGE} radius={[3, 3, 0, 0]} name="Check-ins" />
+              </BarChart>
+            ) : <ChartEmpty />}
           </div>
           <div id="chart-frecuencia-buckets">
             <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>Usuarios por frecuencia</div>
-            <PieChart width={398} height={220}>
-              <Pie data={buckets} dataKey="value" nameKey="name" cx={199} cy={95} outerRadius={70} innerRadius={35} paddingAngle={3}>
-                {buckets.map((_, i) => <Cell key={i} fill={BUCKET_COLORS[i % BUCKET_COLORS.length]} />)}
-              </Pie>
-              <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', borderRadius: 6, background: '#fff' }} />
-              <Legend iconType="circle" iconSize={8} formatter={v => <span style={{ fontSize: 10, color: '#374151' }}>{v}</span>} />
-            </PieChart>
+            {buckets.length > 0 ? (
+              <PieChart width={398} height={220}>
+                <Pie data={buckets} dataKey="value" nameKey="name" cx={199} cy={95} outerRadius={70} innerRadius={35} paddingAngle={3}>
+                  {buckets.map((_, i) => <Cell key={i} fill={BUCKET_COLORS[i % BUCKET_COLORS.length]} />)}
+                </Pie>
+                <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', background: '#fff' }} />
+                <Legend iconType="circle" iconSize={8} formatter={v => <span style={{ fontSize: 10, color: '#374151' }}>{v}</span>} />
+              </PieChart>
+            ) : <ChartEmpty />}
           </div>
         </div>
 
@@ -174,20 +178,20 @@ export function ReporteFrecuencia({ filters, onCsvReady, onPdfDataReady }: Props
         <ReportSectionTitle>Top {top20.length} Usuarios más Activos</ReportSectionTitle>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
-            <tr style={{ background: '#1f2937' }}>
+            <tr style={{ borderBottom: '2px solid #111111' }}>
               {['#', 'Usuario', 'Rol', 'Check-ins período', 'Prom/semana'].map((h, i) => (
-                <th key={h} style={{ padding: '9px 10px', textAlign: i >= 3 ? 'right' : 'left', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', color: '#ffffff', fontWeight: 600 }}>{h}</th>
+                <th key={h} style={{ padding: '9px 10px', textAlign: i >= 3 ? 'right' : 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: '#111111' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {top20.map((u, i) => (
-              <tr key={u.name} style={{ background: i % 2 === 0 ? '#F9FAFB' : '#ffffff', borderBottom: '1px solid #F3F4F6' }}>
-                <td style={{ padding: '9px 10px', color: '#9CA3AF', fontWeight: 600, width: 36 }}>{i + 1}</td>
+              <tr key={u.name} style={{ background: '#ffffff', borderBottom: '1px solid #E5E7EB' }}>
+                <td style={{ padding: '9px 10px', color: '#9CA3AF', fontWeight: 600, width: 36, fontFamily: 'monospace' }}>{i + 1}</td>
                 <td style={{ padding: '9px 10px', color: '#111827', fontWeight: 600 }}>{u.name}</td>
                 <td style={{ padding: '9px 10px', color: '#6B7280' }}>{u.role}</td>
-                <td style={{ padding: '9px 10px', textAlign: 'right', color: ORANGE, fontWeight: 700 }}>{u.count}</td>
-                <td style={{ padding: '9px 10px', textAlign: 'right', color: '#374151' }}>{(u.count / weeks).toFixed(1)}</td>
+                <td style={{ padding: '9px 10px', textAlign: 'right', color: '#374151', fontWeight: 700, fontFamily: 'monospace' }}>{u.count}</td>
+                <td style={{ padding: '9px 10px', textAlign: 'right', color: '#374151', fontFamily: 'monospace' }}>{(u.count / weeks).toFixed(1)}</td>
               </tr>
             ))}
           </tbody>

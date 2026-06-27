@@ -9,6 +9,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { reservationApi } from '../api/reservation.api';
 import { ERROR_MAP } from '../api/reservation.types';
 import { DumbbellSpinner } from '../../../Shared/components/ui/DumbbellSpinner';
+import { useAuth } from '../../../Shared/hooks/useAuth';
 
 type RootStackParamList = {
   ScheduleSelection: { gymId: number; gymName: string };
@@ -269,6 +270,8 @@ const cal = StyleSheet.create({
 
 export const ScheduleSelectionScreen = ({ route, navigation }: Props) => {
   const { gymId, gymName } = route.params;
+  const { user }   = useAuth();
+  const myLevel    = Number((user as any)?.level ?? 0);
 
   const [selectedDate,     setSelectedDate]     = useState<string | null>(null);
   const [selectedActivity, setSelectedActivity] = useState<GymActivityUI | null>(null);
@@ -362,7 +365,11 @@ export const ScheduleSelectionScreen = ({ route, navigation }: Props) => {
       setShowSuccess(false);
       scaleAnim.setValue(0);
       opacityAnim.setValue(0);
-      (navigation as any).getParent()?.navigate('Mis Reservas');
+      if (myLevel <= 1) {
+        (navigation as any).getParent()?.navigate('Mis Reservas');
+      } else {
+        navigation.navigate('MisReservas');
+      }
     }, 1800);
     return () => clearTimeout(t);
   }, [showSuccess]);

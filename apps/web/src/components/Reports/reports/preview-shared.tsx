@@ -1,17 +1,6 @@
 import React from 'react';
 import { fmtDate } from '../types';
 
-const TINT: Record<string, string> = {
-  '#FF5E00': '#FFF5EE',
-  '#10B981': '#F0FDF4',
-  '#EF4444': '#FFF5F5',
-  '#F59E0B': '#FFFBF0',
-  '#2563EB': '#EFF6FF',
-  '#7C3AED': '#F5F3FF',
-  '#9CA3AF': '#F9FAFB',
-  '#6B7280': '#F9FAFB',
-};
-
 export function ReportHeader({ title, gymName }: { title: string; gymName?: string }) {
   return (
     <div style={{ background: '#111827' }}>
@@ -35,77 +24,76 @@ export function ReportHeader({ title, gymName }: { title: string; gymName?: stri
 
 export function ReportMetaStrip({ from, to, genAt, label = 'Período' }: { from: string; to: string; genAt: string; label?: string }) {
   return (
-    <div style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB', padding: '10px 40px', display: 'flex', gap: 48, alignItems: 'center' }}>
-      <div>
-        <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px' }}>{label}</div>
-        <div style={{ color: '#111827', fontSize: 13, fontWeight: 600, marginTop: 2 }}>{fmtDate(from)} — {fmtDate(to)}</div>
+    <div style={{ background: '#ffffff', borderBottom: '2px solid #000000', padding: '14px 40px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      <div style={{ display: 'flex', gap: 48, alignItems: 'flex-end' }}>
+        <div>
+          <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px' }}>{label}</div>
+          <div style={{ color: '#111827', fontSize: 13, fontWeight: 600, marginTop: 2 }}>{fmtDate(from)} — {fmtDate(to)}</div>
+        </div>
+        <div>
+          <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px' }}>Generado</div>
+          <div style={{ color: '#111827', fontSize: 13, fontWeight: 600, marginTop: 2 }}>{genAt}</div>
+        </div>
       </div>
-      <div>
-        <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px' }}>Generado</div>
-        <div style={{ color: '#111827', fontSize: 13, fontWeight: 600, marginTop: 2 }}>{genAt}</div>
-      </div>
-      <div style={{ marginLeft: 'auto' }}>
-        <span style={{
-          background: '#FF5E00', color: '#ffffff', borderRadius: 4,
-          padding: '3px 9px', fontSize: 10, fontWeight: 700,
-          textTransform: 'uppercase', letterSpacing: 1,
-        }}>
-          Oficial
-        </span>
-      </div>
+      <span style={{
+        background: '#FF5E00', color: '#ffffff',
+        padding: '3px 9px', fontSize: 10, fontWeight: 700,
+        textTransform: 'uppercase', letterSpacing: 1,
+      }}>
+        Oficial
+      </span>
     </div>
   );
 }
 
 export function ReportMetaStripSingle({ label, value, genAt }: { label: string; value: string; genAt: string }) {
   return (
-    <div style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB', padding: '10px 40px', display: 'flex', gap: 48, alignItems: 'center' }}>
-      <div>
-        <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px' }}>{label}</div>
-        <div style={{ color: '#111827', fontSize: 13, fontWeight: 600, marginTop: 2 }}>{value}</div>
+    <div style={{ background: '#ffffff', borderBottom: '2px solid #000000', padding: '14px 40px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      <div style={{ display: 'flex', gap: 48, alignItems: 'flex-end' }}>
+        <div>
+          <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px' }}>{label}</div>
+          <div style={{ color: '#111827', fontSize: 13, fontWeight: 600, marginTop: 2 }}>{value}</div>
+        </div>
+        <div>
+          <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px' }}>Generado</div>
+          <div style={{ color: '#111827', fontSize: 13, fontWeight: 600, marginTop: 2 }}>{genAt}</div>
+        </div>
       </div>
-      <div>
-        <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px' }}>Generado</div>
-        <div style={{ color: '#111827', fontSize: 13, fontWeight: 600, marginTop: 2 }}>{genAt}</div>
-      </div>
-      <div style={{ marginLeft: 'auto' }}>
-        <span style={{
-          background: '#FF5E00', color: '#ffffff', borderRadius: 4,
-          padding: '3px 9px', fontSize: 10, fontWeight: 700,
-          textTransform: 'uppercase', letterSpacing: 1,
-        }}>
-          Oficial
-        </span>
-      </div>
+      <span style={{
+        background: '#FF5E00', color: '#ffffff',
+        padding: '3px 9px', fontSize: 10, fontWeight: 700,
+        textTransform: 'uppercase', letterSpacing: 1,
+      }}>
+        Oficial
+      </span>
     </div>
   );
 }
 
 export function ReportKpiGrid({ kpis }: { kpis: { label: string; value: string; accent: string }[] }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${kpis.length}, 1fr)`, gap: 14 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${kpis.length}, 1fr)`, gap: 2, background: '#2A2A2D' }}>
       {kpis.map(kpi => (
         <div
           key={kpi.label}
           style={{
-            border: '1px solid #E5E7EB',
-            borderLeft: `3px solid ${kpi.accent}`,
-            borderRadius: 8,
-            padding: '14px 18px',
-            background: TINT[kpi.accent] ?? '#F9FAFB',
+            background: '#111111',
+            padding: '20px 22px',
           }}
         >
-          <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 8 }}>
+          <div style={{ color: '#6B7280', fontSize: 10, textTransform: 'uppercase', letterSpacing: '3px', marginBottom: 12 }}>
             {kpi.label}
           </div>
           <div style={{
-            color: kpi.accent,
-            fontSize: kpi.value.length > 12 ? 14 : 22,
-            fontWeight: 700,
+            color: '#ffffff',
+            fontSize: kpi.value.length > 12 ? 16 : 36,
+            fontWeight: 800,
+            letterSpacing: '-1px',
             lineHeight: 1,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
+            fontFamily: 'monospace',
           }}>
             {kpi.value}
           </div>
@@ -122,10 +110,10 @@ export function ReportSectionTitle({ children }: { children: React.ReactNode }) 
       borderBottom: '1px solid #E5E7EB',
       display: 'flex', alignItems: 'center', gap: 8,
     }}>
-      <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#FF5E00', flexShrink: 0 }} />
+      <div style={{ width: 3, height: 14, background: '#FF5E00', flexShrink: 0 }} />
       <h3 style={{
         fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
-        letterSpacing: '2px', color: '#FF5E00', margin: 0,
+        letterSpacing: '2px', color: '#111111', margin: 0,
       }}>
         {children}
       </h3>
@@ -144,15 +132,15 @@ export function ReportTable({ headers, rows, rightAlignFrom = 99, accentCol0, fo
   return (
     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize }}>
       <thead>
-        <tr style={{ background: '#1f2937' }}>
+        <tr style={{ borderBottom: '2px solid #111111' }}>
           {headers.map((h, i) => (
             <th
               key={h}
               style={{
                 padding: '9px 12px',
                 textAlign: i >= rightAlignFrom ? 'right' : 'left',
-                fontSize: 10, textTransform: 'uppercase',
-                letterSpacing: '1px', color: '#ffffff', fontWeight: 600,
+                fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+                letterSpacing: '1px', color: '#111111',
               }}
             >
               {h}
@@ -162,7 +150,7 @@ export function ReportTable({ headers, rows, rightAlignFrom = 99, accentCol0, fo
       </thead>
       <tbody>
         {rows.map((row, ri) => (
-          <tr key={ri} style={{ background: ri % 2 === 0 ? '#F9FAFB' : '#ffffff', borderBottom: '1px solid #F3F4F6' }}>
+          <tr key={ri} style={{ background: '#ffffff', borderBottom: '1px solid #E5E7EB' }}>
             {row.map((cell, ci) => (
               <td
                 key={ci}
@@ -171,6 +159,7 @@ export function ReportTable({ headers, rows, rightAlignFrom = 99, accentCol0, fo
                   textAlign: ci >= rightAlignFrom ? 'right' : 'left',
                   color: ci === 0 && accentCol0 ? accentCol0 : '#374151',
                   fontWeight: ci === 0 && accentCol0 ? 700 : 400,
+                  fontFamily: ci >= rightAlignFrom ? 'monospace' : 'inherit',
                 }}
               >
                 {cell}
@@ -187,6 +176,20 @@ export function ReportTable({ headers, rows, rightAlignFrom = 99, accentCol0, fo
         )}
       </tbody>
     </table>
+  );
+}
+
+export function ChartEmpty({ height = 192 }: { height?: number }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      height, width: '100%',
+      border: '1px dashed #D1D5DB', background: '#F9FAFB',
+    }}>
+      <span style={{ fontSize: 10, color: '#9CA3AF', fontFamily: 'monospace', letterSpacing: '4px', textTransform: 'uppercase' }}>
+        Sin datos suficientes para graficar
+      </span>
+    </div>
   );
 }
 

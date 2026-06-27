@@ -1,10 +1,9 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { X, Download, FileText, Loader2, RefreshCw } from 'lucide-react';
+import { X, Download, Loader2, RefreshCw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { pdf } from '@react-pdf/renderer';
 import { useQueryClient } from '@tanstack/react-query';
 import { captureElementAsPng } from '../../lib/pdfExport';
-import { downloadCsv } from '../../lib/csvExport';
 import type { ReportFilters } from './types';
 import { ReporteAsistencia }    from './reports/ReporteAsistencia';
 import { ReporteMaquinas }      from './reports/ReporteMaquinas';
@@ -73,22 +72,16 @@ function useFreshness() {
 
 export function ReportPreviewModal({ filters, onClose }: Props) {
   const queryClient = useQueryClient();
-  const [exporting, setExporting]       = useState(false);
-  const [exportingCsv, setExportingCsv] = useState(false);
-  const scrollRef    = useRef<HTMLDivElement>(null);
-  const csvRowsRef   = useRef<string[][]>([]);
-  const pdfDataRef   = useRef<any>(null);
-  const chartIdsRef  = useRef<string[]>([]);
+  const [exporting, setExporting] = useState(false);
+  const scrollRef   = useRef<HTMLDivElement>(null);
+  const pdfDataRef  = useRef<any>(null);
+  const chartIdsRef = useRef<string[]>([]);
   const { label: freshnessLabel, color: freshnessColor } = useFreshness();
 
   function handleRefresh() {
     queryClient.invalidateQueries();
     toast.success('Datos actualizados.');
   }
-
-  const handleCsvReady = useCallback((rows: string[][]) => {
-    csvRowsRef.current = rows;
-  }, []);
 
   const handlePdfDataReady = useCallback((data: any, chartIds: string[]) => {
     pdfDataRef.current  = data;
@@ -129,26 +122,6 @@ export function ReportPreviewModal({ filters, onClose }: Props) {
       toast.error('No se pudo generar el PDF. Intenta nuevamente.');
     } finally {
       setExporting(false);
-    }
-  }
-
-  function handleExportCsv() {
-    const rows = csvRowsRef.current;
-    if (!rows || rows.length <= 1) {
-      toast.error('Los datos aún no están listos. Espera un momento e intenta de nuevo.');
-      return;
-    }
-    setExportingCsv(true);
-    try {
-      const date     = new Date().toISOString().slice(0, 10);
-      const filename = `gymsync-${REPORT_LABELS[filters.type] ?? filters.type}-${date}`;
-      downloadCsv(rows, filename);
-      toast.success('CSV exportado correctamente.');
-    } catch (err) {
-      console.error('[csvExport] error:', err);
-      toast.error('No se pudo generar el CSV.');
-    } finally {
-      setExportingCsv(false);
     }
   }
 
@@ -197,17 +170,6 @@ export function ReportPreviewModal({ filters, onClose }: Props) {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={handleExportCsv}
-            disabled={exportingCsv}
-            className="flex items-center gap-2 rounded-lg border border-[#3A3A3C] bg-[#2C2C2E] px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-[#3A3A3C] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {exportingCsv ? (
-              <><Loader2 size={14} className="animate-spin" /> Exportando...</>
-            ) : (
-              <><FileText size={14} /> Exportar CSV</>
-            )}
-          </button>
-          <button
             onClick={handleExport}
             disabled={exporting}
             className="flex items-center gap-2 rounded-lg bg-[#FF5E00] px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-[#e65400] disabled:cursor-not-allowed disabled:opacity-50"
@@ -237,7 +199,6 @@ export function ReportPreviewModal({ filters, onClose }: Props) {
         >
           <ReportComponent
             filters={filters}
-            onCsvReady={handleCsvReady}
             onPdfDataReady={handlePdfDataReady}
           />
         </div>

@@ -9,7 +9,7 @@ import { apiClient } from '../../../infrastructure/api.config';
 import type { ReportFilters } from '../types';
 import { CATEGORY_LABELS, STATUS_LABELS, fmtDate } from '../types';
 import type { MaquinasPdfData } from '../pdf/ReporteMaquinasPdf';
-import { ReportHeader, ReportMetaStripSingle, ReportKpiGrid, ReportSectionTitle, ReportFooter } from './preview-shared';
+import { ReportHeader, ReportMetaStripSingle, ReportKpiGrid, ReportSectionTitle, ReportFooter, ChartEmpty } from './preview-shared';
 import { AutoInsights } from '../AutoInsights';
 import { insightsMaquinas } from '../../../lib/insightsEngine';
 
@@ -158,59 +158,55 @@ export function ReporteMaquinas({ filters, onCsvReady, onPdfDataReady }: Props) 
         {/* Pie charts */}
         <ReportSectionTitle>Distribución del Inventario</ReportSectionTitle>
         <div id="chart-maquinas-pie" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-          {/* By category */}
           <div>
             <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>Por categoría</div>
-            <PieChart width={398} height={220}>
-              <Pie
-                data={byCategory}
-                dataKey="value"
-                nameKey="name"
-                cx={199} cy={95}
-                outerRadius={70}
-                innerRadius={35}
-                paddingAngle={3}
-              >
-                {byCategory.map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />)}
-              </Pie>
-              <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', borderRadius: 6, background: '#fff' }} />
-              <Legend iconType="circle" iconSize={8} formatter={v => <span style={{ fontSize: 11, color: '#374151' }}>{v}</span>} />
-            </PieChart>
+            {byCategory.length > 0 ? (
+              <PieChart width={398} height={220}>
+                <Pie data={byCategory} dataKey="value" nameKey="name" cx={199} cy={95} outerRadius={70} innerRadius={35} paddingAngle={3}>
+                  {byCategory.map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />)}
+                </Pie>
+                <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', background: '#fff' }} />
+                <Legend iconType="circle" iconSize={8} formatter={v => <span style={{ fontSize: 11, color: '#374151' }}>{v}</span>} />
+              </PieChart>
+            ) : <ChartEmpty />}
           </div>
-
-          {/* By status */}
           <div>
             <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>Por estado</div>
-            <PieChart width={398} height={220}>
-              <Pie
-                data={byStatus}
-                dataKey="value"
-                nameKey="name"
-                cx={199} cy={95}
-                outerRadius={70}
-                innerRadius={35}
-                paddingAngle={3}
-              >
-                {byStatus.map(e => <Cell key={e.key} fill={STATUS_COLORS_PDF[e.key] ?? '#9CA3AF'} />)}
-              </Pie>
-              <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', borderRadius: 6, background: '#fff' }} />
-              <Legend iconType="circle" iconSize={8} formatter={v => <span style={{ fontSize: 11, color: '#374151' }}>{v}</span>} />
-            </PieChart>
+            {byStatus.length > 0 ? (
+              <PieChart width={398} height={220}>
+                <Pie data={byStatus} dataKey="value" nameKey="name" cx={199} cy={95} outerRadius={70} innerRadius={35} paddingAngle={3}>
+                  {byStatus.map(e => <Cell key={e.key} fill={STATUS_COLORS_PDF[e.key] ?? '#9CA3AF'} />)}
+                </Pie>
+                <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', background: '#fff' }} />
+                <Legend iconType="circle" iconSize={8} formatter={v => <span style={{ fontSize: 11, color: '#374151' }}>{v}</span>} />
+              </PieChart>
+            ) : <ChartEmpty />}
           </div>
         </div>
 
         {/* Category bar chart */}
         <ReportSectionTitle>Máquinas por Categoría</ReportSectionTitle>
         <div id="chart-maquinas-bar">
-        <BarChart width={820} height={180} data={byCategory} margin={{ top: 4, right: 16, bottom: 0, left: -16 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
-          <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-          <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
-          <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', borderRadius: 6, background: '#fff' }} />
-          <Bar dataKey="value" name="Máquinas" radius={[3, 3, 0, 0]}>
-            {byCategory.map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />)}
-          </Bar>
-        </BarChart>
+          {byCategory.length > 0 ? (
+            <BarChart width={820} height={180} data={byCategory} margin={{ top: 4, right: 16, bottom: 24, left: -16 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
+              <XAxis
+                dataKey="name"
+                tick={{ fontSize: 10, fill: '#9CA3AF' }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v: string) => v.length > 14 ? v.slice(0, 12) + '…' : v}
+                angle={-15}
+                textAnchor="end"
+                height={40}
+              />
+              <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', background: '#fff' }} />
+              <Bar dataKey="value" name="Máquinas" radius={[3, 3, 0, 0]}>
+                {byCategory.map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />)}
+              </Bar>
+            </BarChart>
+          ) : <ChartEmpty height={180} />}
         </div>
 
         {/* Maintenance list */}
@@ -219,21 +215,21 @@ export function ReporteMaquinas({ filters, onCsvReady, onPdfDataReady }: Props) 
             <ReportSectionTitle>Máquinas Pendientes de Mantenimiento</ReportSectionTitle>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
-                <tr style={{ background: '#1f2937' }}>
-                  {['Máquina', 'Categoría', 'Sucursal', 'Últ. actualización'].map((h, i) => (
-                    <th key={h} style={{ padding: '9px 12px', textAlign: 'left', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', color: '#ffffff', fontWeight: 600 }}>
+                <tr style={{ borderBottom: '2px solid #111111' }}>
+                  {['Máquina', 'Categoría', 'Sucursal', 'Últ. actualización'].map((h) => (
+                    <th key={h} style={{ padding: '9px 12px', textAlign: 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: '#111111' }}>
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {maintenance.map((m, i) => (
-                  <tr key={m.id} style={{ background: i % 2 === 0 ? '#FFF5F5' : '#ffffff', borderBottom: '1px solid #F3F4F6' }}>
+                {maintenance.map((m) => (
+                  <tr key={m.id} style={{ background: '#ffffff', borderBottom: '1px solid #E5E7EB' }}>
                     <td style={{ padding: '10px 12px', color: '#111827', fontWeight: 600 }}>{m.name}</td>
                     <td style={{ padding: '10px 12px', color: '#374151' }}>{CATEGORY_LABELS[m.category] ?? m.category}</td>
                     <td style={{ padding: '10px 12px', color: '#374151' }}>{m.gym?.name ?? '—'}</td>
-                    <td style={{ padding: '10px 12px', color: '#9CA3AF' }}>
+                    <td style={{ padding: '10px 12px', color: '#6B7280', fontFamily: 'monospace' }}>
                       {new Date(m.updatedAt).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </td>
                   </tr>

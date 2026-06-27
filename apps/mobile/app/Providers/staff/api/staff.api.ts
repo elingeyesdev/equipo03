@@ -475,6 +475,15 @@ export const staffApi = {
   },
 
   /**
+   * GET /api/staff/dashboard-stats
+   * Resumen operativo del asesor: clientes activos y solicitudes pendientes.
+   */
+  getDashboardStats: async (): Promise<{ activeClients: number; pendingRequests: number }> => {
+    const response = await staffClient.get('/api/staff/dashboard-stats');
+    return response.data?.data ?? response.data;
+  },
+
+  /**
    * GET /api/staff/clients/:clientId
    * Perfil completo + últimas métricas del cliente (requiere relación ACTIVE).
    */

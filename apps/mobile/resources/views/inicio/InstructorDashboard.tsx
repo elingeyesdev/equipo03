@@ -177,7 +177,10 @@ const ItinCard = ({ sch }: { sch: InstructorWeeklySchedule }) => {
 export const InstructorDashboard = () => {
   const { user }   = useAuth();
   const navigation = useNavigation<any>();
-  const firstName  = (user as any)?.profile?.firstName ?? (user as any)?.firstName ?? 'Instructor';
+  const firstName  = (user as any)?.profile?.firstName ?? (user as any)?.firstName ?? '';
+  const lastName   = (user as any)?.profile?.lastName  ?? (user as any)?.lastName  ?? '';
+  const fullName   = `${firstName}${lastName ? ' ' + lastName : ''}`.trim() || 'Instructor';
+  const myLevel    = Number((user as any)?.level ?? 0);
   const hora       = new Date().getHours();
   const saludo     = hora < 12 ? 'Buenos días' : hora < 18 ? 'Buenas tardes' : 'Buenas noches';
   const hoy        = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -213,6 +216,15 @@ export const InstructorDashboard = () => {
   const statsData: { label: string; value: number }[] = Array.isArray(statsDataRaw)
     ? statsDataRaw
     : ((statsDataRaw as any)?.data ?? []);
+
+  const { data: dashStats } = useQuery({
+    queryKey: ['instructor-dashboard-stats'],
+    queryFn:  staffApi.getDashboardStats,
+    staleTime: 60_000,
+    retry: 1,
+  });
+  const activeClients   = dashStats?.activeClients   ?? 0;
+  const pendingRequests = dashStats?.pendingRequests ?? 0;
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const handleRefresh = useCallback(async () => {
@@ -271,7 +283,7 @@ export const InstructorDashboard = () => {
         <View style={s.header}>
           <View style={s.headerLeft}>
             <Text style={s.saludo}>{saludo},</Text>
-            <Text style={s.nombre}>{firstName}</Text>
+            <Text style={s.nombre}>{fullName}</Text>
             <Text style={s.sub}>Mis Clases de Hoy</Text>
           </View>
           <View style={s.avatar}>
@@ -282,6 +294,18 @@ export const InstructorDashboard = () => {
         <View style={s.fechaRow}>
           <MaterialCommunityIcons name="calendar-today" size={13} color="#555" />
           <Text style={s.fechaTxt}>{hoy.charAt(0).toUpperCase() + hoy.slice(1)}</Text>
+        </View>
+
+        {/* KPI B2B */}
+        <View style={s.kpiRow}>
+          <View style={s.kpiCard}>
+            <Text style={s.kpiNum}>{activeClients}</Text>
+            <Text style={s.kpiLabel}>ALUMNOS ACTIVOS</Text>
+          </View>
+          <View style={[s.kpiCard, pendingRequests > 0 && { borderColor: '#FF5E00' }]}>
+            <Text style={[s.kpiNum, pendingRequests > 0 && { color: '#FF5E00' }]}>{pendingRequests}</Text>
+            <Text style={s.kpiLabel}>SOLICITUDES</Text>
+          </View>
         </View>
 
         {/* Resumen */}
@@ -378,16 +402,36 @@ export const InstructorDashboard = () => {
           ))
         )}
 
-        {/* Acceso Rápido */}
-        <Text style={[s.sectionTitle, { marginTop: 24 }]}>Accesos Rápidos</Text>
-        <TouchableOpacity
-          style={[s.actionBtn, { borderColor: '#FF5E00' }]}
-          activeOpacity={0.8}
-          onPress={() => navigation.navigate('ClaseDetalle' as never)}
-        >
-          <MaterialCommunityIcons name="account-group-outline" size={26} color="#FF5E00" />
-          <Text style={[s.actionTxt, { color: '#FF5E00' }]}>Registro de Alumnos</Text>
-        </TouchableOpacity>
+        {/* Acceso Rápido — solo visible si al menos un botón aplica al nivel del usuario */}
+        {(myLevel >= 4 || myLevel === 3) && (
+          <Text style={[s.sectionTitle, { marginTop: 24 }]}>Accesos Rápidos</Text>
+        )}
+        {myLevel >= 4 && (
+          <TouchableOpacity
+            style={s.actionRow}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('ScannerQR' as never)}
+          >
+            <View style={s.actionIconBox}>
+              <MaterialCommunityIcons name="qrcode-scan" size={20} color="#FF5E00" />
+            </View>
+            <Text style={s.actionRowTxt}>Escanear Ingreso</Text>
+            <MaterialCommunityIcons name="chevron-right" size={20} color="#333" />
+          </TouchableOpacity>
+        )}
+        {myLevel === 3 && (
+          <TouchableOpacity
+            style={s.actionRow}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('MisAlumnos' as never)}
+          >
+            <View style={s.actionIconBox}>
+              <MaterialCommunityIcons name="account-group-outline" size={20} color="#FF5E00" />
+            </View>
+            <Text style={s.actionRowTxt}>Gestionar Alumnos</Text>
+            <MaterialCommunityIcons name="chevron-right" size={20} color="#333" />
+          </TouchableOpacity>
+        )}
 
       </ScrollView>
     </SafeAreaView>
@@ -395,75 +439,84 @@ export const InstructorDashboard = () => {
 };
 
 const s = StyleSheet.create({
-  safe:   { flex: 1, backgroundColor: '#000' },
+  safe:   { flex: 1, backgroundColor: '#0A0A0A' },
   scroll: { padding: 20, paddingBottom: 100 },
   center: { alignItems: 'center', justifyContent: 'center', padding: 32, gap: 10 },
 
   header:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 },
   headerLeft: { flex: 1 },
-  saludo:     { color: '#555', fontSize: 14 },
+  saludo:     { color: '#888', fontSize: 15 },
   nombre:     { color: '#fff', fontSize: 28, fontWeight: '900', marginTop: 2 },
-  sub:        { color: '#444', fontSize: 13, marginTop: 4 },
+  sub:        { color: '#D1D5DB', fontSize: 14, marginTop: 4 },
   avatar:     { width: 52, height: 52, borderRadius: 26, backgroundColor: '#1C1C1E', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#FF5E00' },
 
   fechaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20 },
-  fechaTxt: { color: '#444', fontSize: 13 },
+  fechaTxt: { color: '#D1D5DB', fontSize: 14 },
 
   summaryRow:   { flexDirection: 'row', gap: 10, marginBottom: 24 },
-  summaryCard:  { flex: 1, backgroundColor: '#0e0e0e', borderRadius: 12, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#1a1a1a' },
-  summaryNum:   { color: '#fff', fontSize: 26, fontWeight: '900' },
-  summaryLabel: { color: '#444', fontSize: 11, marginTop: 2 },
+  summaryCard:  { flex: 1, backgroundColor: '#111111', borderRadius: 12, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#1C1C1E' },
 
-  sectionTitle: { color: '#555', fontSize: 11, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 4 },
-  sectionSub:   { color: '#333', fontSize: 11, marginBottom: 12 },
+  kpiRow:    { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  kpiCard:   { flex: 1, backgroundColor: '#111111', borderRadius: 12, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#1C1C1E' },
+  kpiNum:    { color: '#FFFFFF', fontSize: 36, fontWeight: '800' as const },
+  kpiLabel:  { color: '#E5E7EB', fontSize: 12, marginTop: 8, textTransform: 'uppercase' as const, letterSpacing: 1, fontWeight: '600' as const },
+
+  actionRow:     { flexDirection: 'row', alignItems: 'center', backgroundColor: '#111111', borderRadius: 14, borderWidth: 1, borderColor: '#1C1C1E', paddingVertical: 16, paddingHorizontal: 18, marginBottom: 8, gap: 14 },
+  actionIconBox: { width: 38, height: 38, borderRadius: 12, backgroundColor: '#2A0F00', justifyContent: 'center', alignItems: 'center' },
+  actionRowTxt:  { flex: 1, color: '#fff', fontSize: 14, fontWeight: '700' as const },
+  summaryNum:   { color: '#fff', fontSize: 26, fontWeight: '900' },
+  summaryLabel: { color: '#D1D5DB', fontSize: 12, marginTop: 2 },
+
+  sectionTitle: { color: '#D1D5DB', fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 4 },
+  sectionSub:   { color: '#D1D5DB', fontSize: 12, marginBottom: 12 },
 
   emptyBlock: { alignItems: 'center', justifyContent: 'center', paddingVertical: 48, gap: 12 },
-  emptyTitle: { color: '#555', fontSize: 15, fontWeight: '700', textAlign: 'center' },
-  emptySub:   { color: '#333', fontSize: 12, textAlign: 'center', lineHeight: 18 },
+  emptyTitle: { color: '#D1D5DB', fontSize: 15, fontWeight: '700', textAlign: 'center' },
+  emptySub:   { color: '#D1D5DB', fontSize: 13, textAlign: 'center', lineHeight: 18 },
 
-  chartCard: { backgroundColor: '#0e0e0e', borderRadius: 14, borderWidth: 1, borderColor: '#1a1a1a', overflow: 'hidden', marginBottom: 20 },
+  chartCard: { backgroundColor: '#111111', borderRadius: 14, borderWidth: 1, borderColor: '#1C1C1E', overflow: 'hidden', marginBottom: 20 },
   chart:     { borderRadius: 14 },
 
   itinCard:   { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 14, marginBottom: 10, gap: 8 },
   itinDayRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
-  itinDay:    { color: '#f05b22', fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8 },
+  itinDay:    { color: '#f05b22', fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8 },
   itinRow:    { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  itinTime:   { color: '#38BDF8', fontSize: 13, fontWeight: '700' },
-  itinName:   { color: '#fff',    fontSize: 14, fontWeight: '700', flex: 1 },
-  itinPlace:  { color: '#555',    fontSize: 12, flex: 1 },
-  itinEnroll: { fontSize: 13, fontWeight: '600' },
+  itinTime:   { color: '#38BDF8', fontSize: 14, fontWeight: '700' },
+  itinName:   { color: '#fff',    fontSize: 15, fontWeight: '700', flex: 1 },
+  itinPlace:  { color: '#D1D5DB', fontSize: 14, flex: 1 },
+  itinEnroll: { fontSize: 14, fontWeight: '600' },
 
   attendeesBlock: { marginTop: 10, borderTopWidth: 1, borderColor: '#2A2A2D', paddingTop: 10, gap: 2 },
-  attendeesLabel: { color: '#555', fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 },
-  attendeesEmpty: { color: '#444', fontSize: 13, fontStyle: 'italic' },
+  attendeesLabel: { color: '#D1D5DB', fontSize: 12, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 },
+  attendeesEmpty: { color: '#D1D5DB', fontSize: 14, fontStyle: 'italic' },
   attendeeRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 5, gap: 8, backgroundColor: '#2A2A2D', borderRadius: 8, paddingHorizontal: 10, marginBottom: 4 },
-  attendeeName:   { color: '#fff', fontSize: 13, fontWeight: '500', flex: 1 },
+  attendeeName:   { color: '#fff', fontSize: 14, fontWeight: '500', flex: 1 },
 
   card:         { backgroundColor: '#0e0e0e', borderRadius: 14, borderWidth: 1, borderColor: '#1a1a1a', borderLeftWidth: 3, borderLeftColor: '#f05b22', padding: 14, marginBottom: 10 },
   cardHeader:   { flexDirection: 'row', alignItems: 'center', gap: 12 },
   expandedBlock:{ marginTop: 12, borderTopWidth: 1, borderColor: '#333', paddingTop: 12, gap: 8 },
   afoRow:       { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  afoLabel:     { color: '#888', fontSize: 12 },
-  afoValue:     { fontWeight: '700', fontSize: 13 },
+  afoLabel:     { color: '#D1D5DB', fontSize: 13 },
+  afoValue:     { fontWeight: '700', fontSize: 14 },
   timeCol:  { alignItems: 'center', width: 44 },
-  timeStart:{ color: '#f05b22', fontSize: 13, fontWeight: '800' },
+  timeStart:{ color: '#f05b22', fontSize: 14, fontWeight: '800' },
   timeLine: { width: 1.5, height: 14, backgroundColor: '#3A3A3C', marginVertical: 4 },
-  timeEnd:  { color: '#444', fontSize: 11 },
+  timeEnd:  { color: '#D1D5DB', fontSize: 12 },
 
   infoCol:     { flex: 1 },
-  actName:     { color: '#fff', fontSize: 14, fontWeight: '700', marginBottom: 4 },
+  actName:     { color: '#fff', fontSize: 15, fontWeight: '700', marginBottom: 4 },
   metaRow:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  metaTxt:     { color: '#555', fontSize: 11 },
+  metaTxt:     { color: '#D1D5DB', fontSize: 12 },
 
   enrollCol:   { alignItems: 'center', gap: 2 },
   enrollNum:   { fontSize: 18, fontWeight: '900' },
-  enrollMax:   { color: '#444', fontSize: 11 },
-  enrollLabel: { color: '#444', fontSize: 9 },
+  enrollMax:   { color: '#D1D5DB', fontSize: 12 },
+  enrollLabel: { color: '#D1D5DB', fontSize: 12 },
 
-  soft:     { color: '#444', fontSize: 13, textAlign: 'center', marginTop: 6 },
+  soft:     { color: '#D1D5DB', fontSize: 14, textAlign: 'center', marginTop: 6 },
   retryBtn: { marginTop: 8, paddingHorizontal: 20, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: '#f05b22' },
   retryTxt: { color: '#f05b22', fontWeight: '600' },
 
   actionBtn: { flex: 1, backgroundColor: '#0e0e0e', borderRadius: 14, borderWidth: 1, paddingVertical: 18, alignItems: 'center', gap: 7 },
-  actionTxt: { fontSize: 11, fontWeight: '700', textAlign: 'center' },
+  actionTxt: { fontSize: 12, fontWeight: '700', textAlign: 'center' },
 });
