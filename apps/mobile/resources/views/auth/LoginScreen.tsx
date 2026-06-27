@@ -1,26 +1,12 @@
 
 
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  View,
-  TextInput,
-  TouchableOpacity,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Animated,
-  Dimensions,
-  Keyboard,
-  Linking,
-} from 'react-native';
+import {View, TextInput, TouchableOpacity, Text, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView, Animated, Dimensions, Keyboard, Linking} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 const { width } = Dimensions.get('window');
 
@@ -373,7 +359,7 @@ export const LoginScreen = () => {
               disabled={isLoading}
             >
               {isLoading ? (
-                <ActivityIndicator color={C.white} />
+                <DumbbellSpinner color={C.white} />
               ) : (
                 <Text style={styles.loginButtonText}>Iniciar sesión</Text>
               )}

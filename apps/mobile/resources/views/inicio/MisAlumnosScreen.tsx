@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
-import {
-  View, Text, StyleSheet, ScrollView, Alert,
-  TouchableOpacity, ActivityIndicator, RefreshControl,
-} from 'react-native';
+import {View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, RefreshControl} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import { staffApi, ActiveAdvisee } from '../../../app/Providers/staff/api/staff.api';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 export const MisAlumnosScreen = () => {
   const navigation  = useNavigation<any>();
@@ -71,7 +69,7 @@ export const MisAlumnosScreen = () => {
 
       {isLoading ? (
         <View style={s.center}>
-          <ActivityIndicator size="large" color="#38BDF8" />
+          <DumbbellSpinner size="large" color="#38BDF8" />
         </View>
       ) : isError ? (
         <View style={s.center}>
@@ -118,7 +116,7 @@ export const MisAlumnosScreen = () => {
                 </View>
 
                 {isCancelling ? (
-                  <ActivityIndicator size="small" color="#EF4444" />
+                  <DumbbellSpinner size="small" color="#EF4444" />
                 ) : (
                   <View style={s.actions}>
                     <TouchableOpacity

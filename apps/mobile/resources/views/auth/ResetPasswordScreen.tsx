@@ -1,13 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ScrollView,
-  ActivityIndicator, Animated, Alert, Keyboard,
-} from 'react-native';
+import {View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Animated, Alert, Keyboard} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { AuthService } from '../../../app/Providers/auth/AuthService';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 export const ResetPasswordScreen = () => {
   const navigation = useNavigation<any>();
@@ -185,7 +182,7 @@ export const ResetPasswordScreen = () => {
             disabled={isLoading}
           >
             {isLoading
-              ? <ActivityIndicator color="#fff" />
+              ? <DumbbellSpinner color="#fff" />
               : <Text style={s.btnTxt}>Actualizar Contraseña</Text>
             }
           </TouchableOpacity>

@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View, Text, StyleSheet, FlatList,
-  TouchableOpacity, ActivityIndicator, RefreshControl,
-} from 'react-native';
+import {View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { staffApi, ActiveAdvisee } from '../../../app/Providers/staff/api/staff.api';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 // Paleta rotativa de colores por cliente
 const AVATAR_PALETTE = ['#FF5E00', '#38BDF8', '#00E5A3'];
@@ -174,7 +172,7 @@ export const SeguimientoScreen = () => {
 
       {isLoading ? (
         <View style={s.center}>
-          <ActivityIndicator size="large" color="#38BDF8" />
+          <DumbbellSpinner size="large" color="#38BDF8" />
         </View>
       ) : isError ? (
         <View style={s.center}>
@@ -244,7 +242,7 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#111',
   },
   topTitle:  { color: '#fff', fontSize: 24, fontWeight: '900' },
-  topSub:    { color: '#444', fontSize: 13, marginTop: 2 },
+  topSub:    { color: '#D1D5DB', fontSize: 14, marginTop: 2 },
   topBadge:  {
     width: 44, height: 44, borderRadius: 14,
     backgroundColor: '#0d2a3d', justifyContent: 'center', alignItems: 'center',
@@ -294,8 +292,8 @@ const s = StyleSheet.create({
   activeTxt: { color: '#00E5A3', fontSize: 12, fontWeight: '700' },
 
   phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  phoneVal:   { color: '#555', fontSize: 13 },
-  phoneEmpty: { color: '#2a2a2a', fontSize: 13, fontStyle: 'italic' },
+  phoneVal:   { color: '#D1D5DB', fontSize: 14 },
+  phoneEmpty: { color: '#555', fontSize: 14, fontStyle: 'italic' },
 
   divider: { height: 1, backgroundColor: '#1a1a1a', marginHorizontal: 0 },
 
@@ -318,8 +316,8 @@ const s = StyleSheet.create({
   rutinaBtnTxt:   { color: '#00E5A3', fontSize: 13, fontWeight: '700' },
 
   // ── Empty / Error ──
-  emptyTitle:  { color: '#555', fontSize: 17, fontWeight: '700', textAlign: 'center' },
-  emptySubTxt: { color: '#333', fontSize: 14, textAlign: 'center', lineHeight: 22, maxWidth: 280 },
+  emptyTitle:  { color: '#D1D5DB', fontSize: 17, fontWeight: '700', textAlign: 'center' },
+  emptySubTxt: { color: '#D1D5DB', fontSize: 14, textAlign: 'center', lineHeight: 22, maxWidth: 280 },
   retryBtn:    { backgroundColor: '#1C1C1E', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12, borderWidth: 1, borderColor: '#38BDF844' },
   retryTxt:    { color: '#38BDF8', fontWeight: '700', fontSize: 14 },
 });

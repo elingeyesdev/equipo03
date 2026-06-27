@@ -1,18 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  Animated,
-  Modal,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
+import {View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Animated, Modal, TextInput, KeyboardAvoidingView, Platform} from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
@@ -21,6 +8,8 @@ import { useGymActivitiesQuery, GymActivityUI } from '../hooks/useGymActivitiesQ
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { reservationApi } from '../api/reservation.api';
 import { ERROR_MAP } from '../api/reservation.types';
+import { DumbbellSpinner } from '../../../Shared/components/ui/DumbbellSpinner';
+import { useAuth } from '../../../Shared/hooks/useAuth';
 
 type RootStackParamList = {
   ScheduleSelection: { gymId: number; gymName: string };
@@ -281,6 +270,8 @@ const cal = StyleSheet.create({
 
 export const ScheduleSelectionScreen = ({ route, navigation }: Props) => {
   const { gymId, gymName } = route.params;
+  const { user }   = useAuth();
+  const myLevel    = Number((user as any)?.level ?? 0);
 
   const [selectedDate,     setSelectedDate]     = useState<string | null>(null);
   const [selectedActivity, setSelectedActivity] = useState<GymActivityUI | null>(null);
@@ -374,7 +365,11 @@ export const ScheduleSelectionScreen = ({ route, navigation }: Props) => {
       setShowSuccess(false);
       scaleAnim.setValue(0);
       opacityAnim.setValue(0);
-      (navigation as any).getParent()?.navigate('Mis Reservas');
+      if (myLevel <= 1) {
+        (navigation as any).getParent()?.navigate('Mis Reservas');
+      } else {
+        navigation.navigate('MisReservas');
+      }
     }, 1800);
     return () => clearTimeout(t);
   }, [showSuccess]);
@@ -411,7 +406,7 @@ export const ScheduleSelectionScreen = ({ route, navigation }: Props) => {
 
   if (isLoading) return (
     <View style={s.center}>
-      <ActivityIndicator size="large" color={Colors.primary} />
+      <DumbbellSpinner size="large" color={Colors.primary} />
       <Text style={s.soft}>Cargando actividades...</Text>
     </View>
   );
@@ -627,7 +622,7 @@ export const ScheduleSelectionScreen = ({ route, navigation }: Props) => {
           activeOpacity={0.85}
         >
           {isPending
-            ? <ActivityIndicator color="#fff" />
+            ? <DumbbellSpinner color="#fff" />
             : <Text style={s.confirmTxt}>Confirmar Reserva</Text>
           }
         </TouchableOpacity>

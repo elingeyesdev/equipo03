@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
 import type { ReportType, ReportFilters, GymOption, DatePreset, DateRange } from './types';
-import { today, weekStart, monthStart, fmtDate } from './types';
+import { today, weekStart, monthStart, last7, last30, fmtDate } from './types';
 
 interface Props {
   type: ReportType;
@@ -13,31 +13,83 @@ interface Props {
 }
 
 const REPORT_TITLES: Record<ReportType, string> = {
-  asistencia:  'Asistencia por Sucursal',
-  maquinas:    'Inventario de Máquinas',
-  consolidado: 'Consolidado de Sucursales',
+  asistencia:    'Asistencia por Sucursal',
+  maquinas:      'Inventario de Máquinas',
+  consolidado:   'Consolidado de Sucursales',
+  aforo:         'Estado de Aforo',
+  ranking:       'Ranking de Sedes',
+  actividades:   'Rendimiento de Actividades',
+  cancelaciones: 'Cancelaciones y No-Shows',
+  frecuencia:    'Frecuencia de Entrenamiento',
+  auditoria:     'Auditoría de Accesos',
+  churn:         'Retención de Usuarios',
 };
 
 const PRESETS: { key: DatePreset; label: string }[] = [
-  { key: 'hoy',           label: 'Hoy' },
-  { key: 'semana',        label: 'Semana' },
-  { key: 'mes',           label: 'Mes' },
+  { key: 'hoy',           label: 'Hoy'         },
+  { key: 'ultimos7',      label: 'Últ. 7 días'  },
+  { key: 'ultimos30',     label: 'Últ. 30 días' },
+  { key: 'semana',        label: 'Esta semana'  },
+  { key: 'mes',           label: 'Este mes'     },
   { key: 'personalizado', label: 'Personalizar' },
 ];
+
+const TOP_N_OPTIONS = [
+  { value: 5,  label: 'Top 5'  },
+  { value: 10, label: 'Top 10' },
+  { value: 20, label: 'Top 20' },
+  { value: 0,  label: 'Todos'  },
+];
+
+const TYPES_WITH_GYM_PICKER: ReportType[] = [
+  'asistencia', 'maquinas', 'actividades', 'cancelaciones', 'frecuencia', 'auditoria', 'churn',
+];
+
+const TYPES_WITH_TOP_N: ReportType[] = ['ranking', 'actividades'];
+
+function defaultPreset(type: ReportType): DatePreset {
+  if (type === 'auditoria')                        return 'ultimos7';
+  if (type === 'churn' || type === 'frecuencia')   return 'ultimos30';
+  return 'mes';
+}
+
+interface SavedState {
+  preset?:           DatePreset;
+  topN?:             number;
+  selectedBrand?:    string;
+  selectedGymId?:    number | null;
+  selectedGymName?:  string;
+}
+
+function loadSaved(type: ReportType): SavedState {
+  try {
+    const raw = localStorage.getItem(`gymsync-filters-${type}`);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
 
 export function ReportFilterModal({ type, onConfirm, onClose }: Props) {
   const { user } = useAuth();
   const isSuperAdmin = (user?.level ?? 0) >= 10;
 
-  const [preset,          setPreset]          = useState<DatePreset>('mes');
-  const [customFrom,      setCustomFrom]       = useState(monthStart());
-  const [customTo,        setCustomTo]         = useState(today());
-  const [selectedBrand,   setSelectedBrand]    = useState<string>('');
-  const [selectedGymId,   setSelectedGymId]    = useState<number | null>(null);
-  const [selectedGymName, setSelectedGymName]  = useState<string>('');
+  const needsGymPicker = TYPES_WITH_GYM_PICKER.includes(type) && isSuperAdmin;
+  const needsDateRange  = type !== 'aforo';
+  const needsTopN       = TYPES_WITH_TOP_N.includes(type);
 
-  // Brand + branch cascade: only SuperAdmin picking asistencia or maquinas
-  const needsGymPicker = (type === 'asistencia' || type === 'maquinas') && isSuperAdmin;
+  // Restore from localStorage or fall back to smart defaults
+  const saved = useMemo(() => loadSaved(type), [type]);
+
+  const [preset,          setPreset]         = useState<DatePreset>(
+    saved.preset && saved.preset !== 'personalizado' ? saved.preset : defaultPreset(type),
+  );
+  const [customFrom,      setCustomFrom]      = useState(monthStart());
+  const [customTo,        setCustomTo]        = useState(today());
+  const [selectedBrand,   setSelectedBrand]   = useState<string>(saved.selectedBrand ?? '');
+  const [selectedGymId,   setSelectedGymId]   = useState<number | null>(saved.selectedGymId ?? null);
+  const [selectedGymName, setSelectedGymName] = useState<string>(saved.selectedGymName ?? '');
+  const [topN,            setTopN]            = useState<number>(saved.topN ?? 10);
 
   const { data: gyms = [], isLoading: gymsLoading } = useQuery<GymOption[]>({
     queryKey: ['gyms-for-report-picker'],
@@ -54,13 +106,21 @@ export function ReportFilterModal({ type, onConfirm, onClose }: Props) {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Unique brand names sorted alphabetically
+  // Validate saved gymId still exists once gyms load
+  useEffect(() => {
+    if (!needsGymPicker || gyms.length === 0) return;
+    if (saved.selectedGymId && !gyms.find(g => g.id === saved.selectedGymId)) {
+      setSelectedGymId(null);
+      setSelectedGymName('');
+      setSelectedBrand('');
+    }
+  }, [gyms, needsGymPicker, saved.selectedGymId]);
+
   const brands = useMemo(
     () => [...new Set(gyms.map(g => g.parentName ?? 'Sin Marca'))].sort(),
     [gyms],
   );
 
-  // Branches that belong to the selected brand
   const branchesForBrand = useMemo(
     () => gyms.filter(g => (g.parentName ?? 'Sin Marca') === selectedBrand),
     [gyms, selectedBrand],
@@ -77,10 +137,12 @@ export function ReportFilterModal({ type, onConfirm, onClose }: Props) {
   function getRange(): DateRange {
     const t = today();
     switch (preset) {
-      case 'hoy':    return { from: t,           to: t };
-      case 'semana': return { from: weekStart(),  to: t };
-      case 'mes':    return { from: monthStart(), to: t };
-      default:       return { from: customFrom,   to: customTo };
+      case 'hoy':       return { from: t,          to: t          };
+      case 'ultimos7':  return { from: last7(),     to: t          };
+      case 'ultimos30': return { from: last30(),    to: t          };
+      case 'semana':    return { from: weekStart(), to: t          };
+      case 'mes':       return { from: monthStart(), to: t         };
+      default:          return { from: customFrom,  to: customTo   };
     }
   }
 
@@ -98,16 +160,30 @@ export function ReportFilterModal({ type, onConfirm, onClose }: Props) {
 
   function handleConfirm() {
     if (needsGymPicker && (!selectedBrand || !selectedGymId)) return;
-    if (preset === 'personalizado' && customFrom > customTo) return;
-    const range   = getRange();
+    if (needsDateRange && preset === 'personalizado' && customFrom > customTo) return;
+
+    const range   = needsDateRange ? getRange() : { from: today(), to: today() };
     const gymId   = selectedGymId ?? (user?.gymId ? Number(user.gymId) : undefined);
     const gymName = selectedGymName || user?.gymName;
-    onConfirm({ type, range, gymId, gymName });
+
+    // Persist for next session
+    const stateToSave: SavedState = {
+      preset:          preset !== 'personalizado' ? preset : undefined,
+      topN:            needsTopN ? topN : undefined,
+      selectedBrand:   needsGymPicker ? selectedBrand : undefined,
+      selectedGymId:   needsGymPicker ? selectedGymId : undefined,
+      selectedGymName: needsGymPicker ? selectedGymName : undefined,
+    };
+    try {
+      localStorage.setItem(`gymsync-filters-${type}`, JSON.stringify(stateToSave));
+    } catch { /* ignore quota errors */ }
+
+    onConfirm({ type, range, gymId, gymName, topN: needsTopN ? topN : undefined });
   }
 
   const canConfirm =
     (!needsGymPicker || (!!selectedBrand && !!selectedGymId)) &&
-    (preset !== 'personalizado' || (!!customFrom && !!customTo && customFrom <= customTo));
+    (!needsDateRange || preset !== 'personalizado' || (!!customFrom && !!customTo && customFrom <= customTo));
 
   return (
     <div
@@ -136,73 +212,98 @@ export function ReportFilterModal({ type, onConfirm, onClose }: Props) {
         </div>
 
         {/* Date presets */}
-        <div className="mb-4">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-            Período de reporte
-          </p>
-          <div className="grid grid-cols-4 gap-2">
-            {PRESETS.map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setPreset(key)}
-                className={`rounded-lg border py-2 text-xs font-medium transition-colors ${
-                  preset === key
-                    ? 'border-[#FF5E00] bg-[#FF5E00]/10 text-[#FF5E00]'
-                    : 'border-[#3A3A3C] text-gray-400 hover:border-[#FF5E00]/40 hover:text-gray-200'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Custom date inputs */}
-        {preset === 'personalizado' && (
-          <div className="mb-4 grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-                Desde
-              </label>
-              <input
-                type="date"
-                value={customFrom}
-                max={customTo || today()}
-                onChange={e => setCustomFrom(e.target.value)}
-                className="w-full rounded-lg border border-[#3A3A3C] bg-[#2C2C2E] px-3 py-2 text-sm text-white focus:border-[#FF5E00] focus:outline-none"
-              />
+        {needsDateRange && (
+          <>
+            <div className="mb-4">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                Período de reporte
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {PRESETS.map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => setPreset(key)}
+                    className={`rounded-lg border py-2 text-xs font-medium transition-colors ${
+                      preset === key
+                        ? 'border-[#FF5E00] bg-[#FF5E00]/10 text-[#FF5E00]'
+                        : 'border-[#3A3A3C] text-gray-400 hover:border-[#FF5E00]/40 hover:text-gray-200'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div>
-              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-                Hasta
-              </label>
-              <input
-                type="date"
-                value={customTo}
-                min={customFrom}
-                max={today()}
-                onChange={e => setCustomTo(e.target.value)}
-                className="w-full rounded-lg border border-[#3A3A3C] bg-[#2C2C2E] px-3 py-2 text-sm text-white focus:border-[#FF5E00] focus:outline-none"
-              />
+
+            {preset === 'personalizado' && (
+              <div className="mb-4 grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                    Desde
+                  </label>
+                  <input
+                    type="date"
+                    value={customFrom}
+                    max={customTo || today()}
+                    onChange={e => setCustomFrom(e.target.value)}
+                    className="w-full rounded-lg border border-[#3A3A3C] bg-[#2C2C2E] px-3 py-2 text-sm text-white focus:border-[#FF5E00] focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                    Hasta
+                  </label>
+                  <input
+                    type="date"
+                    value={customTo}
+                    min={customFrom}
+                    max={today()}
+                    onChange={e => setCustomTo(e.target.value)}
+                    className="w-full rounded-lg border border-[#3A3A3C] bg-[#2C2C2E] px-3 py-2 text-sm text-white focus:border-[#FF5E00] focus:outline-none"
+                  />
+                </div>
+              </div>
+            )}
+
+            {preset !== 'personalizado' && (
+              <div className="mb-4 flex items-center gap-2 rounded-lg border border-[#3A3A3C] bg-[#2C2C2E] px-3 py-2.5">
+                <Calendar size={13} className="shrink-0 text-[#FF5E00]" />
+                <span className="text-sm text-gray-300">
+                  {fmtDate(getRange().from)}
+                  {getRange().from !== getRange().to && ` — ${fmtDate(getRange().to)}`}
+                </span>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Top N selector */}
+        {needsTopN && (
+          <div className="mb-4">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+              Mostrar resultados
+            </p>
+            <div className="grid grid-cols-4 gap-2">
+              {TOP_N_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setTopN(opt.value)}
+                  className={`rounded-lg border py-2 text-xs font-medium transition-colors ${
+                    topN === opt.value
+                      ? 'border-[#FF5E00] bg-[#FF5E00]/10 text-[#FF5E00]'
+                      : 'border-[#3A3A3C] text-gray-400 hover:border-[#FF5E00]/40 hover:text-gray-200'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
           </div>
         )}
 
-        {/* Range summary for fixed presets */}
-        {preset !== 'personalizado' && (
-          <div className="mb-4 flex items-center gap-2 rounded-lg border border-[#3A3A3C] bg-[#2C2C2E] px-3 py-2.5">
-            <Calendar size={13} className="shrink-0 text-[#FF5E00]" />
-            <span className="text-sm text-gray-300">
-              {fmtDate(getRange().from)}
-              {getRange().from !== getRange().to && ` — ${fmtDate(getRange().to)}`}
-            </span>
-          </div>
-        )}
-
-        {/* Brand → Branch cascade (SuperAdmin only for asistencia/maquinas) */}
+        {/* Brand → Branch cascade (SuperAdmin only) */}
         {needsGymPicker && (
           <>
-            {/* Step 1: Marca */}
             <div className="mb-3">
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                 Marca
@@ -225,7 +326,6 @@ export function ReportFilterModal({ type, onConfirm, onClose }: Props) {
               </div>
             </div>
 
-            {/* Step 2: Sucursal (filtrada por marca seleccionada) */}
             <div className="mb-4">
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                 Sucursal

@@ -1,6 +1,7 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import {Modal, View, Text, TouchableOpacity, StyleSheet} from 'react-native';
 import { Colors } from '../theme/colors';
+import { DumbbellSpinner } from '../../../Shared/components/ui/DumbbellSpinner';
 
 interface Props {
   visible: boolean;
@@ -37,7 +38,7 @@ export const ReservationConfirmModal = ({ visible, isLoading, onConfirm, onCance
               disabled={isLoading}
             >
               {isLoading ? (
-                <ActivityIndicator color="#FFF" />
+                <DumbbellSpinner color="#FFF" />
               ) : (
                 <Text style={styles.confirmText}>Sí, reservar</Text>
               )}

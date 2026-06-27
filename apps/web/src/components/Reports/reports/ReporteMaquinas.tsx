@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   PieChart, Pie, Cell, Tooltip, Legend,
@@ -8,9 +8,14 @@ import { Loader2 } from 'lucide-react';
 import { apiClient } from '../../../infrastructure/api.config';
 import type { ReportFilters } from '../types';
 import { CATEGORY_LABELS, STATUS_LABELS, fmtDate } from '../types';
+import type { MaquinasPdfData } from '../pdf/ReporteMaquinasPdf';
+import { ReportHeader, ReportMetaStripSingle, ReportKpiGrid, ReportSectionTitle, ReportFooter, ChartEmpty } from './preview-shared';
+import { AutoInsights } from '../AutoInsights';
+import { insightsMaquinas } from '../../../lib/insightsEngine';
 
 const STATUS_COLORS_PDF: Record<string, string> = {
   AVAILABLE:   '#10B981',
+  IN_USE:      '#2563EB',
   MAINTENANCE: '#EF4444',
 };
 
@@ -26,20 +31,13 @@ interface Machine {
   gym?: { id: number; name: string };
 }
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ marginBottom: 18, marginTop: 32 }}>
-      <h3 style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '2px', color: '#FF5E00', margin: 0 }}>
-        {children}
-      </h3>
-      <div style={{ height: 2, background: '#FF5E00', width: 28, marginTop: 6, borderRadius: 1 }} />
-    </div>
-  );
+interface Props {
+  filters: ReportFilters;
+  onCsvReady?: (rows: string[][]) => void;
+  onPdfDataReady?: (data: MaquinasPdfData, chartIds: string[]) => void;
 }
 
-interface Props { filters: ReportFilters; }
-
-export function ReporteMaquinas({ filters }: Props) {
+export function ReporteMaquinas({ filters, onCsvReady, onPdfDataReady }: Props) {
   const { data: allMachines = [], isLoading } = useQuery<Machine[]>({
     queryKey: ['rpt-machines', filters.gymId],
     queryFn: async () => {
@@ -57,7 +55,7 @@ export function ReporteMaquinas({ filters }: Props) {
   );
 
   const byStatus = useMemo(() => {
-    const counts: Record<string, number> = { AVAILABLE: 0, MAINTENANCE: 0 };
+    const counts: Record<string, number> = { AVAILABLE: 0, IN_USE: 0, MAINTENANCE: 0 };
     machines.forEach(m => { if (m.status in counts) counts[m.status]++; });
     return Object.entries(counts).map(([key, value]) => ({
       name: STATUS_LABELS[key] ?? key,
@@ -84,6 +82,51 @@ export function ReporteMaquinas({ filters }: Props) {
 
   const genAt = new Date().toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
+  useEffect(() => {
+    if (!onCsvReady || isLoading) return;
+    const header = ['ID', 'Nombre', 'Estado', 'Categoría', 'Sede', 'Última actualización'];
+    const rows = machines.map(m => [
+      m.id,
+      m.name,
+      STATUS_LABELS[m.status] ?? m.status,
+      CATEGORY_LABELS[m.category] ?? m.category,
+      m.gym?.name ?? String(m.gymId),
+      m.updatedAt?.slice(0, 10) ?? '',
+    ]);
+    onCsvReady([header, ...rows]);
+  }, [machines, isLoading, onCsvReady]);
+
+  useEffect(() => {
+    if (!onPdfDataReady || isLoading) return;
+    onPdfDataReady(
+      {
+        gymName: filters.gymName,
+        cutDate: fmtDate(filters.range.to),
+        genAt,
+        kpis: [
+          { label: 'Total de máquinas', value: machines.length.toString(),                                               accent: '#6B7280' },
+          { label: 'Disponibles',       value: byStatus.find(s => s.key === 'AVAILABLE')?.value.toString()   ?? '0',    accent: '#10B981' },
+          { label: 'En uso',            value: byStatus.find(s => s.key === 'IN_USE')?.value.toString()      ?? '0',    accent: '#2563EB' },
+          { label: 'En mantenimiento',  value: byStatus.find(s => s.key === 'MAINTENANCE')?.value.toString() ?? '0',    accent: '#EF4444' },
+        ],
+        maintenance: maintenance.map(m => ({
+          name:      m.name,
+          category:  CATEGORY_LABELS[m.category] ?? m.category,
+          gym:       m.gym?.name ?? '—',
+          updatedAt: m.updatedAt?.slice(0, 10) ?? '—',
+        })),
+        allMachines: machines.map(m => ({
+          name:     m.name,
+          category: CATEGORY_LABELS[m.category] ?? m.category,
+          gym:      m.gym?.name ?? '—',
+          status:   STATUS_LABELS[m.status] ?? m.status,
+        })),
+        charts: {},
+      },
+      ['chart-maquinas-pie', 'chart-maquinas-bar'],
+    );
+  }, [machines, isLoading, onPdfDataReady]);
+
   if (isLoading) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 400, gap: 14 }}>
@@ -99,122 +142,94 @@ export function ReporteMaquinas({ filters }: Props) {
       id="report-content"
       style={{ width: 900, backgroundColor: '#ffffff', fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif", color: '#111827' }}
     >
-      {/* Header */}
-      <div style={{ background: 'linear-gradient(135deg, #111827 0%, #1f2937 100%)', padding: '26px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <div style={{ color: '#FF5E00', fontSize: 21, fontWeight: 800, letterSpacing: '-0.5px' }}>GYMSYNC</div>
-          <div style={{ color: '#9CA3AF', fontSize: 10, letterSpacing: '2.5px', textTransform: 'uppercase', marginTop: 3 }}>Sistema de Gestión Deportiva</div>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ color: '#ffffff', fontSize: 17, fontWeight: 700 }}>Inventario de Máquinas</div>
-          {filters.gymName && <div style={{ color: '#9CA3AF', fontSize: 12, marginTop: 4 }}>{filters.gymName}</div>}
-        </div>
-      </div>
-
-      {/* Meta strip */}
-      <div style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB', padding: '10px 40px', display: 'flex', gap: 48, alignItems: 'center' }}>
-        <div>
-          <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px' }}>Fecha de corte</div>
-          <div style={{ color: '#111827', fontSize: 13, fontWeight: 600, marginTop: 2 }}>{fmtDate(filters.range.to)}</div>
-        </div>
-        <div>
-          <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px' }}>Generado</div>
-          <div style={{ color: '#111827', fontSize: 13, fontWeight: 600, marginTop: 2 }}>{genAt}</div>
-        </div>
-      </div>
+      <ReportHeader title="Inventario de Máquinas" gymName={filters.gymName} />
+      <ReportMetaStripSingle label="Corte" value={fmtDate(filters.range.to)} genAt={genAt} />
 
       <div style={{ padding: '28px 40px 40px' }}>
-        {/* KPI Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
-          {[
-            { label: 'Total de máquinas', value: machines.length.toString(),                                                    accent: '#6B7280' },
-            { label: 'Disponibles',       value: byStatus.find(s => s.key === 'AVAILABLE')?.value.toString() ?? '0',           accent: '#10B981' },
-            { label: 'En mantenimiento',  value: byStatus.find(s => s.key === 'MAINTENANCE')?.value.toString() ?? '0',         accent: '#EF4444' },
-          ].map(kpi => (
-            <div key={kpi.label} style={{ border: '1px solid #E5E7EB', borderLeft: `3px solid ${kpi.accent}`, borderRadius: 8, padding: '14px 18px' }}>
-              <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 8 }}>{kpi.label}</div>
-              <div style={{ color: '#111827', fontSize: 22, fontWeight: 700, lineHeight: 1 }}>{kpi.value}</div>
-            </div>
-          ))}
-        </div>
+        <ReportKpiGrid kpis={[
+          { label: 'Total de máquinas', value: machines.length.toString(),                                               accent: '#6B7280' },
+          { label: 'Disponibles',       value: byStatus.find(s => s.key === 'AVAILABLE')?.value.toString()   ?? '0',    accent: '#10B981' },
+          { label: 'En uso',            value: byStatus.find(s => s.key === 'IN_USE')?.value.toString()      ?? '0',    accent: '#2563EB' },
+          { label: 'En mantenimiento',  value: byStatus.find(s => s.key === 'MAINTENANCE')?.value.toString() ?? '0',    accent: '#EF4444' },
+        ]} />
+
+        <AutoInsights insights={insightsMaquinas({ total: machines.length, maintenance: maintenance.length, available: byStatus.find(s => s.key === 'AVAILABLE')?.value ?? 0 })} />
 
         {/* Pie charts */}
-        <SectionTitle>Distribución del Inventario</SectionTitle>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-          {/* By category */}
+        <ReportSectionTitle>Distribución del Inventario</ReportSectionTitle>
+        <div id="chart-maquinas-pie" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
           <div>
             <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>Por categoría</div>
-            <PieChart width={398} height={220}>
-              <Pie
-                data={byCategory}
-                dataKey="value"
-                nameKey="name"
-                cx={199} cy={95}
-                outerRadius={70}
-                innerRadius={35}
-                paddingAngle={3}
-              >
-                {byCategory.map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />)}
-              </Pie>
-              <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', borderRadius: 6, background: '#fff' }} />
-              <Legend iconType="circle" iconSize={8} formatter={v => <span style={{ fontSize: 11, color: '#374151' }}>{v}</span>} />
-            </PieChart>
+            {byCategory.length > 0 ? (
+              <PieChart width={398} height={220}>
+                <Pie data={byCategory} dataKey="value" nameKey="name" cx={199} cy={95} outerRadius={70} innerRadius={35} paddingAngle={3}>
+                  {byCategory.map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />)}
+                </Pie>
+                <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', background: '#fff' }} />
+                <Legend iconType="circle" iconSize={8} formatter={v => <span style={{ fontSize: 11, color: '#374151' }}>{v}</span>} />
+              </PieChart>
+            ) : <ChartEmpty />}
           </div>
-
-          {/* By status */}
           <div>
             <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>Por estado</div>
-            <PieChart width={398} height={220}>
-              <Pie
-                data={byStatus}
-                dataKey="value"
-                nameKey="name"
-                cx={199} cy={95}
-                outerRadius={70}
-                innerRadius={35}
-                paddingAngle={3}
-              >
-                {byStatus.map(e => <Cell key={e.key} fill={STATUS_COLORS_PDF[e.key] ?? '#9CA3AF'} />)}
-              </Pie>
-              <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', borderRadius: 6, background: '#fff' }} />
-              <Legend iconType="circle" iconSize={8} formatter={v => <span style={{ fontSize: 11, color: '#374151' }}>{v}</span>} />
-            </PieChart>
+            {byStatus.length > 0 ? (
+              <PieChart width={398} height={220}>
+                <Pie data={byStatus} dataKey="value" nameKey="name" cx={199} cy={95} outerRadius={70} innerRadius={35} paddingAngle={3}>
+                  {byStatus.map(e => <Cell key={e.key} fill={STATUS_COLORS_PDF[e.key] ?? '#9CA3AF'} />)}
+                </Pie>
+                <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', background: '#fff' }} />
+                <Legend iconType="circle" iconSize={8} formatter={v => <span style={{ fontSize: 11, color: '#374151' }}>{v}</span>} />
+              </PieChart>
+            ) : <ChartEmpty />}
           </div>
         </div>
 
         {/* Category bar chart */}
-        <SectionTitle>Máquinas por Categoría</SectionTitle>
-        <BarChart width={820} height={180} data={byCategory} margin={{ top: 4, right: 16, bottom: 0, left: -16 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
-          <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-          <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
-          <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', borderRadius: 6, background: '#fff' }} />
-          <Bar dataKey="value" name="Máquinas" radius={[3, 3, 0, 0]}>
-            {byCategory.map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />)}
-          </Bar>
-        </BarChart>
+        <ReportSectionTitle>Máquinas por Categoría</ReportSectionTitle>
+        <div id="chart-maquinas-bar">
+          {byCategory.length > 0 ? (
+            <BarChart width={820} height={180} data={byCategory} margin={{ top: 4, right: 16, bottom: 24, left: -16 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
+              <XAxis
+                dataKey="name"
+                tick={{ fontSize: 10, fill: '#9CA3AF' }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v: string) => v.length > 14 ? v.slice(0, 12) + '…' : v}
+                angle={-15}
+                textAnchor="end"
+                height={40}
+              />
+              <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', background: '#fff' }} />
+              <Bar dataKey="value" name="Máquinas" radius={[3, 3, 0, 0]}>
+                {byCategory.map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />)}
+              </Bar>
+            </BarChart>
+          ) : <ChartEmpty height={180} />}
+        </div>
 
         {/* Maintenance list */}
         {maintenance.length > 0 && (
           <>
-            <SectionTitle>Máquinas Pendientes de Mantenimiento</SectionTitle>
+            <ReportSectionTitle>Máquinas Pendientes de Mantenimiento</ReportSectionTitle>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
-                <tr style={{ borderBottom: '2px solid #E5E7EB' }}>
-                  {['Máquina', 'Categoría', 'Sucursal', 'Últ. actualización'].map((h, i) => (
-                    <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', color: '#9CA3AF', fontWeight: 600 }}>
+                <tr style={{ borderBottom: '2px solid #111111' }}>
+                  {['Máquina', 'Categoría', 'Sucursal', 'Últ. actualización'].map((h) => (
+                    <th key={h} style={{ padding: '9px 12px', textAlign: 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: '#111111' }}>
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {maintenance.map((m, i) => (
-                  <tr key={m.id} style={{ background: i % 2 === 0 ? '#FFF5F5' : '#ffffff', borderBottom: '1px solid #F3F4F6' }}>
+                {maintenance.map((m) => (
+                  <tr key={m.id} style={{ background: '#ffffff', borderBottom: '1px solid #E5E7EB' }}>
                     <td style={{ padding: '10px 12px', color: '#111827', fontWeight: 600 }}>{m.name}</td>
                     <td style={{ padding: '10px 12px', color: '#374151' }}>{CATEGORY_LABELS[m.category] ?? m.category}</td>
                     <td style={{ padding: '10px 12px', color: '#374151' }}>{m.gym?.name ?? '—'}</td>
-                    <td style={{ padding: '10px 12px', color: '#9CA3AF' }}>
+                    <td style={{ padding: '10px 12px', color: '#6B7280', fontFamily: 'monospace' }}>
                       {new Date(m.updatedAt).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </td>
                   </tr>
@@ -225,7 +240,7 @@ export function ReporteMaquinas({ filters }: Props) {
         )}
 
         {/* Full inventory table (grouped by category) */}
-        <SectionTitle>Inventario Completo</SectionTitle>
+        <ReportSectionTitle>Inventario Completo</ReportSectionTitle>
         {byCategory.map(cat => {
           const catMachines = machines.filter(m => (CATEGORY_LABELS[m.category] ?? m.category) === cat.name);
           return (
@@ -248,11 +263,7 @@ export function ReporteMaquinas({ filters }: Props) {
           );
         })}
 
-        {/* Footer */}
-        <div style={{ marginTop: 32, paddingTop: 14, borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ color: '#D1D5DB', fontSize: 11 }}>GymSync — Sistema de Gestión Deportiva</span>
-          <span style={{ color: '#D1D5DB', fontSize: 11 }}>{genAt}</span>
-        </div>
+        <ReportFooter genAt={genAt} />
       </div>
     </div>
   );

@@ -1,8 +1,5 @@
 import { useState, useMemo } from 'react';
-import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, Alert, ScrollView, TextInput,
-} from 'react-native';
+import {View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ScrollView, TextInput} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -15,6 +12,7 @@ import {
 } from '../../../app/Providers/staff/api/staff.api';
 import { messagesApi } from '../../../app/Providers/messages/messages.api';
 import { ClientePerfilParamList } from '../../../routes/PerfilStack';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 type Nav = NativeStackNavigationProp<ClientePerfilParamList, 'StaffCatalog'>;
 
@@ -115,7 +113,7 @@ const StaffCard = ({
         activeOpacity={0.8}
       >
         {loading ? (
-          <ActivityIndicator size="small" color="#fff" />
+          <DumbbellSpinner size="small" color="#fff" />
         ) : alreadyRequested ? (
           <>
             <MaterialCommunityIcons name="check-circle-outline" size={14} color="#22C55E" />
@@ -408,7 +406,7 @@ export const StaffCatalogScreen = () => {
         <>
           {loadingCatalog ? (
             <View style={s.center}>
-              <ActivityIndicator size="large" color="#f05b22" />
+              <DumbbellSpinner size="large" color="#f05b22" />
               <Text style={s.soft}>Cargando asesores...</Text>
             </View>
           ) : errorCatalog ? (
@@ -448,7 +446,7 @@ export const StaffCatalogScreen = () => {
               }}
               onEndReachedThreshold={0.5}
               ListFooterComponent={
-                fetchingNextCatalog ? <ActivityIndicator size="small" color="#FF6B00" style={{ marginVertical: 15 }} /> : null
+                fetchingNextCatalog ? <DumbbellSpinner size="small" color="#FF6B00" style={{ marginVertical: 15 }} /> : null
               }
             />
           )}
@@ -460,7 +458,7 @@ export const StaffCatalogScreen = () => {
         <>
           {loadingReqs ? (
             <View style={s.center}>
-              <ActivityIndicator size="large" color="#f05b22" />
+              <DumbbellSpinner size="large" color="#f05b22" />
               <Text style={s.soft}>Cargando solicitudes...</Text>
             </View>
           ) : myRequests.length === 0 ? (

@@ -1,9 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Modal, Alert, ActivityIndicator, ScrollView,
-  KeyboardAvoidingView, Platform, TextInput,
-} from 'react-native';
+import {View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, Alert, ScrollView, KeyboardAvoidingView, Platform, TextInput} from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -11,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { NumericInput } from '../../../app/Shared/components/ui/NumericInput';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { staffApi, Exercise, ClientRoutine, ClientRoutineExercise } from '../../../app/Providers/staff/api/staff.api';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DAYS = ['LUNES','MARTES','MIERCOLES','JUEVES','VIERNES','SABADO','DOMINGO'] as const;
@@ -241,7 +238,7 @@ const CatalogModal = ({ visible, day, exercises, weekPlan, filter, setFilter, on
 
         <View style={{ flex: 1 }}>
           {isLoading ? (
-            <View style={s.center}><ActivityIndicator color="#FF5E00" size="large" /></View>
+            <View style={s.center}><DumbbellSpinner color="#FF5E00" size="large" /></View>
           ) : (
             <FlatList
               data={filtered}
@@ -554,7 +551,7 @@ export const AsignarRutinaScreen = () => {
         <MaterialCommunityIcons name="account-outline" size={16} color="#FF5E00" />
         <Text style={s.subHeaderTxt} numberOfLines={1}>{studentName ?? `Alumno #${studentId}`}</Text>
         {loadingRoutine ? (
-          <ActivityIndicator size="small" color="#38BDF8" style={{ marginLeft: 8 }} />
+          <DumbbellSpinner size="small" color="#38BDF8" style={{ marginLeft: 8 }} />
         ) : existingRoutineId ? (
           <View style={[s.badge, { borderColor: '#38BDF844', backgroundColor: '#0d2a3d' }]}>
             <Text style={[s.badgeTxt, { color: '#38BDF8' }]}>Editando rutina</Text>
@@ -594,7 +591,7 @@ export const AsignarRutinaScreen = () => {
           activeOpacity={0.85}
         >
           {saveMutation.isPending
-            ? <ActivityIndicator color="#fff" size="small" />
+            ? <DumbbellSpinner color="#fff" size="small" />
             : <>
                 <MaterialCommunityIcons name="content-save-check-outline" size={18} color="#fff" />
                 <Text style={s.saveBtnTxt}>

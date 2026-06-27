@@ -228,11 +228,11 @@ function buildClientPopup(s){
   var lbl=s.isClosed?'Cerrado':pct>=85?'Lleno':pct>=60?'Alto':'Disponible';
   return '<div class="pbox">'
     +'<div class="ptitle">'+s.nombre+'</div>'
-    +'<div class="prow">📍 '+(s.distancia||'')
+    +'<div class="prow">'+(s.distancia||'')
     +'<span class="pbadge" style="border:1px solid '+pin+';color:'+pin+';">'+lbl+'</span></div>'
-    +'<div class="prow">👥 '+(s.aforoActual||0)+' / '+(s.aforoMaximo||0)+' ('+pct+'%)</div>'
+    +'<div class="prow">Aforo: '+(s.aforoActual||0)+' / '+(s.aforoMaximo||0)+' ('+pct+'%)</div>'
     +'<div class="pbar-bg"><div class="pbar-fill" style="width:'+pct+'%;background:'+pin+';"></div></div>'
-    +(s.capacidadMaquinas>0?'<div class="prow" style="margin-top:4px;">⚙️ '+s.capacidadMaquinas+' máquinas</div>':'')
+    +(s.capacidadMaquinas>0?'<div class="prow" style="margin-top:4px;">'+s.capacidadMaquinas+' maquinas</div>':'')
     +'<div class="phint">Toca para ver detalles</div>'
     +'</div>';
 }
@@ -244,9 +244,9 @@ function buildStaffPopup(s){
   if(s.isUserGym) h+='<span class="pgym-badge">Tu sucursal</span> ';
   if(s.isClosed) h+='<span class="pclosed-badge">Cerrada</span>';
   h+='<div class="ptitle">'+s.nombre+'</div>';
-  if(s.address) h+='<div class="paddr">📍 '+s.address+'</div>';
+  if(s.address) h+='<div class="paddr">'+s.address+'</div>';
   if(!s.isClosed){
-    h+='<div class="paforo">👥 '+(s.aforoActual||0)+'/'+(s.aforoMaximo||0)+' ('+pct+'%)</div>'
+    h+='<div class="paforo">Aforo: '+(s.aforoActual||0)+'/'+(s.aforoMaximo||0)+' ('+pct+'%)</div>'
       +'<div class="pbar-bg"><div class="pbar-fill" style="width:'+Math.min(pct,100)+'%;background:'+pin+';"></div></div>';
   }
   h+='</div>';
@@ -255,7 +255,7 @@ function buildStaffPopup(s){
 
 function buildVisitedPopup(s){
   return '<div class="pbox">'
-    +'<div class="pvisited-row">✅ Marca visitada</div>'
+    +'<div class="pvisited-row">Marca visitada</div>'
     +'<div class="ptitle">'+s.nombre+'</div>'
     +'</div>';
 }

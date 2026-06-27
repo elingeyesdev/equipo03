@@ -1,14 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  ActivityIndicator, Alert, TextInput, Platform,
-} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, TextInput, Platform} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import * as Print   from 'expo-print';
-import * as Sharing from 'expo-sharing';
-import { staffApi, ActiveAdvisee, ClientProfile, TrainerPlanData, TrainingSession } from '../../../app/Providers/staff/api/staff.api';
+import { staffApi, ActiveAdvisee } from '../../../app/Providers/staff/api/staff.api';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 //Date helpers 
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -35,130 +31,6 @@ function getRange(preset: Preset, customFrom: string, customTo: string): Range {
   }
 }
 
-// ─── HTML Generation ─────────────────────────────────────────────────────────
-
-function escHtml(s?: string | null): string {
-  if (!s) return '';
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-function inRange(dateStr: string, from: string, to: string): boolean {
-  const d = dateStr.slice(0, 10); return d >= from && d <= to;
-}
-
-function buildHtml(
-  clients:  ActiveAdvisee[],
-  profiles: Map<number, ClientProfile | null>,
-  plans:    Map<number, TrainerPlanData | null>,
-  counts:   Map<number, number>,
-  range:    Range,
-): string {
-  const genAt = new Date().toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-  const sections = clients.map((client) => {
-    const p    = profiles.get(client.clientId);
-    const plan = plans.get(client.clientId);
-    const cnt  = counts.get(client.clientId) ?? 0;
-    const init = escHtml(client.clientName).charAt(0).toUpperCase();
-    const hasPlan = !!(plan?.dailyKcal || plan?.planNotes);
-    const metrics = p?.latestMetrics;
-
-    const metricsRow = metrics ? `
-      <div style="padding:0 20px 16px">
-        <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#9CA3AF;margin-bottom:8px;">Últimas métricas</div>
-        <table style="width:100%;border-collapse:collapse;font-size:11px;">
-          <thead>
-            <tr>
-              ${['Peso (kg)', 'Grasa (%)', 'Músculo (kg)', 'Cintura (cm)', 'Pecho (cm)'].map(h => `<th style="padding:6px 8px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#9CA3AF;font-weight:600;border-bottom:1px solid #E5E7EB;">${h}</th>`).join('')}
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              ${[
-                metrics.weightKg           != null ? `${metrics.weightKg}` : '—',
-                metrics.bodyFatPercentage  != null ? `${metrics.bodyFatPercentage}` : '—',
-                metrics.muscleMassKg       != null ? `${metrics.muscleMassKg}` : '—',
-                metrics.waistCm            != null ? `${metrics.waistCm}` : '—',
-                metrics.chestCm            != null ? `${metrics.chestCm}` : '—',
-              ].map(v => `<td style="padding:8px;color:#374151;">${v}</td>`).join('')}
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    ` : '';
-
-    return `
-      <div style="margin-bottom:24px;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
-        <div style="background:#F9FAFB;padding:14px 20px;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;gap:12px;">
-          <div style="width:42px;height:42px;border-radius:50%;background:#3a1800;color:#FF5E00;font-size:20px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;line-height:42px;text-align:center;">${init}</div>
-          <div>
-            <div style="font-size:16px;font-weight:700;color:#111827;">${escHtml(client.clientName)}</div>
-            <div style="font-size:11px;color:#00E5A3;margin-top:2px;font-weight:600;">Asesoría activa</div>
-          </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;padding:16px 20px;">
-          <div style="border:1px solid #E5E7EB;border-left:3px solid #FF5E00;border-radius:6px;padding:12px;">
-            <div style="color:#9CA3AF;font-size:9px;text-transform:uppercase;letter-spacing:1px;">Sesiones completadas</div>
-            <div style="color:#111827;font-size:22px;font-weight:700;margin-top:4px;">${cnt}</div>
-          </div>
-          <div style="border:1px solid #E5E7EB;border-left:3px solid ${hasPlan ? '#10B981' : '#9CA3AF'};border-radius:6px;padding:12px;">
-            <div style="color:#9CA3AF;font-size:9px;text-transform:uppercase;letter-spacing:1px;">Plan nutricional</div>
-            <div style="color:${hasPlan ? '#10B981' : '#9CA3AF'};font-size:14px;font-weight:700;margin-top:4px;">${hasPlan ? 'Asignado' : 'Sin plan'}</div>
-          </div>
-          <div style="border:1px solid #E5E7EB;border-left:3px solid #6B7280;border-radius:6px;padding:12px;">
-            <div style="color:#9CA3AF;font-size:9px;text-transform:uppercase;letter-spacing:1px;">Cond. médica</div>
-            <div style="color:${p?.medicalConditions ? '#EF4444' : '#9CA3AF'};font-size:12px;font-weight:600;margin-top:4px;">${escHtml(p?.medicalConditions) || 'Sin registro'}</div>
-          </div>
-        </div>
-        ${metricsRow}
-      </div>
-    `;
-  }).join('');
-
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <style>
-      * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif; color: #111827; background: #fff; }
-    </style>
-    </head>
-    <body>
-      <div style="background:linear-gradient(135deg,#111827,#1f2937);padding:24px 32px;display:flex;justify-content:space-between;align-items:center;">
-        <div>
-          <div style="color:#FF5E00;font-size:20px;font-weight:800;letter-spacing:-0.5px;">GYMSYNC</div>
-          <div style="color:#9CA3AF;font-size:9px;letter-spacing:2.5px;text-transform:uppercase;margin-top:3px;">Sistema de Gestión Deportiva</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="color:#fff;font-size:16px;font-weight:700;">Clientes por Entrenador</div>
-          <div style="color:#9CA3AF;font-size:11px;margin-top:3px;">${clients.length} cliente${clients.length !== 1 ? 's' : ''}</div>
-        </div>
-      </div>
-      <div style="background:#F9FAFB;border-bottom:1px solid #E5E7EB;padding:10px 32px;display:flex;gap:40px;">
-        <div>
-          <div style="color:#9CA3AF;font-size:9px;text-transform:uppercase;letter-spacing:1px;">Período</div>
-          <div style="color:#111827;font-size:12px;font-weight:600;margin-top:2px;">${fmtDate(range.from)} — ${fmtDate(range.to)}</div>
-        </div>
-        <div>
-          <div style="color:#9CA3AF;font-size:9px;text-transform:uppercase;letter-spacing:1px;">Generado</div>
-          <div style="color:#111827;font-size:12px;font-weight:600;margin-top:2px;">${genAt}</div>
-        </div>
-      </div>
-      <div style="padding:24px 32px 40px;">
-        ${sections}
-        <div style="margin-top:28px;padding-top:12px;border-top:1px solid #E5E7EB;display:flex;justify-content:space-between;font-size:10px;color:#D1D5DB;">
-          <span>GymSync — Sistema de Gestión Deportiva</span>
-          <span>${genAt}</span>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 export const TrainerReportScreen = () => {
   const navigation = useNavigation<any>();
@@ -168,7 +40,6 @@ export const TrainerReportScreen = () => {
   const [customTo,     setCustomTo]     = useState(todayStr());
   const [scopeAll,     setScopeAll]     = useState(true);
   const [selectedId,   setSelectedId]   = useState<number | null>(null);
-  const [generating,   setGenerating]   = useState(false);
 
   const [advisees,  setAdvisees]  = useState<ActiveAdvisee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -187,57 +58,6 @@ export const TrainerReportScreen = () => {
   useEffect(() => { loadAdvisees(); }, [loadAdvisees]);
 
   const range = getRange(preset, customFrom, customTo);
-
-  async function handleGenerate() {
-    if (generating) return;
-
-    const target = scopeAll
-      ? advisees
-      : advisees.filter(a => a.clientId === selectedId);
-
-    if (target.length === 0) {
-      Alert.alert('Sin datos', 'No hay clientes seleccionados para el reporte.');
-      return;
-    }
-
-    if (preset === 'personalizado' && customFrom > customTo) {
-      Alert.alert('Fechas inválidas', 'La fecha de inicio debe ser anterior a la fecha de fin.');
-      return;
-    }
-
-    setGenerating(true);
-    try {
-      const [profilesArr, plansArr, sessionsArr] = await Promise.all([
-        Promise.all(target.map(c => staffApi.getClientProfile(c.clientId).catch(() => null))),
-        Promise.all(target.map(c => staffApi.getTrainerPlan(c.clientId).catch(() => null))),
-        Promise.all(target.map(c => staffApi.getSessionsForUser(c.clientId, { limit: 100, offset: 0 }).catch(() => ({ data: [] as TrainingSession[], meta: { total: 0, limit: 100, offset: 0 } })))),
-      ]);
-
-      const profiles = new Map<number, ClientProfile | null>(target.map((c, i) => [c.clientId, profilesArr[i]]));
-      const plans    = new Map<number, TrainerPlanData | null>(target.map((c, i) => [c.clientId, plansArr[i]]));
-      const counts   = new Map<number, number>(target.map((c, i) => {
-        const raw = sessionsArr[i];
-        const sessions: TrainingSession[] = Array.isArray(raw) ? raw : (raw?.data ?? []);
-        const n = sessions.filter(s =>
-          s.status === 'COMPLETED' && inRange(s.startedAt, range.from, range.to),
-        ).length;
-        return [c.clientId, n];
-      }));
-
-      const html = buildHtml(target, profiles, plans, counts, range);
-      const { uri } = await Print.printToFileAsync({ html, base64: false });
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) {
-        await Sharing.shareAsync(uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf', dialogTitle: 'Exportar Reporte' });
-      } else {
-        Alert.alert('PDF generado', `Guardado en: ${uri}`);
-      }
-    } catch {
-      Alert.alert('Error', 'No se pudo generar el reporte. Intenta nuevamente.');
-    } finally {
-      setGenerating(false);
-    }
-  }
 
   const PRESETS: { key: Preset; label: string }[] = [
     { key: 'hoy',          label: 'Hoy' },
@@ -285,7 +105,7 @@ export const TrainerReportScreen = () => {
           {!scopeAll && (
             <View style={s.clientList}>
               {isLoading ? (
-                <ActivityIndicator size="small" color="#38BDF8" style={{ padding: 16 }} />
+                <DumbbellSpinner size="small" color="#38BDF8" style={{ padding: 16 }} />
               ) : advisees.length === 0 ? (
                 <Text style={s.emptyTxt}>Sin clientes activos.</Text>
               ) : (
@@ -378,22 +198,29 @@ export const TrainerReportScreen = () => {
         )}
       </ScrollView>
 
-      {/* Generate button */}
+      {/* Preview button */}
       <View style={s.footer}>
         <TouchableOpacity
-          style={[s.genBtn, (generating || (!scopeAll && !selectedId)) && s.genBtnDisabled]}
-          onPress={handleGenerate}
+          style={[s.genBtn, (!scopeAll && !selectedId) && s.genBtnDisabled]}
+          onPress={() => {
+            if (!scopeAll && !selectedId) return;
+            if (preset === 'personalizado' && customFrom > customTo) {
+              Alert.alert('Fechas inválidas', 'La fecha de inicio debe ser anterior a la fecha de fin.');
+              return;
+            }
+            navigation.navigate('ReportPreview', {
+              type:             'TRAINER',
+              scopeAll,
+              selectedClientId: selectedId ?? null,
+              rangeFrom:        range.from,
+              rangeTo:          range.to,
+            });
+          }}
           activeOpacity={0.85}
-          disabled={generating || (!scopeAll && !selectedId)}
+          disabled={!scopeAll && !selectedId}
         >
-          {generating ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <MaterialCommunityIcons name="file-pdf-box" size={20} color="#fff" />
-          )}
-          <Text style={s.genBtnTxt}>
-            {generating ? 'Generando PDF...' : 'Generar Reporte PDF'}
-          </Text>
+          <MaterialCommunityIcons name="eye-outline" size={20} color="#fff" />
+          <Text style={s.genBtnTxt}>Ver Vista Previa</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

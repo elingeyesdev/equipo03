@@ -1,18 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  FlatList,
-  Dimensions,
-  Platform,
-  Linking,
-  RefreshControl,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
+import {View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Dimensions, Platform, Linking, RefreshControl, Alert, Image} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { AlertaBanner } from '../alertas/AlertaBanner';
@@ -28,20 +15,20 @@ import { ManagerDashboard }    from './ManagerDashboard';
 import { TrainerDashboard }    from './TrainerDashboard';
 import { InstructorDashboard } from './InstructorDashboard';
 import { NutritionistDashboard } from './NutritionistDashboard';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.36;
 
 const GALLERY_ICONS: Array<{ icon: string; color: string; label: string }> = [
-  { icon: 'run', color: '#e94560', label: 'Running' },
+  { icon: 'run', color: '#f05b22', label: 'Running' },
   { icon: 'bike', color: '#f05b22', label: 'Ciclismo' },
-  { icon: 'yoga', color: '#00b4d8', label: 'Yoga' },
-  { icon: 'rowing', color: '#06d6a0', label: 'Remo' },
-  { icon: 'weight-lifter', color: '#9b5de5', label: 'Pesas' },
-  { icon: 'swim', color: '#0077b6', label: 'Natación' },
-  { icon: 'basketball', color: '#ef476f', label: 'Basket' },
-  { icon: 'kabaddi', color: '#ffd166', label: 'MMA' },
-  { icon: 'gymnastics', color: '#06d6a0', label: 'Gimnasia' },
+  { icon: 'yoga', color: '#f05b22', label: 'Yoga' },
+  { icon: 'rowing', color: '#f05b22', label: 'Remo' },
+  { icon: 'weight-lifter', color: '#f05b22', label: 'Pesas' },
+  { icon: 'swim', color: '#f05b22', label: 'Natación' },
+  { icon: 'basketball', color: '#f05b22', label: 'Basket' },
+  { icon: 'kabaddi', color: '#f05b22', label: 'MMA' },
 ];
 
 
@@ -324,7 +311,7 @@ const ClientDashboard = () => {
         {/* ── Gimnasios cerca de ti ── */}
         <View style={styles.sectionHeader}>
           <View style={styles.sectionIconRow}>
-            <MaterialCommunityIcons name="map-marker-radius" size={28} color="#f05b22" />
+            <Image source={require('../../../assets/pesa_icon.png')} style={{ width: 45, height: 28 }} />
             <View style={{ marginLeft: 10 }}>
               <Text style={styles.sectionTitle}>Sucursales cercanas</Text>
               <Text style={styles.sectionSubtitle}>Basado en tu ubicación actual</Text>
@@ -340,7 +327,7 @@ const ClientDashboard = () => {
 
         {loading ? (
           <View style={styles.loadingState}>
-            <ActivityIndicator size="small" color="#f05b22" />
+            <DumbbellSpinner size="small" color="#f05b22" />
             <Text style={styles.loadingText}>Buscando marcas...</Text>
           </View>
         ) : errorType === 'permission' ? (
@@ -403,8 +390,10 @@ const ClientDashboard = () => {
                     <MaterialCommunityIcons name="star" size={14} color="#f05b22" />
                     {/* TODO: Requerir rating al backend */}
                     <Text style={styles.ratingText}>{item.sede.rating != null ? item.sede.rating : '-'}</Text>
+                    <Text style={styles.capacityText}>•</Text>
+                    <MaterialCommunityIcons name="account" size={11} color="#666" />
                     <Text style={styles.capacityText}>
-                      • {(item.sede as any).aforoActual ?? 0}/{(item.sede as any).aforoMax ?? 0}
+                      {(item.sede as any).aforoActual ?? 0}/{(item.sede as any).aforoMax ?? 0}
                     </Text>
                   </View>
                 </View>
@@ -415,15 +404,16 @@ const ClientDashboard = () => {
 
         {/* ══ GRUPO 1: Actividad Física (naranja) ══ */}
         <View style={styles.groupLabel}>
-          <MaterialCommunityIcons name="dumbbell" size={15} color="#f05b22" />
+          <Image source={require('../../../assets/sneakers_icon.png')} style={{ width: 30, height: 15 }} />
           <View style={{ flex: 1 }}>
-            <Text style={[styles.groupLabelTitle, { color: '#f05b22' }]}>Actividad Física</Text>
+            <Text style={[styles.groupLabelTitle, { color: '#ffffff' }]}>Actividad Física</Text>
             <Text style={styles.groupLabelSub}>Entrena y revisa lo que has hecho</Text>
           </View>
         </View>
 
+        {/* Iniciar Entrenamiento — ancho completo */}
         <TouchableOpacity
-          style={[styles.historialBtn, { borderColor: '#f05b2228' }]}
+          style={[styles.historialBtn, { borderColor: '#f05b2228', marginTop: 6 }]}
           activeOpacity={0.8}
           onPress={() => navigation.navigate('WorkoutMode')}
         >
@@ -439,96 +429,86 @@ const ClientDashboard = () => {
           <MaterialCommunityIcons name="chevron-right" size={22} color="#f05b2266" />
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.historialBtn, { borderColor: '#f05b2228' }]}
-          activeOpacity={0.8}
-          onPress={() => navigation.navigate('WorkoutHistory')}
-        >
-          <View style={styles.historialBtnLeft}>
+        {/* Historial — dos cuadrados lado a lado */}
+        <View style={{ flexDirection: 'row', marginHorizontal: 20, marginTop: 12, gap: 12 }}>
+          <TouchableOpacity
+            style={[styles.squareBtn, { borderColor: '#f05b2228' }]}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('WorkoutHistory')}
+          >
             <View style={[styles.historialBtnIcon, { backgroundColor: '#f05b221a' }]}>
-              <MaterialCommunityIcons name="calendar-clock" size={20} color="#f05b22" />
+              <MaterialCommunityIcons name="calendar-clock" size={22} color="#f05b22" />
             </View>
-            <View>
-              <Text style={styles.historialBtnTitle}>Historial de Entrenamientos</Text>
-              <Text style={styles.historialBtnSub}>Revisa todas tus sesiones pasadas</Text>
-            </View>
-          </View>
-          <MaterialCommunityIcons name="chevron-right" size={22} color="#f05b2266" />
-        </TouchableOpacity>
+            <Text style={styles.squareBtnTitle}>Historial de{'\n'}Entrenamientos</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.historialBtn, { borderColor: '#f05b2228' }]}
-          activeOpacity={0.8}
-          onPress={() => (navigation as any).navigate('GymHistorial')}
-        >
-          <View style={styles.historialBtnLeft}>
+          <TouchableOpacity
+            style={[styles.squareBtn, { borderColor: '#f05b2228' }]}
+            activeOpacity={0.8}
+            onPress={() => (navigation as any).navigate('GymHistorial')}
+          >
             <View style={[styles.historialBtnIcon, { backgroundColor: '#f05b221a' }]}>
-              <MaterialCommunityIcons name="history" size={20} color="#f05b22" />
+              <MaterialCommunityIcons name="history" size={22} color="#f05b22" />
             </View>
-            <View>
-              <Text style={styles.historialBtnTitle}>Historial de Gimnasios</Text>
-              <Text style={styles.historialBtnSub}>Consulta tus visitas a los gimnasios</Text>
-            </View>
-          </View>
-          <MaterialCommunityIcons name="chevron-right" size={22} color="#f05b2266" />
-        </TouchableOpacity>
+            <Text style={styles.squareBtnTitle}>Historial de{'\n'}Gimnasios</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* ══ GRUPO 2: Tu Progreso (verde) ══ */}
-        <View style={[styles.groupLabel, { marginTop: 28 }]}>
-          <MaterialCommunityIcons name="chart-line" size={15} color="#22c55e" />
+        <View style={[styles.groupLabel, { marginTop: 40 }]}>
+          <Image source={require('../../../assets/progreso_icon.png')} style={{ width: 27, height: 27 }} />
           <View style={{ flex: 1 }}>
-            <Text style={[styles.groupLabelTitle, { color: '#22c55e' }]}>Tu Progreso</Text>
+            <Text style={[styles.groupLabelTitle, { color: '#ffffff' }]}>Tu Progreso</Text>
             <Text style={styles.groupLabelSub}>Visualiza cómo estás mejorando con el tiempo</Text>
           </View>
         </View>
 
         <TouchableOpacity
-          style={[styles.historialBtn, { borderColor: '#22c55e33' }]}
+          style={[styles.historialBtn, { borderColor: '#f05b2228', marginTop: 6 }]}
           activeOpacity={0.8}
           onPress={() => (navigation as any).navigate('CuadroDeMando')}
         >
           <View style={styles.historialBtnLeft}>
-            <View style={[styles.historialBtnIcon, { backgroundColor: '#22c55e1a' }]}>
-              <MaterialCommunityIcons name="chart-timeline-variant" size={20} color="#22c55e" />
+            <View style={[styles.historialBtnIcon, { backgroundColor: '#f05b221a' }]}>
+              <MaterialCommunityIcons name="chart-timeline-variant" size={20} color="#f05b22" />
             </View>
             <View>
               <Text style={styles.historialBtnTitle}>Mi Evolución Física</Text>
-              <Text style={styles.historialBtnSub}>Estadísticas y línea de tiempo de tu progreso</Text>
+              <Text style={styles.historialBtnSub}>Línea de tiempo de tu progreso</Text>
             </View>
           </View>
-          <MaterialCommunityIcons name="chevron-right" size={22} color="#22c55e66" />
+          <MaterialCommunityIcons name="chevron-right" size={22} color="#f05b2266" />
         </TouchableOpacity>
 
         {/* ══ GRUPO 3: ¿Necesitas orientación? (celeste) ══ */}
-        <View style={[styles.groupLabel, { marginTop: 28 }]}>
-          <MaterialCommunityIcons name="account-star-outline" size={15} color="#38BDF8" />
+        <View style={[styles.groupLabel, { marginTop: 40 }]}>
+          <Image source={require('../../../assets/experto_icon.png')} style={{ width: 30, height: 30, resizeMode:"contain" }} />
           <View style={{ flex: 1 }}>
-            <Text style={[styles.groupLabelTitle, { color: '#38BDF8' }]}>¿Necesitas orientación?</Text>
+            <Text style={[styles.groupLabelTitle, { color: '#ffffff' }]}>¿Necesitas orientación?</Text>
             <Text style={styles.groupLabelSub}>Un asesor puede guiarte y diseñar tu plan</Text>
           </View>
         </View>
 
         <TouchableOpacity
-          style={[styles.historialBtn, { borderColor: '#38BDF833' }]}
+          style={[styles.historialBtn, { borderColor: '#f05b2228', marginTop: 6 }]}
           activeOpacity={0.8}
           onPress={() => (navigation as any).navigate('StaffCatalog')}
         >
           <View style={styles.historialBtnLeft}>
-            <View style={[styles.historialBtnIcon, { backgroundColor: '#38BDF81A' }]}>
-              <MaterialCommunityIcons name="account-search-outline" size={20} color="#38BDF8" />
+            <View style={[styles.historialBtnIcon, { backgroundColor: '#f05b221a' }]}>
+              <MaterialCommunityIcons name="account-search-outline" size={20} color="#f05b22" />
             </View>
             <View>
               <Text style={styles.historialBtnTitle}>Catálogo de Asesores</Text>
               <Text style={styles.historialBtnSub}>Encuentra tu entrenador personalizado</Text>
             </View>
           </View>
-          <MaterialCommunityIcons name="chevron-right" size={22} color="#38BDF866" />
+          <MaterialCommunityIcons name="chevron-right" size={22} color="#f05b2266" />
         </TouchableOpacity>
 
         {/* ── Explora Disciplinas ── */}
         <View style={styles.onboardSection}>
           <View style={styles.sectionIconRow}>
-            <MaterialCommunityIcons name="lightning-bolt" size={26} color="#f05b22" />
             <Text style={[styles.sectionTitle, { marginLeft: 10 }]}>
               Explora Disciplinas
             </Text>
@@ -617,7 +597,7 @@ const styles = StyleSheet.create({
   },
   welcomeText: {
     color: '#666',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '500',
   },
   title: {
@@ -653,7 +633,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   sectionSubtitle: {
-    fontSize: 12,
+    fontSize: 15,
     color: '#666',
     marginTop: 2,
   },
@@ -799,12 +779,12 @@ const styles = StyleSheet.create({
   },
   historialBtnTitle: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
   },
   historialBtnSub: {
     color: '#555',
-    fontSize: 11,
+    fontSize:14,
     marginTop: 2,
   },
   groupLabel: {
@@ -816,14 +796,30 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   groupLabelTitle: {
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '800',
     letterSpacing: 0.4,
   },
   groupLabelSub: {
-    color: '#333',
-    fontSize: 10,
+    color: '#5d5d5d',
+    fontSize: 15,
     marginTop: 1,
+  },
+  squareBtn: {
+    flex: 1,
+    backgroundColor: '#111',
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 14,
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  squareBtnTitle: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
   },
   onboardSection: {
     paddingHorizontal: 20,
@@ -847,7 +843,7 @@ const styles = StyleSheet.create({
   },
   galleryLabel: {
     color: '#666',
-    fontSize: 9,
+    fontSize: 13,
     marginTop: 6,
     fontWeight: '500',
   },

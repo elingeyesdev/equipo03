@@ -1,19 +1,11 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Switch,
-  TouchableOpacity,
-  ActivityIndicator,
-  Platform,
-} from 'react-native';
+import {View, Text, StyleSheet, ScrollView, Switch, TouchableOpacity, Platform} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { AlertasController, AlertaFrequencia } from '../../../app/Http/Controllers/alertas/AlertasController';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 const KEYWORD_TIPS: { keywords: string[]; tip: string; icon: string }[] = [
   { keywords: ['asma'],                          tip: 'Recuerda llevar tu inhalador a la sesión.',              icon: 'lungs'       },
@@ -39,7 +31,7 @@ export const AlertasConfigScreen = () => {
   if (vm.isLoading) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color="#f05b22" />
+        <DumbbellSpinner size="large" color="#f05b22" />
       </View>
     );
   }

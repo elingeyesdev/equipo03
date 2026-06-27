@@ -1,8 +1,5 @@
 import { useState } from 'react';
-import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert, TextInput, Platform,
-} from 'react-native';
+import {View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput, Platform} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -10,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import * as Print   from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { staffApi, InstructorWeeklySchedule } from '../../../app/Providers/staff/api/staff.api';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 
@@ -272,7 +270,7 @@ export const InstructorReportScreen = () => {
         {!scopeAll && (
           isLoading ? (
             <View style={s.loadingRow}>
-              <ActivityIndicator size="small" color="#FF5E00" />
+              <DumbbellSpinner size="small" color="#FF5E00" />
               <Text style={s.loadingTxt}>Cargando horarios…</Text>
             </View>
           ) : schedules.length === 0 ? (
@@ -391,7 +389,7 @@ export const InstructorReportScreen = () => {
           activeOpacity={0.85}
         >
           {generating ? (
-            <ActivityIndicator color="#fff" size="small" />
+            <DumbbellSpinner color="#fff" size="small" />
           ) : (
             <>
               <MaterialCommunityIcons name="file-pdf-box" size={18} color="#fff" />

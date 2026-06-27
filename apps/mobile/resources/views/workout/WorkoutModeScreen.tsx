@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  ActivityIndicator,
-} from 'react-native';
+import {View, Text, TouchableOpacity, StyleSheet, ScrollView} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { trainingApi } from '../../../app/Providers/training/api/training.api';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 export type TrackingType =
   | 'PESO_REPS'
@@ -171,7 +169,7 @@ export const WorkoutModeScreen = () => {
 
       {loading ? (
         <View style={s.center}>
-          <ActivityIndicator size="large" color="#38BDF8" />
+          <DumbbellSpinner size="large" color="#38BDF8" />
         </View>
       ) : (
         <ScrollView
