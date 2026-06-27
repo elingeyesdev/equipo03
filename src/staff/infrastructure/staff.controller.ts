@@ -361,6 +361,14 @@ export class StaffController {
     return this.svc.getActiveAdvisees();
   }
 
+  @Get('dashboard-stats')
+  @UseGuards(StaffLevelGuard)
+  @ApiOperation({ summary: 'Resumen operativo del asesor: clientes activos y solicitudes pendientes' })
+  @ApiResponse({ status: 200, schema: { example: { activeClients: 12, pendingRequests: 3 } } })
+  getDashboardStats() {
+    return this.svc.getDashboardStats();
+  }
+
   @Get('clients/:clientId')
   @UseGuards(StaffLevelGuard)
   @ApiOperation({ summary: 'Perfil + últimas métricas de un cliente (requiere relación ACTIVE)' })

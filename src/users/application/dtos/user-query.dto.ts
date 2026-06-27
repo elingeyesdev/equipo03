@@ -42,12 +42,12 @@ export class UserQueryDto {
   @IsString()
   sortBy?: string;
 
-  @ApiPropertyOptional({ example: 20, description: 'Resultados por página (máx. 100)' })
+  @ApiPropertyOptional({ example: 20, description: 'Resultados por página (máx. 10000)' })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(100)
+  @Max(10000)
   limit?: number = 20;
 
   @ApiPropertyOptional({ example: 0, description: 'Número de resultados a omitir' })
