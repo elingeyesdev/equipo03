@@ -1,14 +1,13 @@
 import React from 'react';
-import {
-  View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, ActivityIndicator,
-} from 'react-native';
+import {View, Text, StyleSheet, ScrollView, TouchableOpacity} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { staffApi, ClientProfile } from '../../../app/Providers/staff/api/staff.api';
+import { DB_ROLES } from '../../../app/constants/db-roles';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 type RouteParams = { clientId: number; clientName: string };
 
@@ -45,7 +44,7 @@ const InfoRow = ({ icon, label, value }: {
   icon: string; label: string; value: string | null;
 }) => (
   <View style={s.infoRow}>
-    <MaterialCommunityIcons name={icon as any} size={16} color="#555" />
+    <MaterialCommunityIcons name={icon as any} size={16} color="#9CA3AF" />
     <Text style={s.infoLabel}>{label}</Text>
     <Text style={s.infoValue}>{value ?? '—'}</Text>
   </View>
@@ -56,7 +55,15 @@ export const PerfilAlumnoScreen = () => {
   const navigation  = useNavigation<any>();
   const route       = useRoute<RouteProp<Record<string, RouteParams>, string>>();
   const { clientId, clientName } = route.params;
-  const isNutritionist = (user as any)?.role?.toUpperCase() === 'NUTRICIONISTA';
+  const myRoleId = (user as any)?.roleId as number | undefined;
+  const myLevel  = (user as any)?.level ?? 0;
+  // Both action buttons are available for any trainer/nutritionist (level 3).
+  // roleId check covers new sessions; level fallback covers old cached sessions.
+  const isStaff3 = myLevel === 3
+    || myRoleId === DB_ROLES.ENTRENADOR
+    || myRoleId === DB_ROLES.NUTRICIONISTA;
+  const showRutinaBtn = isStaff3;
+  const showPlanBtn   = isStaff3;
 
   const { data: profile, isLoading, isError, refetch } = useQuery<ClientProfile>({
     queryKey: ['client-profile', clientId],
@@ -83,7 +90,7 @@ export const PerfilAlumnoScreen = () => {
 
       {isLoading ? (
         <View style={s.center}>
-          <ActivityIndicator size="large" color="#f05b22" />
+          <DumbbellSpinner size="large" color="#f05b22" />
         </View>
       ) : isError ? (
         <View style={s.center}>
@@ -174,6 +181,30 @@ export const PerfilAlumnoScreen = () => {
                   unit="kg"
                   icon="arm-flex"
                 />
+                <MetricCard
+                  label="Cadera"
+                  value={metrics.hipCm != null ? metrics.hipCm.toFixed(1) : null}
+                  unit="cm"
+                  icon="human-handsdown"
+                />
+                <MetricCard
+                  label="Brazo"
+                  value={metrics.midArmCm != null ? metrics.midArmCm.toFixed(1) : null}
+                  unit="cm"
+                  icon="arm-flex-outline"
+                />
+                <MetricCard
+                  label="Muslo"
+                  value={metrics.thighCm != null ? metrics.thighCm.toFixed(1) : null}
+                  unit="cm"
+                  icon="human-male"
+                />
+                <MetricCard
+                  label="Pantorrilla"
+                  value={metrics.calfCm != null ? metrics.calfCm.toFixed(1) : null}
+                  unit="cm"
+                  icon="walk"
+                />
               </View>
               <Text style={s.metaDate}>
                 Último registro: {fmtDate(metrics.recordedAt)}
@@ -194,9 +225,9 @@ export const PerfilAlumnoScreen = () => {
             )}
           </View>
 
-          {/* Acciones */}
+          {/* Acciones — diferenciadas por roleId para separar Entrenador (4) de Nutricionista (5) */}
           <View style={s.actionsRow}>
-            {!isNutritionist && (
+            {showRutinaBtn && (
               <TouchableOpacity
                 style={s.actionBtn}
                 activeOpacity={0.8}
@@ -211,18 +242,20 @@ export const PerfilAlumnoScreen = () => {
               </TouchableOpacity>
             )}
 
-            <TouchableOpacity
-              style={[s.actionBtn, s.planBtn]}
-              activeOpacity={0.8}
-              onPress={() => {
-                try {
-                  navigation.navigate('TrainerPlan', { clientId, clientName });
-                } catch {}
-              }}
-            >
-              <MaterialCommunityIcons name="food-apple-outline" size={18} color="#fff" />
-              <Text style={s.actionTxt}>Plan Nutricional</Text>
-            </TouchableOpacity>
+            {showPlanBtn && (
+              <TouchableOpacity
+                style={[s.actionBtn, s.planBtn]}
+                activeOpacity={0.8}
+                onPress={() => {
+                  try {
+                    navigation.navigate('TrainerPlan', { clientId, clientName });
+                  } catch {}
+                }}
+              >
+                <MaterialCommunityIcons name="food-apple-outline" size={18} color="#fff" />
+                <Text style={s.actionTxt}>Plan Nutricional</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </ScrollView>
       )}
@@ -243,38 +276,38 @@ const s = StyleSheet.create({
   avatarCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#1C1C1E', borderWidth: 2, borderColor: '#FF5E00', justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
   fullName:     { color: '#fff', fontSize: 20, fontWeight: '800' },
 
-  card:      { backgroundColor: '#0e0e0e', borderRadius: 14, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#1a1a1a' },
-  cardTitle: { color: '#888', fontSize: 10, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12 },
+  card:      { backgroundColor: '#111111', borderRadius: 14, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#2A2A2D' },
+  cardTitle: { color: '#D1D5DB', fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12 },
 
   infoRow:   { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: '#111' },
-  infoLabel: { color: '#555', fontSize: 13, flex: 1 },
-  infoValue: { color: '#ddd', fontSize: 13, fontWeight: '600' },
+  infoLabel: { color: '#D1D5DB', fontSize: 13, flex: 1 },
+  infoValue: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
 
-  sectionTitle: { color: '#888', fontSize: 10, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12 },
+  sectionTitle: { color: '#D1D5DB', fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12 },
 
   metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8 },
-  metricCard:  { width: '30%', flexGrow: 1, backgroundColor: '#0e0e0e', borderRadius: 12, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#1a1a1a' },
+  metricCard:  { width: '30%', flexGrow: 1, backgroundColor: '#111111', borderRadius: 12, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#2A2A2D' },
   bmiCard:     { borderColor: '#FF5E0033' },
   metricIcon:  { marginBottom: 4 },
-  metricLabel: { color: '#555', fontSize: 10, marginBottom: 4, textAlign: 'center' },
+  metricLabel: { color: '#D1D5DB', fontSize: 12, marginBottom: 4, textAlign: 'center' },
   metricValue: { color: '#fff', fontSize: 16, fontWeight: '800' },
-  bmiTag:      { fontSize: 10, fontWeight: '600', marginTop: 2 },
+  bmiTag:      { fontSize: 12, fontWeight: '600', marginTop: 2 },
 
-  metaDate:    { color: '#333', fontSize: 11, textAlign: 'right', marginBottom: 16 },
+  metaDate:    { color: '#9CA3AF', fontSize: 12, textAlign: 'right', marginBottom: 16 },
 
-  noMetrics:    { backgroundColor: '#0e0e0e', borderRadius: 14, padding: 24, alignItems: 'center', gap: 8, marginBottom: 16, borderWidth: 1, borderColor: '#1a1a1a' },
-  noMetricsTxt: { color: '#333', fontSize: 13 },
+  noMetrics:    { backgroundColor: '#111111', borderRadius: 14, padding: 24, alignItems: 'center', gap: 8, marginBottom: 16, borderWidth: 1, borderColor: '#2A2A2D' },
+  noMetricsTxt: { color: '#D1D5DB', fontSize: 13 },
 
-  medicalTxt: { color: '#ccc', fontSize: 13, lineHeight: 20 },
+  medicalTxt: { color: '#D1D5DB', fontSize: 13, lineHeight: 20 },
   noDataRow:  { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
-  noDataTxt:  { color: '#444', fontSize: 13, fontStyle: 'italic' },
+  noDataTxt:  { color: '#9CA3AF', fontSize: 13, fontStyle: 'italic' },
 
   actionsRow: { gap: 10, marginTop: 8 },
   actionBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#f05b22', borderRadius: 12, paddingVertical: 14 },
   planBtn:    { backgroundColor: '#1D4ED8' },
   actionTxt:  { color: '#fff', fontSize: 15, fontWeight: '700' },
 
-  errTxt:   { color: '#555', fontSize: 14, marginTop: 8 },
+  errTxt:   { color: '#D1D5DB', fontSize: 14, marginTop: 8 },
   retryBtn: { backgroundColor: '#1C1C1E', paddingVertical: 10, paddingHorizontal: 20, borderRadius: 10, marginTop: 4 },
   retryTxt: { color: '#f05b22', fontWeight: '700' },
 });

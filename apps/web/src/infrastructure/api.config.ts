@@ -3,19 +3,14 @@ import type { AxiosInstance } from 'axios';
 import toast from 'react-hot-toast';
 
 // Limpia el estado local y redirige al login.
-// El token ya NO está en localStorage — la cookie HttpOnly la borra el backend.
-const forceLogout = async () => {
-  try {
-    // Pedirle al backend que limpie la cookie HttpOnly
-    await axios.post('/api/auth/logout', {}, { withCredentials: true });
-  } catch {
-    // Si falla (ya expiró, red caída) igual se redirige
-  } finally {
-    localStorage.removeItem('gymsync_user');
-    sessionStorage.clear();
-    if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
-      window.location.href = '/login';
-    }
+// Fire-and-forget del logout: no await — la redirección es inmediata para evitar
+// que componentes del Dashboard rendericen paneles de error durante la transición.
+const forceLogout = () => {
+  axios.post('/api/auth/logout', {}, { withCredentials: true }).catch(() => {});
+  localStorage.removeItem('gymsync_user');
+  sessionStorage.clear();
+  if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
+    window.location.href = '/login';
   }
 };
 
@@ -52,6 +47,17 @@ export const createApiClient = (): AxiosInstance => {
       if (body && typeof body === 'object' && 'success' in body) {
         if (body.success === false) {
           const reqUrl = response.config?.url ?? '';
+
+          // Si el caller maneja sus propios errores, preservar metadata (status + code)
+          // para que pueda inspeccionarlos sin depender del interceptor global.
+          if (response.config?._skipErrorToast) {
+            const richErr = new Error(
+              typeof body.message === 'string' ? body.message : 'Error en la operación',
+            ) as Error & { response?: { status: number; data: unknown } };
+            richErr.response = { status: body.statusCode ?? 400, data: body };
+            return Promise.reject(richErr);
+          }
+
           if (body.statusCode === 403 || body.message?.includes('denegado')) {
             handleAccessDenied(body.message);
           } else if (body.statusCode === 401 && !reqUrl.includes('/auth/login') && !reqUrl.includes('/auth/me')) {
@@ -117,7 +123,8 @@ export const createApiClient = (): AxiosInstance => {
           toast.error(errorMessage || `Error del servidor (${status})`);
         }
       } else {
-        toast.error('Error de red o conexión perdida.');
+        // Error de red (ERR_CONNECTION_REFUSED, timeout) — no destruir sesión
+        console.warn('[Web API] Error de red — backend no disponible temporalmente.');
       }
 
       return Promise.reject(error);

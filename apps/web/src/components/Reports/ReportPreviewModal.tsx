@@ -1,11 +1,46 @@
-import React, { useState, useRef } from 'react';
-import { X, Download, Loader2 } from 'lucide-react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { X, Download, Loader2, RefreshCw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { exportElementToPdf } from '../../lib/pdfExport';
+import { pdf } from '@react-pdf/renderer';
+import { useQueryClient } from '@tanstack/react-query';
+import { captureElementAsPng } from '../../lib/pdfExport';
 import type { ReportFilters } from './types';
-import { ReporteAsistencia }  from './reports/ReporteAsistencia';
-import { ReporteMaquinas }    from './reports/ReporteMaquinas';
-import { ReporteConsolidado } from './reports/ReporteConsolidado';
+import { ReporteAsistencia }    from './reports/ReporteAsistencia';
+import { ReporteMaquinas }      from './reports/ReporteMaquinas';
+import { ReporteConsolidado }   from './reports/ReporteConsolidado';
+import { ReporteAforo }         from './reports/ReporteAforo';
+import { ReporteRanking }       from './reports/ReporteRanking';
+import { ReporteActividades }   from './reports/ReporteActividades';
+import { ReporteCancelaciones } from './reports/ReporteCancelaciones';
+import { ReporteFrecuencia }    from './reports/ReporteFrecuencia';
+import { ReporteAuditoria }     from './reports/ReporteAuditoria';
+import { ReporteChurn }         from './reports/ReporteChurn';
+
+import { ReporteAsistenciaPdf }    from './pdf/ReporteAsistenciaPdf';
+import { ReporteMaquinasPdf }      from './pdf/ReporteMaquinasPdf';
+import { ReporteConsolidadoPdf }   from './pdf/ReporteConsolidadoPdf';
+import { ReporteAforoPdf }         from './pdf/ReporteAforoPdf';
+import { ReporteRankingPdf }       from './pdf/ReporteRankingPdf';
+import { ReporteActividadesPdf }   from './pdf/ReporteActividadesPdf';
+import { ReporteCancelacionesPdf } from './pdf/ReporteCancelacionesPdf';
+import { ReporteFrecuenciaPdf }    from './pdf/ReporteFrecuenciaPdf';
+import { ReporteAuditoriaPdf }     from './pdf/ReporteAuditoriaPdf';
+import { ReporteChurnPdf }         from './pdf/ReporteChurnPdf';
+
+type PdfDocFn = (data: any) => React.ReactElement;
+
+const PDF_DOCS: Record<string, PdfDocFn> = {
+  asistencia:    (d) => <ReporteAsistenciaPdf data={d} />,
+  maquinas:      (d) => <ReporteMaquinasPdf data={d} />,
+  consolidado:   (d) => <ReporteConsolidadoPdf data={d} />,
+  aforo:         (d) => <ReporteAforoPdf data={d} />,
+  ranking:       (d) => <ReporteRankingPdf data={d} />,
+  actividades:   (d) => <ReporteActividadesPdf data={d} />,
+  cancelaciones: (d) => <ReporteCancelacionesPdf data={d} />,
+  frecuencia:    (d) => <ReporteFrecuenciaPdf data={d} />,
+  auditoria:     (d) => <ReporteAuditoriaPdf data={d} />,
+  churn:         (d) => <ReporteChurnPdf data={d} />,
+};
 
 const REPORT_LABELS: Record<string, string> = {
   asistencia:  'asistencia-sucursal',
@@ -18,21 +53,69 @@ interface Props {
   onClose: () => void;
 }
 
+function useFreshness() {
+  const mountedAt = useRef(Date.now());
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 10_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const elapsed = now - mountedAt.current;
+  const mins = Math.floor(elapsed / 60_000);
+  const label = mins < 1 ? 'recién cargado' : mins < 60 ? `hace ${mins} min` : `hace ${Math.floor(mins / 60)}h`;
+  const color = mins < 5 ? '#10B981' : mins < 15 ? '#F59E0B' : '#EF4444';
+
+  return { label, color };
+}
+
 export function ReportPreviewModal({ filters, onClose }: Props) {
+  const queryClient = useQueryClient();
   const [exporting, setExporting] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollRef   = useRef<HTMLDivElement>(null);
+  const pdfDataRef  = useRef<any>(null);
+  const chartIdsRef = useRef<string[]>([]);
+  const { label: freshnessLabel, color: freshnessColor } = useFreshness();
+
+  function handleRefresh() {
+    queryClient.invalidateQueries();
+    toast.success('Datos actualizados.');
+  }
+
+  const handlePdfDataReady = useCallback((data: any, chartIds: string[]) => {
+    pdfDataRef.current  = data;
+    chartIdsRef.current = chartIds;
+  }, []);
 
   async function handleExport() {
+    if (!pdfDataRef.current) {
+      toast.error('Los datos aún no están listos. Espera un momento.');
+      return;
+    }
     setExporting(true);
     try {
-      // Scroll al inicio del área de preview para que el clon capture desde arriba
-      if (scrollRef.current) {
-        scrollRef.current.scrollTop = 0;
-        await new Promise(r => setTimeout(r, 80));
+      // Captura solo las gráficas (elementos pequeños — sin riesgo de canvas overflow)
+      const charts: Record<string, string> = {};
+      for (const id of chartIdsRef.current) {
+        const png = await captureElementAsPng(id);
+        if (png) charts[id] = png;
       }
+
+      // Inyecta las imágenes de gráficas en los datos PDF
+      const dataWithCharts = { ...pdfDataRef.current, charts };
+
+      // Genera el PDF vectorial con @react-pdf/renderer
+      const docFn = PDF_DOCS[filters.type];
+      if (!docFn) throw new Error(`No PDF doc for type: ${filters.type}`);
+
+      const blob = await pdf(docFn(dataWithCharts)).toBlob();
       const date     = new Date().toISOString().slice(0, 10);
-      const filename = `gymsync-${REPORT_LABELS[filters.type] ?? filters.type}-${date}`;
-      await exportElementToPdf('report-content', filename);
+      const filename = `gymsync-${REPORT_LABELS[filters.type] ?? filters.type}-${date}.pdf`;
+      const url = URL.createObjectURL(blob);
+      const a   = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
       toast.success('PDF exportado correctamente.');
     } catch (err) {
       console.error('[pdfExport] error:', err);
@@ -43,8 +126,15 @@ export function ReportPreviewModal({ filters, onClose }: Props) {
   }
 
   const ReportComponent =
-    filters.type === 'asistencia'  ? ReporteAsistencia  :
-    filters.type === 'maquinas'    ? ReporteMaquinas    :
+    filters.type === 'asistencia'    ? ReporteAsistencia    :
+    filters.type === 'maquinas'      ? ReporteMaquinas      :
+    filters.type === 'aforo'         ? ReporteAforo         :
+    filters.type === 'ranking'       ? ReporteRanking       :
+    filters.type === 'actividades'   ? ReporteActividades   :
+    filters.type === 'cancelaciones' ? ReporteCancelaciones :
+    filters.type === 'frecuencia'    ? ReporteFrecuencia    :
+    filters.type === 'auditoria'     ? ReporteAuditoria     :
+    filters.type === 'churn'         ? ReporteChurn         :
     ReporteConsolidado;
 
   return (
@@ -64,25 +154,33 @@ export function ReportPreviewModal({ filters, onClose }: Props) {
           </button>
           <div className="h-5 w-px bg-[#3A3A3C]" />
           <span className="text-sm font-medium text-white">Vista Previa del Reporte</span>
+          <div className="h-5 w-px bg-[#3A3A3C]" />
+          <span className="flex items-center gap-1.5 text-xs text-gray-400">
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: freshnessColor, display: 'inline-block', flexShrink: 0 }} />
+            Datos {freshnessLabel}
+          </span>
+          <button
+            onClick={handleRefresh}
+            title="Refrescar datos"
+            className="rounded p-1 text-gray-500 transition-colors hover:bg-[#2C2C2E] hover:text-white"
+          >
+            <RefreshCw size={13} />
+          </button>
         </div>
 
-        <button
-          onClick={handleExport}
-          disabled={exporting}
-          className="flex items-center gap-2 rounded-lg bg-[#FF5E00] px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-[#e65400] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {exporting ? (
-            <>
-              <Loader2 size={14} className="animate-spin" />
-              Exportando...
-            </>
-          ) : (
-            <>
-              <Download size={14} />
-              Exportar PDF
-            </>
-          )}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="flex items-center gap-2 rounded-lg bg-[#FF5E00] px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-[#e65400] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {exporting ? (
+              <><Loader2 size={14} className="animate-spin" /> Exportando...</>
+            ) : (
+              <><Download size={14} /> Exportar PDF</>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Scrollable preview area */}
@@ -99,7 +197,10 @@ export function ReportPreviewModal({ filters, onClose }: Props) {
             borderRadius: 4,
           }}
         >
-          <ReportComponent filters={filters} />
+          <ReportComponent
+            filters={filters}
+            onPdfDataReady={handlePdfDataReady}
+          />
         </div>
       </div>
     </div>

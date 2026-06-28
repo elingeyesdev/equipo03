@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { CSSProperties } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../infrastructure/api.config';
 import { ModalOverlay, ConfirmModal } from './Shared/DashboardShared';
-import { DB_ROLES } from '../../config/rbac.constants';
 import { guardClose } from './Shared/DashboardShared.utils';
 import { Eye, Edit, Trash2, Plus, X, Search, GraduationCap } from 'lucide-react';
 
@@ -261,18 +260,30 @@ const ActivityDetailModal = ({
 
 //Form Modal
 const ActivityFormModal = ({
-  initial, gyms, userGymId, onClose, onSaved,
+  initial, gyms, userGymId, callerLevel, gerenteBrandId, onClose, onSaved,
 }: {
   initial: Activity | null;
   gyms: GymOption[];
   userGymId: number | null;
+  callerLevel: number;
+  gerenteBrandId: number | null;
   onClose: () => void;
   onSaved: () => void;
 }) => {
   const isEdit = !!initial;
 
   const resolveInitialGymId = () => {
-    if (isEdit) return String(initial!.gymId);
+    if (isEdit) {
+      const initId = initial!.gymId;
+      // Si el Gerente edita un servicio cuyo gymId apunta a una marca (parentId=null),
+      // es dato corrupto del bug anterior — forzar re-selección de sucursal.
+      if (callerLevel === 5) {
+        const isBranch = gyms.some(g => g.id === initId && g.parentId != null);
+        return isBranch ? String(initId) : '';
+      }
+      return String(initId);
+    }
+    if (callerLevel === 5) return ''; // Gerente elige sucursal mediante el selector
     if (userGymId) return String(userGymId);
     if (gyms.length === 1) return String(gyms[0].id);
     return '';
@@ -285,6 +296,7 @@ const ActivityFormModal = ({
       const branch = gyms.find(g => g.id === initial!.gymId);
       return branch?.parentId ? String(branch.parentId) : '';
     }
+    if (callerLevel === 5 && gerenteBrandId) return String(gerenteBrandId);
     return '';
   });
   const [name,        setName]        = useState(initial?.name ?? '');
@@ -294,7 +306,7 @@ const ActivityFormModal = ({
   );
   const [isFreeAccess, setIsFreeAccess] = useState(initial?.isFreeAccess ?? false);
   const [isActive,     setIsActive]     = useState(initial?.isActive ?? true);
-  const [saving, setSaving] = useState(false);
+  const queryClient = useQueryClient();
   const [touched, setTouched] = useState(false);
 
   // ── Horarios de clase (solo en edición) ──
@@ -308,11 +320,14 @@ const ActivityFormModal = ({
   const [instructors,      setInstructors]      = useState<{ id: number; label: string }[]>([]);
   const [addingSchedule,   setAddingSchedule]   = useState(false);
 
-  const needsGymPicker = !userGymId;
+  const showBrandPicker = callerLevel >= 10;
+  const showBranchPicker = callerLevel >= 10 || callerLevel === 5;
   const brands = gyms.filter(g => g.parentId == null);
-  const filteredBranches = selectedBrandId
-    ? gyms.filter(g => g.parentId === Number(selectedBrandId))
-    : [];
+  const filteredBranches = callerLevel === 5
+    ? gyms.filter(g => g.parentId != null)
+    : selectedBrandId
+      ? gyms.filter(g => g.parentId === Number(selectedBrandId))
+      : [];
   const handleBrandChange = (brandId: string) => {
     setSelectedBrandId(brandId);
     setGymId('');
@@ -335,47 +350,23 @@ const ActivityFormModal = ({
       .finally(() => setSchedulesLoading(false));
   }, [isEdit, initial?.id]);
 
-  // Para SUPER_ADMIN: re-carga instructores cuando cambia la sucursal seleccionada.
-  // Para GERENTE: carga al montar (gymId viene fijo del JWT).
   useEffect(() => {
-    if (needsGymPicker && !gymId) {
+    if (showBranchPicker && !gymId) {
       setInstructors([]);
       setNewInstructorId('');
       return;
     }
-    const parse = (rawInstructors: any): RawUser[] => {
-      let safeInstructors: RawUser[] = [];
-      if (Array.isArray(rawInstructors)) safeInstructors = rawInstructors;
-      else safeInstructors = Array.isArray(rawInstructors?.data) 
-        ? rawInstructors.data 
-        : (rawInstructors?.data?.data || []);
-      
-      console.log('INSTRUCTORES DESEMPAQUETADOS:', safeInstructors);
-      return safeInstructors;
-    };
-    const gymFilter = needsGymPicker && gymId ? { gymId: Number(gymId) } : {};
-    apiClient.get('/users', { params: { hierarchyLevel: 2, ...gymFilter } })
-      .catch(() => [])
+    apiClient.get('/activities/eligible-instructors')
+      .catch(() => null)
       .then((res) => {
-        const seen = new Set<number>();
-        const list = parse(res)
-          .filter((u) => {
-            const uid = Number(u?.id);
-            if (!uid || seen.has(uid)) return false;
-            seen.add(uid);
-            return true;
-          })
-          .map((u) => ({
-            id: u.id as number,
-            label: u.profile
-              ? `${u.profile.firstName ?? ''} ${u.profile.lastName ?? ''}`.trim() || (u.email ?? '')
-              : (u.email ?? ''),
-          }));
+        const body = (res as { data?: unknown } | null)?.data;
+        const raw = Array.isArray(body) ? (body as { id: number; fullName: string }[]) : [];
+        const list = raw.map((u) => ({ id: u.id, label: u.fullName || `#${u.id}` }));
         setInstructors(list);
         if (list.length === 1) setNewInstructorId(String(list[0].id));
         else setNewInstructorId('');
       });
-  }, [gymId, needsGymPicker]);
+  }, [gymId, showBranchPicker]);
 
   const handleAddSchedule = async () => {
     if (!newStart || !newEnd)        { toast.error('Completa los horarios'); return; }
@@ -432,7 +423,44 @@ const ActivityFormModal = ({
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const createMutation = useMutation({
+    mutationFn: async (payload: {
+      activityData: Record<string, unknown>;
+      schedulesToPost: Array<Record<string, unknown>>;
+    }) => {
+      const res = await apiClient.post('/activities', payload.activityData);
+      const body = (res as { data?: { id?: number } })?.data;
+      const newId = body?.id;
+      if (newId && payload.schedulesToPost.length > 0) {
+        await Promise.allSettled(
+          payload.schedulesToPost.map((s) => apiClient.post(`/activities/${newId}/schedules`, s))
+        );
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activities'] });
+      toast.success('Servicio creado');
+      onSaved();
+      onClose();
+    },
+    onError: () => {},
+  });
+
+  const editMutation = useMutation({
+    mutationFn: (data: Record<string, unknown>) =>
+      apiClient.patch(`/activities/${initial!.id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activities'] });
+      toast.success('Servicio actualizado');
+      onSaved();
+      onClose();
+    },
+    onError: () => {},
+  });
+
+  const saving = createMutation.isPending || editMutation.isPending;
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!name.trim() || !description.trim()) {
       toast.error('Nombre y descripción son obligatorios');
@@ -472,50 +500,33 @@ const ActivityFormModal = ({
     }
     const parsedDuration = duration.trim() ? parseInt(duration, 10) : 0;
 
-    setSaving(true);
-    try {
-      if (isEdit) {
-        await apiClient.patch(`/activities/${initial!.id}`, {
+    if (isEdit) {
+      editMutation.mutate({
+        gymId: parsedGymId,
+        name: name.trim(),
+        description: description.trim(),
+        defaultDurationMin: parsedDuration,
+        isFreeAccess,
+        isActive,
+      });
+    } else {
+      createMutation.mutate({
+        activityData: {
           gymId: parsedGymId,
           name: name.trim(),
           description: description.trim(),
           defaultDurationMin: parsedDuration,
           isFreeAccess,
-          isActive,
-        });
-        toast.success('Servicio actualizado');
-      } else {
-        const res = await apiClient.post('/activities', {
-          gymId: parsedGymId,
-          name: name.trim(),
-          description: description.trim(),
-          defaultDurationMin: parsedDuration,
-          isFreeAccess,
-        });
-        const resObj = res as { data?: { id?: number; data?: { id?: number } } };
-        const newActivityId: number | undefined = resObj?.data?.id ?? resObj?.data?.data?.id;
-        if (newActivityId && schedules.length > 0 && !isFreeAccess) {
-          await Promise.allSettled(
-            schedules.map(s =>
-              apiClient.post(`/activities/${newActivityId}/schedules`, {
-                dayOfWeek:    s.dayOfWeek,
-                startTime:    s.startTime.substring(0, 5),
-                endTime:      s.endTime.substring(0, 5),
-                instructorId: Number(s.instructorId),
-                maxAttendees: Number(s.maxAttendees) || 20,
-                isRecurring:  true,
-              })
-            )
-          );
-        }
-        toast.success('Servicio creado');
-      }
-      onSaved();
-      onClose();
-    } catch {
-      // interceptor toasts
-    } finally {
-      setSaving(false);
+        },
+        schedulesToPost: schedules.map((s) => ({
+          dayOfWeek:    s.dayOfWeek,
+          startTime:    s.startTime.substring(0, 5),
+          endTime:      s.endTime.substring(0, 5),
+          instructorId: Number(s.instructorId),
+          maxAttendees: Number(s.maxAttendees) || 20,
+          isRecurring:  true,
+        })),
+      });
     }
   };
 
@@ -537,32 +548,31 @@ const ActivityFormModal = ({
       {/* Contenido scrollable */}
       <div className="overflow-y-auto flex-1 pr-1 dark-scrollbar">
         <form onSubmit={handleSubmit} id="activity-form" style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-          {/* Selectors marca → sucursal — solo SUPER_ADMIN */}
-          {needsGymPicker && (
-            <>
-              <div style={fieldGap}>
-                <label className={labelCls}>Marca *</label>
-                <div className="relative">
-                  <select className={selectCls} value={selectedBrandId} onChange={e => handleBrandChange(e.target.value)}>
-                    <option value="">— Selecciona una marca —</option>
-                    {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                  </select>
-                  <span className="absolute right-[0.85rem] top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-gray-500 text-xs">▼</span>
-                </div>
+          {/* Selector marca — solo Super Admin */}
+          {showBrandPicker && (
+            <div style={fieldGap}>
+              <label className={labelCls}>Marca *</label>
+              <div className="relative">
+                <select className={selectCls} value={selectedBrandId} onChange={e => handleBrandChange(e.target.value)}>
+                  <option value="">— Selecciona una marca —</option>
+                  {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+                <span className="absolute right-[0.85rem] top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-gray-500 text-xs">▼</span>
               </div>
-              {selectedBrandId && (
-                <div style={fieldGap}>
-                  <label className={labelCls}>Sucursal *</label>
-                  <div className="relative">
-                    <select className={selectCls} value={gymId} onChange={e => setGymId(e.target.value)}>
-                      <option value="">— Selecciona una sucursal —</option>
-                      {filteredBranches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                    </select>
-                    <span className="absolute right-[0.85rem] top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-gray-500 text-xs">▼</span>
-                  </div>
-                </div>
-              )}
-            </>
+            </div>
+          )}
+          {/* Selector sucursal — Super Admin (tras elegir marca) + Gerente (sucursales de su territorio) */}
+          {showBranchPicker && (selectedBrandId || callerLevel === 5) && (
+            <div style={fieldGap}>
+              <label className={labelCls}>Sucursal *</label>
+              <div className="relative">
+                <select className={selectCls} value={gymId} onChange={e => setGymId(e.target.value)}>
+                  <option value="">— Selecciona una sucursal —</option>
+                  {filteredBranches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+                <span className="absolute right-[0.85rem] top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-gray-500 text-xs">▼</span>
+              </div>
+            </div>
           )}
 
           <div style={fieldGap}>
@@ -828,7 +838,12 @@ export const ActividadesView = () => {
   const queryClient = useQueryClient();
 
   const userGymId = user?.gymId ? Number(user.gymId) : null;
-  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const callerLevel = user?.level ?? 0;
+  const isSuperAdmin = callerLevel >= 10;
+  const isGerente = callerLevel === 5;
+  const gerenteBrandId: number | null = isGerente
+    ? (user?.brandId ?? (user?.gymId ? Number(user.gymId) : null))
+    : null;
   const activitiesKey = ['activities', userGymId] as const;
 
   const { data: activities = [], isLoading: loading } = useQuery({
@@ -837,7 +852,9 @@ export const ActividadesView = () => {
       const params = userGymId ? { gymId: userGymId } : {};
       const data = await apiClient.get<Activity[]>('/activities', { params });
       let raw: Activity[] = Array.isArray(data) ? data : ((data as { data?: Activity[] })?.data ?? []);
-      if (userGymId) raw = raw.filter((a) => a.gymId === userGymId);
+      // Recepcionista (nivel 4): filtro estricto por su sucursal.
+      // Gerente y superiores: el backend ya aplica filtro territorial; no duplicar aquí.
+      if (callerLevel === 4 && userGymId) raw = raw.filter((a) => a.gymId === userGymId);
       return raw;
     },
     enabled: !!user,
@@ -858,7 +875,7 @@ export const ActividadesView = () => {
         ...rawBranches.map((g) => ({ id: g.id, name: g.name, parentId: (g.parentId ?? g.parent_id ?? null) as number | null })),
       ] as GymOption[];
     },
-    enabled: isSuperAdmin,
+    enabled: isSuperAdmin || isGerente,
   });
   const [formTarget,   setFormTarget]   = useState<Activity | null | 'new'>(null);
   const [deleteTarget, setDeleteTarget] = useState<Activity | null>(null);
@@ -912,16 +929,19 @@ export const ActividadesView = () => {
     setFilterStatus('all');
   };
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    try {
-      await apiClient.delete(`/activities/${deleteTarget.id}`);
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => apiClient.delete(`/activities/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activities'] });
       toast.success('Servicio eliminado');
       setDeleteTarget(null);
-      queryClient.invalidateQueries({ queryKey: activitiesKey });
-    } catch {
-      // interceptor toasts
-    }
+    },
+    onError: () => {},
+  });
+
+  const handleDelete = () => {
+    if (!deleteTarget) return;
+    deleteMutation.mutate(deleteTarget.id);
   };
 
   return (
@@ -1095,8 +1115,10 @@ export const ActividadesView = () => {
           initial={formTarget === 'new' ? null : formTarget}
           gyms={gyms}
           userGymId={userGymId}
+          callerLevel={callerLevel}
+          gerenteBrandId={gerenteBrandId}
           onClose={() => setFormTarget(null)}
-          onSaved={() => queryClient.invalidateQueries({ queryKey: activitiesKey })}
+          onSaved={() => queryClient.invalidateQueries({ queryKey: ['activities'] })}
         />
       )}
 

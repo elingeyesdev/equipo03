@@ -1,8 +1,5 @@
 import { useState, useMemo } from 'react';
-import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, Alert, ScrollView, TextInput,
-} from 'react-native';
+import {View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ScrollView, TextInput} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -13,7 +10,9 @@ import {
   StaffCatalogEntry,
   AdvisorRequestStatus,
 } from '../../../app/Providers/staff/api/staff.api';
+import { messagesApi } from '../../../app/Providers/messages/messages.api';
 import { ClientePerfilParamList } from '../../../routes/PerfilStack';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 type Nav = NativeStackNavigationProp<ClientePerfilParamList, 'StaffCatalog'>;
 
@@ -114,7 +113,7 @@ const StaffCard = ({
         activeOpacity={0.8}
       >
         {loading ? (
-          <ActivityIndicator size="small" color="#fff" />
+          <DumbbellSpinner size="small" color="#fff" />
         ) : alreadyRequested ? (
           <>
             <MaterialCommunityIcons name="check-circle-outline" size={14} color="#22C55E" />
@@ -134,9 +133,11 @@ const StaffCard = ({
 const RequestCard = ({
   item,
   onCancel,
+  onMessage,
 }: {
-  item: AdvisorRequestStatus;
-  onCancel: (id: number) => void;
+  item:      AdvisorRequestStatus;
+  onCancel:  (id: number) => void;
+  onMessage: (advisorId: number, advisorName: string) => void;
 }) => {
   const meta = STATUS_META[item.status] ?? { label: item.status, color: '#888', icon: 'help-circle-outline' };
 
@@ -170,6 +171,18 @@ const RequestCard = ({
       <View style={s.reqFooter}>
         <MaterialCommunityIcons name="calendar-outline" size={12} color="#444" />
         <Text style={s.reqDate}>Enviada el {fmtDate(item.createdAt)}</Text>
+
+        {item.status === 'ACTIVE' && (
+          <TouchableOpacity
+            style={s.msgBtn}
+            activeOpacity={0.8}
+            onPress={() => onMessage(item.advisorId, item.advisorName)}
+          >
+            <MaterialCommunityIcons name="message-text-outline" size={12} color="#38BDF8" />
+            <Text style={s.msgBtnTxt}>Mensaje</Text>
+          </TouchableOpacity>
+        )}
+
         {(item.status === 'ACTIVE' || item.status === 'PENDING') && (
           <TouchableOpacity
             style={s.cancelBtn}
@@ -267,6 +280,18 @@ export const StaffCatalogScreen = () => {
         { text: 'OK' },
       ],
     );
+  };
+
+  const handleMessage = async (advisorId: number, advisorName: string) => {
+    try {
+      const conv = await messagesApi.startConversation(advisorId);
+      (navigation as any).navigate('Chat', { conversationId: conv.id, otherUserName: advisorName });
+    } catch (err: unknown) {
+      const msg = (err as any)?.response?.data?.message
+        ?? (err instanceof Error ? err.message : null)
+        ?? 'No se pudo iniciar la conversación.';
+      Alert.alert('Error', msg);
+    }
   };
 
   const handleCancel = (id: number) => {
@@ -381,7 +406,7 @@ export const StaffCatalogScreen = () => {
         <>
           {loadingCatalog ? (
             <View style={s.center}>
-              <ActivityIndicator size="large" color="#f05b22" />
+              <DumbbellSpinner size="large" color="#f05b22" />
               <Text style={s.soft}>Cargando asesores...</Text>
             </View>
           ) : errorCatalog ? (
@@ -421,7 +446,7 @@ export const StaffCatalogScreen = () => {
               }}
               onEndReachedThreshold={0.5}
               ListFooterComponent={
-                fetchingNextCatalog ? <ActivityIndicator size="small" color="#FF6B00" style={{ marginVertical: 15 }} /> : null
+                fetchingNextCatalog ? <DumbbellSpinner size="small" color="#FF6B00" style={{ marginVertical: 15 }} /> : null
               }
             />
           )}
@@ -433,7 +458,7 @@ export const StaffCatalogScreen = () => {
         <>
           {loadingReqs ? (
             <View style={s.center}>
-              <ActivityIndicator size="large" color="#f05b22" />
+              <DumbbellSpinner size="large" color="#f05b22" />
               <Text style={s.soft}>Cargando solicitudes...</Text>
             </View>
           ) : myRequests.length === 0 ? (
@@ -468,7 +493,7 @@ export const StaffCatalogScreen = () => {
               </View>
 
               {myRequests.map(item => (
-                <RequestCard key={item.id} item={item} onCancel={handleCancel} />
+                <RequestCard key={item.id} item={item} onCancel={handleCancel} onMessage={handleMessage} />
               ))}
             </ScrollView>
           )}
@@ -533,6 +558,8 @@ const s = StyleSheet.create({
   reqDate:       { color: '#444', fontSize: 11, flex: 1 },
   cancelBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#1C1C1E', borderRadius: 8, borderWidth: 1, borderColor: '#EF444466', paddingVertical: 5, paddingHorizontal: 10 },
   cancelBtnTxt:  { color: '#EF4444', fontSize: 11, fontWeight: '700' },
+  msgBtn:        { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#0a1929', borderRadius: 8, borderWidth: 1, borderColor: '#38BDF866', paddingVertical: 5, paddingHorizontal: 10 },
+  msgBtnTxt:     { color: '#38BDF8', fontSize: 11, fontWeight: '700' },
 
   // Resumen chips
   summaryRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },

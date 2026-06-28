@@ -1,0 +1,8 @@
+node_modules
+apps/mobile
+.git
+.gitignore
+.env*
+*.md
+.idea
+.vscode

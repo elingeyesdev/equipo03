@@ -7,15 +7,19 @@ import { useQueryClient } from '@tanstack/react-query';
 import { userApi } from '../users/api/user.api';
 
 // getExpoPushTokenAsync hangs in Expo Go (SDK 53+) — skip all remote push logic there.
-// Check both the current and deprecated APIs for maximum compatibility.
 const IS_EXPO_GO =
   (Constants as any).executionEnvironment === 'storeClient' ||
   (Constants as any).appOwnership === 'expo' ||
-  (Constants as any).expoVersion != null; // set only in Expo Go, undefined in standalone/bare
+  (Constants as any).expoVersion != null; 
 
 const PROJECT_ID = '05dedde2-39f5-4da2-9bbb-a805f06fa281';
 
 const MANAGER_PUSH_TYPES = new Set(['NEW_RESERVATION', 'CANCEL_RESERVATION']);
+
+// Tipos de notificaciones de asesoría que llegan al entrenador
+const ADVISOR_INCOMING_TYPES = new Set(['ADVISORY_REQUEST']);
+// Tipos de notificaciones de asesoría que llegan al cliente
+const ADVISORY_RESPONSE_TYPES = new Set(['ADVISORY_ACCEPTED', 'ADVISORY_REJECTED', 'ADVISORY_CANCELLED']);
 
 export function usePushNotifications() {
   const registerToken = async (): Promise<void> => {
@@ -98,6 +102,17 @@ export function usePushNotificationListeners(): void {
         queryClient.invalidateQueries({ queryKey: ['manager-dashboard-stats'] });
       }
 
+      if (ADVISOR_INCOMING_TYPES.has(type)) {
+        queryClient.invalidateQueries({ queryKey: ['trainer-pending-requests'] });
+        queryClient.invalidateQueries({ queryKey: ['nutritionist-pending-requests'] });
+      }
+
+      if (ADVISORY_RESPONSE_TYPES.has(type)) {
+        queryClient.invalidateQueries({ queryKey: ['my-advisor-requests'] });
+        queryClient.invalidateQueries({ queryKey: ['my-plan'] });
+        queryClient.invalidateQueries({ queryKey: ['my-routines'] });
+      }
+
       if (appState === 'active') {
         try {
           await Notifications.scheduleNotificationAsync({
@@ -122,6 +137,15 @@ export function usePushNotificationListeners(): void {
       if (MANAGER_PUSH_TYPES.has(type)) {
         queryClient.invalidateQueries({ queryKey: ['gym-audit-reservations'] });
         queryClient.invalidateQueries({ queryKey: ['manager-dashboard-stats'] });
+      }
+      if (ADVISOR_INCOMING_TYPES.has(type)) {
+        queryClient.invalidateQueries({ queryKey: ['trainer-pending-requests'] });
+        queryClient.invalidateQueries({ queryKey: ['nutritionist-pending-requests'] });
+      }
+      if (ADVISORY_RESPONSE_TYPES.has(type)) {
+        queryClient.invalidateQueries({ queryKey: ['my-advisor-requests'] });
+        queryClient.invalidateQueries({ queryKey: ['my-plan'] });
+        queryClient.invalidateQueries({ queryKey: ['my-routines'] });
       }
     });
 

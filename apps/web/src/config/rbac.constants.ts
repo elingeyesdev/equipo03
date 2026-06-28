@@ -6,7 +6,7 @@
  * ID  | Nombre                | level | isSystemRole
  *  1  | SUPER_ADMIN           |  10   | true
  *  2  | GERENTE               |   5   | true
- *  3  | USER                  |   1   | false  (rol cliente/socio)
+ *  3  | CLIENTE               |   1   | true  (rol cliente/socio)
  *  4  | ENTRENADOR            |   3   | true
  *  5  | COORDINADOR           | null  | false
  *  6  | PERSONAL_DE_LIMPIEZA  |   1   | false
@@ -18,8 +18,7 @@
 export const DB_ROLES = {
   SUPER_ADMIN:          1,
   GERENTE:              2,
-  USER:                 3,  // rol base para clientes/socios
-  CLIENTE:              3,  // alias de USER — no existe rol CLIENTE separado en la BD
+  CLIENTE:              3,  // rol base para clientes/socios (hierarchy_level = 1)
   ENTRENADOR:           4,
   INSTRUCTOR:           7,
   NUTRICIONISTA:        8,
@@ -35,7 +34,7 @@ export type DbRoleId = (typeof DB_ROLES)[keyof typeof DB_ROLES];
 export const ROLE_ID_TO_NAME: Record<number, string> = {
   1:  'SUPER_ADMIN',
   2:  'GERENTE',
-  3:  'USER',
+  3:  'CLIENTE',
   4:  'ENTRENADOR',
   5:  'COORDINADOR',
   6:  'PERSONAL_DE_LIMPIEZA',
@@ -51,7 +50,6 @@ export const VALID_ROLES = [
   'ENTRENADOR',
   'NUTRICIONISTA',
   'CLIENTE',
-  'USER',
   'RECEPCIONISTA',
   'INSTRUCTOR',
 ] as const;

@@ -1,7 +1,3 @@
-/**
- * MapScreen Styles — Estilos separados para el componente MapScreen.
- */
-
 import { StyleSheet, Dimensions } from 'react-native';
 
 const { width, height } = Dimensions.get('window');

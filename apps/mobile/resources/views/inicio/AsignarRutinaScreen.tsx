@@ -1,9 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Modal, Alert, ActivityIndicator, ScrollView,
-  KeyboardAvoidingView, Platform, TextInput,
-} from 'react-native';
+import {View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, Alert, ScrollView, KeyboardAvoidingView, Platform, TextInput} from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -11,8 +7,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { NumericInput } from '../../../app/Shared/components/ui/NumericInput';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { staffApi, Exercise, ClientRoutine, ClientRoutineExercise } from '../../../app/Providers/staff/api/staff.api';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+
 const DAYS = ['LUNES','MARTES','MIERCOLES','JUEVES','VIERNES','SABADO','DOMINGO'] as const;
 type DayKey = typeof DAYS[number];
 
@@ -21,7 +18,6 @@ const DAY_LABEL: Record<DayKey, string> = {
   JUEVES: 'Jueves', VIERNES: 'Viernes', SABADO: 'Sábado', DOMINGO: 'Domingo',
 };
 
-// ─── Exercise-type param configs ──────────────────────────────────────────────
 type FieldDef = { key: string; label: string; placeholder: string; numeric: boolean };
 
 const FIELD_CONFIGS: Record<string, FieldDef[]> = {
@@ -72,7 +68,7 @@ const TYPE_COLOR: Record<string, string> = {
   HIIT: '#FF5E00', MOBILITY: '#00E5A3',
 };
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+//Types 
 type ExEntry = {
   uid:          string;
   exerciseId:   number;
@@ -86,9 +82,9 @@ type ExEntry = {
 type WeekPlan = Record<DayKey, ExEntry[]>;
 
 const emptyWeek = (): WeekPlan =>
-  Object.fromEntries(DAYS.map(d => [d, []])) as WeekPlan;
+  Object.fromEntries(DAYS.map(d => [d, []])) as unknown as WeekPlan;
 
-// ─── Entry display helper ─────────────────────────────────────────────────────
+//Entry display helper 
 const formatEntryConf = (entry: ExEntry): string => {
   const p = entry.params;
   switch (entry.exerciseType) {
@@ -141,7 +137,7 @@ const routineToWeekPlan = (routine: ClientRoutine | null): WeekPlan => {
   return plan;
 };
 
-// ─── Day Card ─────────────────────────────────────────────────────────────────
+//Day Card 
 const DayCard = ({ day, entries, expanded, onToggle, onAdd, onEdit, onRemove }: {
   day:      DayKey;
   entries:  ExEntry[];
@@ -200,7 +196,7 @@ const DayCard = ({ day, entries, expanded, onToggle, onAdd, onEdit, onRemove }: 
   </View>
 );
 
-// ─── Catalog Modal ────────────────────────────────────────────────────────────
+//Catalog Modal
 const CatalogModal = ({ visible, day, exercises, weekPlan, filter, setFilter, onSelect, onClose, isLoading }: {
   visible:    boolean;
   day:        DayKey | null;
@@ -241,7 +237,7 @@ const CatalogModal = ({ visible, day, exercises, weekPlan, filter, setFilter, on
 
         <View style={{ flex: 1 }}>
           {isLoading ? (
-            <View style={s.center}><ActivityIndicator color="#FF5E00" size="large" /></View>
+            <View style={s.center}><DumbbellSpinner color="#FF5E00" size="large" /></View>
           ) : (
             <FlatList
               data={filtered}
@@ -295,7 +291,7 @@ const CatalogModal = ({ visible, day, exercises, weekPlan, filter, setFilter, on
   );
 };
 
-// ─── Config Sheet Modal ───────────────────────────────────────────────────────
+//Config Sheet Modal 
 const ConfigModal = ({ visible, exercise, exerciseType, isEdit, cfg, setCfg, onConfirm, onClose }: {
   visible:      boolean;
   exercise:     Exercise | null;
@@ -388,7 +384,7 @@ const ConfigModal = ({ visible, exercise, exerciseType, isEdit, cfg, setCfg, onC
   );
 };
 
-// ─── Screen ───────────────────────────────────────────────────────────────────
+//Screen 
 export const AsignarRutinaScreen = () => {
   const route       = useRoute<any>();
   const navigation  = useNavigation();
@@ -406,7 +402,7 @@ export const AsignarRutinaScreen = () => {
   const [cfg, setCfg] = useState<Record<string, string>>({});
   const hasLoaded = useRef(false);
 
-  // ── Cargar rutina existente del cliente ─────────────────────────────────────
+  //Cargar rutina existente del cliente
   const { data: routinesResponse, isLoading: loadingRoutine } = useQuery({
     queryKey:  ['client-routines', studentId],
     queryFn:   () => staffApi.getMyRoutines(studentId),
@@ -442,7 +438,7 @@ export const AsignarRutinaScreen = () => {
   const isLoading = loadingRoutine || loadingExercises;
   const totalExercises = DAYS.reduce((acc, d) => acc + weekPlan[d].length, 0);
 
-  // ── Build polymorphic payload ────────────────────────────────────────────────
+  //Build polymorphic payload 
   const buildExercisePayload = (e: ExEntry, idx: number) => {
     const p    = e.params;
     const base = { exerciseId: e.exerciseId, dayOfWeek: undefined as string | undefined, orderPosition: idx, notes: e.notes || undefined };
@@ -554,7 +550,7 @@ export const AsignarRutinaScreen = () => {
         <MaterialCommunityIcons name="account-outline" size={16} color="#FF5E00" />
         <Text style={s.subHeaderTxt} numberOfLines={1}>{studentName ?? `Alumno #${studentId}`}</Text>
         {loadingRoutine ? (
-          <ActivityIndicator size="small" color="#38BDF8" style={{ marginLeft: 8 }} />
+          <DumbbellSpinner size="small" color="#38BDF8" style={{ marginLeft: 8 }} />
         ) : existingRoutineId ? (
           <View style={[s.badge, { borderColor: '#38BDF844', backgroundColor: '#0d2a3d' }]}>
             <Text style={[s.badgeTxt, { color: '#38BDF8' }]}>Editando rutina</Text>
@@ -594,7 +590,7 @@ export const AsignarRutinaScreen = () => {
           activeOpacity={0.85}
         >
           {saveMutation.isPending
-            ? <ActivityIndicator color="#fff" size="small" />
+            ? <DumbbellSpinner color="#fff" size="small" />
             : <>
                 <MaterialCommunityIcons name="content-save-check-outline" size={18} color="#fff" />
                 <Text style={s.saveBtnTxt}>

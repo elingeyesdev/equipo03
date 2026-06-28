@@ -10,7 +10,7 @@ export type AlertaFrequencia = 'AL_INICIAR' | 'ANTES_ENTRENAMIENTO' | 'AMBAS';
 export interface AlertaConfig {
   globalEnabled: boolean;
   frecuencia: AlertaFrequencia;
-  condicionesDesactivadas: string[]; // condiciones donde se silenciaron las alertas
+  condicionesDesactivadas: string[]; 
 }
 
 export interface AlertaItem {

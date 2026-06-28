@@ -1,10 +1,3 @@
-/**
- * useAsyncOperation — Hook genérico para operaciones asíncronas.
- * 
- * Encapsula el patrón loading/data/error para cualquier operación
- * asíncrona, evitando duplicación en ViewModels.
- */
-
 import { useState, useCallback } from 'react';
 
 type AsyncState<T> = {

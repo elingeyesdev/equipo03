@@ -1,12 +1,3 @@
-/**
- * AuthContext — Context de autenticación para la app móvil
- * 
- * Proporciona:
- * - Estado de autenticación (usuario, token)
- * - Funciones login/logout
- * - Hook useAuth para acceder desde componentes
- */
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import type { AutenticacionContext } from '@gymsync/core';
 import { AuthService } from './AuthService';
@@ -26,14 +17,6 @@ interface AuthContextType {
 
 const AuthContextInstance = createContext<AuthContextType | undefined>(undefined);
 
-const ALLOWED_PUSH_ROLES = [
-  'GERENTE',
-  'INSTRUCTOR',
-  'ENTRENADOR',
-  'NUTRICIONISTA',
-  'CLIENTE',
-  'USER',
-];
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AutenticacionContext | null>(null);
@@ -62,7 +45,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             AuthService.saveProfileCache(freshProfile).catch(() => {});
           }
 
-          if (ALLOWED_PUSH_ROLES.includes(currentUser.role)) {
+          if (((currentUser as any).level ?? 0) >= 1 && ((currentUser as any).level ?? 0) < 10) {
             await Promise.race([
               registerToken(),
               new Promise<void>((resolve) => setTimeout(resolve, 4000)),
@@ -102,8 +85,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (result.success && result.user) {
         try {
-          const role = (result.user as any)?.role?.toUpperCase() ?? '';
-          if (role === 'SUPER_ADMIN') {
+          if (((result.user as any)?.level ?? 0) >= 10) {
             setError('Esta cuenta es exclusiva del panel web administrativo. Accede desde el navegador en tu computadora.');
             return false;
           }
@@ -121,7 +103,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           AuthService.saveProfileCache(loginProfile).catch(() => {});
         }
 
-        if (ALLOWED_PUSH_ROLES.includes(result.user.role)) {
+        if (((result.user as any)?.level ?? 0) >= 1 && ((result.user as any)?.level ?? 0) < 10) {
           await Promise.race([
             registerToken(),
             new Promise<void>((resolve) => setTimeout(resolve, 4000)),

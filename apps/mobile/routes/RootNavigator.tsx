@@ -1,6 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { ActivityIndicator, View, Text, TouchableOpacity } from 'react-native';
+import {View, Text, TouchableOpacity} from 'react-native';
 
 const backBtnStyle = { width: 40, height: 40, marginLeft: 4, justifyContent: 'center' as const, alignItems: 'center' as const };
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -51,13 +51,23 @@ import { ClientePerfilStack, GerentePerfilStack } from './PerfilStack';
 import { EjecutarRutinaScreen }   from '../resources/views/perfil/EjecutarRutinaScreen';
 import { ResumenEjercicioScreen } from '../resources/views/perfil/ResumenEjercicioScreen';
 
+// ── Mensajería (CLIENTE + STAFF) ──────────────────────────────────────────────
+import { InboxScreen }        from '../resources/views/mensajes/InboxScreen';
+import { ChatScreen }         from '../resources/views/mensajes/ChatScreen';
+import { ChatProfileScreen }  from '../resources/views/mensajes/ChatProfileScreen';
+
+// ── Mapa interno de staff ─────────────────────────────────────────────────────
+import { StaffMapScreen } from '../resources/views/geolocation/StaffMapScreen/StaffMapScreen';
+
 // ── Seguimiento (ENTRENADOR / INSTRUCTOR) ─────────────────────────────────────
 import { SeguimientoScreen }        from '../resources/views/seguimiento/SeguimientoScreen';
 import { HistorialRutinaScreen }    from '../resources/views/seguimiento/HistorialRutinaScreen';
 import { RegistroEjercicioScreen }  from '../resources/views/seguimiento/RegistroEjercicioScreen';
 import { TrainerReportScreen }      from '../resources/views/seguimiento/TrainerReportScreen';
 import { InstructorReportScreen }   from '../resources/views/seguimiento/InstructorReportScreen';
+import { ReportPreviewScreen }      from '../resources/views/seguimiento/ReportPreviewScreen';
 import { MisAlumnosScreen }         from '../resources/views/inicio/MisAlumnosScreen';
+import { DumbbellSpinner } from '../app/Shared/components/ui/DumbbellSpinner';
 
 // ── Iconos de tabs ────────────────────────────────────────────────────────────
 const TAB_ICON: Record<string, string> = {
@@ -66,6 +76,7 @@ const TAB_ICON: Record<string, string> = {
   'Mis Reservas': 'calendar',
   'Auditoría':    'clipboard-text-outline',
   'Seguimiento':  'chart-line',
+  'Mensajes':     'message-text-outline',
   'Perfil':       'account',
 };
 
@@ -116,6 +127,7 @@ const ClienteTabs = () => (
     <ClienteTab.Screen name="Inicio"      component={InicioScreen} />
     <ClienteTab.Screen name="Buscar"      component={BuscarStack} />
     <ClienteTab.Screen name="Mis Reservas" component={MisReservasScreen} options={{ headerShown: false }} />
+    <ClienteTab.Screen name="Mensajes"    component={InboxScreen} options={{ headerShown: false }} />
     <ClienteTab.Screen name="Perfil"      component={ClientePerfilStack} />
   </ClienteTab.Navigator>
 );
@@ -184,6 +196,16 @@ const ClienteStack = () => (
       component={ResumenEjercicioScreen}
       options={{ headerShown: false, gestureEnabled: false }}
     />
+    <ClienteNav.Screen
+      name="Chat"
+      component={ChatScreen}
+      options={{ headerShown: false }}
+    />
+    <ClienteNav.Screen
+      name="ChatProfile"
+      component={ChatProfileScreen}
+      options={{ headerShown: false }}
+    />
   </ClienteNav.Navigator>
 );
 
@@ -214,12 +236,21 @@ const GerenteStack = () => (
 
 // STAFF STACK — ENTRENADOR / INSTRUCTOR / NUTRICIONISTA
 
+// Tab Buscar para staff: mapa interno, no el mapa de clientes
+const StaffBuscarNav = createNativeStackNavigator();
+const StaffBuscarStack = () => (
+  <StaffBuscarNav.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#000000' } }}>
+    <StaffBuscarNav.Screen name="StaffBuscarHome" component={StaffMapScreen} />
+  </StaffBuscarNav.Navigator>
+);
+
 const StaffTab = createBottomTabNavigator();
 const StaffTabs = () => (
   <StaffTab.Navigator screenOptions={tabScreenOptions}>
     <StaffTab.Screen name="Inicio"       component={StaffInicioScreen} />
-    <StaffTab.Screen name="Buscar"       component={BuscarStack} />
+    <StaffTab.Screen name="Buscar"       component={StaffBuscarStack} />
     <StaffTab.Screen name="Seguimiento"  component={SeguimientoScreen} />
+    <StaffTab.Screen name="Mensajes"     component={InboxScreen} options={{ headerShown: false }} />
     <StaffTab.Screen name="Perfil"       component={ClientePerfilStack} />
   </StaffTab.Navigator>
 );
@@ -284,6 +315,26 @@ const StaffStack = () => (
       component={InstructorReportScreen}
       options={{ headerShown: false }}
     />
+    <StaffNav.Screen
+      name="ReportPreview"
+      component={ReportPreviewScreen}
+      options={{ headerShown: false }}
+    />
+    <StaffNav.Screen
+      name="ScannerQR"
+      component={EscanerScreen}
+      options={{ headerShown: false }}
+    />
+    <StaffNav.Screen
+      name="Chat"
+      component={ChatScreen}
+      options={{ headerShown: false }}
+    />
+    <StaffNav.Screen
+      name="ChatProfile"
+      component={ChatProfileScreen}
+      options={{ headerShown: false }}
+    />
   </StaffNav.Navigator>
 );
 
@@ -319,38 +370,18 @@ export const RootNavigator = () => {
   if (isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
-        <ActivityIndicator size="large" color="#f05b22" />
+        <DumbbellSpinner size="large" color="#f05b22" />
       </View>
     );
   }
 
   if (!isAuthenticated) return <AuthStack />;
 
-  switch (user?.role?.toUpperCase()) {
-    case 'SUPER_ADMIN':
-    case 'GERENTE':
-    case 'COORDINADOR':
-    case 'RECEPCIONISTA':
-      return <GerenteStack />;
-
-    case 'ENTRENADOR':
-    case 'INSTRUCTOR':
-    case 'NUTRICIONISTA':
-      return <StaffStack />;
-
-    case 'USER':
-    case 'CLIENTE':
-      return <ClienteStack />;
-
-    default: {
-      // Fallback por nivel jerárquico para roles nuevos/desconocidos (requiere token renovado)
-      const level: number = (user as any)?.level ?? 0;
-      if (level >= 4) return <GerenteStack />;
-      if (level >= 3) return <StaffStack />;
-      if (level >= 1) return <ClienteStack />;
-      return <UnknownRoleScreen />;
-    }
-  }
+  const level: number = (user as any)?.level ?? 0;
+  if (level >= 4) return <GerenteStack />;
+  if (level >= 2) return <StaffStack />;
+  if (level >= 1) return <ClienteStack />;
+  return <UnknownRoleScreen />;
 };
 
 export default RootNavigator;

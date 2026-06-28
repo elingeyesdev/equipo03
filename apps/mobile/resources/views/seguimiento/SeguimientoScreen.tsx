@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View, Text, StyleSheet, FlatList,
-  TouchableOpacity, ActivityIndicator, RefreshControl,
-} from 'react-native';
+import {View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { staffApi, ActiveAdvisee } from '../../../app/Providers/staff/api/staff.api';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 // Paleta rotativa de colores por cliente
 const AVATAR_PALETTE = ['#FF5E00', '#38BDF8', '#00E5A3'];
@@ -45,14 +43,11 @@ const ClientCard = ({
             <Text style={s.activeTxt}>Asesoría Activa</Text>
           </View>
 
-          {/* Teléfono */}
-          <View style={s.phoneRow}>
-            <MaterialCommunityIcons
-              name="phone-outline" size={13}
-              color={item.phone ? '#555' : '#2a2a2a'}
-            />
-            <Text style={item.phone ? s.phoneVal : s.phoneEmpty}>
-              {item.phone ?? 'Sin teléfono registrado'}
+          {/* Identificador seguro: CI o email */}
+          <View style={s.docRow}>
+            <MaterialCommunityIcons name="card-account-details-outline" size={13} color="#9CA3AF" />
+            <Text style={s.docTxt}>
+              {item.ci ? `CI: ${item.ci}` : (item.email ?? 'Sin identificador')}
             </Text>
           </View>
         </View>
@@ -84,7 +79,7 @@ const ClientCard = ({
 export const SeguimientoScreen = () => {
   const navigation   = useNavigation<any>();
   const { user }     = useAuth();
-  const isInstructor = user?.role?.toUpperCase() === 'INSTRUCTOR';
+  const isInstructor = ((user as any)?.level ?? 0) === 2;
 
   const [clients,    setClients]    = useState<ActiveAdvisee[]>([]);
   const [isLoading,  setIsLoading]  = useState(!isInstructor);
@@ -174,7 +169,7 @@ export const SeguimientoScreen = () => {
 
       {isLoading ? (
         <View style={s.center}>
-          <ActivityIndicator size="large" color="#38BDF8" />
+          <DumbbellSpinner size="large" color="#38BDF8" />
         </View>
       ) : isError ? (
         <View style={s.center}>
@@ -215,7 +210,6 @@ export const SeguimientoScreen = () => {
                 navigation.navigate('HistorialRutina', {
                   clientId:   item.clientId,
                   clientName: item.clientName,
-                  phone:      item.phone,
                 })
               }
               onProfile={() =>
@@ -244,7 +238,7 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#111',
   },
   topTitle:  { color: '#fff', fontSize: 24, fontWeight: '900' },
-  topSub:    { color: '#444', fontSize: 13, marginTop: 2 },
+  topSub:    { color: '#D1D5DB', fontSize: 14, marginTop: 2 },
   topBadge:  {
     width: 44, height: 44, borderRadius: 14,
     backgroundColor: '#0d2a3d', justifyContent: 'center', alignItems: 'center',
@@ -293,9 +287,8 @@ const s = StyleSheet.create({
   activeDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#00E5A3' },
   activeTxt: { color: '#00E5A3', fontSize: 12, fontWeight: '700' },
 
-  phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  phoneVal:   { color: '#555', fontSize: 13 },
-  phoneEmpty: { color: '#2a2a2a', fontSize: 13, fontStyle: 'italic' },
+  docRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  docTxt: { color: '#D1D5DB', fontSize: 13 },
 
   divider: { height: 1, backgroundColor: '#1a1a1a', marginHorizontal: 0 },
 
@@ -318,8 +311,8 @@ const s = StyleSheet.create({
   rutinaBtnTxt:   { color: '#00E5A3', fontSize: 13, fontWeight: '700' },
 
   // ── Empty / Error ──
-  emptyTitle:  { color: '#555', fontSize: 17, fontWeight: '700', textAlign: 'center' },
-  emptySubTxt: { color: '#333', fontSize: 14, textAlign: 'center', lineHeight: 22, maxWidth: 280 },
+  emptyTitle:  { color: '#D1D5DB', fontSize: 17, fontWeight: '700', textAlign: 'center' },
+  emptySubTxt: { color: '#D1D5DB', fontSize: 14, textAlign: 'center', lineHeight: 22, maxWidth: 280 },
   retryBtn:    { backgroundColor: '#1C1C1E', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12, borderWidth: 1, borderColor: '#38BDF844' },
   retryTxt:    { color: '#38BDF8', fontWeight: '700', fontSize: 14 },
 });

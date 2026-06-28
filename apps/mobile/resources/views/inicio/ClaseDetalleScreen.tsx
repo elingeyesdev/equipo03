@@ -1,16 +1,14 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import {
-  View, Text, StyleSheet, FlatList, ActivityIndicator,
-  TouchableOpacity, ScrollView,
-} from 'react-native';
+import {View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Feather } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import authAxios from '../../../app/Providers/auth/authAxios';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
-// ── Tipos ────────────────────────────────────────────────────────────────────
+// Tipos
 
 type StudentReservation = {
   id?:              number | string;
@@ -36,7 +34,7 @@ type StudentReservation = {
   };
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+//Helpers
 
 const clientName = (r: StudentReservation): string => {
   if (r.fullName)   return r.fullName;
@@ -63,7 +61,7 @@ const fmtDate = (iso?: string): string => {
 const FILTERS = ['Todos', 'Hoy', 'Semana', 'Mes', 'Confirmadas'] as const;
 type FilterType = typeof FILTERS[number];
 
-// ── Componente ────────────────────────────────────────────────────────────────
+//Componente 
 
 export const ClaseDetalleScreen = () => {
   const route      = useRoute<any>();
@@ -109,7 +107,7 @@ export const ClaseDetalleScreen = () => {
     setAllReservas(list);
   }, [reservasData]);
 
-  // ── Lógica de filtrado ────────────────────────────────────────────────────
+  //Lógica de filtrado
 
   const applyFilter = useCallback((filterType: FilterType, list: StudentReservation[]) => {
     setActiveFilter(filterType);
@@ -144,7 +142,7 @@ export const ClaseDetalleScreen = () => {
     setFilteredReservas(filtered);
   }, []);
 
-  // ── Fetch ─────────────────────────────────────────────────────────────────
+  //Fetch 
 
   useEffect(() => {
     applyFilter(activeFilter, allReservas);
@@ -207,7 +205,7 @@ export const ClaseDetalleScreen = () => {
       {/* ── Contenido ── */}
       {loading ? (
         <View style={s.center}>
-          <ActivityIndicator color="#FF5E00" size="large" />
+          <DumbbellSpinner color="#FF5E00" size="large" />
         </View>
 
       ) : error ? (
@@ -283,7 +281,7 @@ export const ClaseDetalleScreen = () => {
           }}
           onEndReachedThreshold={0.5}
           ListFooterComponent={
-            isFetchingNextPage ? <ActivityIndicator size="small" color="#FF6B00" style={{ marginVertical: 15 }} /> : null
+            isFetchingNextPage ? <DumbbellSpinner size="small" color="#FF6B00" style={{ marginVertical: 15 }} /> : null
           }
         />
       )}
@@ -292,7 +290,7 @@ export const ClaseDetalleScreen = () => {
   );
 };
 
-// ── Estilos ───────────────────────────────────────────────────────────────────
+//Estilos 
 
 const s = StyleSheet.create({
   safe:   { flex: 1, backgroundColor: '#000' },

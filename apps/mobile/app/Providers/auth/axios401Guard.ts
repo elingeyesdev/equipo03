@@ -1,10 +1,3 @@
-/**
- * axios401Guard — Interceptor global de 401 para cualquier cliente Axios.
- *
- * Uso:
- *   import { attach401Guard } from '../auth/axios401Guard';
- *   attach401Guard(miClienteAxios);
- */
 import { Alert } from 'react-native';
 import type { AxiosInstance } from 'axios';
 import { AuthService } from './AuthService';
@@ -19,6 +12,15 @@ function isSessionError(error: any): boolean {
   return msg.includes('sesión') && (msg.includes('inválida') || msg.includes('expiró'));
 }
 
+function resolveSessionMessage(error: any): { title: string; body: string } {
+  const serverMsg = error?.response?.data?.message;
+  if (typeof serverMsg === 'string' && serverMsg.trim()) {
+    // El backend envió un mensaje específico (ej. "Esta cuenta ya no está disponible.")
+    return { title: 'Acceso denegado', body: serverMsg };
+  }
+  return { title: 'Sesión expirada', body: 'Tu sesión ha expirado. Inicia sesión nuevamente.' };
+}
+
 export function attach401Guard(client: AxiosInstance): void {
   client.interceptors.response.use(
     (response) => response,
@@ -30,9 +32,10 @@ export function attach401Guard(client: AxiosInstance): void {
           const { queryClient } = await import('../../../App');
           queryClient.clear();
         } catch {}
+        const { title, body } = resolveSessionMessage(error);
         Alert.alert(
-          'Sesión expirada',
-          'Tu sesión ha expirado. Inicia sesión nuevamente.',
+          title,
+          body,
           [{
             text: 'Aceptar',
             onPress: () => {

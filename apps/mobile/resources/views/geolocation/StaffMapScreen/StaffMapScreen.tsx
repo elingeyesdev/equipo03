@@ -1,13 +1,12 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import {
-  View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
-} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../../../app/Shared/hooks/useAuth';
 import authAxios from '../../../../app/Providers/auth/authAxios';
 import { OSMConfig } from '../../../../app/Providers/geolocation/config/osm.config';
+import { DumbbellSpinner } from '../../../../app/Shared/components/ui/DumbbellSpinner';
 import {
   LeafletMapView,
   LeafletMapHandle,
@@ -152,7 +151,7 @@ export const StaffMapScreen: React.FC = () => {
       <SafeAreaView style={s.root} edges={['top']}>
         {Header}
         <View style={s.center}>
-          <ActivityIndicator size="large" color="#f05b22" />
+          <DumbbellSpinner size="large" color="#f05b22" />
           <Text style={s.centerTxt}>Cargando sucursales de tu marca...</Text>
         </View>
       </SafeAreaView>

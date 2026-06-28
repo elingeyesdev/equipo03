@@ -1,10 +1,3 @@
-/**
- * ReservationsModule Container — Composition Root para Reservas.
- * 
- * Instancia los casos de uso del Core con sus respectivos adaptadores de infraestructura Axios,
- * y expone la fábrica para crear o inyectar el ReservasController.
- */
-
 import { 
   ObtenerDetallesSucursalReservaUseCase, 
   CrearReservaUseCase 

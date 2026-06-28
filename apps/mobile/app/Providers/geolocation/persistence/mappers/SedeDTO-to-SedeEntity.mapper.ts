@@ -1,10 +1,3 @@
-/**
- * SedeDTOMapper — Mapper de infraestructura.
- * 
- * Convierte los DTOs del backend (estructura plana) a entidades de dominio
- * (objetos ricos con value objects). Desacopla la API externa del dominio.
- */
-
 import { Sede, SedeDTO, ServicioSede, BeneficioSede } from '@gymsync/core';
 import { Coordenadas } from '@gymsync/core';
 import { Aforo } from '@gymsync/core';

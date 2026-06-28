@@ -1,31 +1,11 @@
-/**
- * RegisterScreen.tsx
- * 
- * Pantalla de registro pública para clientes en la app móvil.
- * Exclusiva para Rol CLIENTE (Miembro).
- */
-
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  View,
-  TextInput,
-  TouchableOpacity,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Animated,
-  Dimensions,
-  Keyboard,
-  ScrollView,
-} from 'react-native';
+import {View, TextInput, TouchableOpacity, Text, StyleSheet, Alert, KeyboardAvoidingView, Platform, Animated, Dimensions, Keyboard, ScrollView} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { AuthService } from '../../../app/Providers/auth/AuthService';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 const { width } = Dimensions.get('window');
 
@@ -223,31 +203,51 @@ export const RegisterScreen = () => {
   // --- FRONTEND VALIDATIONS (VALIDACIÓN EN ESPEJO) ---
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
+    const NAME_RE      = /^[a-záéíóúüñA-ZÁÉÍÓÚÜÑ\s'-]+$/;
+    const GIBBERISH_RE = /[bcdfghjklmnñpqrstvwxyz]{5,}/i;
 
     // 1. Nombre completo
-    if (!name.trim()) {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
       newErrors.name = 'El nombre completo es obligatorio.';
+    } else {
+      const parts = trimmedName.split(/\s+/);
+      const fn    = parts[0] ?? '';
+      const ln    = parts.slice(1).join(' ');
+      if (parts.length < 2 || !ln) {
+        newErrors.name = 'Ingresa tu nombre y apellido separados por un espacio.';
+      } else if (fn.length < 2) {
+        newErrors.name = 'El nombre debe tener al menos 2 caracteres.';
+      } else if (ln.length < 2) {
+        newErrors.name = 'El apellido debe tener al menos 2 caracteres.';
+      } else if (!NAME_RE.test(trimmedName)) {
+        newErrors.name = 'Solo se permiten letras, espacios, guiones y apóstrofes.';
+      } else if (GIBBERISH_RE.test(trimmedName)) {
+        newErrors.name = 'El nombre parece contener texto aleatorio.';
+      }
     }
 
     // 2. Correo electrónico
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email.trim()) {
       newErrors.email = 'El correo electrónico es obligatorio.';
-    } else if (!emailRegex.test(email)) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       newErrors.email = 'Introduce una dirección de correo válida.';
     }
 
-    // 3. Contraseña
+    // 3. Teléfono (opcional — solo valida formato si se ingresa)
+    if (phone.trim() && !/^\d{6,14}$/.test(phone.trim())) {
+      newErrors.phone = 'Solo dígitos, entre 6 y 14 números.';
+    }
+
+    // 4. Contraseña
     if (!password) {
       newErrors.password = 'La contraseña es obligatoria.';
-    } else {
-      if (password.length < 8) {
-        newErrors.password = 'Debe tener al menos 8 caracteres.';
-      } else if (!/\d/.test(password)) {
-        newErrors.password = 'Debe contener al menos un número.';
-      } else if (!/[@#$*!%&?^+\-_=~]/.test(password)) {
-        newErrors.password = 'Debe contener al menos un símbolo especial.';
-      }
+    } else if (password.length < 8) {
+      newErrors.password = 'Debe tener al menos 8 caracteres.';
+    } else if (!/\d/.test(password)) {
+      newErrors.password = 'Debe contener al menos un número.';
+    } else if (!/[@#$*!%&?^+\-_=~]/.test(password)) {
+      newErrors.password = 'Debe contener al menos un símbolo especial.';
     }
 
     setErrors(newErrors);
@@ -401,27 +401,29 @@ export const RegisterScreen = () => {
               <View style={styles.inputWrapper}>
                 <Text style={styles.label}>Celular (Opcional)</Text>
                 <View style={[
-                  styles.inputContainer, 
-                  phoneFocused && styles.inputFocused
+                  styles.inputContainer,
+                  phoneFocused && styles.inputFocused,
+                  !!errors.phone && styles.inputError,
                 ]}>
-                  <MaterialCommunityIcons 
-                    name="phone-outline" 
-                    size={20} 
-                    color={phoneFocused ? '#f05b22' : '#666'} 
-                    style={styles.inputIcon} 
+                  <MaterialCommunityIcons
+                    name="phone-outline"
+                    size={20}
+                    color={phoneFocused ? '#f05b22' : '#666'}
+                    style={styles.inputIcon}
                   />
                   <TextInput
                     style={styles.input}
                     placeholder="Número de celular"
                     placeholderTextColor="#444"
                     value={phone}
-                    onChangeText={setPhone}
+                    onChangeText={val => { setPhone(val); if (errors.phone) setErrors(p => ({ ...p, phone: '' })); }}
                     onFocus={() => setPhoneFocused(true)}
                     onBlur={() => setPhoneFocused(false)}
                     editable={!isLoading}
                     keyboardType="phone-pad"
                   />
                 </View>
+                {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
               </View>
 
               {/* Campo Género (Opcional) */}
@@ -531,7 +533,7 @@ export const RegisterScreen = () => {
                 disabled={isLoading}
               >
                 {isLoading ? (
-                  <ActivityIndicator color="#ffffff" />
+                  <DumbbellSpinner color="#ffffff" />
                 ) : (
                   <Text style={styles.registerButtonText}>Crear Cuenta</Text>
                 )}

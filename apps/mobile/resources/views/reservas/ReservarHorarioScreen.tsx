@@ -1,13 +1,5 @@
 import { useState, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
+import {View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert} from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useMutation } from '@tanstack/react-query';
@@ -16,6 +8,7 @@ import { Colors } from '../../../app/Providers/reservations/theme/colors';
 import { useGymActivitiesQuery } from '../../../app/Providers/reservations/hooks/useGymActivitiesQuery';
 import { reservationApi } from '../../../app/Providers/reservations/api/reservation.api';
 import { CreateFreeReservationPayload } from '../../../app/Providers/reservations/api/reservation.types';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 type RootStackParamList = {
   ReservarHorario: { gymId: number; gymName: string };
@@ -228,7 +221,7 @@ export const ReservarHorarioScreen = ({ route, navigation }: Props) => {
         {/* ── 2. Actividad ── */}
         <Text style={s.sectionLabel}>Selecciona una actividad</Text>
         {isLoading ? (
-          <ActivityIndicator color={Colors.secondary} style={{ marginVertical: 16 }} />
+          <DumbbellSpinner color={Colors.secondary} style={{ marginVertical: 16 }} />
         ) : activities.length === 0 ? (
           <Text style={s.empty}>No hay actividades disponibles.</Text>
         ) : (
@@ -357,7 +350,7 @@ export const ReservarHorarioScreen = ({ route, navigation }: Props) => {
           activeOpacity={0.85}
         >
           {mutation.isPending ? (
-            <ActivityIndicator color="#fff" />
+            <DumbbellSpinner color="#fff" />
           ) : (
             <Text style={s.confirmTxt}>Confirmar Reserva</Text>
           )}

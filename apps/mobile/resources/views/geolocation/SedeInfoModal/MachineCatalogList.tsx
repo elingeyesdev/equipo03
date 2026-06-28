@@ -1,10 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import {
-  View, Text, SectionList, ActivityIndicator, Image, StyleSheet,
-  Modal, TouchableOpacity, Dimensions,
-} from 'react-native';
+import {View, Text, SectionList, Image, StyleSheet, Modal, TouchableOpacity, Dimensions} from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { machinesApi, MachineItem } from '../../../../app/Providers/machines/machines.api';
+import { DumbbellSpinner } from '../../../../app/Shared/components/ui/DumbbellSpinner';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -56,7 +54,7 @@ export const MachineCatalogList: React.FC<Props> = ({ gymId, status }) => {
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#FF6B00" />
+        <DumbbellSpinner size="large" color="#FF6B00" />
       </View>
     );
   }

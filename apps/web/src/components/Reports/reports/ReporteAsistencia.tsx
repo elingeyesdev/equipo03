@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
@@ -7,6 +7,11 @@ import { Loader2 } from 'lucide-react';
 import { apiClient } from '../../../infrastructure/api.config';
 import type { ReportFilters } from '../types';
 import { fmtDate, inRange, DAY_LABELS, DAY_ORDER } from '../types';
+import type { GymScheduleDto } from '../../../components/Dashboard/Shared/DashboardTypes';
+import type { AsistenciaPdfData } from '../pdf/ReporteAsistenciaPdf';
+import { ReportHeader, ReportMetaStrip, ReportKpiGrid, ReportSectionTitle, ReportFooter, ChartEmpty } from './preview-shared';
+import { AutoInsights } from '../AutoInsights';
+import { insightsAsistencia } from '../../../lib/insightsEngine';
 
 const ORANGE = '#FF5E00';
 const BLUE   = '#2563EB';
@@ -19,20 +24,13 @@ interface Rsv {
   gymActivitySchedule?: { gymActivity?: { name: string } | null } | null;
 }
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ marginBottom: 18, marginTop: 32 }}>
-      <h3 style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '2px', color: '#FF5E00', margin: 0 }}>
-        {children}
-      </h3>
-      <div style={{ height: 2, background: '#FF5E00', width: 28, marginTop: 6, borderRadius: 1 }} />
-    </div>
-  );
+interface Props {
+  filters: ReportFilters;
+  onCsvReady?: (rows: string[][]) => void;
+  onPdfDataReady?: (data: AsistenciaPdfData, chartIds: string[]) => void;
 }
 
-interface Props { filters: ReportFilters; }
-
-export function ReporteAsistencia({ filters }: Props) {
+export function ReporteAsistencia({ filters, onCsvReady, onPdfDataReady }: Props) {
   const ciUrl = filters.gymId ? `/checkins/gym/${filters.gymId}` : '/checkins';
 
   const { data: allCI = [], isLoading: loadCI } = useQuery<CI[]>({
@@ -47,12 +45,23 @@ export function ReporteAsistencia({ filters }: Props) {
   const { data: allRsv = [], isLoading: loadRsv } = useQuery<Rsv[]>({
     queryKey: ['rpt-rsv', filters.gymId, filters.range.from, filters.range.to],
     queryFn: async () => {
-      const params: Record<string, any> = { limit: 100 };
+      const params: Record<string, any> = { limit: 2000 };
       if (filters.gymId) params.gymId = filters.gymId;
       const r = await apiClient.get('/reservations', { params });
       return Array.isArray(r.data) ? r.data : (r.data?.data ?? []);
     },
     staleTime: 60_000,
+  });
+
+  const { data: gymSchedules = [] } = useQuery<GymScheduleDto[]>({
+    queryKey: ['rpt-gym-schedules', filters.gymId],
+    queryFn: async () => {
+      if (!filters.gymId) return [];
+      const r = await apiClient.get(`/gyms/${filters.gymId}/schedules`);
+      return Array.isArray(r.data) ? r.data : [];
+    },
+    enabled: !!filters.gymId,
+    staleTime: 5 * 60_000,
   });
 
   const loading = loadCI || loadRsv;
@@ -70,30 +79,45 @@ export function ReporteAsistencia({ filters }: Props) {
     [filtered],
   );
 
+  // Franja horaria dinámica desde los horarios reales del gym
+  const activeSchedules = gymSchedules.filter(s => !s.isHoliday);
+  const opensHour  = activeSchedules.length
+    ? Math.min(...activeSchedules.map(s => parseInt(s.opensAt)))
+    : 6;
+  const closesHour = activeSchedules.length
+    ? Math.max(...activeSchedules.map(s => parseInt(s.closesAt)))
+    : 22;
+  const slotCount  = Math.max(1, Math.ceil((closesHour - opensHour) / 2));
+
   const hourData = useMemo(() =>
-    Array.from({ length: 9 }, (_, i) => {
-      const h = 6 + i * 2;
+    Array.from({ length: slotCount }, (_, i) => {
+      const h = opensHour + i * 2;
       return {
         name: `${String(h).padStart(2, '0')}h`,
         total: filtered.filter(c => {
           const hr = new Date(c.checkInTime).getHours();
-          return hr >= h && hr < Math.min(h + 2, 24);
+          return hr >= h && hr < Math.min(h + 2, closesHour);
         }).length,
       };
     }),
-    [filtered],
+    [filtered, opensHour, closesHour, slotCount],
   );
 
-  const now      = new Date();
-  const prev     = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const currYM   = now.toISOString().slice(0, 7);
-  const prevYM   = prev.toISOString().slice(0, 7);
-  const currLbl  = now.toLocaleDateString('es-BO', { month: 'short', year: 'numeric' });
-  const prevLbl  = prev.toLocaleDateString('es-BO', { month: 'short', year: 'numeric' });
+  // Comparativo: período anterior de igual duración al rango seleccionado
+  const fromDate = new Date(filters.range.from + 'T00:00:00');
+  const toDate   = new Date(filters.range.to   + 'T00:00:00');
+  const diffMs   = toDate.getTime() - fromDate.getTime();
+  const prevTo   = new Date(fromDate.getTime() - 86_400_000);
+  const prevFrom = new Date(prevTo.getTime()   - diffMs);
+  const prevFromStr = prevFrom.toISOString().slice(0, 10);
+  const prevToStr   = prevTo.toISOString().slice(0, 10);
+
+  const currLbl = `${fmtDate(filters.range.from)} – ${fmtDate(filters.range.to)}`;
+  const prevLbl = `${fmtDate(prevFromStr)} – ${fmtDate(prevToStr)}`;
 
   const monthlyData = [
-    { name: prevLbl, total: allCI.filter(c => c.checkInTime.startsWith(prevYM)).length },
-    { name: currLbl, total: allCI.filter(c => c.checkInTime.startsWith(currYM)).length },
+    { name: prevLbl, total: allCI.filter(c => inRange(c.checkInTime, prevFromStr, prevToStr)).length },
+    { name: currLbl, total: filtered.length },
   ];
 
   const topActivities = useMemo(() => {
@@ -121,6 +145,39 @@ export function ReporteAsistencia({ filters }: Props) {
 
   const genAt = new Date().toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
+  useEffect(() => {
+    if (!onCsvReady || loading) return;
+    const dayMap: Record<string, number> = {};
+    filtered.forEach(c => {
+      const d = c.checkInTime.slice(0, 10);
+      dayMap[d] = (dayMap[d] ?? 0) + 1;
+    });
+    const header = ['Fecha', 'Día', 'Check-ins'];
+    const rows = Object.entries(dayMap).sort(([a], [b]) => a.localeCompare(b)).map(([d, n]) => [d, DAY_LABELS[new Date(d + 'T00:00:00').getDay()], String(n)]);
+    onCsvReady([header, ...rows]);
+  }, [filtered, loading, onCsvReady]);
+
+  useEffect(() => {
+    if (!onPdfDataReady || loading) return;
+    const period = `${fmtDate(filters.range.from)} — ${fmtDate(filters.range.to)}`;
+    onPdfDataReady(
+      {
+        gymName: filters.gymName,
+        period,
+        genAt,
+        kpis: [
+          { label: 'Check-ins totales', value: total.toLocaleString('es-BO'),  accent: '#FF5E00' },
+          { label: 'Promedio diario',   value: avgDay,                          accent: '#2563EB' },
+          { label: 'Hora pico',         value: peakHr?.name ?? '—',            accent: '#10B981' },
+          { label: 'Día más activo',    value: peakDay?.name ?? '—',           accent: '#7C3AED' },
+        ],
+        topActividades: topActivities.map(a => ({ name: a.name, total: a.total })),
+        charts: {},
+      },
+      ['chart-asistencia-dia', 'chart-asistencia-hora', 'chart-asistencia-mensual'],
+    );
+  }, [filtered, loading, onPdfDataReady]);
+
   if (loading) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 400, gap: 14 }}>
@@ -136,103 +193,92 @@ export function ReporteAsistencia({ filters }: Props) {
       id="report-content"
       style={{ width: 900, backgroundColor: '#ffffff', fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif", color: '#111827' }}
     >
-      {/* Header */}
-      <div style={{ background: 'linear-gradient(135deg, #111827 0%, #1f2937 100%)', padding: '26px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <div style={{ color: '#FF5E00', fontSize: 21, fontWeight: 800, letterSpacing: '-0.5px' }}>GYMSYNC</div>
-          <div style={{ color: '#9CA3AF', fontSize: 10, letterSpacing: '2.5px', textTransform: 'uppercase', marginTop: 3 }}>Sistema de Gestión Deportiva</div>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ color: '#ffffff', fontSize: 17, fontWeight: 700 }}>Asistencia por Sucursal</div>
-          {filters.gymName && <div style={{ color: '#9CA3AF', fontSize: 12, marginTop: 4 }}>{filters.gymName}</div>}
-        </div>
-      </div>
-
-      {/* Meta strip */}
-      <div style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB', padding: '10px 40px', display: 'flex', gap: 48, alignItems: 'center' }}>
-        <div>
-          <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px' }}>Período</div>
-          <div style={{ color: '#111827', fontSize: 13, fontWeight: 600, marginTop: 2 }}>{fmtDate(filters.range.from)} — {fmtDate(filters.range.to)}</div>
-        </div>
-        <div>
-          <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px' }}>Generado</div>
-          <div style={{ color: '#111827', fontSize: 13, fontWeight: 600, marginTop: 2 }}>{genAt}</div>
-        </div>
-      </div>
+      <ReportHeader title="Asistencia por Sucursal" gymName={filters.gymName} />
+      <ReportMetaStrip from={filters.range.from} to={filters.range.to} genAt={genAt} />
 
       <div style={{ padding: '28px 40px 40px' }}>
-        {/* KPI Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
-          {[
-            { label: 'Check-ins totales', value: total.toLocaleString('es-BO') },
-            { label: 'Promedio diario',   value: avgDay },
-            { label: 'Hora pico',         value: peakHr?.name ?? '—' },
-            { label: 'Día más activo',    value: peakDay?.name ?? '—' },
-          ].map(kpi => (
-            <div key={kpi.label} style={{ border: '1px solid #E5E7EB', borderLeft: '3px solid #FF5E00', borderRadius: 8, padding: '14px 18px' }}>
-              <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 8 }}>{kpi.label}</div>
-              <div style={{ color: '#111827', fontSize: 22, fontWeight: 700, lineHeight: 1 }}>{kpi.value}</div>
-            </div>
-          ))}
-        </div>
+        <ReportKpiGrid kpis={[
+          { label: 'Check-ins totales', value: total.toLocaleString('es-BO'), accent: '#FF5E00' },
+          { label: 'Promedio diario',   value: avgDay,                         accent: '#2563EB' },
+          { label: 'Hora pico',         value: peakHr?.name ?? '—',           accent: '#10B981' },
+          { label: 'Día más activo',    value: peakDay?.name ?? '—',          accent: '#7C3AED' },
+        ]} />
+
+        <AutoInsights insights={insightsAsistencia({ total, avgDay, peakHr, peakDay, topActivities, days })} />
 
         {/* Day & hour charts */}
-        <SectionTitle>Distribución de Asistencia</SectionTitle>
+        <ReportSectionTitle>Distribución de Asistencia</ReportSectionTitle>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-          <div>
+          <div id="chart-asistencia-dia">
             <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>Por día de semana</div>
-            <BarChart width={398} height={200} data={dayData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', borderRadius: 6, background: '#fff' }} cursor={{ fill: '#FFF5F0' }} />
-              <Bar dataKey="total" fill={ORANGE} radius={[3, 3, 0, 0]} name="Check-ins" />
-            </BarChart>
+            {dayData.some(d => d.total > 0) ? (
+              <BarChart width={398} height={200} data={dayData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', background: '#fff' }} cursor={{ fill: '#F9FAFB' }} />
+                <Bar dataKey="total" fill={ORANGE} radius={[3, 3, 0, 0]} name="Check-ins" />
+              </BarChart>
+            ) : <ChartEmpty />}
           </div>
-          <div>
+          <div id="chart-asistencia-hora">
             <div style={{ color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>Por franja horaria</div>
-            <BarChart width={398} height={200} data={hourData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', borderRadius: 6, background: '#fff' }} cursor={{ fill: '#EFF6FF' }} />
-              <Bar dataKey="total" fill={BLUE} radius={[3, 3, 0, 0]} name="Check-ins" />
-            </BarChart>
+            {hourData.some(d => d.total > 0) ? (
+              <BarChart width={398} height={200} data={hourData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', background: '#fff' }} cursor={{ fill: '#F9FAFB' }} />
+                <Bar dataKey="total" fill={BLUE} radius={[3, 3, 0, 0]} name="Check-ins" />
+              </BarChart>
+            ) : <ChartEmpty />}
           </div>
         </div>
 
         {/* Monthly comparison */}
-        <SectionTitle>Comparativo Mensual</SectionTitle>
-        <BarChart width={820} height={160} data={monthlyData} layout="vertical" margin={{ top: 4, right: 40, bottom: 0, left: 16 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" horizontal={false} />
-          <XAxis type="number" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
-          <YAxis type="category" dataKey="name" tick={{ fontSize: 12, fill: '#374151' }} axisLine={false} tickLine={false} width={72} />
-          <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', borderRadius: 6, background: '#fff' }} />
-          <Bar dataKey="total" radius={[0, 4, 4, 0]} name="Check-ins">
-            {monthlyData.map((_, i) => <Cell key={i} fill={i === 1 ? ORANGE : '#D1D5DB'} />)}
-          </Bar>
-        </BarChart>
+        <ReportSectionTitle>Comparativo Mensual</ReportSectionTitle>
+        <div id="chart-asistencia-mensual">
+          {monthlyData.some(d => d.total > 0) ? (
+            <BarChart width={820} height={160} data={monthlyData} layout="vertical" margin={{ top: 4, right: 40, bottom: 0, left: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" horizontal={false} />
+              <XAxis type="number" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <YAxis
+                type="category"
+                dataKey="name"
+                tick={{ fontSize: 10, fill: '#374151' }}
+                axisLine={false}
+                tickLine={false}
+                width={148}
+                tickFormatter={(v: string) => v.length > 20 ? v.slice(0, 18) + '…' : v}
+              />
+              <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', background: '#fff' }} />
+              <Bar dataKey="total" radius={[0, 4, 4, 0]} name="Check-ins">
+                {monthlyData.map((_, i) => <Cell key={i} fill={i === 1 ? ORANGE : '#D1D5DB'} />)}
+              </Bar>
+            </BarChart>
+          ) : <ChartEmpty height={160} />}
+        </div>
 
         {/* Top activities */}
         {topActivities.length > 0 && (
           <>
-            <SectionTitle>Actividades con Más Reservas</SectionTitle>
+            <ReportSectionTitle>Actividades con Más Reservas</ReportSectionTitle>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
-                <tr style={{ borderBottom: '2px solid #E5E7EB' }}>
+                <tr style={{ borderBottom: '2px solid #111111' }}>
                   {['#', 'Actividad', 'Reservas totales'].map((h, i) => (
-                    <th key={h} style={{ padding: '8px 12px', textAlign: i === 2 ? 'right' : 'left', fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px', color: '#9CA3AF', fontWeight: 600 }}>
+                    <th key={h} style={{ padding: '9px 12px', textAlign: i === 2 ? 'right' : 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: '#111111' }}>
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {topActivities.map((a, i) => (
-                  <tr key={a.name} style={{ background: i % 2 === 0 ? '#F9FAFB' : '#ffffff', borderBottom: '1px solid #F3F4F6' }}>
-                    <td style={{ padding: '10px 12px', width: 36, color: '#9CA3AF', fontWeight: 600 }}>{a.rank}</td>
+                {topActivities.map((a) => (
+                  <tr key={a.name} style={{ background: '#ffffff', borderBottom: '1px solid #E5E7EB' }}>
+                    <td style={{ padding: '10px 12px', width: 36, color: '#9CA3AF', fontWeight: 600, fontFamily: 'monospace' }}>{a.rank}</td>
                     <td style={{ padding: '10px 12px', color: '#111827', fontWeight: 500 }}>{a.name}</td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right', color: '#FF5E00', fontWeight: 700 }}>{a.total}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', color: '#374151', fontWeight: 700, fontFamily: 'monospace' }}>{a.total}</td>
                   </tr>
                 ))}
               </tbody>
@@ -240,11 +286,7 @@ export function ReporteAsistencia({ filters }: Props) {
           </>
         )}
 
-        {/* Footer */}
-        <div style={{ marginTop: 40, paddingTop: 14, borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ color: '#D1D5DB', fontSize: 11 }}>GymSync — Sistema de Gestión Deportiva</span>
-          <span style={{ color: '#D1D5DB', fontSize: 11 }}>{genAt}</span>
-        </div>
+        <ReportFooter genAt={genAt} />
       </div>
     </div>
   );

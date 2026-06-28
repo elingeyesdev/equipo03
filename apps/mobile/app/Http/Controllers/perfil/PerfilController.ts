@@ -1,11 +1,6 @@
 import { useState } from 'react';
 import { RestriccionMedica } from '@gymsync/core';
 
-// TODO-BACKEND: Las restricciones médicas necesitan endpoint propio en el API.
-// Sugerencia: PATCH /api/users/me/restrictions
-// Por ahora el estado es en memoria (se resetea al cerrar la app).
-// Las métricas físicas (peso, altura, nivel) se gestionan en MisDatosPersonalesScreen.
-
 export const PerfilController = () => {
   const [restriccionesMedicas, setRestriccionesMedicas] = useState<RestriccionMedica[]>([]);
 

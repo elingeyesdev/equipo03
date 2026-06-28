@@ -1,10 +1,3 @@
-/**
- * MapScreenController — Estado + acciones para la pantalla del mapa.
- * 
- * Usa Zustand para state management reactivo.
- * Encapsula toda la lógica de estado del mapa.
- */
-
 import { create } from 'zustand';
 import { Sede } from '@gymsync/core';
 import { Coordenadas } from '@gymsync/core';

@@ -1,12 +1,3 @@
-/**
- * GeolocationModule Container — Composition Root.
- * 
- * ÚNICO lugar donde se instancian las dependencias concretas.
- * Todo el resto del código depende solo de interfaces (puertos).
- * 
- * Para cambiar de mock a real, solo se cambia aquí.
- */
-
 import { 
   ObtenerSedesCercanasUseCase, 
   CalcularRutaUseCase, 

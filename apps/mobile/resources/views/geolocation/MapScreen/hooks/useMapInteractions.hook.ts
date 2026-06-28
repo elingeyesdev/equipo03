@@ -1,12 +1,6 @@
-/**
- * useMapInteractions — Hook para lógica de interacción con el mapa.
- * 
- * Encapsula gestos, zoom, movimiento y selección en el mapa.
- */
-
 import { useState, useCallback, useRef } from 'react';
 import { Coordenadas } from '@gymsync/core';
-import { LeafletMapHandle } from '../../../geolocation/LeafletMap/LeafletMapView';
+import { LeafletMapHandle } from '../../../../../app/Providers/geolocation/components/LeafletMap/LeafletMapView';
 
 export const useMapInteractions = () => {
   const mapRef = useRef<LeafletMapHandle>(null);

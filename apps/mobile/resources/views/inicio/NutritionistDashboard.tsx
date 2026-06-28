@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
-import {
-  View, Text, StyleSheet, ScrollView, Alert,
-  TouchableOpacity, ActivityIndicator, RefreshControl,
-} from 'react-native';
+import {View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, RefreshControl} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../../app/Shared/hooks/useAuth';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 import {
   staffApi,
   PendingTrainerRequest,
@@ -54,7 +52,7 @@ export const NutritionistDashboard = () => {
     data: requestsRaw, isLoading: loadingReqs, refetch: refetchReqs,
   } = useQuery({
     queryKey: ['nutritionist-pending-requests'],
-    queryFn:  staffApi.getPendingTrainerRequests,
+    queryFn:  () => staffApi.getPendingTrainerRequests(),
     staleTime: 30_000,
     retry: 1,
   });
@@ -66,7 +64,7 @@ export const NutritionistDashboard = () => {
     data: adviseesRaw, isLoading: loadingAdvisees, refetch: refetchAdvisees,
   } = useQuery({
     queryKey: ['nutritionist-active-advisees'],
-    queryFn:  staffApi.getActiveAdvisees,
+    queryFn:  () => staffApi.getActiveAdvisees(),
     staleTime: 60_000,
     retry: 1,
   });
@@ -202,7 +200,7 @@ export const NutritionistDashboard = () => {
                   <Text style={s.requestSub}>{fmtDate(req.createdAt)}</Text>
                 </View>
                 {isProcessing ? (
-                  <ActivityIndicator size="small" color="#06d6a0" style={{ marginLeft: 8 }} />
+                  <DumbbellSpinner size="small" color="#06d6a0" style={{ marginLeft: 8 }} />
                 ) : (
                   <View style={s.requestActions}>
                     <TouchableOpacity
@@ -245,11 +243,11 @@ export const NutritionistDashboard = () => {
                 <View style={s.patientInfo}>
                   <Text style={s.patientName}>{item.clientName}</Text>
                   <Text style={s.patientSub} numberOfLines={1}>
-                    {item.phone ?? 'Sin teléfono registrado'}
+                    {item.ci ? `CI: ${item.ci}` : (item.email ?? 'Sin identificador')}
                   </Text>
                 </View>
                 {isCancelling ? (
-                  <ActivityIndicator size="small" color="#EF4444" style={{ marginLeft: 8 }} />
+                  <DumbbellSpinner size="small" color="#EF4444" style={{ marginLeft: 8 }} />
                 ) : (
                   <View style={s.patientActions}>
                     <TouchableOpacity
@@ -322,7 +320,7 @@ const s = StyleSheet.create({
   iconBadge:      { width: 40, height: 40, borderRadius: 20, backgroundColor: '#1C1C1E', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#06d6a0' },
   patientInfo:    { flex: 1 },
   patientName:    { color: '#fff', fontSize: 14, fontWeight: '700' },
-  patientSub:     { color: '#555', fontSize: 11, marginTop: 2 },
+  patientSub:     { color: '#9CA3AF', fontSize: 11, marginTop: 2 },
   patientActions: { flexDirection: 'column', gap: 6, alignItems: 'flex-end' },
   profileBtn:     { backgroundColor: '#1C1C1E', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: '#3A3A3C' },
   profileBtnTxt:  { color: '#06d6a0', fontSize: 12, fontWeight: '700' },

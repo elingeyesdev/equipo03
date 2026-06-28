@@ -1,14 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import * as Location from 'expo-location';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Dimensions,
-  ActivityIndicator,
-} from 'react-native';
+import {View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Image} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -20,6 +12,7 @@ import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { LeafletMapView } from '../../../app/Providers/geolocation/components/LeafletMap/LeafletMapView';
 import { visitsApi, VisitRecord } from '../../../app/Providers/geolocation/services/visits.api';
 import { reservationApi } from '../../../app/Providers/reservations/api/reservation.api';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 // Staff = level >= 3 (entrenadores, instructores, recepcionistas, gerentes, etc.)
 
@@ -98,7 +91,7 @@ export const BuscarScreen = () => {
 
         {/* ── Mapa preview ── */}
         <View style={s.sectionRow}>
-          <MaterialCommunityIcons name="map-marker" size={20} color={C.orange} />
+          <Image source={require('../../../assets/pinGPS_icon.png')} style={{ width: 20, height: 20, resizeMode: 'contain' }} />
           <Text style={s.sectionTitle}>Sucursales cerca de ti</Text>
         </View>
 
@@ -134,12 +127,12 @@ export const BuscarScreen = () => {
 
         {/* ── Clases disponibles hoy ── */}
         <View style={[s.sectionRow, { marginTop: 28 }]}>
-          <MaterialCommunityIcons name="calendar-today" size={20} color={C.celeste} />
+          <Image source={require('../../../assets/calendar_icon.png')} style={{ width: 20, height: 20, resizeMode: 'contain' }} />
           <Text style={s.sectionTitle}>Clases disponibles hoy</Text>
         </View>
 
         {loadingClasses ? (
-          <ActivityIndicator color={C.orange} style={{ marginTop: 16 }} />
+          <DumbbellSpinner color={C.orange} style={{ marginTop: 16 }} />
         ) : todayClasses.length === 0 ? (
           <View style={s.emptyCard}>
             <MaterialCommunityIcons name="calendar-blank-outline" size={24} color={C.dim} />
@@ -171,12 +164,12 @@ export const BuscarScreen = () => {
 
         {/* ── Última sucursal visitada ── */}
         <View style={[s.sectionRow, { marginTop: 28 }]}>
-          <MaterialCommunityIcons name="map-marker-check" size={20} color={C.green} />
+          <Image source={require('../../../assets/steps_icon.png')} style={{ width: 20, height: 20, resizeMode: 'contain' }} />
           <Text style={s.sectionTitle}>Última sucursal visitada</Text>
         </View>
 
         {lastVisit === undefined ? (
-          <ActivityIndicator color={C.orange} style={{ marginTop: 16 }} />
+          <DumbbellSpinner color={C.orange} style={{ marginTop: 16 }} />
         ) : lastVisit === null ? (
           <View style={s.emptyCard}>
             <MaterialCommunityIcons name="map-marker-off-outline" size={24} color={C.dim} />
@@ -209,7 +202,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16,
   },
-  title: { fontSize: 28, fontWeight: '800', color: C.white },
+  title: { fontSize: 40, fontWeight: '800', color: C.white },
   historialBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     backgroundColor: C.surface, paddingVertical: 7, paddingHorizontal: 12, borderRadius: 18,

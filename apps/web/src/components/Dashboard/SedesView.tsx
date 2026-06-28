@@ -220,7 +220,7 @@ export const SedesView = () => {
   };
 
   const handleEditSede = (sede: GymDto) => {
-    if (user?.role === 'GERENTE' && user?.gymId && sede.id !== parseInt(user.gymId as string)) {
+    if ((user?.level ?? 0) === 5 && user?.gymId && sede.id !== parseInt(user.gymId as string)) {
       console.warn(`[Security Guard]: Bloqueo de acceso a Sede ajena para Gerente ID ${user.id}`);
       alert("Acceso denegado: No tienes permisos para editar una marca que no te pertenece.");
       return;
@@ -272,7 +272,7 @@ export const SedesView = () => {
     <section style={panelStyle} className="glass-panel">
       <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Gestión de Marcas</h1>
       <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">
-        {user.role === 'SUPER_ADMIN'
+        {(user?.level ?? 0) >= 10
           ? 'Administra las marcas o franquicias del grupo. Cada marca puede tener múltiples sucursales (locales físicos).'
           : 'Solo los administradores pueden gestionar las marcas del sistema.'}
       </p>
@@ -281,7 +281,7 @@ export const SedesView = () => {
         <div style={{ color: '#8E8E93', fontSize: '0.9rem' }}>
           {loading ? 'Cargando marcas...' : `Total de marcas: ${gyms.length}`}
         </div>
-        {user.role === 'SUPER_ADMIN' && (
+        {(user?.level ?? 0) >= 10 && (
           <button
             onClick={handleCreateSede}
             className="bg-brand-orange text-white font-semibold px-4 py-2 rounded-lg border-0 cursor-pointer whitespace-nowrap"
@@ -372,7 +372,7 @@ export const SedesView = () => {
                         </svg>
                       </button>
 
-                      {user.role === 'SUPER_ADMIN' && (<>
+                      {(user?.level ?? 0) >= 10 && (<>
                         <button
                           onClick={() => handleEditSede(g)}
                           title="Editar marca"

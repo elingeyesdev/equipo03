@@ -1,11 +1,4 @@
-/**
- * OpenStreetMap Configuration — Configuración de mapas OSM.
- * 
- * No requiere API Key. Usa tiles públicos de OpenStreetMap.
- */
-
 export const OSMConfig = {
-  // URL de tiles de OpenStreetMap
   tileUrlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
   
   // Atribución requerida por la licencia ODbL de OSM

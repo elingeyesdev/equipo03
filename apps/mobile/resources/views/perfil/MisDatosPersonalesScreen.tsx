@@ -1,8 +1,5 @@
 import { useState, useEffect } from 'react';
-import {
-  View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ScrollView, Alert, Platform, Keyboard, KeyboardAvoidingView, ActivityIndicator, Modal,
-} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, Platform, Keyboard, KeyboardAvoidingView, Modal, Image, ActivityIndicator} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -10,26 +7,27 @@ import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { NumericInput } from '../../../app/Shared/components/ui/NumericInput';
 import authAxios from '../../../app/Providers/auth/authAxios';
 import { calculateIMC, getIMCCategory, calculateAge } from '../../../app/Shared/utils/healthMetrics';
+import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
 type ExperienceLevel = 'PRINCIPIANTE' | 'INTERMEDIO' | 'AVANZADO';
-type SavingSection   = 'basic' | 'metrics' | 'medical' | null;
+type SavingSection   = 'basic' | 'metrics' | 'advanced' | 'medical' | null;
 
 const AVATARS = [
-  { id: '1', icon: 'face-man-profile'  },
-  { id: '2', icon: 'face-woman-profile' },
-  { id: '3', icon: 'robot-outline'      },
-  { id: '4', icon: 'incognito'          },
-  { id: '5', icon: 'alien-outline'      },
-  { id: '6', icon: 'cat'               },
-  { id: '7', icon: 'fire'              },
-  { id: '8', icon: 'crown'             },
-  { id: '9', icon: 'star'              },
+  { id: '1', icon: 'face-man-profile',  image: require('../../../assets/avatarman.png')       },
+  { id: '2', icon: 'face-woman-profile', image: require('../../../assets/avatarwoman.png')    },
+  { id: '3', icon: 'robot-outline',      image: require('../../../assets/avatarrobot.png')    },
+  { id: '4', icon: 'incognito',          image: require('../../../assets/avatarincognito.png') },
+  { id: '5', icon: 'alien-outline',      image: require('../../../assets/avataralien.png')    },
+  { id: '6', icon: 'cat',               image: require('../../../assets/avatarcat.png')       },
+  { id: '7', icon: 'fire',              image: require('../../../assets/avatarfire.png')      },
+  { id: '8', icon: 'crown',             image: require('../../../assets/avatarcrown.png')     },
+  { id: '9', icon: 'star',              image: require('../../../assets/avatarstar.png')      },
 ];
 
 export const MisDatosPersonalesScreen = () => {
   const navigation                              = useNavigation();
   const { user, updateProfile, logout }          = useAuth();
-  const isGerente                               = user?.role === 'GERENTE';
+  const isGerente                               = ((user as any)?.level ?? 0) === 5;
   const p                                       = (user as any)?.profile;
 
   const [isEditing,          setIsEditing]          = useState(false);
@@ -46,6 +44,12 @@ export const MisDatosPersonalesScreen = () => {
   const [heightCm,           setHeightCm]           = useState<string>(String(pm?.heightCm          ?? ''));
   const [bodyFatPercentage,  setBodyFatPercentage]  = useState<string>(String(pm?.bodyFatPercentage ?? ''));
   const [waistCm,            setWaistCm]            = useState<string>(String(pm?.waistCm           ?? ''));
+  const [chestCm,     setChestCm]     = useState<string>(String(pm?.chestCm     ?? ''));
+  const [hipCm,       setHipCm]       = useState<string>(String(pm?.hipCm       ?? ''));
+  const [midArmCm,    setMidArmCm]    = useState<string>(String(pm?.midArmCm    ?? ''));
+  const [thighCm,     setThighCm]     = useState<string>(String(pm?.thighCm     ?? ''));
+  const [calfCm,      setCalfCm]      = useState<string>(String(pm?.calfCm      ?? ''));
+  const [showInfoModal, setShowInfoModal] = useState(false);
   const [experienceLevel,    setExperienceLevel]    = useState<ExperienceLevel>(
     (pm?.experienceLevel ?? 'PRINCIPIANTE') as ExperienceLevel
   );
@@ -87,7 +91,12 @@ export const MisDatosPersonalesScreen = () => {
     setWeightKg(String(metrics.weightKg          ?? ''));
     setHeightCm(String(metrics.heightCm          ?? ''));
     setBodyFatPercentage(String(metrics.bodyFatPercentage ?? ''));
-    setWaistCm(String(metrics.waistCm           ?? ''));
+    setWaistCm(String(metrics.waistCm            ?? ''));
+    setChestCm(String(metrics.chestCm            ?? ''));
+    setHipCm(String(metrics.hipCm                ?? ''));
+    setMidArmCm(String(metrics.midArmCm          ?? ''));
+    setThighCm(String(metrics.thighCm            ?? ''));
+    setCalfCm(String(metrics.calfCm              ?? ''));
     setExperienceLevel((metrics.experienceLevel  ?? 'PRINCIPIANTE') as ExperienceLevel);
     const serverAge = prof.age ?? metrics.age;
     if (serverAge != null) setAge(String(serverAge));
@@ -113,7 +122,12 @@ export const MisDatosPersonalesScreen = () => {
         setWeightKg(String(metrics.weightKg          ?? ''));
         setHeightCm(String(metrics.heightCm          ?? ''));
         setBodyFatPercentage(String(metrics.bodyFatPercentage ?? ''));
-        setWaistCm(String(metrics.waistCm           ?? ''));
+        setWaistCm(String(metrics.waistCm            ?? ''));
+        setChestCm(String(metrics.chestCm            ?? ''));
+        setHipCm(String(metrics.hipCm                ?? ''));
+        setMidArmCm(String(metrics.midArmCm          ?? ''));
+        setThighCm(String(metrics.thighCm            ?? ''));
+        setCalfCm(String(metrics.calfCm              ?? ''));
         setExperienceLevel((metrics.experienceLevel  ?? 'PRINCIPIANTE') as ExperienceLevel);
         const serverAge = prof.age ?? metrics.age;
     if (serverAge != null) setAge(String(serverAge));
@@ -145,10 +159,16 @@ export const MisDatosPersonalesScreen = () => {
 
         if (cancelled) return;
 
-        // 1. Peso viene de /metrics/latest
+        // 1. Peso y circunferencias vienen de /metrics/latest
         if (metricsRes.status === 'fulfilled') {
           const m = metricsRes.value.data?.data ?? metricsRes.value.data;
-          if (m?.weightKg != null) setWeightKg(m.weightKg.toString());
+          if (m?.weightKg  != null) setWeightKg(m.weightKg.toString());
+          if (m?.waistCm   != null) setWaistCm(m.waistCm.toString());
+          if (m?.chestCm   != null) setChestCm(m.chestCm.toString());
+          if (m?.hipCm     != null) setHipCm(m.hipCm.toString());
+          if (m?.midArmCm  != null) setMidArmCm(m.midArmCm.toString());
+          if (m?.thighCm   != null) setThighCm(m.thighCm.toString());
+          if (m?.calfCm    != null) setCalfCm(m.calfCm.toString());
         }
 
         // 2. Altura y edad vienen de /users/me
@@ -247,6 +267,28 @@ export const MisDatosPersonalesScreen = () => {
     }
   };
 
+  // ── Guardar métricas avanzadas (circunferencias) ─────────────────────────────
+  const handleSaveAdvancedMetrics = async () => {
+    const toNum = (v: string) => { const n = parseFloat(v); return isNaN(n) || n <= 0 ? undefined : n; };
+    setSavingSection('advanced');
+    try {
+      await authAxios.patch('/api/users/me/metrics/circumferences', {
+        waistCm:  toNum(waistCm),
+        hipCm:    toNum(hipCm),
+        chestCm:  toNum(chestCm),
+        midArmCm: toNum(midArmCm),
+        thighCm:  toNum(thighCm),
+        calfCm:   toNum(calfCm),
+      });
+      setIsEditing(false);
+      Alert.alert('Éxito', 'Circunferencias actualizadas correctamente.');
+    } catch (err: any) {
+      handleApiError(err);
+    } finally {
+      setSavingSection(null);
+    }
+  };
+
   // ── Guardar condiciones médicas ───────────────────────────────────────────────
   const handleSaveMedical = async () => {
     setSavingSection('medical');
@@ -265,7 +307,7 @@ export const MisDatosPersonalesScreen = () => {
   if (isFetching) {
     return (
       <SafeAreaView style={[s.container, s.centered]} edges={['top', 'bottom']}>
-        <ActivityIndicator size="large" color="#f05b22" />
+        <DumbbellSpinner size="large" color="#f05b22" />
         <Text style={s.loadingText}>Cargando perfil...</Text>
       </SafeAreaView>
     );
@@ -311,10 +353,9 @@ export const MisDatosPersonalesScreen = () => {
                       style={[s.avatarOption, selectedAvatar === av.icon && s.avatarSelected]}
                       onPress={() => setSelectedAvatar(av.icon)}
                     >
-                      <MaterialCommunityIcons
-                        name={av.icon as any}
-                        size={36}
-                        color={selectedAvatar === av.icon ? '#FF5E00' : '#B0B0B0'}
+                      <Image
+                        source={av.image}
+                        style={{ width: 36, height: 36, resizeMode: 'contain', opacity: selectedAvatar === av.icon ? 1 : 0.5 }}
                       />
                     </TouchableOpacity>
                   ))}
@@ -323,7 +364,10 @@ export const MisDatosPersonalesScreen = () => {
             ) : (
               <View style={s.avatarReadWrap}>
                 <View style={s.avatarReadBadge}>
-                  <MaterialCommunityIcons name={selectedAvatar as any} size={56} color="#FF5E00" />
+                  <Image
+                    source={AVATARS.find(av => av.icon === selectedAvatar)?.image ?? AVATARS[0].image}
+                    style={{ width: 56, height: 56, resizeMode: 'contain' }}
+                  />
                 </View>
               </View>
             )}
@@ -382,7 +426,7 @@ export const MisDatosPersonalesScreen = () => {
                 activeOpacity={0.85}
               >
                 {savingSection === 'basic'
-                  ? <ActivityIndicator color="#fff" size="small" />
+                  ? <DumbbellSpinner color="#fff" size="small" />
                   : <Text style={s.saveBtnText}>Guardar Info Básica</Text>
                 }
               </TouchableOpacity>
@@ -474,8 +518,93 @@ export const MisDatosPersonalesScreen = () => {
                   activeOpacity={0.85}
                 >
                   {savingSection === 'metrics'
-                    ? <ActivityIndicator color="#fff" size="small" />
+                    ? <DumbbellSpinner color="#fff" size="small" />
                     : <Text style={s.saveBtnText}>Guardar Métricas</Text>
+                  }
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+          {/* ── Métricas Físicas Avanzadas — solo clientes ── */}
+          {!isGerente && (
+            <View style={s.section}>
+              {/* Header: título + botón de info */}
+              <View style={s.advHeader}>
+                <View style={s.advTitleRow}>
+                  <MaterialCommunityIcons name="tape-measure" size={15} color="#B0B0B0" />
+                  <Text style={s.sectionTitle}>Métricas Físicas Avanzadas</Text>
+                </View>
+                <TouchableOpacity onPress={() => setShowInfoModal(true)} style={s.infoBtn}>
+                  <MaterialCommunityIcons name="information-outline" size={20} color="#555" />
+                </TouchableOpacity>
+              </View>
+              <Text style={s.advSubtitle}>Circunferencias corporales · en centímetros (cm)</Text>
+
+              {/* Fila 1: Cintura + Cadera */}
+              <View style={s.metricsRow}>
+                <View style={[s.field, s.metricHalf]}>
+                  <Text style={s.label}>CINTURA</Text>
+                  {isEditing
+                    ? <NumericInput style={s.input} value={waistCm} onChangeText={setWaistCm} placeholder="0.0" placeholderTextColor="#B0B0B0" keyboardType="decimal-pad" />
+                    : <View style={s.metricCard}><Text style={s.metricCardValue}>{waistCm || '—'}</Text>{!!waistCm && <Text style={s.imcCategory}>cm</Text>}</View>
+                  }
+                </View>
+                <View style={[s.field, s.metricHalf]}>
+                  <Text style={s.label}>CADERA</Text>
+                  {isEditing
+                    ? <NumericInput style={s.input} value={hipCm} onChangeText={setHipCm} placeholder="0.0" placeholderTextColor="#B0B0B0" keyboardType="decimal-pad" />
+                    : <View style={s.metricCard}><Text style={s.metricCardValue}>{hipCm || '—'}</Text>{!!hipCm && <Text style={s.imcCategory}>cm</Text>}</View>
+                  }
+                </View>
+              </View>
+
+              {/* Fila 2: Pecho/Busto + Brazo Medio */}
+              <View style={s.metricsRow}>
+                <View style={[s.field, s.metricHalf]}>
+                  <Text style={s.label}>PECHO / BUSTO</Text>
+                  {isEditing
+                    ? <NumericInput style={s.input} value={chestCm} onChangeText={setChestCm} placeholder="0.0" placeholderTextColor="#B0B0B0" keyboardType="decimal-pad" />
+                    : <View style={s.metricCard}><Text style={s.metricCardValue}>{chestCm || '—'}</Text>{!!chestCm && <Text style={s.imcCategory}>cm</Text>}</View>
+                  }
+                </View>
+                <View style={[s.field, s.metricHalf]}>
+                  <Text style={s.label}>BRAZO MEDIO</Text>
+                  {isEditing
+                    ? <NumericInput style={s.input} value={midArmCm} onChangeText={setMidArmCm} placeholder="0.0" placeholderTextColor="#B0B0B0" keyboardType="decimal-pad" />
+                    : <View style={s.metricCard}><Text style={s.metricCardValue}>{midArmCm || '—'}</Text>{!!midArmCm && <Text style={s.imcCategory}>cm</Text>}</View>
+                  }
+                </View>
+              </View>
+
+              {/* Fila 3: Muslo/Pierna + Pantorrilla */}
+              <View style={s.metricsRow}>
+                <View style={[s.field, s.metricHalf]}>
+                  <Text style={s.label}>MUSLO / PIERNA</Text>
+                  {isEditing
+                    ? <NumericInput style={s.input} value={thighCm} onChangeText={setThighCm} placeholder="0.0" placeholderTextColor="#B0B0B0" keyboardType="decimal-pad" />
+                    : <View style={s.metricCard}><Text style={s.metricCardValue}>{thighCm || '—'}</Text>{!!thighCm && <Text style={s.imcCategory}>cm</Text>}</View>
+                  }
+                </View>
+                <View style={[s.field, s.metricHalf]}>
+                  <Text style={s.label}>PANTORRILLA</Text>
+                  {isEditing
+                    ? <NumericInput style={s.input} value={calfCm} onChangeText={setCalfCm} placeholder="0.0" placeholderTextColor="#B0B0B0" keyboardType="decimal-pad" />
+                    : <View style={s.metricCard}><Text style={s.metricCardValue}>{calfCm || '—'}</Text>{!!calfCm && <Text style={s.imcCategory}>cm</Text>}</View>
+                  }
+                </View>
+              </View>
+
+              {isEditing && (
+                <TouchableOpacity
+                  style={[s.saveBtn, savingSection === 'advanced' && s.saveBtnOff]}
+                  onPress={handleSaveAdvancedMetrics}
+                  disabled={savingSection !== null}
+                  activeOpacity={0.85}
+                >
+                  {savingSection === 'advanced'
+                    ? <ActivityIndicator color="#fff" size="small" />
+                    : <Text style={s.saveBtnText}>Guardar Métricas Avanzadas</Text>
                   }
                 </TouchableOpacity>
               )}
@@ -510,7 +639,7 @@ export const MisDatosPersonalesScreen = () => {
                 activeOpacity={0.85}
               >
                 {savingSection === 'medical'
-                  ? <ActivityIndicator color="#fff" size="small" />
+                  ? <DumbbellSpinner color="#fff" size="small" />
                   : <Text style={s.saveBtnText}>Guardar Info Médica</Text>
                 }
               </TouchableOpacity>
@@ -519,6 +648,40 @@ export const MisDatosPersonalesScreen = () => {
 
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* ── Modal: cómo medir circunferencias ── */}
+      <Modal visible={showInfoModal} transparent animationType="fade">
+        <View style={s.modalOverlay}>
+          <View style={s.modalBox}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+              <Text style={s.modalTitle}>Cómo medir tus circunferencias</Text>
+              <TouchableOpacity onPress={() => setShowInfoModal(false)}>
+                <MaterialCommunityIcons name="close" size={20} color="#888" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 420 }}>
+              <Text style={s.infoText}>
+                Para obtener datos precisos, utiliza una cinta métrica flexible y sigue estas reglas generales:
+              </Text>
+              <Text style={s.infoBullet}><Text style={s.infoBold}>Postura:</Text> Mantente de pie, relajado y con los músculos sin contraer.</Text>
+              <Text style={s.infoBullet}><Text style={s.infoBold}>Cinta:</Text> Colócala paralela al suelo, sin apretar la piel ni dejar que se hunda.</Text>
+              <Text style={s.infoBullet}><Text style={s.infoBold}>Respiración:</Text> Realiza la medición tras exhalar suavemente.</Text>
+
+              <Text style={[s.infoBold, { color: '#FF5E00', marginTop: 12, marginBottom: 6 }]}>Puntos clave de medición</Text>
+              <Text style={s.infoBullet}><Text style={s.infoBold}>Cintura:</Text> Mide en el punto medio entre la última costilla y la parte superior de la cadera (generalmente a la altura del ombligo).</Text>
+              <Text style={s.infoBullet}><Text style={s.infoBold}>Cadera:</Text> Mide en la parte más ancha de los glúteos.</Text>
+              <Text style={s.infoBullet}><Text style={s.infoBold}>Pecho / Busto:</Text> Pasa la cinta por la parte más prominente del pecho, justo debajo de las axilas.</Text>
+              <Text style={s.infoBullet}><Text style={s.infoBold}>Brazo:</Text> Mide el punto medio entre el hombro y el codo, con el brazo relajado a un lado del cuerpo.</Text>
+              <Text style={s.infoBullet}><Text style={s.infoBold}>Muslo:</Text> Mide el punto medio entre la cadera y la rodilla, apoyando el peso en la otra pierna.</Text>
+              <Text style={s.infoBullet}><Text style={s.infoBold}>Pantorrilla:</Text> Mide la circunferencia más ancha de la pantorrilla, con el pie apoyado en el suelo.</Text>
+            </ScrollView>
+            <TouchableOpacity style={[s.saveBtn, { alignSelf: 'stretch', marginTop: 12 }]} onPress={() => setShowInfoModal(false)}>
+              <Text style={s.saveBtnText}>Entendido</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 };
@@ -596,4 +759,15 @@ const s = StyleSheet.create({
   // ── Keyboard dismiss (iOS)
   dismissBtn:         { backgroundColor: '#1C1C1E', paddingHorizontal: 14, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: '#3A3A3C' },
   dismissBtnText:     { color: '#FF5E00', fontSize: 12, fontWeight: 'bold' },
+
+  // ── Métricas Avanzadas
+  advHeader:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  advTitleRow:  { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  advSubtitle:  { color: '#555', fontSize: 11, marginBottom: 16, marginTop: 2 },
+  infoBtn:      { padding: 4 },
+
+  // ── Modal de información
+  infoText:   { color: '#B0B0B0', fontSize: 13, lineHeight: 20, marginBottom: 10 },
+  infoBullet: { color: '#888', fontSize: 13, lineHeight: 20, marginBottom: 6 },
+  infoBold:   { color: '#fff', fontWeight: '700' },
 });
