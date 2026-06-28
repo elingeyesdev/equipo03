@@ -19,14 +19,13 @@ export type GymInfo = {
 export class Acceso {
   constructor(
     public readonly id: Identifier,
-    public readonly userId: Identifier, // Mapea a check_ins.user_id
-    public readonly gymId: Identifier,  // Mapea a check_ins.gym_id
-    public readonly checkInTime: Date,  // Mapea a check_ins.check_in_time
-    public readonly method: MetodoAcceso, // Mapea a check_ins.method
-    public readonly status: EstadoAcceso, // Mapea a check_ins.status
-    
-    // Relaciones (Cargadas mediante JOINs en el backend real)
+    public readonly userId: Identifier,
+    public readonly gymId: Identifier,
+    public readonly checkInTime: Date,
+    public readonly method: MetodoAcceso,
+    public readonly status: EstadoAcceso,
     public readonly userInfo: UserProfileInfo,
-    public readonly gymInfo: GymInfo
+    public readonly gymInfo: GymInfo,
+    public readonly actionType?: string | null,
   ) {}
 }

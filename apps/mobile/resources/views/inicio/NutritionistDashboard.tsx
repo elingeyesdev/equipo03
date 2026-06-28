@@ -243,7 +243,7 @@ export const NutritionistDashboard = () => {
                 <View style={s.patientInfo}>
                   <Text style={s.patientName}>{item.clientName}</Text>
                   <Text style={s.patientSub} numberOfLines={1}>
-                    {item.phone ?? 'Sin teléfono registrado'}
+                    {item.ci ? `CI: ${item.ci}` : (item.email ?? 'Sin identificador')}
                   </Text>
                 </View>
                 {isCancelling ? (
@@ -320,7 +320,7 @@ const s = StyleSheet.create({
   iconBadge:      { width: 40, height: 40, borderRadius: 20, backgroundColor: '#1C1C1E', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#06d6a0' },
   patientInfo:    { flex: 1 },
   patientName:    { color: '#fff', fontSize: 14, fontWeight: '700' },
-  patientSub:     { color: '#555', fontSize: 11, marginTop: 2 },
+  patientSub:     { color: '#9CA3AF', fontSize: 11, marginTop: 2 },
   patientActions: { flexDirection: 'column', gap: 6, alignItems: 'flex-end' },
   profileBtn:     { backgroundColor: '#1C1C1E', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: '#3A3A3C' },
   profileBtnTxt:  { color: '#06d6a0', fontSize: 12, fontWeight: '700' },

@@ -90,6 +90,10 @@ const ConversationCard = ({
           <Text style={s.cardName} numberOfLines={1}>{name}</Text>
           {time ? <Text style={s.timeText}>{time}</Text> : null}
         </View>
+        {/* Fila 1b: desambiguador CI / email */}
+        {other?.profile?.ci ? (
+          <Text style={s.cardSubMuted} numberOfLines={1}>CI: {other.profile.ci}</Text>
+        ) : null}
         {/* Fila 2: preview + badge */}
         <View style={s.cardRow}>
           <Text
@@ -185,7 +189,9 @@ const ClientSearchCard = ({
           <MaterialCommunityIcons name="account-outline" size={11} color="#22C55E" />
           <Text style={s.cardSub}>Cliente</Text>
           <Text style={s.dot}>·</Text>
-          <Text style={[s.cardSub, { color: '#444' }]} numberOfLines={1}>{client.email}</Text>
+          <Text style={[s.cardSub, { color: '#444' }]} numberOfLines={1}>
+            {client.ci ? `CI: ${client.ci}` : client.email}
+          </Text>
         </View>
       </View>
       {loading

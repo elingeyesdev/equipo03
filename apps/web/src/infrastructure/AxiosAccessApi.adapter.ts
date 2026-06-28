@@ -57,7 +57,8 @@ export class AxiosAccessApiAdapter implements IAccessApiService {
               lat: item.gym?.latitude || 0,
               lng: item.gym?.longitude || 0
             }
-          }
+          },
+          item.actionType ?? null,
         );
       });
 

@@ -35,6 +35,7 @@ export type ClientSearchResult = {
   email:     string;
   firstName: string;
   lastName:  string;
+  ci:        string | null;
 };
 
 export type ChatProfile = {
@@ -42,6 +43,7 @@ export type ChatProfile = {
   firstName:  string;
   lastName:   string;
   gender:     string;
+  email:      string | null;
   roleName:   string;
   level:      number;
   brandName:  string | null;

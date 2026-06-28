@@ -77,6 +77,18 @@ export const ChatProfileScreen = ({ route }: any) => {
             </View>
           </View>
 
+          {profile.email && (
+            <View style={s.card}>
+              <View style={s.cardIcon}>
+                <MaterialCommunityIcons name="email-outline" size={18} color="#f05b22" />
+              </View>
+              <View style={s.cardBody}>
+                <Text style={s.label}>Correo electrónico</Text>
+                <Text style={s.value}>{profile.email}</Text>
+              </View>
+            </View>
+          )}
+
           {/* Solo staff (nivel > 1) ve marca y sucursal */}
           {!isClient && (
             <>

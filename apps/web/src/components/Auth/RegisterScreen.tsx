@@ -93,16 +93,59 @@ export const RegisterScreen = () => {
 
   const validateForm = (): boolean => {
     const errs: Record<string, string> = {};
-    if (!name.trim())                                       errs.name     = 'El nombre completo es obligatorio.';
-    if (!phone.trim())                                      errs.phone    = 'El número de teléfono es obligatorio.';
-    else if (!/^\d{7,15}$/.test(phone.trim()))              errs.phone    = 'Introduce un número de teléfono válido (solo dígitos, 7-15).';
-    if (!ci.trim())                                         errs.ci       = 'El carnet de identidad es obligatorio.';
-    if (!email.trim())                                      errs.email    = 'El correo electrónico es obligatorio.';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))    errs.email    = 'Introduce una dirección de correo válida.';
-    if (!password)                                          errs.password = 'La contraseña es obligatoria.';
-    else if (password.length < 8)                          errs.password = 'Debe tener al menos 8 caracteres.';
-    else if (!/\d/.test(password))                         errs.password = 'Debe contener al menos un número.';
-    else if (!/[@#$*!%&?^+\-_=~]/.test(password))         errs.password = 'Debe contener al menos un carácter especial.';
+    const NAME_RE      = /^[a-záéíóúüñA-ZÁÉÍÓÚÜÑ\s'-]+$/;
+    const GIBBERISH_RE = /[bcdfghjklmnñpqrstvwxyz]{5,}/i;
+    const CI_RE        = /^\d{6,9}(-[a-zA-Z0-9]{1,2})?$/;
+
+    // Nombre completo
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      errs.name = 'El nombre completo es obligatorio.';
+    } else {
+      const parts = trimmedName.split(/\s+/);
+      const fn    = parts[0] ?? '';
+      const ln    = parts.slice(1).join(' ');
+      if (parts.length < 2 || !ln) {
+        errs.name = 'Ingresa tu nombre y apellido separados por un espacio.';
+      } else if (fn.length < 2) {
+        errs.name = 'El nombre debe tener al menos 2 caracteres.';
+      } else if (ln.length < 2) {
+        errs.name = 'El apellido debe tener al menos 2 caracteres.';
+      } else if (!NAME_RE.test(trimmedName)) {
+        errs.name = 'Solo se permiten letras, espacios, guiones y apóstrofes.';
+      } else if (GIBBERISH_RE.test(trimmedName)) {
+        errs.name = 'El nombre parece contener texto aleatorio.';
+      }
+    }
+
+    // Teléfono
+    if (!phone.trim())
+      errs.phone = 'El número de teléfono es obligatorio.';
+    else if (!/^\d{6,14}$/.test(phone.trim()))
+      errs.phone = 'Solo dígitos, entre 6 y 14 números.';
+
+    // Carnet de Identidad
+    if (!ci.trim())
+      errs.ci = 'El carnet de identidad es obligatorio.';
+    else if (!CI_RE.test(ci.trim()))
+      errs.ci = 'CI inválido (ej: 12345678 o 1234567-1A).';
+
+    // Email
+    if (!email.trim())
+      errs.email = 'El correo electrónico es obligatorio.';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
+      errs.email = 'Introduce una dirección de correo válida.';
+
+    // Contraseña
+    if (!password)
+      errs.password = 'La contraseña es obligatoria.';
+    else if (password.length < 8)
+      errs.password = 'Debe tener al menos 8 caracteres.';
+    else if (!/\d/.test(password))
+      errs.password = 'Debe contener al menos un número.';
+    else if (!/[@#$*!%&?^+\-_=~]/.test(password))
+      errs.password = 'Debe contener al menos un carácter especial.';
+
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };

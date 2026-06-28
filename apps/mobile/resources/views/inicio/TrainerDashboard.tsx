@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import {View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, RefreshControl} from 'react-native';
+import React, { useState, useMemo } from 'react';
+import {View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, RefreshControl, ActivityIndicator} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
@@ -9,10 +9,12 @@ import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinn
 import {
   staffApi,
   PendingTrainerRequest,
-  TrainingSession,
+  AdviseeActivity,
 } from '../../../app/Providers/staff/api/staff.api';
+import { messagesApi } from '../../../app/Providers/messages/messages.api';
 
-const fmtDate = (iso: string) => {
+const fmtDate = (iso: string | null | undefined) => {
+  if (!iso) return '—';
   try {
     return new Date(iso).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' });
   } catch {
@@ -20,17 +22,20 @@ const fmtDate = (iso: string) => {
   }
 };
 
-// ─── Section ─────────────────────────────────────────────────────────────────
+const THRESHOLD_OPTIONS = [1, 3, 5, 7, 14] as const;
+
+//Section 
 const Section = ({
-  title, icon, iconColor, empty, children,
+  title, icon, iconColor, desc, empty, children,
 }: {
-  title: string; icon: string; iconColor: string; empty: boolean; children: React.ReactNode;
+  title: string; icon: string; iconColor: string; desc?: string; empty: boolean; children: React.ReactNode;
 }) => (
   <View style={s.section}>
     <View style={s.sectionHeader}>
       <MaterialCommunityIcons name={icon as any} size={16} color={iconColor} />
       <Text style={s.sectionTitle}>{title}</Text>
     </View>
+    {desc ? <Text style={s.sectionDesc}>{desc}</Text> : null}
     {empty ? (
       <View style={s.emptyRow}>
         <Text style={s.emptyTxt}>Sin registros disponibles.</Text>
@@ -38,9 +43,6 @@ const Section = ({
     ) : children}
   </View>
 );
-
-const CHUNK = 8;
-const INACTIVE_THRESHOLD = 5;
 
 export const TrainerDashboard = () => {
   const { user }   = useAuth();
@@ -52,126 +54,78 @@ export const TrainerDashboard = () => {
   const saludo = hora < 12 ? 'Buenos días' : hora < 18 ? 'Buenas tardes' : 'Buenas noches';
   const hoy    = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
 
-  const [processingId, setProcessingId] = useState<number | null>(null);
+  const [processingId,      setProcessingId]      = useState<number | null>(null);
+  const [inactiveThreshold, setInactiveThreshold] = useState<number>(5);
+  const [messagingId,       setMessagingId]       = useState<number | null>(null);
 
   const {
     data: requestsRaw, isLoading: loadingReqs, refetch: refetchReqs,
   } = useQuery({
     queryKey: ['trainer-pending-requests'],
-    queryFn:  staffApi.getPendingTrainerRequests,
+    queryFn:  () => staffApi.getPendingTrainerRequests(),
     staleTime: 30_000,
     retry: 1,
   });
 
   const {
-    data: adviseesRaw, isLoading: loadingAdvisees, refetch: refetchAdvisees,
+    data: activityRaw, isLoading: loadingActivity, refetch: refetchActivity,
   } = useQuery({
-    queryKey: ['trainer-active-advisees'],
-    queryFn:  staffApi.getActiveAdvisees,
+    queryKey: ['trainer-advisee-activity'],
+    queryFn:  staffApi.getAdviseeRecentSessions,
     staleTime: 60_000,
     retry: 1,
   });
 
-  // Defensive unwrap: both queries return PaginatedResponse<T>, not T[]
   const requests: PendingTrainerRequest[] = Array.isArray(requestsRaw)
     ? requestsRaw
     : ((requestsRaw as any)?.data ?? []);
-  const advisees: any[] = Array.isArray(adviseesRaw)
-    ? adviseesRaw
-    : ((adviseesRaw as any)?.data ?? []);
-
-  // ─── Session cache (chunked lazy loading) ───────────────────────────────────
-  const [sessionMap, setSessionMap] = useState<Map<number, TrainingSession[]>>(new Map());
-  const [carouselPage, setCarouselPage] = useState(0);
-  const loadedRef = useRef<Set<number>>(new Set());
-
-  const fetchChunk = useCallback(async (ids: number[]) => {
-    const toFetch = ids.filter(id => !loadedRef.current.has(id));
-    if (!toFetch.length) return;
-    toFetch.forEach(id => loadedRef.current.add(id));
-    const results = await Promise.all(
-      toFetch.map(id =>
-        staffApi.getSessionsForUser(id, { limit: 10, offset: 0 })
-          .catch(() => ({ data: [] as TrainingSession[] }))
-      )
-    );
-    setSessionMap(prev => {
-      const next = new Map(prev);
-      toFetch.forEach((id, i) => {
-        const raw = results[i];
-        next.set(id, Array.isArray(raw) ? raw : ((raw as any)?.data ?? []));
-      });
-      return next;
-    });
-  }, []);
-
-  const adviseeChunks = useMemo<any[][]>(() => {
-    const out: any[][] = [];
-    for (let i = 0; i < advisees.length; i += CHUNK) out.push(advisees.slice(i, i + CHUNK));
-    return out;
-  }, [advisees]);
+  const recentActivity: AdviseeActivity[] = Array.isArray(activityRaw) ? activityRaw : [];
 
   const inactiveClients = useMemo(() => {
     const NOW = Date.now();
-    const results: { clientId: number; clientName: string; days: number }[] = [];
-    for (const a of advisees) {
-      if (!sessionMap.has(a.clientId)) continue;
-      const sessions = sessionMap.get(a.clientId) ?? [];
-      const last = [...sessions]
-        .filter(s => s.status === 'COMPLETED')
-        .sort((x, y) => new Date(y.startedAt).getTime() - new Date(x.startedAt).getTime())[0];
-      const days = last
-        ? Math.floor((NOW - new Date(last.startedAt).getTime()) / 86_400_000)
-        : 999;
-      if (days >= INACTIVE_THRESHOLD) {
-        results.push({ clientId: a.clientId, clientName: a.clientName, days });
-      }
+    return recentActivity
+      .map(a => {
+        const perClientDays = a.targetSessionsPerWeek
+          ? Math.round(7 / a.targetSessionsPerWeek) + 1
+          : inactiveThreshold;
+        const days = a.lastSessionAt
+          ? Math.floor((NOW - new Date(a.lastSessionAt).getTime()) / 86_400_000)
+          : 999;
+        return { ...a, days, perClientDays };
+      })
+      .filter(a => a.days >= a.perClientDays)
+      .sort((a, b) => b.days - a.days)
+      .slice(0, 10);
+  }, [recentActivity, inactiveThreshold]);
+
+  const handleQuickMessage = async (item: { clientId: number; clientName: string }) => {
+    setMessagingId(item.clientId);
+    try {
+      const conv = await messagesApi.startConversation(item.clientId);
+      navigation.navigate('Chat', {
+        conversationId: conv.id,
+        otherUserName:  item.clientName,
+        otherUserId:    item.clientId,
+      });
+    } catch (e: any) {
+      Alert.alert('Error', e?.response?.data?.message ?? 'No se pudo iniciar la conversación.');
+    } finally {
+      setMessagingId(null);
     }
-    return results.sort((a, b) => b.days - a.days).slice(0, 10);
-  }, [advisees, sessionMap]);
-
-  const sessionLoadedCount = useMemo(
-    () => advisees.filter((a: any) => sessionMap.has(a.clientId)).length,
-    [advisees, sessionMap],
-  );
-
-  // Load all advisees' sessions sequentially so inactivity ranking is complete
-  useEffect(() => {
-    if (!advisees.length) return;
-    let cancelled = false;
-    (async () => {
-      for (let i = 0; i < advisees.length; i += CHUNK) {
-        if (cancelled) break;
-        await fetchChunk(advisees.slice(i, i + CHUNK).map((a: any) => a.clientId));
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [advisees.length]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Keep carousel page in sync with session cache
-  useEffect(() => {
-    const chunk = adviseeChunks[carouselPage];
-    if (chunk) fetchChunk(chunk.map((a: any) => a.clientId));
-  }, [carouselPage]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const isRefreshing = loadingReqs || loadingAdvisees;
-  const onRefresh    = () => {
-    setSessionMap(new Map());
-    loadedRef.current.clear();
-    setCarouselPage(0);
-    refetchReqs();
-    refetchAdvisees();
   };
 
-  const alumnosLabel = loadingAdvisees
+  const isRefreshing = loadingReqs || loadingActivity;
+  const onRefresh    = () => { refetchReqs(); refetchActivity(); };
+
+  const alumnosLabel = loadingActivity
     ? 'Cargando...'
-    : `${advisees.length} alumno${advisees.length !== 1 ? 's' : ''} asignado${advisees.length !== 1 ? 's' : ''}`;
+    : `${recentActivity.length} alumno${recentActivity.length !== 1 ? 's' : ''} asignado${recentActivity.length !== 1 ? 's' : ''}`;
 
   const handleAccept = async (req: PendingTrainerRequest) => {
     setProcessingId(req.id);
     try {
       await staffApi.acceptAdvisorRequest(req.id);
-      await Promise.all([refetchReqs(), refetchAdvisees()]);
+      await Promise.all([refetchReqs(), refetchActivity()]);
       navigation.navigate('PerfilAlumno', {
         clientId:   req.clientId,
         clientName: req.clientName,
@@ -241,7 +195,7 @@ export const TrainerDashboard = () => {
         {/* Resumen */}
         <View style={s.summaryRow}>
           <View style={s.summaryCard}>
-            <Text style={s.summaryNum}>{advisees.length}</Text>
+            <Text style={s.summaryNum}>{recentActivity.length}</Text>
             <Text style={s.summaryLabel}>Alumnos activos</Text>
           </View>
           <View style={[s.summaryCard, { borderColor: requests.length > 0 ? '#f05b22' : '#1a1a1a' }]}>
@@ -328,32 +282,44 @@ export const TrainerDashboard = () => {
           <MaterialCommunityIcons name="chevron-right" size={20} color="#333" />
         </TouchableOpacity>
 
-        {/* ─── Sin Actividad Reciente (C) ─────────────────────────────────── */}
-        {!loadingAdvisees && advisees.length > 0 && (
+        {/* ─── Sin Actividad Reciente ─────────────────────────────────────── */}
+        {!loadingActivity && recentActivity.length > 0 && (
           <Section
-            title="Sin Actividad Reciente"
+            title="Alumnos sin entrenar"
             icon="sleep"
             iconColor="#facc15"
+            desc="Alumnos que llevan varios días sin registrar una sesión. Tócalos para ver su perfil y hacer seguimiento."
             empty={false}
           >
             <>
-              {sessionLoadedCount < advisees.length && (
-                <View style={[s.emptyRow, { flexDirection: 'row', justifyContent: 'center', gap: 8 }]}>
-                  <DumbbellSpinner size="small" color="#facc15" />
-                  <Text style={s.emptyTxt}>
-                    Analizando {sessionLoadedCount}/{advisees.length} alumnos...
-                  </Text>
-                </View>
-              )}
+              {/* Selector de umbral */}
+              <View style={s.thresholdRow}>
+                <MaterialCommunityIcons name="timer-outline" size={13} color="#6B7280" />
+                <Text style={s.thresholdLabel}>Inactivos hace más de:</Text>
+                {THRESHOLD_OPTIONS.map(opt => (
+                  <TouchableOpacity
+                    key={opt}
+                    style={[s.thresholdPill, inactiveThreshold === opt && s.thresholdPillActive]}
+                    onPress={() => setInactiveThreshold(opt)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[s.thresholdPillTxt, inactiveThreshold === opt && s.thresholdPillTxtActive]}>
+                      {opt}d
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
               {inactiveClients.map(item => {
-                const dotColor = item.days >= 14 ? '#ef4444' : item.days >= 7 ? '#f05b22' : '#facc15';
+                const dotColor   = item.days >= 14 ? '#ef4444' : item.days >= 7 ? '#f05b22' : '#facc15';
+                const isMsgBusy  = messagingId === item.clientId;
                 return (
                   <TouchableOpacity
                     key={item.clientId}
                     style={s.inactiveRow}
                     activeOpacity={0.8}
                     onPress={() => navigation.navigate('PerfilAlumno', {
-                      clientId: item.clientId,
+                      clientId:   item.clientId,
                       clientName: item.clientName,
                     })}
                   >
@@ -362,15 +328,27 @@ export const TrainerDashboard = () => {
                     <Text style={[s.inactiveDays, { color: dotColor }]}>
                       {item.days >= 999 ? 'Sin sesiones' : `${item.days}d sin actividad`}
                     </Text>
+                    <TouchableOpacity
+                      style={s.msgBtn}
+                      activeOpacity={0.7}
+                      disabled={isMsgBusy}
+                      onPress={() => handleQuickMessage(item)}
+                    >
+                      {isMsgBusy
+                        ? <ActivityIndicator size={14} color="#38BDF8" />
+                        : <MaterialCommunityIcons name="message-outline" size={16} color="#38BDF8" />
+                      }
+                    </TouchableOpacity>
                     <MaterialCommunityIcons name="chevron-right" size={14} color="#555" />
                   </TouchableOpacity>
                 );
               })}
-              {inactiveClients.length === 0 && sessionLoadedCount === advisees.length && (
+
+              {inactiveClients.length === 0 && (
                 <View style={[s.emptyRow, { flexDirection: 'row', justifyContent: 'center', gap: 8 }]}>
                   <MaterialCommunityIcons name="check-circle-outline" size={16} color="#22c55e" />
                   <Text style={[s.emptyTxt, { color: '#22c55e' }]}>
-                    Todos activos en los últimos {INACTIVE_THRESHOLD} días.
+                    Todos entrenaron en los últimos {inactiveThreshold} días.
                   </Text>
                 </View>
               )}
@@ -378,101 +356,62 @@ export const TrainerDashboard = () => {
           </Section>
         )}
 
-        {/* ─── Actividad Reciente — carrusel de 8 en 8 (A) ───────────────── */}
-        {!loadingAdvisees && advisees.length > 0 && (
+        {/* ─── Actividad Reciente ──────────────────────────────────────────── */}
+        {loadingActivity ? (
+          <View style={[s.emptyRow, { flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 24 }]}>
+            <DumbbellSpinner size="small" color="#38BDF8" />
+            <Text style={s.emptyTxt}>Cargando actividad...</Text>
+          </View>
+        ) : recentActivity.length > 0 ? (
           <Section
             title="Actividad Reciente"
             icon="history"
             iconColor="#38BDF8"
+            desc="Todos tus alumnos ordenados por su sesión más reciente. Toca cualquiera para ver el historial completo."
             empty={false}
           >
             <>
-              {(adviseeChunks[carouselPage] ?? []).map((a: any) => {
-                const sessions = sessionMap.get(a.clientId);
-                const loaded   = sessionMap.has(a.clientId);
-                const completed = (sessions ?? []).filter((s: TrainingSession) => s.status === 'COMPLETED');
-                const last = [...completed].sort(
-                  (x, y) => new Date(y.startedAt).getTime() - new Date(x.startedAt).getTime()
-                )[0];
-                return (
-                  <TouchableOpacity
-                    key={a.clientId}
-                    style={s.activityRow}
-                    activeOpacity={0.8}
-                    onPress={() => navigation.navigate('HistorialRutina', {
-                      clientId:   a.clientId,
-                      clientName: a.clientName,
-                      phone:      a.phone,
-                    })}
-                  >
-                    <View style={s.activityAvatar}>
-                      <Text style={s.activityAvatarTxt}>
-                        {(a.clientName ?? '?').charAt(0).toUpperCase()}
-                      </Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.activityName} numberOfLines={1}>{a.clientName}</Text>
-                      <Text style={s.activitySub}>
-                        {!loaded
-                          ? 'Cargando...'
-                          : last
-                          ? `Última sesión: ${fmtDate(last.startedAt)}`
-                          : 'Sin sesiones registradas'}
-                      </Text>
-                    </View>
-                    {loaded && completed.length > 0 && (
-                      <View style={s.sessionBadge}>
-                        <Text style={s.sessionBadgeNum}>{completed.length}</Text>
-                        <Text style={s.sessionBadgeLbl}>ses.</Text>
-                      </View>
-                    )}
-                    <MaterialCommunityIcons name="chevron-right" size={14} color="#555" />
-                  </TouchableOpacity>
-                );
-              })}
-
-              {adviseeChunks.length > 1 && (
-                <View style={s.pageNav}>
-                  <TouchableOpacity
-                    style={[s.pageBtn, carouselPage === 0 && s.pageBtnDisabled]}
-                    onPress={() => setCarouselPage(p => Math.max(0, p - 1))}
-                    disabled={carouselPage === 0}
-                  >
-                    <MaterialCommunityIcons
-                      name="chevron-left" size={16}
-                      color={carouselPage === 0 ? '#333' : '#38BDF8'}
-                    />
-                    <Text style={[s.pageBtnTxt, carouselPage === 0 && s.pageBtnDisabledTxt]}>
-                      Anterior
+              {recentActivity.map((a: AdviseeActivity) => (
+                <TouchableOpacity
+                  key={a.clientId}
+                  style={s.activityRow}
+                  activeOpacity={0.8}
+                  onPress={() => navigation.navigate('HistorialRutina', {
+                    clientId:   a.clientId,
+                    clientName: a.clientName,
+                  })}
+                >
+                  <View style={s.activityAvatar}>
+                    <Text style={s.activityAvatarTxt}>
+                      {(a.clientName ?? '?').charAt(0).toUpperCase()}
                     </Text>
-                  </TouchableOpacity>
-
-                  <View style={s.pageDots}>
-                    {adviseeChunks.map((_, i) => (
-                      <TouchableOpacity key={i} onPress={() => setCarouselPage(i)} hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}>
-                        <View style={[s.pageDot, i === carouselPage && s.pageDotActive]} />
-                      </TouchableOpacity>
-                    ))}
                   </View>
-
-                  <TouchableOpacity
-                    style={[s.pageBtn, carouselPage === adviseeChunks.length - 1 && s.pageBtnDisabled]}
-                    onPress={() => setCarouselPage(p => Math.min(adviseeChunks.length - 1, p + 1))}
-                    disabled={carouselPage === adviseeChunks.length - 1}
-                  >
-                    <Text style={[s.pageBtnTxt, carouselPage === adviseeChunks.length - 1 && s.pageBtnDisabledTxt]}>
-                      Siguiente
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.activityName} numberOfLines={1}>{a.clientName}</Text>
+                    <Text style={s.activitySub}>
+                      {a.lastSessionAt
+                        ? `Última sesión: ${fmtDate(a.lastSessionAt)}`
+                        : 'Sin sesiones registradas'}
                     </Text>
-                    <MaterialCommunityIcons
-                      name="chevron-right" size={16}
-                      color={carouselPage === adviseeChunks.length - 1 ? '#333' : '#38BDF8'}
-                    />
-                  </TouchableOpacity>
-                </View>
-              )}
+                  </View>
+                  {(a.sessionsThisWeek > 0 || a.targetSessionsPerWeek != null) && (
+                    <View style={s.sessionBadge}>
+                      <Text style={s.sessionBadgeNum}>
+                        {a.targetSessionsPerWeek != null
+                          ? `${a.sessionsThisWeek}/${a.targetSessionsPerWeek}`
+                          : a.sessionsThisWeek > 0 ? String(a.sessionsThisWeek) : String(a.sessionCount)}
+                      </Text>
+                      <Text style={s.sessionBadgeLbl}>
+                        {a.targetSessionsPerWeek != null ? 'est. sem.' : 'esta sem.'}
+                      </Text>
+                    </View>
+                  )}
+                  <MaterialCommunityIcons name="chevron-right" size={14} color="#555" />
+                </TouchableOpacity>
+              ))}
             </>
           </Section>
-        )}
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -501,8 +440,16 @@ const s = StyleSheet.create({
   summaryLabel: { color: '#D1D5DB', fontSize: 13, marginTop: 2 },
 
   section:       { marginBottom: 24 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 12 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 4 },
   sectionTitle:  { color: '#D1D5DB', fontSize: 13, fontWeight: '700', letterSpacing: 1.1, textTransform: 'uppercase' },
+  sectionDesc:   { color: '#6B7280', fontSize: 12, marginBottom: 12, lineHeight: 17 },
+
+  thresholdRow:         { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
+  thresholdLabel:       { color: '#6B7280', fontSize: 12, marginRight: 2 },
+  thresholdPill:        { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: '#2A2A2D' },
+  thresholdPillActive:  { backgroundColor: '#2a1f00', borderColor: '#facc15' },
+  thresholdPillTxt:     { color: '#6B7280', fontSize: 12, fontWeight: '700' },
+  thresholdPillTxtActive: { color: '#facc15' },
 
   emptyRow: { backgroundColor: '#111111', borderRadius: 12, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: '#1C1C1E' },
   emptyTxt: { color: '#D1D5DB', fontSize: 14, textAlign: 'center' },
@@ -538,6 +485,7 @@ const s = StyleSheet.create({
   inactiveDot:  { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
   inactiveName: { color: '#fff', fontSize: 14, fontWeight: '600', flex: 1 },
   inactiveDays: { fontSize: 12, fontWeight: '700' },
+  msgBtn:       { width: 30, height: 30, borderRadius: 15, backgroundColor: '#0d2a3d', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#38BDF844' },
 
   // ─── Activity carousel (A) ──────────────────────────────────────────────────
   activityRow:       { flexDirection: 'row', alignItems: 'center', backgroundColor: '#111111', borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#2A2A2D', gap: 10 },
@@ -549,12 +497,4 @@ const s = StyleSheet.create({
   sessionBadgeNum:   { color: '#38BDF8', fontSize: 15, fontWeight: '800' },
   sessionBadgeLbl:   { color: '#9CA3AF', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5 },
 
-  pageNav:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#1C1C1E' },
-  pageBtn:           { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 8 },
-  pageBtnDisabled:   { opacity: 0.35 },
-  pageBtnTxt:        { color: '#38BDF8', fontSize: 13, fontWeight: '600' },
-  pageBtnDisabledTxt:{ color: '#333' },
-  pageDots:          { flexDirection: 'row', gap: 6, alignItems: 'center' },
-  pageDot:           { width: 6, height: 6, borderRadius: 3, backgroundColor: '#2A2A2D' },
-  pageDotActive:     { width: 18, height: 6, borderRadius: 3, backgroundColor: '#38BDF8' },
 });
