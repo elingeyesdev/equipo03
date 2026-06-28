@@ -316,13 +316,13 @@ export class UsersService {
   async searchClientUsers(
     search?: string,
     limit = 20,
-  ): Promise<{ id: number; email: string; firstName: string; lastName: string }[]> {
+  ): Promise<{ id: number; email: string; firstName: string; lastName: string; ci: string | null }[]> {
     const qb = this.usersRepo
       .createQueryBuilder('user')
       .leftJoin('user.profile', 'profile')
       .innerJoin('user.userRoles', 'userRole')
       .innerJoin('userRole.role', 'role')
-      .select(['user.id', 'user.email', 'profile.firstName', 'profile.lastName'])
+      .select(['user.id', 'user.email', 'profile.firstName', 'profile.lastName', 'profile.ci'])
       .where('role.hierarchy_level = :level', { level: 1 })
       .andWhere('user.isActive = true');
 
@@ -345,6 +345,7 @@ export class UsersService {
       email:     u.email,
       firstName: (u as any).profile?.firstName ?? '',
       lastName:  (u as any).profile?.lastName  ?? '',
+      ci:        (u as any).profile?.ci        ?? null,
     }));
   }
 
@@ -901,6 +902,7 @@ export class UsersService {
       firstName:  userRole.user.profile?.firstName  ?? '',
       lastName:   userRole.user.profile?.lastName   ?? '',
       gender:     (userRole.user.profile as any)?.gender ?? 'No especificado',
+      email:      userRole.user.email ?? null,
       roleName:   userRole.role?.name ?? '',
       level,
       brandName:  !isClient && userRole.gym?.parent ? userRole.gym.parent.name : null,
@@ -921,21 +923,27 @@ export class UsersService {
     const roleName = roleOverride !== undefined
       ? roleOverride
       : (top?.role?.name?.toUpperCase() ?? null);
+    // gymIdOverride viene del JWT: null para Gerentes (su gym_id apunta a una Marca, no Sucursal).
+    // Si el JWT envía null explícito, usamos el gymId real de la asignación en BD como fallback
+    // para poder resolver brandId/brandName desde las relaciones cargadas.
     const gymId = gymIdOverride !== undefined ? gymIdOverride : (top?.gymId ?? null);
+    const resolvedGymId = gymId ?? top?.gymId ?? null;
     const hierarchyLevel = top?.role?.hierarchyLevel ?? 0;
 
     let brandId: number | null = null;
     let brandName: string | null = null;
     let gymName: string | null = null;
 
-    if (gymId) {
-      const assignment = (user.userRoles ?? []).find(ur => ur.gymId === gymId);
+    if (resolvedGymId) {
+      const assignment = (user.userRoles ?? []).find(ur => ur.gymId === resolvedGymId);
       const gym = assignment?.gym;
       if (gym) {
         if (gym.parentId === null) {
+          // Gym raíz → es una Marca (Gerente nivel 5)
           brandId = gym.id;
           brandName = gym.name;
         } else {
+          // Gym hijo → es una Sucursal (Recepcionista nivel 4)
           gymName = gym.name;
           brandName = gym.parent?.name ?? null;
         }

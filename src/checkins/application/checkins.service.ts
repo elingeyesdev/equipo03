@@ -115,6 +115,157 @@ export class CheckinsService {
     return saved;
   }
 
+  // ── Jurisdiction helpers ────────────────────────────────────────────────────
+
+  private getBrandId(gym: Gym): number {
+    // Branch → its parentId is the brand root; brand root → its own id
+    return gym.parentId ?? gym.id;
+  }
+
+  /**
+   * Validates that the scanner has jurisdiction over the target.
+   * Returns the effective gymId to use when creating a check-in record.
+   *
+   * Level 4 (Recepcionista): exact same branch required.
+   * Level 5+ (Gerente): same brand root required (resolves branch → parent).
+   */
+  private validateJurisdiction(
+    scannerTopRole: UserRole,
+    targetRoles: UserRole[],
+  ): number {
+    const scannerLevel = Number(scannerTopRole.role?.hierarchyLevel ?? 0);
+    const scannerGym   = scannerTopRole.gym;
+
+    if (!scannerGym) {
+      throw new ForbiddenException('No tienes una sucursal o marca asignada.');
+    }
+
+    if (scannerLevel === 4) {
+      const matching = targetRoles.find(
+        tr => tr.gym && Number(tr.gym.id) === Number(scannerGym.id),
+      );
+      if (!matching) {
+        throw new ForbiddenException(
+          `El personal no pertenece a la sucursal "${scannerGym.name ?? `#${scannerGym.id}`}".`,
+        );
+      }
+      return Number(scannerGym.id);
+    }
+
+    if (scannerLevel >= 5) {
+      const scannerBrandId = this.getBrandId(scannerGym);
+      const matching = targetRoles.find(
+        tr => tr.gym && this.getBrandId(tr.gym) === scannerBrandId,
+      );
+      if (!matching) {
+        throw new ForbiddenException(
+          'El personal no pertenece a tu marca. Sin permisos para registrar su ingreso.',
+        );
+      }
+      // Check-in is recorded at the target's own assigned branch, not the brand root
+      return Number(matching.gym!.id);
+    }
+
+    throw new ForbiddenException('Tu rol no tiene permisos para escanear personal.');
+  }
+
+  private async loadScannerTopRole(): Promise<UserRole> {
+    const caller = this.request.user!;
+    const roles = await this.userRoleRepo.find({
+      where: { userId: Number(caller.userId) },
+      relations: ['role', 'gym'],
+    });
+    const top = roles.sort(
+      (a, b) => (b.role?.hierarchyLevel ?? 0) - (a.role?.hierarchyLevel ?? 0),
+    )[0];
+    if (!top?.gym) {
+      throw new ForbiddenException('No tienes una sucursal o marca asignada.');
+    }
+    return top;
+  }
+
+  // ── Scan-preview & register ─────────────────────────────────────────────────
+
+  async scanPreview(token: string): Promise<{ id: number; fullName: string; role: string; branchName: string }> {
+    const targetUserId = parseInt(token, 10);
+    if (isNaN(targetUserId) || targetUserId <= 0 || String(targetUserId) !== token.trim()) {
+      throw new ForbiddenException('Código QR no válido.');
+    }
+
+    const scannerRole = await this.loadScannerTopRole();
+
+    const targetRoles = await this.userRoleRepo.find({
+      where: { userId: targetUserId },
+      relations: ['role', 'gym', 'user', 'user.profile'],
+    });
+
+    if (!targetRoles.length) {
+      throw new NotFoundException('Usuario no encontrado o sin rol asignado.');
+    }
+
+    const isEligibleStaff = targetRoles.some(a => {
+      const lvl = a.role?.hierarchyLevel ?? 0;
+      return lvl >= 2 && lvl <= 4;
+    });
+    if (!isEligibleStaff) {
+      throw new ForbiddenException('Solo personal autorizado puede registrar ingreso.');
+    }
+
+    this.validateJurisdiction(scannerRole, targetRoles);
+
+    const topTargetRole = targetRoles.sort(
+      (a, b) => (b.role?.hierarchyLevel ?? 0) - (a.role?.hierarchyLevel ?? 0),
+    )[0];
+    const user      = topTargetRole.user;
+    const firstName = user?.profile?.firstName ?? '';
+    const lastName  = user?.profile?.lastName  ?? '';
+    const fullName  = `${firstName} ${lastName}`.trim() || `Usuario #${targetUserId}`;
+    const role      = topTargetRole.role?.name?.toUpperCase() ?? 'PERSONAL';
+    const branchName = topTargetRole.gym?.name ?? 'Sin sucursal';
+
+    return { id: targetUserId, fullName, role, branchName };
+  }
+
+  async registerAttendance(targetUserId: number, action: 'IN' | 'OUT') {
+    const scannerRole = await this.loadScannerTopRole();
+
+    const targetRoles = await this.userRoleRepo.find({
+      where: { userId: targetUserId },
+      relations: ['role', 'gym'],
+    });
+
+    if (!targetRoles.length) {
+      throw new NotFoundException('Usuario no encontrado o sin rol asignado.');
+    }
+
+    const isEligibleStaff = targetRoles.some(a => {
+      const lvl = a.role?.hierarchyLevel ?? 0;
+      return lvl >= 2 && lvl <= 4;
+    });
+    if (!isEligibleStaff) {
+      throw new ForbiddenException('Solo personal autorizado puede registrar ingreso.');
+    }
+
+    const effectiveGymId = this.validateJurisdiction(scannerRole, targetRoles);
+
+    const now = new Date();
+    await this.repo.save(
+      this.repo.create({
+        userId: targetUserId,
+        gymId: effectiveGymId,
+        method: 'QR',
+        status: 'AUTORIZADO',
+        actionType: action,
+        checkInTime: now,
+        checkOutTime: action === 'OUT' ? now : undefined,
+      }),
+    );
+
+    this.gymGateway?.emitToGym(effectiveGymId, 'aforo_updated', { gymId: effectiveGymId, action });
+
+    return { message: `Registro de ${action === 'IN' ? 'Ingreso' : 'Salida'} exitoso` };
+  }
+
   private mapCheckIn(c: CheckIn) {
     const firstName = c.user?.profile?.firstName ?? '';
     const lastName = c.user?.profile?.lastName ?? '';
@@ -139,6 +290,7 @@ export class CheckinsService {
       status: c.status,
       rejectionReason: null,
       method: c.method ?? 'MANUAL',
+      actionType: c.actionType ?? null,
       userProfile: {
         fullName,
         email,

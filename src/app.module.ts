@@ -64,7 +64,10 @@ import { MessagesModule } from './messages/messages.module';
         autoLoadEntities: true,
         synchronize: cfg.get('NODE_ENV') !== 'production',
         dropSchema: cfg.get('NODE_ENV') !== 'production' && cfg.get<string>('DROP_SCHEMA') === 'true',
-        logging: cfg.get('NODE_ENV') === 'production' ? ['error', 'warn'] : ['query', 'error'],
+        logging: cfg.get('NODE_ENV') === 'production'
+          ? ['error', 'migration', 'warn']
+          : ['query', 'error', 'warn'],
+        maxQueryExecutionTime: cfg.get('NODE_ENV') === 'production' ? 3000 : 1000,
       }),
     }),
 

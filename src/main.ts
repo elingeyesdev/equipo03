@@ -16,7 +16,7 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: isProd
       ? ['error', 'warn', 'log']
-      : ['log', 'error', 'warn', 'debug', 'verbose'],
+      : ['error', 'warn', 'log', 'debug', 'verbose'],
   });
   app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads' });
   const configService = app.get(ConfigService);

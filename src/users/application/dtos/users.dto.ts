@@ -288,11 +288,13 @@ export class UpdateUserDto {
   @ApiPropertyOptional({ example: 'Carlos' })
   @IsOptional()
   @IsString({ message: 'El nombre debe ser texto' })
+  @MaxLength(60, { message: 'El nombre no puede superar los 60 caracteres' })
   firstName?: string;
 
   @ApiPropertyOptional({ example: 'López' })
   @IsOptional()
   @IsString({ message: 'El apellido debe ser texto' })
+  @MaxLength(60, { message: 'El apellido no puede superar los 60 caracteres' })
   lastName?: string;
 
   @ApiPropertyOptional({ example: '+59170099999' })

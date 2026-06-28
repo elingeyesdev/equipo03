@@ -369,6 +369,46 @@ export class StaffController {
     return this.svc.getDashboardStats();
   }
 
+  @Patch('advisors/:id/target')
+  @UseGuards(StaffLevelGuard)
+  @ApiOperation({ summary: 'Actualizar objetivo semanal de sesiones para un alumno asesorado' })
+  @ApiParam({ name: 'id', example: 1, description: 'ID de la relación client_advisors' })
+  @ApiBody({
+    schema: {
+      properties: { target: { type: 'integer', minimum: 1, maximum: 7, example: 3 } },
+      required: ['target'],
+    },
+  })
+  @ApiResponse({ status: 200, schema: { example: { id: 1, targetSessionsPerWeek: 3 } } })
+  @ApiResponse({ status: 403, description: 'Asesoría no encontrada o sin acceso' })
+  updateAdviseeTarget(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('target', ParseIntPipe) target: number,
+  ) {
+    return this.svc.updateAdviseeTarget(id, target);
+  }
+
+  @Get('me/advisee-activity')
+  @UseGuards(StaffLevelGuard)
+  @ApiOperation({
+    summary: 'Actividad reciente de todos los alumnos del asesor (1 query, sin N+1)',
+    description:
+      'Devuelve un ítem por alumno activo con su última sesión y total de sesiones completadas. ' +
+      'Ordenado por fecha descendente (más reciente primero). Sin sesiones → lastSessionAt = null.',
+  })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: [
+        { clientId: 5, clientName: 'Ana García', lastSessionAt: '2026-06-25T14:05:00Z', sessionCount: 12 },
+        { clientId: 8, clientName: 'Luis Pérez', lastSessionAt: null, sessionCount: 0 },
+      ],
+    },
+  })
+  getAdviseeRecentActivity() {
+    return this.svc.getAdviseeRecentActivity();
+  }
+
   @Get('clients/:clientId')
   @UseGuards(StaffLevelGuard)
   @ApiOperation({ summary: 'Perfil + últimas métricas de un cliente (requiere relación ACTIVE)' })
@@ -431,19 +471,10 @@ export class StaffController {
     description: 'Sede fuera de la marca del gerente',
   })
   assignSchedule(
-    @Req() req: RequestWithUser,
     @Param('userId', ParseIntPipe) targetUserId: number,
     @Body() body: AssignScheduleDto,
   ) {
-    const isSuperAdmin = (req.user!.level ?? 0) >= 10;
-    const managerGymId = Number(req.user!.gymId ?? req.user!.brandId);
-    return this.svc.assignSchedule(
-      managerGymId,
-      targetUserId,
-      body.gymId,
-      body.schedules,
-      isSuperAdmin,
-    );
+    return this.svc.assignSchedule(targetUserId, body.gymId, body.schedules);
   }
 
   @Get(':userId/schedules')

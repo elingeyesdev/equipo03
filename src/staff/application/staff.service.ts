@@ -24,6 +24,7 @@ import { ClientAdvisor } from '../domain/client-advisor.entity';
 import { UserProfile } from '../../users/domain/user-profile.entity';
 import { PhysicalMetricsHistory } from '../../metrics/domain/physical-metrics-history.entity';
 import { TrainerPlan } from '../domain/trainer-plan.entity';
+import { WorkoutSession } from '../../training/domain/workout-session.entity';
 import { type RequestWithUser } from '../../common/security/gym-scope';
 import {
   DayOfWeek,
@@ -72,6 +73,8 @@ export class StaffService {
     private metricsRepo: Repository<PhysicalMetricsHistory>,
     @InjectRepository(TrainerPlan)
     private trainerPlanRepo: Repository<TrainerPlan>,
+    @InjectRepository(WorkoutSession)
+    private sessionRepo: Repository<WorkoutSession>,
     @Inject(REQUEST) private readonly request: RequestWithUser,
     private readonly pushService: PushNotificationsService,
     private readonly gateway: GymGateway,
@@ -115,7 +118,10 @@ export class StaffService {
     gymId: number,
     slots: { dayOfWeek: number; startTime: string; endTime: string }[],
   ): Promise<void> {
+    if (slots.length === 0) return;
     const gymSchedules = await this.gymScheduleRepo.find({ where: { gymId } });
+    // Sin horario operativo configurado en la sucursal → omitir validación
+    if (gymSchedules.length === 0) return;
 
     for (const slot of slots) {
       const canonical = DAY_UTC[slot.dayOfWeek];
@@ -172,14 +178,24 @@ export class StaffService {
   }
 
   async assignSchedule(
-    managerGymId: number,
     targetUserId: number,
     gymId: number,
     slots: { dayOfWeek: number; startTime: string; endTime: string }[],
-    skipScopeCheck = false,
   ): Promise<StaffSchedule[]> {
-    if (!skipScopeCheck) {
-      await this.validateManagerScope(managerGymId, gymId);
+    const callerId = this.getAuthUserId();
+
+    const callerRoles = await this.userRoleRepo.find({
+      where: { userId: callerId },
+      relations: ['role', 'gym'],
+    });
+    const topRole = callerRoles.sort(
+      (a, b) => (b.role?.hierarchyLevel ?? 0) - (a.role?.hierarchyLevel ?? 0),
+    )[0];
+    const callerLevel = Number(topRole?.role?.hierarchyLevel ?? 0);
+    const callerGymId = Number(topRole?.gym?.id ?? topRole?.gymId ?? 0);
+
+    if (callerLevel < 10) {
+      await this.validateManagerScope(callerGymId, gymId);
     }
     await this.validateAgainstGymSchedules(gymId, slots);
     await this.staffScheduleRepo.delete({ userId: targetUserId, gymId });
@@ -896,7 +912,7 @@ export class StaffService {
   }
 
   async getActiveAdvisees(): Promise<
-    { id: number; clientId: number; clientName: string; phone: string | null }[]
+    { id: number; clientId: number; clientName: string; phone: string | null; ci: string | null; email: string | null }[]
   > {
     const userId = this.getAuthUserId();
 
@@ -910,6 +926,7 @@ export class StaffService {
       )
       .addSelect('client.email', 'clientEmail')
       .addSelect('prof.phone', 'phone')
+      .addSelect('prof.ci', 'ci')
       .innerJoin('ca.client', 'client')
       .leftJoin('client.profile', 'prof')
       .where('ca.advisorId = :userId', { userId })
@@ -922,7 +939,109 @@ export class StaffService {
       clientId: Number(r.clientId),
       clientName: (r.clientName as string)?.trim() || (r.clientEmail as string) || '—',
       phone: (r.phone as string) || null,
+      ci: (r.ci as string) || null,
+      email: (r.clientEmail as string) || null,
     }));
+  }
+
+  async getAdviseeRecentActivity(): Promise<{
+    advisorshipId:         number;
+    clientId:              number;
+    clientName:            string;
+    lastSessionAt:         string | null;
+    sessionCount:          number;
+    sessionsThisWeek:      number;
+    targetSessionsPerWeek: number | null;
+  }[]> {
+    const advisorId = this.getAuthUserId();
+
+    const advisees = await this.advisorRepo
+      .createQueryBuilder('ca')
+      .select('ca.id', 'advisorshipId')
+      .addSelect('ca.clientId', 'clientId')
+      .addSelect(
+        `TRIM(CONCAT(COALESCE(prof.first_name, ''), ' ', COALESCE(prof.last_name, '')))`,
+        'clientName',
+      )
+      .addSelect('client.email', 'email')
+      .addSelect('ca.targetSessionsPerWeek', 'targetSessionsPerWeek')
+      .innerJoin('ca.client', 'client')
+      .leftJoin('client.profile', 'prof')
+      .where('ca.advisorId = :advisorId', { advisorId })
+      .andWhere("ca.status = 'ACTIVE'")
+      .getRawMany<{
+        advisorshipId: string;
+        clientId: string;
+        clientName: string;
+        email: string;
+        targetSessionsPerWeek: string | null;
+      }>();
+
+    if (!advisees.length) return [];
+
+    const clientIds = advisees.map((a) => Number(a.clientId));
+
+    const sessionStats = await this.sessionRepo
+      .createQueryBuilder('ws')
+      .select('ws.userId', 'clientId')
+      .addSelect('MAX(ws.startedAt)', 'lastSessionAt')
+      .addSelect(
+        `SUM(CASE WHEN ws.status IN ('COMPLETED', 'FINISHED') THEN 1 ELSE 0 END)`,
+        'sessionCount',
+      )
+      .addSelect(
+        `SUM(CASE WHEN ws.status IN ('COMPLETED', 'FINISHED')
+              AND ws.startedAt >= (CURRENT_TIMESTAMP - INTERVAL '7 days')
+              THEN 1 ELSE 0 END)`,
+        'sessionsThisWeek',
+      )
+      .where('ws.userId IN (:...clientIds)', { clientIds })
+      .groupBy('ws.userId')
+      .getRawMany<{
+        clientId:        string;
+        lastSessionAt:   string | null;
+        sessionCount:    string;
+        sessionsThisWeek: string;
+      }>();
+
+    const statsMap = new Map(sessionStats.map((s) => [Number(s.clientId), s]));
+
+    return advisees
+      .map((a) => {
+        const cid    = Number(a.clientId);
+        const stat   = statsMap.get(cid);
+        const target = a.targetSessionsPerWeek != null ? Number(a.targetSessionsPerWeek) : null;
+        return {
+          advisorshipId:         Number(a.advisorshipId),
+          clientId:              cid,
+          clientName:            a.clientName?.trim() || a.email || '—',
+          lastSessionAt:         stat?.lastSessionAt ?? null,
+          sessionCount:          Number(stat?.sessionCount      ?? 0),
+          sessionsThisWeek:      Number(stat?.sessionsThisWeek  ?? 0),
+          targetSessionsPerWeek: target,
+        };
+      })
+      .sort((a, b) => {
+        if (!a.lastSessionAt && !b.lastSessionAt) return 0;
+        if (!a.lastSessionAt) return 1;
+        if (!b.lastSessionAt) return -1;
+        return new Date(b.lastSessionAt).getTime() - new Date(a.lastSessionAt).getTime();
+      });
+  }
+
+  async updateAdviseeTarget(advisorshipId: number, target: number): Promise<{ id: number; targetSessionsPerWeek: number }> {
+    const advisorId = this.getAuthUserId();
+
+    const record = await this.advisorRepo.findOne({
+      where: { id: advisorshipId, advisorId, status: 'ACTIVE' },
+    });
+    if (!record) {
+      throw new ForbiddenException('Asesoría no encontrada o sin acceso');
+    }
+
+    record.targetSessionsPerWeek = target;
+    await this.advisorRepo.save(record);
+    return { id: record.id, targetSessionsPerWeek: target };
   }
 
   async getDashboardStats(): Promise<{ activeClients: number; pendingRequests: number }> {
