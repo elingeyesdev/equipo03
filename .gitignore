@@ -21,6 +21,9 @@ apps/mobile/.expo/
 .idea/
 .vscode/
 
+# === Archivos subidos por usuarios ===
+uploads/
+
 # === Logs y archivos temporales ===
 seed-errors*.txt
 *.log

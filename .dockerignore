@@ -3,6 +3,12 @@ dist
 .git
 .gitignore
 .env
+.env.local
+.env.*.local
 *.md
 .idea
 .vscode
+uploads
+test/
+eslint.config*
+*.log
