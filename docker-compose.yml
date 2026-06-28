@@ -1,0 +1,81 @@
+services:
+
+  # ─── Base de Datos ────────────────────────────────────────────
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     ${DB_USERNAME:-gymsync}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB:       ${DB_DATABASE:-bdd_gym_sync}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - gymsync_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-gymsync} -d ${DB_DATABASE:-bdd_gym_sync}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ─── Backend NestJS ───────────────────────────────────────────
+  backend:
+    build:
+      context: ../../backend_gym_sync
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV:       production
+      PORT:           3000
+      DB_HOST:        db
+      DB_PORT:        5432
+      DB_USERNAME:    ${DB_USERNAME:-gymsync}
+      DB_PASSWORD:    ${DB_PASSWORD}
+      DB_DATABASE:    ${DB_DATABASE:-bdd_gym_sync}
+      JWT_SECRET:     ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-7d}
+      DROP_SCHEMA:    false
+      # Cloudinary (opcional)
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY:    ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+      # SMTP (opcional)
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+    volumes:
+      - uploads_data:/app/uploads
+    networks:
+      - gymsync_net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health 2>/dev/null || exit 0"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # ─── Frontend React (Nginx) ───────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    networks:
+      - gymsync_net
+
+# ─── Volúmenes ────────────────────────────────────────────────
+volumes:
+  postgres_data:
+  uploads_data:
+
+# ─── Red interna ──────────────────────────────────────────────
+networks:
+  gymsync_net:
+    driver: bridge
