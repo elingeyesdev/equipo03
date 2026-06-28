@@ -1,9 +1,3 @@
-/**
- * MockSedesApiAdapter — Adaptador mock de API para desarrollo.
- * 
- * Retorna sedes de Santa Cruz de la Sierra con metadatos Premium.
- */
-
 import { ISedesApiService, SedesQueryParams } from '@gymsync/core';
 import { Either, right } from '@gymsync/core';
 import { Sede } from '@gymsync/core';

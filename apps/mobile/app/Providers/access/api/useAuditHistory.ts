@@ -10,6 +10,7 @@ export interface AuditRecord {
   status: 'AUTORIZADO' | 'DENEGADO';
   method: string;
   checkInTime: string;
+  actionType?: 'IN' | 'OUT' | null;
 }
 
 export const useAuditHistory = () => {

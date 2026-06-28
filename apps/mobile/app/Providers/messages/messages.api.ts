@@ -29,6 +29,7 @@ export type UserProfile = {
   firstName: string;
   lastName:  string;
   avatarUrl?: string;
+  ci?:        string | null;
 };
 
 export type ConversationUser = {

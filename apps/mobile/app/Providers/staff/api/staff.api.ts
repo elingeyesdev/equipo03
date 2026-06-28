@@ -170,6 +170,8 @@ export type ActiveAdvisee = {
   clientId:   number;
   clientName: string;
   phone:      string | null;
+  ci:         string | null;
+  email:      string | null;
 };
 
 export type ClientProfile = {
@@ -282,6 +284,16 @@ export type TrainingSession = {
   status:          'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | string;
   durationSeconds?: number | null;
   caloriesBurned?:  number | null;
+};
+
+export type AdviseeActivity = {
+  advisorshipId:         number;
+  clientId:              number;
+  clientName:            string;
+  lastSessionAt:         string | null;
+  sessionCount:          number;
+  sessionsThisWeek:      number;
+  targetSessionsPerWeek: number | null;
 };
 
 // ─── API ─────────────────────────────────────────────────────────────────────
@@ -574,6 +586,25 @@ export const staffApi = {
    */
   requestAdvisor: async (staffId: number): Promise<void> => {
     await staffClient.post('/api/staff/advisors/request', { advisorId: Number(staffId) });
+  },
+
+  /**
+   * GET /api/staff/me/advisee-activity
+   * Última sesión + conteo de sesiones de TODOS los alumnos activos (1 sola query, sin N+1).
+   */
+  getAdviseeRecentSessions: async (): Promise<AdviseeActivity[]> => {
+    const response = await staffClient.get('/api/staff/me/advisee-activity');
+    const raw = response.data?.data ?? response.data;
+    return Array.isArray(raw) ? raw : [];
+  },
+
+  /**
+   * PATCH /api/staff/advisors/:id/target
+   * Actualiza el objetivo semanal de sesiones para un alumno asesorado.
+   */
+  updateAdviseeTarget: async (advisorshipId: number, target: number): Promise<{ id: number; targetSessionsPerWeek: number }> => {
+    const response = await staffClient.patch(`/api/staff/advisors/${advisorshipId}/target`, { target });
+    return response.data?.data ?? response.data;
   },
 
   /**

@@ -1,7 +1,3 @@
-/**
- * SedeInfoController — Estado para el modal de información de sede.
- */
-
 import { create } from 'zustand';
 import { Sede } from '@gymsync/core';
 import { Distancia } from '@gymsync/core';

@@ -8,7 +8,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import authAxios from '../../../app/Providers/auth/authAxios';
 import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
-// ── Tipos ────────────────────────────────────────────────────────────────────
+// Tipos
 
 type StudentReservation = {
   id?:              number | string;
@@ -34,7 +34,7 @@ type StudentReservation = {
   };
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+//Helpers
 
 const clientName = (r: StudentReservation): string => {
   if (r.fullName)   return r.fullName;
@@ -61,7 +61,7 @@ const fmtDate = (iso?: string): string => {
 const FILTERS = ['Todos', 'Hoy', 'Semana', 'Mes', 'Confirmadas'] as const;
 type FilterType = typeof FILTERS[number];
 
-// ── Componente ────────────────────────────────────────────────────────────────
+//Componente 
 
 export const ClaseDetalleScreen = () => {
   const route      = useRoute<any>();
@@ -107,7 +107,7 @@ export const ClaseDetalleScreen = () => {
     setAllReservas(list);
   }, [reservasData]);
 
-  // ── Lógica de filtrado ────────────────────────────────────────────────────
+  //Lógica de filtrado
 
   const applyFilter = useCallback((filterType: FilterType, list: StudentReservation[]) => {
     setActiveFilter(filterType);
@@ -142,7 +142,7 @@ export const ClaseDetalleScreen = () => {
     setFilteredReservas(filtered);
   }, []);
 
-  // ── Fetch ─────────────────────────────────────────────────────────────────
+  //Fetch 
 
   useEffect(() => {
     applyFilter(activeFilter, allReservas);
@@ -290,7 +290,7 @@ export const ClaseDetalleScreen = () => {
   );
 };
 
-// ── Estilos ───────────────────────────────────────────────────────────────────
+//Estilos 
 
 const s = StyleSheet.create({
   safe:   { flex: 1, backgroundColor: '#000' },

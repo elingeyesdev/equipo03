@@ -8,7 +8,7 @@ import React, {
 import { StyleSheet, View, ViewStyle } from 'react-native';
 import WebView, { WebViewMessageEvent } from 'react-native-webview';
 
-// ─── Public types ────────────────────────────────────────────────────────────
+// Public types 
 
 export interface LeafletSede {
   id:                string | number;
@@ -45,7 +45,7 @@ export interface LeafletMapProps {
   style?:        ViewStyle;
 }
 
-// ─── HTML template ───────────────────────────────────────────────────────────
+//HTML template 
 
 const buildHTML = (
   lat:   number,

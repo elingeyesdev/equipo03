@@ -3,10 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { AlertasController } from '../../../app/Http/Controllers/alertas/AlertasController';
 
-/**
- * AlertaBanner — Banner que aparece en la pantalla de Inicio
- * cuando el usuario tiene restricciones médicas activas.
- */
+
 export const AlertaBanner = () => {
   const { alertasActivas, alertasAltas, alertasMedias, shouldShowBanner, dismissBanner, isLoading } =
     AlertasController();

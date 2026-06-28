@@ -13,8 +13,7 @@ import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinn
 const WIN = Dimensions.get('window');
 const BOX = WIN.width * 0.65;
 
-// mode: 'reservations' = escanear QR de reserva de cliente
-//       'staff'        = escanear carnet QR del personal para registrar ingreso
+
 type ScanMode = 'reservations' | 'staff';
 
 // Decodifica el payload del JWT sin verificar firma (sirve incluso si el token expiró)
@@ -37,7 +36,7 @@ const fmtDate = (d: string) => {
 
 const fmtTime = (t?: string) => (t ? t.substring(0, 5) : '?');
 
-// Devuelve true si la hora actual (HH:mm) supera la hora de fin de la reserva
+
 const isTimePast = (endTime?: string): boolean => {
   if (!endTime) return false;
   const now  = new Date();
@@ -354,31 +353,66 @@ export const EscanerScreen = () => {
   };
 
   const handleStaffScan = async (data: string) => {
+    const raw = data.trim();
+
+    // Detección cruzada: si el contenido NO es un número puro, es un QR de reserva
+    if (!/^\d+$/.test(raw) || parseInt(raw, 10) <= 0) {
+      Alert.alert(
+        'Escáner incorrecto',
+        'Este QR es de una reserva de cliente.\n\nUsa el botón "Escanear Reserva de Cliente" para validar el ingreso de un miembro.',
+        [{ text: 'Entendido', onPress: () => resetScan() }]
+      );
+      return;
+    }
+
     try {
-      const raw = data.trim();
-      const userId = parseInt(raw, 10);
-
-      // Detección cruzada: si el contenido NO es un número puro, es un QR de reserva
-      const looksLikeReservationQR = isNaN(userId) || userId <= 0 || String(userId) !== raw;
-      if (looksLikeReservationQR) {
-        Alert.alert(
-          'Escáner incorrecto',
-          'Este QR es de una reserva de cliente.\n\nUsa el botón "Escanear Reserva de Cliente" para validar el ingreso de un miembro.',
-          [{ text: 'Entendido', onPress: () => resetScan() }]
-        );
-        return;
-      }
-
-      await checkinsApi.staffCheckIn(userId);
-
-      await queryClient.invalidateQueries({ queryKey: ['audit-history'] });
+      const preview = await checkinsApi.previewScan(raw);
 
       Alert.alert(
-        'Ingreso Registrado',
-        'El ingreso del personal ha sido registrado correctamente.',
+        preview.fullName,
+        `${preview.role} — ${preview.branchName}\n\n¿Cómo deseas registrar este movimiento?`,
         [
-          { text: 'Escanear otro', onPress: () => resetScan() },
-          { text: 'Volver', style: 'cancel', onPress: () => navigation?.goBack() },
+          { text: 'Cancelar', style: 'cancel', onPress: () => resetScan() },
+          {
+            text: 'Salida',
+            onPress: async () => {
+              try {
+                await checkinsApi.registerAttendance(preview.id, 'OUT');
+                await queryClient.invalidateQueries({ queryKey: ['audit-history'] });
+                Alert.alert(
+                  'Salida Registrada',
+                  `Salida de ${preview.fullName} registrada correctamente.`,
+                  [
+                    { text: 'Escanear otro', onPress: () => resetScan() },
+                    { text: 'Volver', style: 'cancel', onPress: () => navigation?.goBack() },
+                  ]
+                );
+              } catch (err: any) {
+                const msg = err?.response?.data?.message || err?.message || 'Error al registrar salida.';
+                Alert.alert('Error', msg, [{ text: 'Reintentar', onPress: () => resetScan() }]);
+              }
+            },
+          },
+          {
+            text: 'Ingreso',
+            onPress: async () => {
+              try {
+                await checkinsApi.registerAttendance(preview.id, 'IN');
+                await queryClient.invalidateQueries({ queryKey: ['audit-history'] });
+                Alert.alert(
+                  'Ingreso Registrado',
+                  `Ingreso de ${preview.fullName} registrado correctamente.`,
+                  [
+                    { text: 'Escanear otro', onPress: () => resetScan() },
+                    { text: 'Volver', style: 'cancel', onPress: () => navigation?.goBack() },
+                  ]
+                );
+              } catch (err: any) {
+                const msg = err?.response?.data?.message || err?.message || 'Error al registrar ingreso.';
+                Alert.alert('Error', msg, [{ text: 'Reintentar', onPress: () => resetScan() }]);
+              }
+            },
+          },
         ]
       );
     } catch (err: any) {
@@ -386,9 +420,9 @@ export const EscanerScreen = () => {
         err?.response?.data?.message ||
         err?.response?.data?.error   ||
         err?.message                 ||
-        'Error al registrar el ingreso del personal.';
+        'Error al verificar el QR del personal.';
 
-      Alert.alert('No se pudo registrar', msg, [
+      Alert.alert('No se pudo verificar', msg, [
         { text: 'Reintentar', onPress: () => resetScan() },
         { text: 'Cancelar', style: 'cancel', onPress: () => navigation?.goBack() },
       ]);

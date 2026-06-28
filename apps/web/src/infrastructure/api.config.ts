@@ -3,24 +3,14 @@ import type { AxiosInstance } from 'axios';
 import toast from 'react-hot-toast';
 
 // Limpia el estado local y redirige al login.
-// El token ya NO está en localStorage — la cookie HttpOnly la borra el backend.
-const forceLogout = async (reason?: string) => {
-  try {
-    await axios.post('/api/auth/logout', {}, { withCredentials: true });
-  } catch {
-    // Si falla (expiró, red caída) igual se redirige
-  } finally {
-    localStorage.removeItem('gymsync_user');
-    sessionStorage.clear();
-    if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
-      if (reason) {
-        toast.error(reason, { duration: 3000 });
-        // Delay para que el toast sea visible antes de la navegación
-        setTimeout(() => { window.location.href = '/login'; }, 1500);
-      } else {
-        window.location.href = '/login';
-      }
-    }
+// Fire-and-forget del logout: no await — la redirección es inmediata para evitar
+// que componentes del Dashboard rendericen paneles de error durante la transición.
+const forceLogout = () => {
+  axios.post('/api/auth/logout', {}, { withCredentials: true }).catch(() => {});
+  localStorage.removeItem('gymsync_user');
+  sessionStorage.clear();
+  if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
+    window.location.href = '/login';
   }
 };
 
@@ -60,7 +50,7 @@ export const createApiClient = (): AxiosInstance => {
           if (body.statusCode === 403 || body.message?.includes('denegado')) {
             handleAccessDenied(body.message);
           } else if (body.statusCode === 401 && !reqUrl.includes('/auth/login') && !reqUrl.includes('/auth/me')) {
-            forceLogout(body.message || 'Tu sesión ha expirado o tu cuenta ya no está disponible.');
+            forceLogout();
           } else {
             toast.error(body.message || 'Error en la operación');
           }
@@ -113,10 +103,7 @@ export const createApiClient = (): AxiosInstance => {
             { duration: 8000 },
           );
         } else if (status === 401) {
-          const sessionMsg =
-            (typeof body?.message === 'string' ? body.message : null) ||
-            'Tu sesión ha expirado o tu cuenta ya no está disponible.';
-          forceLogout(sessionMsg);
+          forceLogout();
         } else if (status === 403) {
           handleAccessDenied(errorMessage);
         } else if (body?.success === false) {
@@ -125,7 +112,8 @@ export const createApiClient = (): AxiosInstance => {
           toast.error(errorMessage || `Error del servidor (${status})`);
         }
       } else {
-        toast.error('Error de red o conexión perdida.');
+        // Error de red (ERR_CONNECTION_REFUSED, timeout) — no destruir sesión
+        console.warn('[Web API] Error de red — backend no disponible temporalmente.');
       }
 
       return Promise.reject(error);

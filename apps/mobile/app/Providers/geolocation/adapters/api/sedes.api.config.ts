@@ -1,10 +1,3 @@
-/**
- * Sedes API Config — Configuración de Axios con interceptors.
- * 
- * IMPORTANTE: Este cliente debe inyectar el Bearer token en todos los requests
- * porque el backend ahora requiere autenticación con JWT para todos los endpoints.
- */
-
 import axios, { AxiosInstance } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { Env } from '../../config/environment';

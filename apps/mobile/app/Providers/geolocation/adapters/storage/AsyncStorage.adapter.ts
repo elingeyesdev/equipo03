@@ -1,10 +1,3 @@
-/**
- * AsyncStorageAdapter — Adaptador de almacenamiento local.
- * 
- * Implementa IStorageService usando @react-native-async-storage/async-storage.
- * Se usa para caché offline de sedes.
- */
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { IStorageService } from '@gymsync/core';
 import { Either, left, right } from '@gymsync/core';

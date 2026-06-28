@@ -43,14 +43,11 @@ const ClientCard = ({
             <Text style={s.activeTxt}>Asesoría Activa</Text>
           </View>
 
-          {/* Teléfono */}
-          <View style={s.phoneRow}>
-            <MaterialCommunityIcons
-              name="phone-outline" size={13}
-              color={item.phone ? '#555' : '#2a2a2a'}
-            />
-            <Text style={item.phone ? s.phoneVal : s.phoneEmpty}>
-              {item.phone ?? 'Sin teléfono registrado'}
+          {/* Identificador seguro: CI o email */}
+          <View style={s.docRow}>
+            <MaterialCommunityIcons name="card-account-details-outline" size={13} color="#9CA3AF" />
+            <Text style={s.docTxt}>
+              {item.ci ? `CI: ${item.ci}` : (item.email ?? 'Sin identificador')}
             </Text>
           </View>
         </View>
@@ -213,7 +210,6 @@ export const SeguimientoScreen = () => {
                 navigation.navigate('HistorialRutina', {
                   clientId:   item.clientId,
                   clientName: item.clientName,
-                  phone:      item.phone,
                 })
               }
               onProfile={() =>
@@ -291,9 +287,8 @@ const s = StyleSheet.create({
   activeDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#00E5A3' },
   activeTxt: { color: '#00E5A3', fontSize: 12, fontWeight: '700' },
 
-  phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  phoneVal:   { color: '#D1D5DB', fontSize: 14 },
-  phoneEmpty: { color: '#555', fontSize: 14, fontStyle: 'italic' },
+  docRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  docTxt: { color: '#D1D5DB', fontSize: 13 },
 
   divider: { height: 1, backgroundColor: '#1a1a1a', marginHorizontal: 0 },
 

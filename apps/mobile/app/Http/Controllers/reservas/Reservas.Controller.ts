@@ -1,10 +1,3 @@
-/**
- * Reservas.Controller.ts — Controlador del módulo de reservas (Zustand + Hook).
- * 
- * Gestiona el estado de obtención de detalles operacionales, aforo, horarios de la sucursal
- * y actividades disponibles inyectando los casos de uso correspondientes del Core.
- */
-
 import { create } from 'zustand';
 import { 
   ObtenerDetallesSucursalReservaUseCase, 
