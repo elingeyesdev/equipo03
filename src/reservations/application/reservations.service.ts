@@ -1226,7 +1226,7 @@ export class ReservationsService {
 
       if (reservationDateStr > todayLocal && !forceCheckIn) {
         throw new ConflictException({
-          message: `Esta reserva es para el ${reservationDateStr}${timeRange ? ` (${timeRange})` : ''}. El check-in solo se puede realizar el día de la reserva.`,
+          message: `Esta reserva es para el ${reservationDateStr}${timeRange ? ` (${timeRange})` : ''}.`,
           code: 'FUTURE_RESERVATION_WARNING',
         });
       }

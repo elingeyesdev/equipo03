@@ -14,6 +14,7 @@ import { GymActivity } from '../domain/gym-activity.entity';
 import { GymActivitySchedule } from '../domain/gym-activity-schedule.entity';
 import { GymActivityAttendance } from '../domain/gym-activity-attendance.entity';
 import { User } from '../../users/domain/user.entity';
+import { Gym } from '../../gyms/domain/gym.entity';
 import { GymSchedule } from '../../gyms/domain/gym-schedule.entity';
 import { UserRole } from '../../roles/domain/user-role.entity';
 import {
@@ -43,12 +44,37 @@ export class ActivitiesService {
     @InjectRepository(GymActivityAttendance)
     private attRepo: Repository<GymActivityAttendance>,
     @InjectRepository(User) private userRepo: Repository<User>,
+    @InjectRepository(Gym) private gymRepo: Repository<Gym>,
     @InjectRepository(GymSchedule)
     private gymScheduleRepo: Repository<GymSchedule>,
     @InjectRepository(UserRole) private userRoleRepo: Repository<UserRole>,
     @InjectDataSource() private readonly dataSource: DataSource,
     @Inject(REQUEST) private readonly request: RequestWithUser,
   ) {}
+
+  private callerLevel(): number {
+    return Number(this.request.user?.level ?? 0);
+  }
+
+  /**
+   * Verifica si un gymId pertenece al territorio del caller:
+   * - Super Admin (mg=null): siempre true.
+   * - Gerente (level 5, mg=brandId): gymId === brandId  O  gym.parentId === brandId.
+   * - Recepcionista (level 4, mg=gymId): igualdad estricta.
+   */
+  private async gymInTerritory(gymId: number): Promise<boolean> {
+    const mg = this.managerGymId();
+    if (mg === null) return true;
+    if (gymId === mg) return true;
+    if (this.callerLevel() === 5) {
+      const gym = await this.gymRepo.findOne({
+        where: { id: gymId },
+        select: ['id', 'parentId'],
+      });
+      return !!gym && Number(gym.parentId) === mg;
+    }
+    return false;
+  }
 
   private managerGymId(): number | null {
     return getManagerGymId(this.request);
@@ -57,19 +83,34 @@ export class ActivitiesService {
   async createActivity(data: Partial<GymActivity>) {
     const mg = this.managerGymId();
     const merged: Partial<GymActivity> = { ...data };
-    if (mg !== null) merged.gymId = mg;
+
+    if (mg !== null) {
+      if (this.callerLevel() === 5) {
+        // Gerente: debe elegir una sucursal de su marca. Validar territorio sin sobrescribir.
+        if (!merged.gymId) {
+          throw new BadRequestException('Debes seleccionar una sucursal para el servicio.');
+        }
+        if (!(await this.gymInTerritory(Number(merged.gymId)))) {
+          throw new ForbiddenException('La sucursal seleccionada no pertenece a tu marca.');
+        }
+      } else {
+        // Recepcionista (level 4): siempre fuerza su propia sucursal.
+        merged.gymId = mg;
+      }
+    }
+
     return this.actRepo.save(this.actRepo.create(merged));
   }
 
   async updateActivity(id: number, data: Partial<GymActivity>) {
     const activity = await this.assertActivityInManagerScope(id);
 
-    // GERENTE no puede reasignar la actividad a una sede ajena
+    // Validar que la nueva sucursal/marca destino pertenezca al territorio del caller.
     if (data.gymId !== undefined) {
       const mg = this.managerGymId();
-      if (mg !== null && Number(data.gymId) !== mg) {
+      if (mg !== null && !(await this.gymInTerritory(Number(data.gymId)))) {
         throw new ForbiddenException(
-          'No puede reasignar la actividad a una sede que no es la suya.',
+          'No puede reasignar la actividad a una sucursal fuera de tu marca.',
         );
       }
     }
@@ -209,10 +250,17 @@ export class ActivitiesService {
       relations: ['gym', 'schedules', 'schedules.instructor'],
     });
     if (!a) throw new NotFoundException(`Actividad ${id} no encontrada`);
-    if (mg !== null && Number(a.gymId) !== mg) {
-      throw new ForbiddenException(
-        'No tiene permisos para acceder a esta actividad',
-      );
+    if (mg !== null) {
+      const actGymId = Number(a.gymId);
+      const actParentId = a.gym?.parentId !== null && a.gym?.parentId !== undefined
+        ? Number(a.gym.parentId)
+        : null;
+      const inTerritory = this.callerLevel() === 5
+        ? (actGymId === mg || actParentId === mg)
+        : (actGymId === mg);
+      if (!inTerritory) {
+        throw new ForbiddenException('No tiene permisos para acceder a esta actividad');
+      }
     }
     return a;
   }
@@ -221,13 +269,22 @@ export class ActivitiesService {
     gymActivityId: number,
   ): Promise<GymActivity> {
     const mg = this.managerGymId();
-    const a = await this.actRepo.findOne({ where: { id: gymActivityId } });
-    if (!a)
-      throw new NotFoundException(`Actividad ${gymActivityId} no encontrada`);
-    if (mg !== null && Number(a.gymId) !== mg) {
-      throw new ForbiddenException(
-        'No tiene permisos para gestionar esta actividad',
-      );
+    const a = await this.actRepo.findOne({
+      where: { id: gymActivityId },
+      relations: ['gym'],
+    });
+    if (!a) throw new NotFoundException(`Actividad ${gymActivityId} no encontrada`);
+    if (mg !== null) {
+      const actGymId = Number(a.gymId);
+      const actParentId = a.gym?.parentId !== null && a.gym?.parentId !== undefined
+        ? Number(a.gym.parentId)
+        : null;
+      const inTerritory = this.callerLevel() === 5
+        ? (actGymId === mg || actParentId === mg)
+        : (actGymId === mg);
+      if (!inTerritory) {
+        throw new ForbiddenException('No tiene permisos para gestionar esta actividad');
+      }
     }
     return a;
   }
@@ -238,14 +295,20 @@ export class ActivitiesService {
     const mg = this.managerGymId();
     const s = await this.schedRepo.findOne({
       where: { id: scheduleId },
-      relations: ['gymActivity'],
+      relations: ['gymActivity', 'gymActivity.gym'],
     });
-    if (!s?.gymActivity)
-      throw new NotFoundException(`Horario ${scheduleId} no encontrado`);
-    if (mg !== null && Number(s.gymActivity.gymId) !== mg) {
-      throw new ForbiddenException(
-        'No tiene permisos para gestionar este horario',
-      );
+    if (!s?.gymActivity) throw new NotFoundException(`Horario ${scheduleId} no encontrado`);
+    if (mg !== null) {
+      const actGymId = Number(s.gymActivity.gymId);
+      const actParentId = s.gymActivity.gym?.parentId !== null && s.gymActivity.gym?.parentId !== undefined
+        ? Number(s.gymActivity.gym.parentId)
+        : null;
+      const inTerritory = this.callerLevel() === 5
+        ? (actGymId === mg || actParentId === mg)
+        : (actGymId === mg);
+      if (!inTerritory) {
+        throw new ForbiddenException('No tiene permisos para gestionar este horario');
+      }
     }
     return s;
   }

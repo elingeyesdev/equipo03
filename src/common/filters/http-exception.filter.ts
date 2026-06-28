@@ -19,6 +19,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message: string | string[] = 'Internal server error';
+    let code: string | undefined;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -29,6 +30,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
       } else if (typeof exceptionResponse === 'object') {
         const res = exceptionResponse as Record<string, any>;
         message = res.message || exception.message;
+        // Preservar campo 'code' para que el frontend pueda distinguir
+        // casos especiales como FUTURE_RESERVATION_WARNING o TERRITORY_VIOLATION.
+        if (res.code) code = String(res.code);
       }
     } else if (exception instanceof Error) {
       const isFK = exception.message?.includes('viola la llave foránea')
@@ -46,12 +50,15 @@ export class HttpExceptionFilter implements ExceptionFilter {
       }
     }
 
-    response.status(status).json({
+    const body: Record<string, unknown> = {
       success: false,
       statusCode: status,
       message,
       timestamp: new Date().toISOString(),
       path: request.url,
-    });
+    };
+    if (code) body.code = code;
+
+    response.status(status).json(body);
   }
 }
