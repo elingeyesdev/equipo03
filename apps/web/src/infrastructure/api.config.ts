@@ -47,6 +47,17 @@ export const createApiClient = (): AxiosInstance => {
       if (body && typeof body === 'object' && 'success' in body) {
         if (body.success === false) {
           const reqUrl = response.config?.url ?? '';
+
+          // Si el caller maneja sus propios errores, preservar metadata (status + code)
+          // para que pueda inspeccionarlos sin depender del interceptor global.
+          if (response.config?._skipErrorToast) {
+            const richErr = new Error(
+              typeof body.message === 'string' ? body.message : 'Error en la operación',
+            ) as Error & { response?: { status: number; data: unknown } };
+            richErr.response = { status: body.statusCode ?? 400, data: body };
+            return Promise.reject(richErr);
+          }
+
           if (body.statusCode === 403 || body.message?.includes('denegado')) {
             handleAccessDenied(body.message);
           } else if (body.statusCode === 401 && !reqUrl.includes('/auth/login') && !reqUrl.includes('/auth/me')) {

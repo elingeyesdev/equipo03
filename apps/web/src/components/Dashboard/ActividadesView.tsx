@@ -273,7 +273,16 @@ const ActivityFormModal = ({
   const isEdit = !!initial;
 
   const resolveInitialGymId = () => {
-    if (isEdit) return String(initial!.gymId);
+    if (isEdit) {
+      const initId = initial!.gymId;
+      // Si el Gerente edita un servicio cuyo gymId apunta a una marca (parentId=null),
+      // es dato corrupto del bug anterior — forzar re-selección de sucursal.
+      if (callerLevel === 5) {
+        const isBranch = gyms.some(g => g.id === initId && g.parentId != null);
+        return isBranch ? String(initId) : '';
+      }
+      return String(initId);
+    }
     if (callerLevel === 5) return ''; // Gerente elige sucursal mediante el selector
     if (userGymId) return String(userGymId);
     if (gyms.length === 1) return String(gyms[0].id);

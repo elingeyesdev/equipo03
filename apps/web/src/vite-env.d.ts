@@ -1,6 +1,9 @@
 /// <reference types="vite/client" />
 
 declare module 'axios' {
+  interface AxiosRequestConfig {
+    _skipErrorToast?: boolean;
+  }
   interface InternalAxiosRequestConfig {
     _skipErrorToast?: boolean;
   }

@@ -58,7 +58,7 @@ export const QrScannerModal = ({ onClose, onScanned }: QrScannerModalProps) => {
     setStatus('validating');
     setMessage('Validando reserva...');
     try {
-      const res = await apiClient.post('/reservations/check-in/token', { token: pendingToken, forceCheckIn: true });
+      const res = await apiClient.post('/reservations/check-in/token', { token: pendingToken, forceCheckIn: true }, { _skipErrorToast: true });
       try { await scannerRef.current?.stop(); } catch { void 0; }
       setPendingToken(null);
       setStatus('success');
@@ -121,7 +121,7 @@ export const QrScannerModal = ({ onClose, onScanned }: QrScannerModalProps) => {
             setMessage('Validando reserva...');
 
             try {
-              const res = await apiClient.post('/reservations/check-in/token', { token: decoded, forceCheckIn: false });
+              const res = await apiClient.post('/reservations/check-in/token', { token: decoded, forceCheckIn: false }, { _skipErrorToast: true });
               if (!mounted) return;
               try { await scanner.stop(); } catch { void 0; }
               setStatus('success');
@@ -220,10 +220,11 @@ export const QrScannerModal = ({ onClose, onScanned }: QrScannerModalProps) => {
 
         {status === 'future-confirm' && (
           <div style={warnBox}>
-            <p style={{ margin: '0 0 14px', fontSize: 13, lineHeight: 1.55, color: '#F59E0B' }}>{message}</p>
+            <p style={{ margin: '0 0 4px', fontSize: 13, lineHeight: 1.55, color: '#F59E0B' }}>{message}</p>
+            <p style={{ margin: '0 0 14px', fontSize: 13, color: '#F59E0B' }}>¿Deseas continuar con el check-in?</p>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button style={confirmBtn} onClick={handleForceCheckIn}>Confirmar reserva</button>
-              <button style={dismissBtn} onClick={handleDismissWarning}>Entendido</button>
+              <button style={confirmBtn} onClick={handleForceCheckIn}>Continuar</button>
+              <button style={dismissBtn} onClick={handleDismissWarning}>Cancelar</button>
             </div>
           </div>
         )}

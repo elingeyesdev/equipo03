@@ -132,11 +132,11 @@ export const EscanerScreen = () => {
           ? errorData.message
           : 'Esta reserva es para una fecha futura.';
         Alert.alert(
-          'Reserva Futura',
-          `${msg}\n\n¿Confirmar el ingreso de todas formas?`,
+          'Reserva adelantada',
+          `${msg}\n\n¿Deseas continuar con el check-in?`,
           [
             {
-              text: 'Forzar Ingreso',
+              text: 'Continuar',
               onPress: async () => {
                 try {
                   await reservationApi.checkInByToken(token, true);
@@ -270,11 +270,11 @@ export const EscanerScreen = () => {
       // Fecha futura: ofrecer check-in adelantado con confirmación
       if (isFuture) {
         Alert.alert(
-          'Reserva futura',
-          `La reserva de ${clientName}${activity ? ` (${activity})` : ''} está registrada para el ${fmtDateStr} de ${startTime} a ${endTime}.\n\n¿Confirmar el ingreso de todas formas?`,
+          'Reserva adelantada',
+          `La reserva de ${clientName}${activity ? ` (${activity})` : ''} es para el ${fmtDateStr} de ${startTime} a ${endTime}.\n\n¿Deseas continuar con el check-in?`,
           [
             {
-              text: 'Confirmar ingreso',
+              text: 'Continuar',
               onPress: async () => {
                 try {
                   await reservationApi.confirmReservation(reservationId);
@@ -303,10 +303,10 @@ export const EscanerScreen = () => {
       // Hoy pero QR expirado (JWT de 3 min vencido): ofrecer check-in manual
       Alert.alert(
         'QR expirado',
-        `El QR de ${clientName} ha expirado (validez: 3 minutos).\n\nLa reserva es para hoy ${fmtDateStr} de ${startTime} a ${endTime}. ¿Confirmar el ingreso manualmente?`,
+        `El QR de ${clientName} ha expirado (validez: 3 minutos).\n\nLa reserva es para hoy ${fmtDateStr} de ${startTime} a ${endTime}.\n\n¿Deseas continuar con el check-in?`,
         [
           {
-            text: 'Confirmar igualmente',
+            text: 'Continuar',
             onPress: async () => {
               try {
                 await reservationApi.confirmReservation(reservationId);
