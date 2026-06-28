@@ -14,7 +14,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { AdminLevelGuard } from '../../auth/infrastructure/guards/admin-level.guard';
 import { ScannerGuard } from '../../auth/infrastructure/guards/scanner.guard';
 import { CheckinsService } from '../application/checkins.service';
-import { CreateCheckInDto } from '../application/dtos/checkins.dto';
+import { CreateCheckInDto, ScanPreviewDto, RegisterAttendanceDto } from '../application/dtos/checkins.dto';
 import type { RequestWithUser } from '../../common/security/gym-scope';
 
 @ApiTags('Check-ins')
@@ -32,6 +32,22 @@ export class CheckinsController {
     if (!gymId)
       throw new ForbiddenException('Usuario sin sede asignada en el token.');
     return this.svc.createCheckIn(body.userId, gymId, body.method);
+  }
+
+  @Post('scan-preview')
+  @UseGuards(ScannerGuard)
+  @ApiOperation({ summary: 'Previsualizar escaneo QR: valida jurisdicción y retorna datos del usuario' })
+  @ApiBody({ type: ScanPreviewDto })
+  scanPreview(@Body() body: ScanPreviewDto) {
+    return this.svc.scanPreview(body.token);
+  }
+
+  @Post('register')
+  @UseGuards(ScannerGuard)
+  @ApiOperation({ summary: 'Registrar ingreso (IN) o salida (OUT) de personal vía QR' })
+  @ApiBody({ type: RegisterAttendanceDto })
+  registerAttendance(@Body() body: RegisterAttendanceDto) {
+    return this.svc.registerAttendance(body.targetUserId, body.action);
   }
 
   @Get('history')

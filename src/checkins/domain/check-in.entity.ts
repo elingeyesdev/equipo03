@@ -34,6 +34,9 @@ export class CheckIn {
   @Column({ type: 'varchar', length: 20, default: 'COMPLETED' })
   status!: string;
 
+  @Column({ type: 'varchar', length: 10, name: 'action_type', nullable: true })
+  actionType!: string | null;
+
   // ── Relations ─────────────────────────────────────
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })

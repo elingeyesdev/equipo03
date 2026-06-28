@@ -12,8 +12,10 @@ import { UserRole } from '../roles/domain/user-role.entity';
 import { ClientAdvisor } from './domain/client-advisor.entity';
 import { PhysicalMetricsHistory } from '../metrics/domain/physical-metrics-history.entity';
 import { TrainerPlan } from './domain/trainer-plan.entity';
+import { WorkoutSession } from '../training/domain/workout-session.entity';
 import { StaffService } from './application/staff.service';
 import { StaffController } from './infrastructure/staff.controller';
+import { StaffInactivityScheduler } from './application/staff-inactivity.scheduler';
 import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 
@@ -32,11 +34,12 @@ import { NotificationsModule } from '../notifications/notifications.module';
       ClientAdvisor,
       PhysicalMetricsHistory,
       TrainerPlan,
+      WorkoutSession,
     ]),
     PushNotificationsModule,
     NotificationsModule,
   ],
   controllers: [StaffController],
-  providers: [StaffService],
+  providers: [StaffService, StaffInactivityScheduler],
 })
 export class StaffModule {}

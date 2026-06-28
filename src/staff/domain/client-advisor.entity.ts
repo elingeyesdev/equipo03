@@ -30,6 +30,9 @@ export class ClientAdvisor {
   })
   status!: AdvisorStatus;
 
+  @Column({ type: 'int', name: 'target_sessions_per_week', nullable: true, default: null })
+  targetSessionsPerWeek!: number | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 

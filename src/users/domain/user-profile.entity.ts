@@ -31,7 +31,7 @@ export class UserProfile {
   @Column({ type: 'varchar', length: 30, nullable: true })
   gender!: string;
 
-  @Column({ name: 'ci', type: 'varchar', unique: true, nullable: true })
+  @Column({ name: 'ci', type: 'varchar', length: 20, unique: true, nullable: true })
   ci!: string;
 
   @Column({

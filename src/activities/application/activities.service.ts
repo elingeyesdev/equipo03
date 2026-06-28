@@ -8,8 +8,8 @@ import {
   Scope,
 } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { GymActivity } from '../domain/gym-activity.entity';
 import { GymActivitySchedule } from '../domain/gym-activity-schedule.entity';
 import { GymActivityAttendance } from '../domain/gym-activity-attendance.entity';
@@ -33,6 +33,7 @@ function toHHmm(time: string): string {
   return s.length >= 5 ? s.slice(0, 5) : s;
 }
 
+
 @Injectable({ scope: Scope.REQUEST })
 export class ActivitiesService {
   constructor(
@@ -45,6 +46,7 @@ export class ActivitiesService {
     @InjectRepository(GymSchedule)
     private gymScheduleRepo: Repository<GymSchedule>,
     @InjectRepository(UserRole) private userRoleRepo: Repository<UserRole>,
+    @InjectDataSource() private readonly dataSource: DataSource,
     @Inject(REQUEST) private readonly request: RequestWithUser,
   ) {}
 
@@ -78,8 +80,64 @@ export class ActivitiesService {
 
   async deleteActivity(id: number) {
     await this.assertActivityInManagerScope(id);
-    await this.actRepo.update(id, { isActive: false });
-    return { message: `Actividad ${id} desactivada` };
+    return this.dataSource.transaction(async (em) => {
+      // DELETE físico dispara ON DELETE CASCADE en gym_activity_attendance vía FK de BD
+      await em.delete(GymActivitySchedule, { gymActivityId: id });
+      await em.update(GymActivity, id, { isActive: false });
+      return { message: 'Servicio y sus horarios asociados eliminados correctamente.' };
+    });
+  }
+
+  async getEligibleInstructors(): Promise<{ id: number; fullName: string }[]> {
+    const currentUser = this.request.user;
+    if (!currentUser?.userId) throw new ForbiddenException('No autenticado.');
+
+    const callerRoles = await this.userRoleRepo.find({
+      where: { userId: Number(currentUser.userId) },
+      relations: ['role', 'gym'],
+    });
+    const topRole = callerRoles.sort(
+      (a, b) => (b.role?.hierarchyLevel ?? 0) - (a.role?.hierarchyLevel ?? 0),
+    )[0];
+    const callerLevel = Number(topRole?.role?.hierarchyLevel ?? currentUser.level ?? 0);
+    const callerGymId = Number(topRole?.gym?.id ?? topRole?.gymId ?? 0);
+
+    if (callerLevel < 4) {
+      throw new ForbiddenException('Sin permisos administrativos para ver instructores.');
+    }
+
+    // Consulta correlacionada: hierarchy_level = 2 Y territorio en el mismo camino de join
+    const qb = this.userRepo
+      .createQueryBuilder('user')
+      .innerJoinAndSelect('user.profile', 'profile')
+      .innerJoin('user.userRoles', 'ur')
+      .innerJoin('ur.role', 'r', 'r.hierarchy_level = 2')
+      .innerJoin('ur.gym', 'g')
+      .where('user.isActive = true');
+
+    if (callerLevel >= 10) {
+      // Super Admin: acceso global, sin filtro territorial
+    } else if (callerLevel === 5) {
+      if (!callerGymId) throw new ForbiddenException('Gerente sin marca asignada.');
+      qb.andWhere('(g.id = :callerGymId OR g.parentId = :callerGymId)', { callerGymId });
+    } else {
+      if (!callerGymId) throw new ForbiddenException('Recepcionista sin sucursal asignada.');
+      qb.andWhere('g.id = :callerGymId', { callerGymId });
+    }
+
+    const users = await qb.getMany();
+
+    const seen = new Set<number>();
+    return users
+      .filter((u) => {
+        if (seen.has(u.id)) return false;
+        seen.add(u.id);
+        return true;
+      })
+      .map((u) => ({
+        id: u.id,
+        fullName: `${u.profile?.firstName ?? ''} ${u.profile?.lastName ?? ''}`.trim(),
+      }));
   }
 
   async findAllActivities(gymId?: number) {
@@ -256,11 +314,11 @@ export class ActivitiesService {
     }
     const ok = user.userRoles?.some((ur) => {
       const lvl = ur.role?.hierarchyLevel ?? 0;
-      return lvl >= 2 && lvl <= 3;
+      return lvl === 2;
     });
     if (!ok) {
       throw new ForbiddenException(
-        'El usuario indicado no tiene rol de instructor',
+        'El usuario indicado no tiene rol de instructor (nivel 2)',
       );
     }
   }
@@ -308,6 +366,22 @@ export class ActivitiesService {
       relations: ['instructor', 'instructor.profile'],
       order: { dayOfWeek: 'ASC', startTime: 'ASC' },
     });
+  }
+
+  async getInstructorSchedules(
+    instructorId: number,
+  ): Promise<{ day: string; time: string; activity: string; gymName: string }[]> {
+    const schedules = await this.schedRepo.find({
+      where: { instructorId },
+      relations: ['gymActivity', 'gymActivity.gym'],
+      order: { dayOfWeek: 'ASC', startTime: 'ASC' },
+    });
+    return schedules.map((s) => ({
+      day: s.dayOfWeek,
+      time: `${toHHmm(s.startTime)} - ${toHHmm(s.endTime)}`,
+      activity: s.gymActivity?.name ?? '—',
+      gymName: s.gymActivity?.gym?.name ?? '—',
+    }));
   }
 
   async deleteSchedule(scheduleId: number): Promise<{ message: string }> {

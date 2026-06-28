@@ -316,13 +316,13 @@ export class UsersService {
   async searchClientUsers(
     search?: string,
     limit = 20,
-  ): Promise<{ id: number; email: string; firstName: string; lastName: string }[]> {
+  ): Promise<{ id: number; email: string; firstName: string; lastName: string; ci: string | null }[]> {
     const qb = this.usersRepo
       .createQueryBuilder('user')
       .leftJoin('user.profile', 'profile')
       .innerJoin('user.userRoles', 'userRole')
       .innerJoin('userRole.role', 'role')
-      .select(['user.id', 'user.email', 'profile.firstName', 'profile.lastName'])
+      .select(['user.id', 'user.email', 'profile.firstName', 'profile.lastName', 'profile.ci'])
       .where('role.hierarchy_level = :level', { level: 1 })
       .andWhere('user.isActive = true');
 
@@ -345,6 +345,7 @@ export class UsersService {
       email:     u.email,
       firstName: (u as any).profile?.firstName ?? '',
       lastName:  (u as any).profile?.lastName  ?? '',
+      ci:        (u as any).profile?.ci        ?? null,
     }));
   }
 
@@ -901,6 +902,7 @@ export class UsersService {
       firstName:  userRole.user.profile?.firstName  ?? '',
       lastName:   userRole.user.profile?.lastName   ?? '',
       gender:     (userRole.user.profile as any)?.gender ?? 'No especificado',
+      email:      userRole.user.email ?? null,
       roleName:   userRole.role?.name ?? '',
       level,
       brandName:  !isClient && userRole.gym?.parent ? userRole.gym.parent.name : null,

@@ -54,6 +54,24 @@ export class ActivitiesController {
     );
   }
 
+  @Get('eligible-instructors')
+  @UseGuards(AdminLevelGuard)
+  @ApiOperation({ summary: 'Instructores elegibles (nivel 2, territorio del caller)' })
+  @ApiResponse({ status: 200, description: 'Lista de instructores con id y nombre completo' })
+  @ApiResponse({ status: 403, description: 'Nivel jerárquico insuficiente' })
+  getEligibleInstructors() {
+    return this.svc.getEligibleInstructors();
+  }
+
+  @Get('instructor/:instructorId/schedules')
+  @ApiOperation({ summary: 'Clases asignadas a un instructor (nivel 2)' })
+  @ApiResponse({ status: 200, description: 'Lista de clases del instructor' })
+  getInstructorSchedules(
+    @Param('instructorId', ParseIntPipe) instructorId: number,
+  ) {
+    return this.svc.getInstructorSchedules(instructorId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Obtener actividad' })
   findOne(@Param('id', ParseIntPipe) id: number) {
