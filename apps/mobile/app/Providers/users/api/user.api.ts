@@ -1,6 +1,3 @@
-/**
- * Cliente Axios para el Módulo de Usuarios
- */
 import axios from 'axios';
 import { Env } from '../../geolocation/config/environment';
 import { AuthService } from '../../auth/AuthService';
@@ -35,6 +32,7 @@ export type ClientSearchResult = {
   email:     string;
   firstName: string;
   lastName:  string;
+  ci:        string | null;
 };
 
 export type ChatProfile = {
@@ -42,6 +40,7 @@ export type ChatProfile = {
   firstName:  string;
   lastName:   string;
   gender:     string;
+  email:      string | null;
   roleName:   string;
   level:      number;
   brandName:  string | null;

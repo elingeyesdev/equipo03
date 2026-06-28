@@ -1,6 +1,8 @@
-export type ReportType = 'asistencia' | 'maquinas' | 'consolidado';
+export type ReportType =
+  'asistencia' | 'maquinas' | 'consolidado' | 'aforo' |
+  'ranking' | 'actividades' | 'cancelaciones' | 'frecuencia' | 'auditoria' | 'churn';
 
-export type DatePreset = 'hoy' | 'semana' | 'mes' | 'personalizado';
+export type DatePreset = 'hoy' | 'ultimos7' | 'ultimos30' | 'semana' | 'mes' | 'personalizado';
 
 export interface DateRange {
   from: string; // YYYY-MM-DD
@@ -12,6 +14,7 @@ export interface ReportFilters {
   range:   DateRange;
   gymId?:  number;
   gymName?: string;
+  topN?:   number;
 }
 
 export interface GymOption {
@@ -69,16 +72,28 @@ export const CATEGORY_LABELS: Record<string, string> = {
 
 export const STATUS_LABELS: Record<string, string> = {
   AVAILABLE:   'Disponible',
+  IN_USE:      'En uso',
   MAINTENANCE: 'Mantenimiento',
 };
 
 export const STATUS_COLORS: Record<string, string> = {
   AVAILABLE:   '#00E5A3',
+  IN_USE:      '#2563EB',
   MAINTENANCE: '#e74c3c',
 };
 
 export const DAY_LABELS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 export const DAY_ORDER  = [1, 2, 3, 4, 5, 6, 0]; // Mon-Sun
+
+/** Normalizes bilingual reservation status strings */
+export function normalizeStatus(s: string): 'confirmada' | 'completada' | 'cancelada' | 'pendiente' | 'otra' {
+  const u = s?.toUpperCase() ?? '';
+  if (['CONFIRMED', 'CONFIRMADA'].includes(u))                   return 'confirmada';
+  if (['USED', 'COMPLETADA', 'USADA', 'COMPLETE'].includes(u))  return 'completada';
+  if (['CANCELLED', 'CANCELADA'].includes(u))                    return 'cancelada';
+  if (['PENDING', 'PENDIENTE'].includes(u))                      return 'pendiente';
+  return 'otra';
+}
 
 /** Formats a date string (YYYY-MM-DD) as "15 jun. 2026" */
 export function fmtDate(d: string): string {
@@ -90,6 +105,20 @@ export function fmtDate(d: string): string {
 /** Returns "today" as YYYY-MM-DD */
 export function today(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+/** Returns today minus 7 days as YYYY-MM-DD */
+export function last7(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 7);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Returns today minus 30 days as YYYY-MM-DD */
+export function last30(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 30);
+  return d.toISOString().slice(0, 10);
 }
 
 /** Returns the Monday of the current week as YYYY-MM-DD */

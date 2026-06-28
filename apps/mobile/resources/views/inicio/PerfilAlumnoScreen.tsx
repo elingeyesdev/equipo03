@@ -44,7 +44,7 @@ const InfoRow = ({ icon, label, value }: {
   icon: string; label: string; value: string | null;
 }) => (
   <View style={s.infoRow}>
-    <MaterialCommunityIcons name={icon as any} size={16} color="#555" />
+    <MaterialCommunityIcons name={icon as any} size={16} color="#9CA3AF" />
     <Text style={s.infoLabel}>{label}</Text>
     <Text style={s.infoValue}>{value ?? '—'}</Text>
   </View>
@@ -276,38 +276,38 @@ const s = StyleSheet.create({
   avatarCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#1C1C1E', borderWidth: 2, borderColor: '#FF5E00', justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
   fullName:     { color: '#fff', fontSize: 20, fontWeight: '800' },
 
-  card:      { backgroundColor: '#0e0e0e', borderRadius: 14, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#1a1a1a' },
-  cardTitle: { color: '#888', fontSize: 10, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12 },
+  card:      { backgroundColor: '#111111', borderRadius: 14, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#2A2A2D' },
+  cardTitle: { color: '#D1D5DB', fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12 },
 
   infoRow:   { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: '#111' },
-  infoLabel: { color: '#555', fontSize: 13, flex: 1 },
-  infoValue: { color: '#ddd', fontSize: 13, fontWeight: '600' },
+  infoLabel: { color: '#D1D5DB', fontSize: 13, flex: 1 },
+  infoValue: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
 
-  sectionTitle: { color: '#888', fontSize: 10, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12 },
+  sectionTitle: { color: '#D1D5DB', fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12 },
 
   metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8 },
-  metricCard:  { width: '30%', flexGrow: 1, backgroundColor: '#0e0e0e', borderRadius: 12, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#1a1a1a' },
+  metricCard:  { width: '30%', flexGrow: 1, backgroundColor: '#111111', borderRadius: 12, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#2A2A2D' },
   bmiCard:     { borderColor: '#FF5E0033' },
   metricIcon:  { marginBottom: 4 },
-  metricLabel: { color: '#555', fontSize: 10, marginBottom: 4, textAlign: 'center' },
+  metricLabel: { color: '#D1D5DB', fontSize: 12, marginBottom: 4, textAlign: 'center' },
   metricValue: { color: '#fff', fontSize: 16, fontWeight: '800' },
-  bmiTag:      { fontSize: 10, fontWeight: '600', marginTop: 2 },
+  bmiTag:      { fontSize: 12, fontWeight: '600', marginTop: 2 },
 
-  metaDate:    { color: '#333', fontSize: 11, textAlign: 'right', marginBottom: 16 },
+  metaDate:    { color: '#9CA3AF', fontSize: 12, textAlign: 'right', marginBottom: 16 },
 
-  noMetrics:    { backgroundColor: '#0e0e0e', borderRadius: 14, padding: 24, alignItems: 'center', gap: 8, marginBottom: 16, borderWidth: 1, borderColor: '#1a1a1a' },
-  noMetricsTxt: { color: '#333', fontSize: 13 },
+  noMetrics:    { backgroundColor: '#111111', borderRadius: 14, padding: 24, alignItems: 'center', gap: 8, marginBottom: 16, borderWidth: 1, borderColor: '#2A2A2D' },
+  noMetricsTxt: { color: '#D1D5DB', fontSize: 13 },
 
-  medicalTxt: { color: '#ccc', fontSize: 13, lineHeight: 20 },
+  medicalTxt: { color: '#D1D5DB', fontSize: 13, lineHeight: 20 },
   noDataRow:  { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
-  noDataTxt:  { color: '#444', fontSize: 13, fontStyle: 'italic' },
+  noDataTxt:  { color: '#9CA3AF', fontSize: 13, fontStyle: 'italic' },
 
   actionsRow: { gap: 10, marginTop: 8 },
   actionBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#f05b22', borderRadius: 12, paddingVertical: 14 },
   planBtn:    { backgroundColor: '#1D4ED8' },
   actionTxt:  { color: '#fff', fontSize: 15, fontWeight: '700' },
 
-  errTxt:   { color: '#555', fontSize: 14, marginTop: 8 },
+  errTxt:   { color: '#D1D5DB', fontSize: 14, marginTop: 8 },
   retryBtn: { backgroundColor: '#1C1C1E', paddingVertical: 10, paddingHorizontal: 20, borderRadius: 10, marginTop: 4 },
   retryTxt: { color: '#f05b22', fontWeight: '700' },
 });

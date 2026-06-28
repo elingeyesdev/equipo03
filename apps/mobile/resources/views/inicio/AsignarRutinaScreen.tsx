@@ -9,7 +9,7 @@ import { useAuth } from '../../../app/Shared/hooks/useAuth';
 import { staffApi, Exercise, ClientRoutine, ClientRoutineExercise } from '../../../app/Providers/staff/api/staff.api';
 import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+
 const DAYS = ['LUNES','MARTES','MIERCOLES','JUEVES','VIERNES','SABADO','DOMINGO'] as const;
 type DayKey = typeof DAYS[number];
 
@@ -18,7 +18,6 @@ const DAY_LABEL: Record<DayKey, string> = {
   JUEVES: 'Jueves', VIERNES: 'Viernes', SABADO: 'Sábado', DOMINGO: 'Domingo',
 };
 
-// ─── Exercise-type param configs ──────────────────────────────────────────────
 type FieldDef = { key: string; label: string; placeholder: string; numeric: boolean };
 
 const FIELD_CONFIGS: Record<string, FieldDef[]> = {
@@ -69,7 +68,7 @@ const TYPE_COLOR: Record<string, string> = {
   HIIT: '#FF5E00', MOBILITY: '#00E5A3',
 };
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+//Types 
 type ExEntry = {
   uid:          string;
   exerciseId:   number;
@@ -83,9 +82,9 @@ type ExEntry = {
 type WeekPlan = Record<DayKey, ExEntry[]>;
 
 const emptyWeek = (): WeekPlan =>
-  Object.fromEntries(DAYS.map(d => [d, []])) as WeekPlan;
+  Object.fromEntries(DAYS.map(d => [d, []])) as unknown as WeekPlan;
 
-// ─── Entry display helper ─────────────────────────────────────────────────────
+//Entry display helper 
 const formatEntryConf = (entry: ExEntry): string => {
   const p = entry.params;
   switch (entry.exerciseType) {
@@ -138,7 +137,7 @@ const routineToWeekPlan = (routine: ClientRoutine | null): WeekPlan => {
   return plan;
 };
 
-// ─── Day Card ─────────────────────────────────────────────────────────────────
+//Day Card 
 const DayCard = ({ day, entries, expanded, onToggle, onAdd, onEdit, onRemove }: {
   day:      DayKey;
   entries:  ExEntry[];
@@ -197,7 +196,7 @@ const DayCard = ({ day, entries, expanded, onToggle, onAdd, onEdit, onRemove }: 
   </View>
 );
 
-// ─── Catalog Modal ────────────────────────────────────────────────────────────
+//Catalog Modal
 const CatalogModal = ({ visible, day, exercises, weekPlan, filter, setFilter, onSelect, onClose, isLoading }: {
   visible:    boolean;
   day:        DayKey | null;
@@ -292,7 +291,7 @@ const CatalogModal = ({ visible, day, exercises, weekPlan, filter, setFilter, on
   );
 };
 
-// ─── Config Sheet Modal ───────────────────────────────────────────────────────
+//Config Sheet Modal 
 const ConfigModal = ({ visible, exercise, exerciseType, isEdit, cfg, setCfg, onConfirm, onClose }: {
   visible:      boolean;
   exercise:     Exercise | null;
@@ -385,7 +384,7 @@ const ConfigModal = ({ visible, exercise, exerciseType, isEdit, cfg, setCfg, onC
   );
 };
 
-// ─── Screen ───────────────────────────────────────────────────────────────────
+//Screen 
 export const AsignarRutinaScreen = () => {
   const route       = useRoute<any>();
   const navigation  = useNavigation();
@@ -403,7 +402,7 @@ export const AsignarRutinaScreen = () => {
   const [cfg, setCfg] = useState<Record<string, string>>({});
   const hasLoaded = useRef(false);
 
-  // ── Cargar rutina existente del cliente ─────────────────────────────────────
+  //Cargar rutina existente del cliente
   const { data: routinesResponse, isLoading: loadingRoutine } = useQuery({
     queryKey:  ['client-routines', studentId],
     queryFn:   () => staffApi.getMyRoutines(studentId),
@@ -439,7 +438,7 @@ export const AsignarRutinaScreen = () => {
   const isLoading = loadingRoutine || loadingExercises;
   const totalExercises = DAYS.reduce((acc, d) => acc + weekPlan[d].length, 0);
 
-  // ── Build polymorphic payload ────────────────────────────────────────────────
+  //Build polymorphic payload 
   const buildExercisePayload = (e: ExEntry, idx: number) => {
     const p    = e.params;
     const base = { exerciseId: e.exerciseId, dayOfWeek: undefined as string | undefined, orderPosition: idx, notes: e.notes || undefined };

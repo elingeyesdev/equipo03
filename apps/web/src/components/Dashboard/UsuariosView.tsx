@@ -9,7 +9,7 @@ import { DB_ROLES, ROLE_ID_TO_NAME } from '../../config/rbac.constants';
 import { ModalOverlay, ConfirmModal, RecordDetailModal, DetailField } from './Shared/DashboardShared';
 import { guardClose, panelStyle } from './Shared/DashboardShared.utils';
 import type { GymDto, UserDto, UserRoleDto } from './Shared/DashboardTypes';
-import { Eye, Edit, Trash2, Plus, Clock, Building2, Search, X } from 'lucide-react';
+import { Eye, Edit, Trash2, Plus, Building2, Search } from 'lucide-react';
 
 
 //Interfaz para roles cargados dinámicamente 
@@ -57,329 +57,6 @@ const splitPhone = (raw: string): { prefix: string; number: string } => {
   return { prefix: '+591', number: raw.replace(/^\+\d{1,3}\s?/, '') };
 };
 
-// ─── Tipos y constantes para horarios del personal ───────────────────────────
-type TimeSlot    = { startTime: string; endTime: string };
-type DaySchedule = { isOff: boolean; slots: TimeSlot[] };
-
-const WEEK_DAYS = [
-  { value: 1, label: 'Lunes' },
-  { value: 2, label: 'Martes' },
-  { value: 3, label: 'Miércoles' },
-  { value: 4, label: 'Jueves' },
-  { value: 5, label: 'Viernes' },
-  { value: 6, label: 'Sábado' },
-  { value: 0, label: 'Domingo' },
-];
-
-const initGymSchedule = (): Record<number, DaySchedule> => {
-  const r: Record<number, DaySchedule> = {};
-  WEEK_DAYS.forEach(d => { r[d.value] = { isOff: false, slots: [{ startTime: '08:00', endTime: '12:00' }] }; });
-  return r;
-};
-
-//Input de hora en formato 24h estricto (sin AM/PM) 
-const TimeInput24h = ({
-  value, onChange, disabled = false,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  disabled?: boolean;
-}) => {
-  const parts   = value.split(':');
-  const hh      = parts[0] ?? '08';
-  const mm      = parts[1] ?? '00';
-
-  const commit = (rawH: string, rawM: string) => {
-    const h = Math.min(23, Math.max(0, parseInt(rawH, 10) || 0)).toString().padStart(2, '0');
-    const m = Math.min(59, Math.max(0, parseInt(rawM, 10) || 0)).toString().padStart(2, '0');
-    onChange(`${h}:${m}`);
-  };
-
-  const numCls =
-    'w-10 text-center bg-slate-50 dark:bg-[#151521] border border-slate-200 dark:border-gray-700 ' +
-    'text-slate-900 dark:text-white rounded px-1 py-1 text-sm focus:outline-none focus:ring-2 ' +
-    'focus:ring-cyan-400 disabled:opacity-40 [appearance:textfield] ' +
-    '[&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';
-
-  return (
-    <div className="flex items-center gap-0.5" style={{ opacity: disabled ? 0.4 : 1 }}>
-      <input
-        type="number"
-        min={0} max={23}
-        value={parseInt(hh, 10)}
-        disabled={disabled}
-        onChange={e => commit(e.target.value, mm)}
-        onBlur={e  => commit(e.target.value, mm)}
-        className={numCls}
-      />
-      <span className="text-slate-500 dark:text-gray-400 font-bold text-sm select-none">:</span>
-      <input
-        type="number"
-        min={0} max={59} step={5}
-        value={parseInt(mm, 10)}
-        disabled={disabled}
-        onChange={e => commit(hh, e.target.value)}
-        onBlur={e  => commit(hh, e.target.value)}
-        className={numCls}
-      />
-    </div>
-  );
-};
-
-//Modal de horarios laborales del personal
-const StaffScheduleModal = ({
-  isOpen, onClose, employee,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  employee: UserDto | null;
-}) => {
-  const gyms = (employee?.userRoles ?? [])
-    .map(ur => ur.gym)
-    .filter((g): g is NonNullable<typeof g> => g != null && !!g.id);
-
-  const [activeGymId, setActiveGymId] = useState<number | null>(null);
-  // gymId → dayOfWeek → DaySchedule
-  const [schedules, setSchedules] = useState<Record<number, Record<number, DaySchedule>>>({});
-  const [loading, setLoading]     = useState(false);
-  const [touched, setTouched]     = useState(false);
-  const [saving,  setSaving]      = useState(false);
-
-  useEffect(() => {
-    if (!isOpen || !employee) return;
-    setTouched(false);
-    setActiveGymId(gyms[0]?.id ?? null);
-
-    const init: Record<number, Record<number, DaySchedule>> = {};
-    gyms.forEach(g => { init[g.id] = initGymSchedule(); });
-    setSchedules(init);
-
-    setLoading(true);
-    apiClient.get(`/staff/${employee.id}/schedules`)
-      .then((res: { data?: { gymId: number; dayOfWeek: number; startTime: string; endTime: string }[] }) => {
-        const rows = res.data ?? [];
-        setSchedules(prev => {
-          const updated = { ...prev };
-          for (const gymId of Object.keys(updated).map(Number)) {
-            const gymRows = rows.filter(r => r.gymId === gymId);
-            if (gymRows.length === 0) continue;
-            const dayMap: Record<number, DaySchedule> = {};
-            WEEK_DAYS.forEach(d => { dayMap[d.value] = { isOff: true, slots: [] }; });
-            for (const row of gymRows) {
-              const slot: TimeSlot = { startTime: row.startTime.slice(0, 5), endTime: row.endTime.slice(0, 5) };
-              if (!dayMap[row.dayOfWeek]) {
-                dayMap[row.dayOfWeek] = { isOff: false, slots: [slot] };
-              } else {
-                dayMap[row.dayOfWeek].isOff = false;
-                dayMap[row.dayOfWeek].slots.push(slot);
-              }
-            }
-            updated[gymId] = dayMap;
-          }
-          return updated;
-        });
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, employee?.id]);
-
-  const setDayOff = (gymId: number, dow: number, isOff: boolean) =>
-    setSchedules(prev => ({
-      ...prev,
-      [gymId]: { ...(prev[gymId] ?? initGymSchedule()), [dow]: { ...(prev[gymId]?.[dow] ?? { isOff: false, slots: [] }), isOff } },
-    }));
-
-  const updateSlot = (gymId: number, dow: number, idx: number, field: keyof TimeSlot, value: string) =>
-    setSchedules(prev => {
-      const day = prev[gymId]?.[dow] ?? { isOff: false, slots: [] };
-      const slots = day.slots.map((s, i) => i === idx ? { ...s, [field]: value } : s);
-      return { ...prev, [gymId]: { ...(prev[gymId] ?? {}), [dow]: { ...day, slots } } };
-    });
-
-  const addSlot = (gymId: number, dow: number) =>
-    setSchedules(prev => {
-      const day = prev[gymId]?.[dow] ?? { isOff: false, slots: [] };
-      return { ...prev, [gymId]: { ...(prev[gymId] ?? {}), [dow]: { ...day, slots: [...day.slots, { startTime: '08:00', endTime: '12:00' }] } } };
-    });
-
-  const removeSlot = (gymId: number, dow: number, idx: number) =>
-    setSchedules(prev => {
-      const day = prev[gymId]?.[dow] ?? { isOff: false, slots: [] };
-      return { ...prev, [gymId]: { ...(prev[gymId] ?? {}), [dow]: { ...day, slots: day.slots.filter((_, i) => i !== idx) } } };
-    });
-
-  const handleSave = async () => {
-    if (!employee) return;
-
-    // Validación client-side antes de enviar
-    for (const gymId of Object.keys(schedules).map(Number)) {
-      const gymSched = schedules[gymId] ?? {};
-      for (const { value: dow, label } of WEEK_DAYS) {
-        const day = gymSched[dow];
-        if (!day || day.isOff) continue;
-        for (const slot of day.slots) {
-          if (!slot.startTime || !slot.endTime) {
-            toast.error(`Completa los horarios del día ${label} antes de guardar.`);
-            return;
-          }
-          if (slot.startTime >= slot.endTime) {
-            toast.error(`${label}: la hora de entrada (${slot.startTime}) debe ser anterior a la salida (${slot.endTime}).`);
-            return;
-          }
-        }
-      }
-    }
-
-    setSaving(true);
-    try {
-      for (const gymId of Object.keys(schedules).map(Number)) {
-        const gymSched = schedules[gymId] ?? {};
-        const payload: { dayOfWeek: number; startTime: string; endTime: string }[] = [];
-        for (const { value: dow } of WEEK_DAYS) {
-          const day = gymSched[dow];
-          if (!day || day.isOff) continue;
-          for (const slot of day.slots) {
-            if (slot.startTime && slot.endTime) {
-              payload.push({ dayOfWeek: dow, startTime: slot.startTime, endTime: slot.endTime });
-            }
-          }
-        }
-        await apiClient.post(`/staff/${employee.id}/schedules`, { gymId, schedules: payload });
-      }
-      toast.success('Horarios guardados correctamente.');
-      onClose();
-    } catch (err: unknown) {
-      const apiErr = err as { response?: { data?: { message?: string } } };
-      const msg = apiErr?.response?.data?.message || 'Error al guardar horarios.';
-      toast.error(msg);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (!isOpen) return null;
-
-  const gymSched = activeGymId !== null ? (schedules[activeGymId] ?? initGymSchedule()) : null;
-  const employeeName = [employee?.profile?.firstName, employee?.profile?.lastName].filter(Boolean).join(' ') || employee?.email || '';
-
-  return (
-    <ModalOverlay onClose={onClose} isDirty={touched} onFormChange={() => setTouched(true)}>
-      <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-0.5">Horarios Laborales</h2>
-      <p className="text-sm text-slate-500 dark:text-gray-400 mb-4">{employeeName}</p>
-
-      {gyms.length === 0 ? (
-        <p className="text-sm text-slate-500 dark:text-gray-400 py-6 text-center">
-          Este empleado no tiene sucursales asignadas.
-        </p>
-      ) : (
-        <>
-          {/* Tabs por sucursal */}
-          <div className="flex gap-1 border-b border-slate-200 dark:border-gray-700 mb-4 flex-wrap">
-            {gyms.map(g => (
-              <button
-                key={g.id}
-                onClick={() => setActiveGymId(g.id)}
-                style={{ background: 'none', border: 'none', outline: 'none', cursor: 'pointer' }}
-                className={[
-                  'px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors',
-                  activeGymId === g.id
-                    ? 'border-brand-celeste text-brand-celeste bg-gray-100 dark:bg-bg-surface'
-                    : 'border-transparent text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-200',
-                ].join(' ')}
-              >
-                {g.name ?? `Sede #${g.id}`}
-              </button>
-            ))}
-          </div>
-
-          {/* Lista de días con turnos múltiples */}
-          <div style={{ overflowY: 'auto', flex: 1, minHeight: 0, paddingRight: '0.25rem' }}>
-            {loading ? (
-              <p className="text-sm text-slate-400 dark:text-gray-500 text-center py-4">Cargando horarios...</p>
-            ) : gymSched === null ? null : (
-              <div className="flex flex-col divide-y divide-slate-100 dark:divide-gray-800">
-                {WEEK_DAYS.map(({ value: dow, label }) => {
-                  const day = gymSched[dow] ?? { isOff: false, slots: [{ startTime: '08:00', endTime: '12:00' }] };
-                  return (
-                    <div key={dow} className="py-3" style={{ opacity: day.isOff ? 0.5 : 1, transition: 'opacity 0.15s' }}>
-                      {/* Cabecera del día */}
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-semibold text-slate-700 dark:text-gray-200 w-24">{label}</span>
-                        <label className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-gray-400 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={day.isOff}
-                            onChange={e => activeGymId !== null && setDayOff(activeGymId, dow, e.target.checked)}
-                            style={{ width: '14px', height: '14px', cursor: 'pointer', accentColor: '#38BDF8' }}
-                          />
-                          Día libre
-                        </label>
-                      </div>
-
-                      {/* Turnos */}
-                      {!day.isOff && (
-                        <div className="flex flex-col gap-2 pl-2">
-                          {day.slots.map((slot, idx) => (
-                            <div key={idx} className="flex items-center gap-2">
-                              <TimeInput24h
-                                value={slot.startTime}
-                                onChange={v => activeGymId !== null && updateSlot(activeGymId, dow, idx, 'startTime', v)}
-                              />
-                              <span className="text-xs text-slate-400 dark:text-gray-500">—</span>
-                              <TimeInput24h
-                                value={slot.endTime}
-                                onChange={v => activeGymId !== null && updateSlot(activeGymId, dow, idx, 'endTime', v)}
-                              />
-                              {day.slots.length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => activeGymId !== null && removeSlot(activeGymId, dow, idx)}
-                                  title="Eliminar turno"
-                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '2px 5px', lineHeight: 1, display: 'inline-flex', alignItems: 'center' }}
-                                  className="hover:opacity-70 rounded"
-                                >
-                                  <X size={13} />
-                                </button>
-                              )}
-                            </div>
-                          ))}
-                          <button
-                            type="button"
-                            onClick={() => activeGymId !== null && addSlot(activeGymId, dow)}
-                            className="self-start text-xs text-brand-celeste bg-transparent border-0 cursor-pointer p-0 mt-0.5"
-                          >
-                            + Añadir turno
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </>
-      )}
-
-      <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100 dark:border-gray-800 flex-shrink-0">
-        <button
-          className="px-4 py-2 text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-bg-deep rounded-lg transition-colors font-medium border-0 cursor-pointer bg-transparent"
-          onClick={() => guardClose(touched, onClose)}
-        >
-          Cancelar
-        </button>
-        <button
-          disabled={saving || gyms.length === 0}
-          className="px-4 py-2 bg-brand-celeste disabled:opacity-50 text-black font-medium rounded-lg border-0 cursor-pointer"
-          onClick={handleSave}
-        >
-          {saving ? 'Guardando...' : 'Guardar Horarios'}
-        </button>
-      </div>
-    </ModalOverlay>
-  );
-};
 
 //Tipos para el formulario de usuario 
 type UserFormData = {
@@ -389,7 +66,6 @@ type UserFormData = {
 };
 
 interface RoleRaw { id: number; name: string; isActive?: boolean; hierarchyLevel?: number; }
-interface StaffScheduleRow { gymId: number; dayOfWeek: number; startTime: string; endTime: string; gym?: { id: number; name?: string } }
 
 interface UserPayload {
   email?: string; firstName?: string; lastName?: string;
@@ -547,17 +223,29 @@ setTouched(false);
     const newErrors: Record<string, string> = {};
 
     const fn = formData.firstName.trim();
-    if (fn) {
-      if (fn.length > NAME_MAX) newErrors.firstName = `Máximo ${NAME_MAX} caracteres`;
-      else if (!LETTERS_ONLY_RE.test(fn)) newErrors.firstName = 'Solo se permiten letras, espacios y guiones';
-      else if (GIBBERISH_RE.test(fn)) newErrors.firstName = 'El nombre parece contener caracteres aleatorios';
+    if (!fn) {
+      newErrors.firstName = 'El nombre es obligatorio';
+    } else if (fn.length < 2) {
+      newErrors.firstName = 'El nombre debe tener al menos 2 caracteres';
+    } else if (fn.length > NAME_MAX) {
+      newErrors.firstName = `Máximo ${NAME_MAX} caracteres`;
+    } else if (!LETTERS_ONLY_RE.test(fn)) {
+      newErrors.firstName = 'Solo se permiten letras, espacios y guiones';
+    } else if (GIBBERISH_RE.test(fn)) {
+      newErrors.firstName = 'El nombre parece contener caracteres aleatorios';
     }
 
     const ln = formData.lastName.trim();
-    if (ln) {
-      if (ln.length > NAME_MAX) newErrors.lastName = `Máximo ${NAME_MAX} caracteres`;
-      else if (!LETTERS_ONLY_RE.test(ln)) newErrors.lastName = 'Solo se permiten letras, espacios y guiones';
-      else if (GIBBERISH_RE.test(ln)) newErrors.lastName = 'El apellido parece contener caracteres aleatorios';
+    if (!ln) {
+      newErrors.lastName = 'El apellido es obligatorio';
+    } else if (ln.length < 2) {
+      newErrors.lastName = 'El apellido debe tener al menos 2 caracteres';
+    } else if (ln.length > NAME_MAX) {
+      newErrors.lastName = `Máximo ${NAME_MAX} caracteres`;
+    } else if (!LETTERS_ONLY_RE.test(ln)) {
+      newErrors.lastName = 'Solo se permiten letras, espacios y guiones';
+    } else if (GIBBERISH_RE.test(ln)) {
+      newErrors.lastName = 'El apellido parece contener caracteres aleatorios';
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
@@ -1073,17 +761,16 @@ export const UsuariosView = () => {
   const [userToEdit,        setUserToEdit]        = useState<UserDto | null>(null);
   const [deleteConfirmUser, setDeleteConfirmUser] = useState<UserDto | null>(null);
   const [viewingUser,       setViewingUser]       = useState<UserDto | null>(null);
-  const [viewUserSchedules, setViewUserSchedules] = useState<StaffScheduleRow[]>([]);
-  const [schedulingUser,    setSchedulingUser]    = useState<UserDto | null>(null);
+  const [viewUserClasses, setViewUserClasses] = useState<{ day: string; time: string; activity: string; gymName: string }[]>([]);
 
-  // ── Horarios laborales del usuario en ficha detallada ────────────────────────
   useEffect(() => {
-    if (!viewingUser) { setViewUserSchedules([]); return; }
-    apiClient.get(`/staff/${viewingUser.id}/schedules`)
+    const level = (viewingUser as UserDto & { level?: number })?.level ?? 0;
+    if (!viewingUser || level !== 2) { setViewUserClasses([]); return; }
+    apiClient.get(`/activities/instructor/${viewingUser.id}/schedules`)
       .then((res: { data: unknown }) => {
-        setViewUserSchedules(Array.isArray(res.data) ? (res.data as StaffScheduleRow[]) : []);
+        setViewUserClasses(Array.isArray(res.data) ? (res.data as { day: string; time: string; activity: string; gymName: string }[]) : []);
       })
-      .catch(() => setViewUserSchedules([]));
+      .catch(() => setViewUserClasses([]));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewingUser?.id]);
 
@@ -1170,21 +857,24 @@ export const UsuariosView = () => {
       const targetGymId = formData.gymIds && formData.gymIds.length > 0 ? Number(formData.gymIds[0]) : null;
       const finalGymId = requiresGymUI ? targetGymId : null;
 
+      // Construir el teléfono desde prefix + número (no el raw del DB, que puede tener espacios)
+      const builtPhone = formData.phoneNumber?.trim()
+        ? (formData.phonePrefix + formData.phoneNumber.trim())
+        : null;
+
       // Construir payload a prueba de balas
       const payload: UserPayload = {
         ...(emailTrimmed ? { email: emailTrimmed } : {}),
         firstName: formData.firstName?.trim() || undefined,
         lastName:  formData.lastName?.trim()  || undefined,
-        ...(formData.phone?.trim() ? { phone: formData.phone.trim() } : {}),
+        ...(builtPhone ? { phone: builtPhone } : {}),
         ...(formData.ci?.trim()    ? { ci:    formData.ci.trim()    } : {}),
         ...(formData.gender        ? { gender: formData.gender }      : {}),
         roleId: Number(formData.roleId),
-        gymId: finalGymId, // Backend lo atrapará aquí
-        gymIds: finalGymId ? [finalGymId] : [], // O lo atrapará aquí
+        gymId: finalGymId,
+        gymIds: finalGymId ? [finalGymId] : [],
         isActive: formData.isActive,
       };
-
-      console.log('PAYLOAD REPARADO:', payload);
 
       if (formData.password?.trim()) payload.password = formData.password.trim();
 
@@ -1389,7 +1079,12 @@ export const UsuariosView = () => {
                 return (
                   <tr key={`user-${u.id}`} className="border-b border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-bg-deep transition-colors text-slate-700 dark:text-gray-300 text-sm">
                     <td style={{ padding: '0.6rem' }}>{u.id}</td>
-                    <td style={{ padding: '0.6rem' }}>{fullName}</td>
+                    <td style={{ padding: '0.6rem' }}>
+                      <p style={{ margin: 0, fontWeight: 700, color: 'inherit' }}>{fullName}</p>
+                      <p style={{ margin: 0, fontSize: '0.72rem', color: '#6b7280', fontFamily: 'monospace' }}>
+                        CI: {u.profile?.ci || 'Sin registrar'}
+                      </p>
+                    </td>
                     <td style={{ padding: '0.6rem' }}>{u.email ?? '-'}</td>
                     <td style={{ padding: '0.6rem', color: '#8E8E93', fontSize: '0.85rem' }}>{roleDisplay}</td>
                     <td style={{ padding: '0.6rem' }}>
@@ -1459,19 +1154,6 @@ export const UsuariosView = () => {
                         >
                           <Eye size={15} />
                         </button>
-
-                        {/* Horarios (solo personal de sede) */}
-                        {(user?.level ?? 0) >= 4 && (targetLevel ?? 0) >= 2 && (targetLevel ?? 0) <= 3 && (
-                          <button
-                            onClick={() => setSchedulingUser(u)}
-                            title="Gestionar horarios"
-                            style={{ width: 32, height: 32, borderRadius: 8, border: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,229,163,0.12)', color: '#00E5A3', transition: 'background 0.15s' }}
-                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,229,163,0.26)'; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,229,163,0.12)'; }}
-                          >
-                            <Clock size={15} />
-                          </button>
-                        )}
 
                         {/* Editar */}
                         {canEdit && (
@@ -1548,12 +1230,6 @@ export const UsuariosView = () => {
         })()}
       />
 
-      <StaffScheduleModal
-        isOpen={!!schedulingUser}
-        onClose={() => setSchedulingUser(null)}
-        employee={schedulingUser}
-      />
-
       <ConfirmModal
         isOpen={!!deleteConfirmUser}
         onClose={() => setDeleteConfirmUser(null)}
@@ -1609,14 +1285,17 @@ export const UsuariosView = () => {
             );
           }
 
-          // GERENTE: siempre 1 sucursal → mostrar dos campos lado a lado
-          if (rId === DB_ROLES.GERENTE) {
-            const g     = gymsInRoles[0];
-            const gId   = Number(g?.id);
-            const info  = gymInfoMap.get(gId);
-            // Fallback: si gymInfoMap aún no cargó, usar el dato que viene en el rol
-            const sedeName     = info?.sedeName     ?? g?.parent?.name ?? '—';
-            const sucursalName = info?.sucursalName ?? g?.name ?? `Gym #${gId}`;
+          // Gerente (nivel 5): su gym asignado ES la marca (parentId === null)
+          if (targetRoleLevel2 === 5) {
+            const g    = gymsInRoles[0];
+            const gId  = Number(g?.id);
+            const isBrand = !g?.parentId && !g?.parent?.id;
+            const sedeName     = isBrand
+              ? (g?.name ?? '—')
+              : (gymInfoMap.get(gId)?.sedeName ?? g?.parent?.name ?? '—');
+            const sucursalName = isBrand
+              ? '—'
+              : (gymInfoMap.get(gId)?.sucursalName ?? g?.name ?? `Gym #${gId}`);
             return (
               <>
                 <DetailField
@@ -1625,7 +1304,7 @@ export const UsuariosView = () => {
                 />
                 <DetailField
                   label="Sucursal Asignada"
-                  value={<span style={{ color: '#38BDF8', fontWeight: 600 }}>{sucursalName}</span>}
+                  value={<span style={{ color: sucursalName === '—' ? '#636366' : '#38BDF8', fontWeight: 600, fontStyle: sucursalName === '—' ? 'italic' : 'normal' }}>{sucursalName}</span>}
                 />
               </>
             );
@@ -1664,50 +1343,29 @@ export const UsuariosView = () => {
           );
         })()}
 
-        {/* ── Horarios laborales por sucursal ── */}
+        {/* ── Clases Asignadas (solo nivel 2 — Instructores/Coordinadores) ── */}
         {(() => {
-          const DAY_LABELS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-          if (viewUserSchedules.length === 0) return null;
-
-          const byGym = new Map<number, { gymName: string; slots: StaffScheduleRow[] }>();
-          for (const s of viewUserSchedules) {
-            if (!byGym.has(s.gymId)) {
-              byGym.set(s.gymId, { gymName: s.gym?.name ?? `Sucursal #${s.gymId}`, slots: [] });
-            }
-            byGym.get(s.gymId)!.slots.push(s);
-          }
-
+          const targetLevel = (viewingUser as UserDto & { level?: number })?.level ?? 0;
+          if (targetLevel !== 2) return null;
+          if (viewUserClasses.length === 0) return (
+            <DetailField label="Clases Asignadas" isFullWidth value={
+              <span style={{ fontSize: '0.82rem', color: '#636366' }}>Sin clases asignadas.</span>
+            } />
+          );
           return (
             <DetailField
-              label={`Horarios Laborales (${byGym.size} ${byGym.size === 1 ? 'sucursal' : 'sucursales'})`}
+              label={`Clases Asignadas (${viewUserClasses.length})`}
               isFullWidth
               value={
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.25rem' }}>
-                  {[...byGym.entries()].map(([gymId, { gymName, slots }]) => {
-                    const byDay = new Map<number, StaffScheduleRow[]>();
-                    for (const s of slots) {
-                      if (!byDay.has(s.dayOfWeek)) byDay.set(s.dayOfWeek, []);
-                      byDay.get(s.dayOfWeek)!.push(s);
-                    }
-                    const sortedDays = [...byDay.entries()].sort(([a], [b]) => a - b);
-                    return (
-                      <div key={gymId} style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #38BDF8' }}>
-                        <div style={{ background: '#38BDF8', padding: '0.4rem 0.75rem' }}>
-                          <span style={{ color: '#000', fontWeight: 700, fontSize: '0.85rem' }}>{gymName}</span>
-                        </div>
-                        <div style={{ padding: '0.5rem 0.75rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                          {sortedDays.map(([dow, daySlots]) => (
-                            <div key={dow} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.82rem' }}>
-                              <span style={{ fontWeight: 600, color: '#636366', minWidth: '2.5rem' }}>{DAY_LABELS[dow]}:</span>
-                              <span style={{ color: '#1c1c1e' }}>
-                                {daySlots.map(s => `${s.startTime.slice(0,5)} – ${s.endTime.slice(0,5)}`).join('  |  ')}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.25rem' }}>
+                  {viewUserClasses.map((c, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', padding: '0.35rem 0.6rem', borderRadius: '6px', background: 'rgba(56,189,248,0.08)' }}>
+                      <span style={{ fontWeight: 700, minWidth: '3rem', color: '#38BDF8' }}>{c.day}</span>
+                      <span style={{ color: '#636366', minWidth: '7rem' }}>{c.time}</span>
+                      <span style={{ fontWeight: 600, color: '#1c1c1e' }}>{c.activity}</span>
+                      <span style={{ color: '#636366', marginLeft: 'auto' }}>{c.gymName}</span>
+                    </div>
+                  ))}
                 </div>
               }
             />

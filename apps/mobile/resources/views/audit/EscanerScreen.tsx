@@ -13,8 +13,7 @@ import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinn
 const WIN = Dimensions.get('window');
 const BOX = WIN.width * 0.65;
 
-// mode: 'reservations' = escanear QR de reserva de cliente
-//       'staff'        = escanear carnet QR del personal para registrar ingreso
+
 type ScanMode = 'reservations' | 'staff';
 
 // Decodifica el payload del JWT sin verificar firma (sirve incluso si el token expiró)
@@ -37,7 +36,7 @@ const fmtDate = (d: string) => {
 
 const fmtTime = (t?: string) => (t ? t.substring(0, 5) : '?');
 
-// Devuelve true si la hora actual (HH:mm) supera la hora de fin de la reserva
+
 const isTimePast = (endTime?: string): boolean => {
   if (!endTime) return false;
   const now  = new Date();
@@ -101,7 +100,7 @@ export const EscanerScreen = () => {
     // Detección cruzada: número puro = carnet de empleado
     if (/^\d+$/.test(token)) {
       Alert.alert(
-        '⚠️ Escáner incorrecto',
+        'Escáner incorrecto',
         'Este QR es el carnet de un empleado.\n\nUsa el botón "Registrar Ingreso del Personal" para registrar el ingreso de staff.',
         [{ text: 'Entendido', onPress: () => resetScan() }]
       );
@@ -116,7 +115,7 @@ export const EscanerScreen = () => {
       await queryClient.invalidateQueries({ queryKey: ['gym-audit-reservations'] });
 
       Alert.alert(
-        '✅ Ingreso Autorizado',
+        'Ingreso Autorizado',
         'Reserva del cliente registrada correctamente.',
         [
           { text: 'Escanear otro', onPress: () => resetScan() },
@@ -133,11 +132,11 @@ export const EscanerScreen = () => {
           ? errorData.message
           : 'Esta reserva es para una fecha futura.';
         Alert.alert(
-          'Reserva Futura',
-          `${msg}\n\n¿Confirmar el ingreso de todas formas?`,
+          'Reserva adelantada',
+          `${msg}\n\n¿Deseas continuar con el check-in?`,
           [
             {
-              text: 'Forzar Ingreso',
+              text: 'Continuar',
               onPress: async () => {
                 try {
                   await reservationApi.checkInByToken(token, true);
@@ -145,7 +144,7 @@ export const EscanerScreen = () => {
                   await queryClient.invalidateQueries({ queryKey: ['gym-reservations'] });
                   await queryClient.invalidateQueries({ queryKey: ['gym-audit-reservations'] });
                   Alert.alert(
-                    '✅ Ingreso Autorizado',
+                    'Ingreso Autorizado',
                     'Reserva del cliente registrada correctamente.',
                     [
                       { text: 'Escanear otro', onPress: () => resetScan() },
@@ -185,7 +184,7 @@ export const EscanerScreen = () => {
         await handleReservationError(reservationId, err);
       } else {
         Alert.alert(
-          '❌ QR no reconocido',
+          'QR no reconocido',
           'Este código QR no es válido para check-in de reservas. Verifica que el cliente muestre el QR correcto desde su pantalla de reservas.',
           [
             { text: 'Reintentar', onPress: () => resetScan() },
@@ -213,10 +212,10 @@ export const EscanerScreen = () => {
 
       if (isCrossBrand) {
         const gymName   = r.gym?.name;
-        const brandName = r.gym?.brand?.name ?? r.gym?.parent?.name;
+        const brandName = r.gym?.brand?.name ?? (r.gym as any)?.parent?.name;
         const location  = [gymName, brandName].filter(Boolean).join(' — ');
         Alert.alert(
-          '🏢 Reserva de otra sucursal',
+          'Reserva de otra sucursal',
           `La reserva de ${clientName}${activity ? ` (${activity})` : ''} está registrada en "${location || 'otra sucursal'}" para el ${fmtDateStr} de ${startTime} a ${endTime}.\n\nNo tienes acceso para registrar ingresos de esta sucursal.`,
           [{ text: 'Entendido', onPress: () => resetScan() }]
         );
@@ -226,7 +225,7 @@ export const EscanerScreen = () => {
       // Reserva ya completada
       if (r.status === 'COMPLETADA') {
         Alert.alert(
-          'ℹ️ Reserva ya completada',
+          'Reserva ya completada',
           `La reserva de ${clientName}${activity ? ` (${activity})` : ''} para el ${fmtDateStr} ya fue registrada como completada.`,
           [{ text: 'Entendido', onPress: () => resetScan() }]
         );
@@ -236,7 +235,7 @@ export const EscanerScreen = () => {
       // Reserva cancelada
       if (r.status === 'CANCELADA' || r.status === 'CANCELLED') {
         Alert.alert(
-          '❌ Reserva cancelada',
+          'Reserva cancelada',
           `La reserva de ${clientName}${activity ? ` (${activity})` : ''} para el ${fmtDateStr} fue cancelada y no puede procesarse.`,
           [{ text: 'Entendido', onPress: () => resetScan() }]
         );
@@ -251,7 +250,7 @@ export const EscanerScreen = () => {
       // Caducada: fecha pasada
       if (isPastDate) {
         Alert.alert(
-          '⏱️ Reserva caducada',
+          'Reserva caducada',
           `La reserva de ${clientName}${activity ? ` (${activity})` : ''} ha caducado.\n\nEstaba programada para el ${fmtDateStr} de ${startTime} a ${endTime}.`,
           [{ text: 'Entendido', onPress: () => resetScan() }]
         );
@@ -261,7 +260,7 @@ export const EscanerScreen = () => {
       // Caducada: mismo día pero ya pasó la hora fin
       if (isToday && isTimePast(r.endTime ?? r.gymActivitySchedule?.endTime)) {
         Alert.alert(
-          '⏱️ Horario caducado',
+          'Horario caducado',
           `La reserva de ${clientName}${activity ? ` (${activity})` : ''} ha caducado.\n\nEstaba programada para el ${fmtDateStr} de ${startTime} a ${endTime}.`,
           [{ text: 'Entendido', onPress: () => resetScan() }]
         );
@@ -271,18 +270,18 @@ export const EscanerScreen = () => {
       // Fecha futura: ofrecer check-in adelantado con confirmación
       if (isFuture) {
         Alert.alert(
-          '📅 Reserva futura',
-          `La reserva de ${clientName}${activity ? ` (${activity})` : ''} está registrada para el ${fmtDateStr} de ${startTime} a ${endTime}.\n\n¿Confirmar el ingreso de todas formas?`,
+          'Reserva adelantada',
+          `La reserva de ${clientName}${activity ? ` (${activity})` : ''} es para el ${fmtDateStr} de ${startTime} a ${endTime}.\n\n¿Deseas continuar con el check-in?`,
           [
             {
-              text: 'Confirmar ingreso',
+              text: 'Continuar',
               onPress: async () => {
                 try {
                   await reservationApi.confirmReservation(reservationId);
                   await queryClient.invalidateQueries({ queryKey: ['audit-history'] });
                   await queryClient.invalidateQueries({ queryKey: ['gym-audit-reservations'] });
                   Alert.alert(
-                    '✅ Ingreso Confirmado',
+                    'Ingreso Confirmado',
                     `Ingreso de ${clientName} registrado correctamente.`,
                     [
                       { text: 'Escanear otro', onPress: () => resetScan() },
@@ -291,7 +290,7 @@ export const EscanerScreen = () => {
                   );
                 } catch (e: any) {
                   const msg = e?.response?.data?.message || e?.message || 'Error al confirmar.';
-                  Alert.alert('❌ Error', msg, [{ text: 'Entendido', onPress: () => resetScan() }]);
+                  Alert.alert('Error', msg, [{ text: 'Entendido', onPress: () => resetScan() }]);
                 }
               },
             },
@@ -303,18 +302,18 @@ export const EscanerScreen = () => {
 
       // Hoy pero QR expirado (JWT de 3 min vencido): ofrecer check-in manual
       Alert.alert(
-        '⏱️ QR expirado',
-        `El QR de ${clientName} ha expirado (validez: 3 minutos).\n\nLa reserva es para hoy ${fmtDateStr} de ${startTime} a ${endTime}. ¿Confirmar el ingreso manualmente?`,
+        'QR expirado',
+        `El QR de ${clientName} ha expirado (validez: 3 minutos).\n\nLa reserva es para hoy ${fmtDateStr} de ${startTime} a ${endTime}.\n\n¿Deseas continuar con el check-in?`,
         [
           {
-            text: 'Confirmar igualmente',
+            text: 'Continuar',
             onPress: async () => {
               try {
                 await reservationApi.confirmReservation(reservationId);
                 await queryClient.invalidateQueries({ queryKey: ['audit-history'] });
                 await queryClient.invalidateQueries({ queryKey: ['gym-audit-reservations'] });
                 Alert.alert(
-                  '✅ Ingreso Confirmado',
+                  'Ingreso Confirmado',
                   `Ingreso de ${clientName} registrado correctamente.`,
                   [
                     { text: 'Escanear otro', onPress: () => resetScan() },
@@ -323,7 +322,7 @@ export const EscanerScreen = () => {
                 );
               } catch (e: any) {
                 const msg = e?.response?.data?.message || e?.message || 'Error al confirmar.';
-                Alert.alert('❌ Error', msg, [{ text: 'Entendido', onPress: () => resetScan() }]);
+                Alert.alert('Error', msg, [{ text: 'Entendido', onPress: () => resetScan() }]);
               }
             },
           },
@@ -336,13 +335,13 @@ export const EscanerScreen = () => {
           ? originalErr.response.data.message
           : null;
         Alert.alert(
-          '🏢 Reserva de otra sucursal',
+          'Reserva de otra sucursal',
           backendMsg ?? 'Esta reserva pertenece a otra sucursal. Solo puedes registrar ingresos de las sucursales asignadas a tu cuenta.',
           [{ text: 'Entendido', onPress: () => resetScan() }]
         );
       } else {
         Alert.alert(
-          '❌ No se pudo procesar',
+          'No se pudo procesar',
           'No fue posible obtener los detalles de esta reserva. Verifica tu conexión e intenta de nuevo.',
           [
             { text: 'Reintentar', onPress: () => resetScan() },
@@ -354,31 +353,66 @@ export const EscanerScreen = () => {
   };
 
   const handleStaffScan = async (data: string) => {
+    const raw = data.trim();
+
+    // Detección cruzada: si el contenido NO es un número puro, es un QR de reserva
+    if (!/^\d+$/.test(raw) || parseInt(raw, 10) <= 0) {
+      Alert.alert(
+        'Escáner incorrecto',
+        'Este QR es de una reserva de cliente.\n\nUsa el botón "Escanear Reserva de Cliente" para validar el ingreso de un miembro.',
+        [{ text: 'Entendido', onPress: () => resetScan() }]
+      );
+      return;
+    }
+
     try {
-      const raw = data.trim();
-      const userId = parseInt(raw, 10);
-
-      // Detección cruzada: si el contenido NO es un número puro, es un QR de reserva
-      const looksLikeReservationQR = isNaN(userId) || userId <= 0 || String(userId) !== raw;
-      if (looksLikeReservationQR) {
-        Alert.alert(
-          '⚠️ Escáner incorrecto',
-          'Este QR es de una reserva de cliente.\n\nUsa el botón "Escanear Reserva de Cliente" para validar el ingreso de un miembro.',
-          [{ text: 'Entendido', onPress: () => resetScan() }]
-        );
-        return;
-      }
-
-      await checkinsApi.staffCheckIn(userId);
-
-      await queryClient.invalidateQueries({ queryKey: ['audit-history'] });
+      const preview = await checkinsApi.previewScan(raw);
 
       Alert.alert(
-        '✅ Ingreso Registrado',
-        'El ingreso del personal ha sido registrado correctamente.',
+        preview.fullName,
+        `${preview.role} — ${preview.branchName}\n\n¿Cómo deseas registrar este movimiento?`,
         [
-          { text: 'Escanear otro', onPress: () => resetScan() },
-          { text: 'Volver', style: 'cancel', onPress: () => navigation?.goBack() },
+          { text: 'Cancelar', style: 'cancel', onPress: () => resetScan() },
+          {
+            text: 'Salida',
+            onPress: async () => {
+              try {
+                await checkinsApi.registerAttendance(preview.id, 'OUT');
+                await queryClient.invalidateQueries({ queryKey: ['audit-history'] });
+                Alert.alert(
+                  'Salida Registrada',
+                  `Salida de ${preview.fullName} registrada correctamente.`,
+                  [
+                    { text: 'Escanear otro', onPress: () => resetScan() },
+                    { text: 'Volver', style: 'cancel', onPress: () => navigation?.goBack() },
+                  ]
+                );
+              } catch (err: any) {
+                const msg = err?.response?.data?.message || err?.message || 'Error al registrar salida.';
+                Alert.alert('Error', msg, [{ text: 'Reintentar', onPress: () => resetScan() }]);
+              }
+            },
+          },
+          {
+            text: 'Ingreso',
+            onPress: async () => {
+              try {
+                await checkinsApi.registerAttendance(preview.id, 'IN');
+                await queryClient.invalidateQueries({ queryKey: ['audit-history'] });
+                Alert.alert(
+                  'Ingreso Registrado',
+                  `Ingreso de ${preview.fullName} registrado correctamente.`,
+                  [
+                    { text: 'Escanear otro', onPress: () => resetScan() },
+                    { text: 'Volver', style: 'cancel', onPress: () => navigation?.goBack() },
+                  ]
+                );
+              } catch (err: any) {
+                const msg = err?.response?.data?.message || err?.message || 'Error al registrar ingreso.';
+                Alert.alert('Error', msg, [{ text: 'Reintentar', onPress: () => resetScan() }]);
+              }
+            },
+          },
         ]
       );
     } catch (err: any) {
@@ -386,9 +420,9 @@ export const EscanerScreen = () => {
         err?.response?.data?.message ||
         err?.response?.data?.error   ||
         err?.message                 ||
-        'Error al registrar el ingreso del personal.';
+        'Error al verificar el QR del personal.';
 
-      Alert.alert('❌ No se pudo registrar', msg, [
+      Alert.alert('No se pudo verificar', msg, [
         { text: 'Reintentar', onPress: () => resetScan() },
         { text: 'Cancelar', style: 'cancel', onPress: () => navigation?.goBack() },
       ]);

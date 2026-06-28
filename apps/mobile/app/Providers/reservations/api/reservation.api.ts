@@ -1,7 +1,3 @@
-/**
- * Cliente Axios para el Módulo de Reservas
- * Endpoints sincronizados con el Swagger de GymSync API v1.0.0
- */
 import axios from 'axios';
 import { Env } from '../../geolocation/config/environment';
 import {

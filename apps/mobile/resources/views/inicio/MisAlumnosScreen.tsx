@@ -110,7 +110,7 @@ export const MisAlumnosScreen = () => {
                   <View style={s.info}>
                     <Text style={s.name}>{item.clientName}</Text>
                     <Text style={s.sub} numberOfLines={1}>
-                      {item.phone ?? 'Sin teléfono registrado'}
+                      {item.ci ? `CI: ${item.ci}` : (item.email ?? item.phone ?? 'Sin identificador')}
                     </Text>
                   </View>
                 </View>

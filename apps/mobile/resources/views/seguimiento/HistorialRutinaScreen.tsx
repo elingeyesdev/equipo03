@@ -10,7 +10,7 @@ import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinn
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type RouteParams = { clientId: number; clientName: string; phone?: string | null };
+type RouteParams = { clientId: number; clientName: string };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

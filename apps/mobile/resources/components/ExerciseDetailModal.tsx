@@ -11,7 +11,7 @@ type ExerciseInfo = {
   description?: string | null;
   muscleGroup?: string;
   category?: string;
-  equipmentRequired?: string;
+  equipmentRequired?: string | null;
   imageUrl?: string | null;
   youtubeVideoId?: string | null;
 };
@@ -37,7 +37,7 @@ const getExerciseCover = (imageUrl?: string | null, equipment: string = '') => {
 
 export const ExerciseDetailModal: React.FC<Props> = ({ visible, exercise, onClose }) => {
   const [showVideo, setShowVideo] = useState(false);
-  const coverUri = getExerciseCover(exercise.imageUrl, exercise.equipmentRequired);
+  const coverUri = getExerciseCover(exercise.imageUrl, exercise.equipmentRequired ?? undefined);
   const hasVideo = !!exercise.youtubeVideoId;
 
   const fallbackDescription = `Este ejercicio se enfoca en fortalecer ${exercise.muscleGroup ?? 'el grupo muscular objetivo'} mediante el uso de ${exercise.equipmentRequired || 'peso corporal'}. Mantén una postura correcta y sigue las instrucciones de tu entrenador.`;

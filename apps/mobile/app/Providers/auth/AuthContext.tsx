@@ -1,12 +1,3 @@
-/**
- * AuthContext — Context de autenticación para la app móvil
- * 
- * Proporciona:
- * - Estado de autenticación (usuario, token)
- * - Funciones login/logout
- * - Hook useAuth para acceder desde componentes
- */
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import type { AutenticacionContext } from '@gymsync/core';
 import { AuthService } from './AuthService';

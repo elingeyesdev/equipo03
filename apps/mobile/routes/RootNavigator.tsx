@@ -56,12 +56,16 @@ import { InboxScreen }        from '../resources/views/mensajes/InboxScreen';
 import { ChatScreen }         from '../resources/views/mensajes/ChatScreen';
 import { ChatProfileScreen }  from '../resources/views/mensajes/ChatProfileScreen';
 
+// ── Mapa interno de staff ─────────────────────────────────────────────────────
+import { StaffMapScreen } from '../resources/views/geolocation/StaffMapScreen/StaffMapScreen';
+
 // ── Seguimiento (ENTRENADOR / INSTRUCTOR) ─────────────────────────────────────
 import { SeguimientoScreen }        from '../resources/views/seguimiento/SeguimientoScreen';
 import { HistorialRutinaScreen }    from '../resources/views/seguimiento/HistorialRutinaScreen';
 import { RegistroEjercicioScreen }  from '../resources/views/seguimiento/RegistroEjercicioScreen';
 import { TrainerReportScreen }      from '../resources/views/seguimiento/TrainerReportScreen';
 import { InstructorReportScreen }   from '../resources/views/seguimiento/InstructorReportScreen';
+import { ReportPreviewScreen }      from '../resources/views/seguimiento/ReportPreviewScreen';
 import { MisAlumnosScreen }         from '../resources/views/inicio/MisAlumnosScreen';
 import { DumbbellSpinner } from '../app/Shared/components/ui/DumbbellSpinner';
 
@@ -232,11 +236,19 @@ const GerenteStack = () => (
 
 // STAFF STACK — ENTRENADOR / INSTRUCTOR / NUTRICIONISTA
 
+// Tab Buscar para staff: mapa interno, no el mapa de clientes
+const StaffBuscarNav = createNativeStackNavigator();
+const StaffBuscarStack = () => (
+  <StaffBuscarNav.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#000000' } }}>
+    <StaffBuscarNav.Screen name="StaffBuscarHome" component={StaffMapScreen} />
+  </StaffBuscarNav.Navigator>
+);
+
 const StaffTab = createBottomTabNavigator();
 const StaffTabs = () => (
   <StaffTab.Navigator screenOptions={tabScreenOptions}>
     <StaffTab.Screen name="Inicio"       component={StaffInicioScreen} />
-    <StaffTab.Screen name="Buscar"       component={BuscarStack} />
+    <StaffTab.Screen name="Buscar"       component={StaffBuscarStack} />
     <StaffTab.Screen name="Seguimiento"  component={SeguimientoScreen} />
     <StaffTab.Screen name="Mensajes"     component={InboxScreen} options={{ headerShown: false }} />
     <StaffTab.Screen name="Perfil"       component={ClientePerfilStack} />
@@ -301,6 +313,16 @@ const StaffStack = () => (
     <StaffNav.Screen
       name="InstructorReport"
       component={InstructorReportScreen}
+      options={{ headerShown: false }}
+    />
+    <StaffNav.Screen
+      name="ReportPreview"
+      component={ReportPreviewScreen}
+      options={{ headerShown: false }}
+    />
+    <StaffNav.Screen
+      name="ScannerQR"
+      component={EscanerScreen}
       options={{ headerShown: false }}
     />
     <StaffNav.Screen

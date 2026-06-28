@@ -90,6 +90,10 @@ const ConversationCard = ({
           <Text style={s.cardName} numberOfLines={1}>{name}</Text>
           {time ? <Text style={s.timeText}>{time}</Text> : null}
         </View>
+        {/* Fila 1b: desambiguador CI / email */}
+        {other?.profile?.ci ? (
+          <Text style={s.cardSubMuted} numberOfLines={1}>CI: {other.profile.ci}</Text>
+        ) : null}
         {/* Fila 2: preview + badge */}
         <View style={s.cardRow}>
           <Text
@@ -185,7 +189,9 @@ const ClientSearchCard = ({
           <MaterialCommunityIcons name="account-outline" size={11} color="#22C55E" />
           <Text style={s.cardSub}>Cliente</Text>
           <Text style={s.dot}>·</Text>
-          <Text style={[s.cardSub, { color: '#444' }]} numberOfLines={1}>{client.email}</Text>
+          <Text style={[s.cardSub, { color: '#444' }]} numberOfLines={1}>
+            {client.ci ? `CI: ${client.ci}` : client.email}
+          </Text>
         </View>
       </View>
       {loading
@@ -418,7 +424,7 @@ export const InboxScreen = () => {
 const s = StyleSheet.create({
   container:    { flex: 1, backgroundColor: '#0A0A0A' },
   header:       { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
-  headerTitle:  { color: '#fff', fontSize: 22, fontWeight: '700' },
+  headerTitle:  { color: '#fff', fontSize: 34, fontWeight: '900' },
 
   searchWrap:   { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#1C1C1E', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, marginHorizontal: 16, marginBottom: 8, borderWidth: 1, borderColor: '#2A2A2D' },
   searchInput:  { flex: 1, color: '#fff', fontSize: 14, paddingVertical: 0 },

@@ -3,11 +3,13 @@ import React, {
   createContext,
   useContext,
   useState,
+  useCallback,
   ReactNode,
   useEffect,
 } from 'react';
 import type { UserRole } from '@gymsync/core';
 import { apiClient } from '../infrastructure/api.config';
+import { queryClient } from '../lib/queryClient';
 import { VALID_ROLES, ROLE_ID_TO_NAME, DB_ROLES } from '../config/rbac.constants';
 
 export interface WebUser {
@@ -30,6 +32,7 @@ interface AuthState {
   login: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   isLoading: boolean;
+  refreshSession: () => Promise<boolean>;
 }
 
 export const AuthContext = createContext<AuthState>({} as AuthState);
@@ -179,14 +182,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setUser(null);
           localStorage.removeItem('gymsync_user');
         }
-      } catch (err: any) {
-        if (err?.response?.status === 401) {
-          // Cookie expirada o inválida — forzar estado limpio
+      } catch (error: any) {
+        if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+          // Token inválido o sesión revocada en el servidor → purgar
           setUser(null);
           localStorage.removeItem('gymsync_user');
           sessionStorage.clear();
+        } else {
+          // Error de red o backend reiniciándose → conservar datos cacheados
+          const storedRaw = localStorage.getItem('gymsync_user');
+          if (storedRaw) {
+            try { setUser(JSON.parse(storedRaw) as WebUser); } catch { /* corrupt cache */ }
+          }
         }
-        // Otro error (red caída): mantener datos en caché para UX offline
       } finally {
         setIsLoading(false);
       }
@@ -288,9 +296,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const refreshSession = useCallback(async (): Promise<boolean> => {
+    try {
+      const res = await apiClient.get('/auth/me', { _skipErrorToast: true } as any);
+      const freshUser = buildUserFromMeResponse(res.data ?? {});
+      if (freshUser) {
+        setUser(freshUser);
+        localStorage.setItem('gymsync_user', JSON.stringify(freshUser));
+        // Invalida todos los caches de React Query para que los módulos activos
+        // recarguen datos frescos del servidor tras la recuperación de sesión.
+        queryClient.invalidateQueries();
+        return true;
+      }
+      return false;
+    } catch (error: any) {
+      if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+        setUser(null);
+        localStorage.removeItem('gymsync_user');
+        sessionStorage.clear();
+      }
+      return false;
+    }
+  }, []);
+
   const value = React.useMemo(
-    () => ({ isAuthenticated: !!user, user, login, logout, isLoading }),
-    [user, login, logout, isLoading],
+    () => ({ isAuthenticated: !!user, user, login, logout, isLoading, refreshSession }),
+    [user, login, logout, isLoading, refreshSession],
   );
 
   return (

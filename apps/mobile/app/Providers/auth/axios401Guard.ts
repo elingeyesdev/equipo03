@@ -1,10 +1,3 @@
-/**
- * axios401Guard — Interceptor global de 401 para cualquier cliente Axios.
- *
- * Uso:
- *   import { attach401Guard } from '../auth/axios401Guard';
- *   attach401Guard(miClienteAxios);
- */
 import { Alert } from 'react-native';
 import type { AxiosInstance } from 'axios';
 import { AuthService } from './AuthService';

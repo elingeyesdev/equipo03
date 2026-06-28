@@ -10,7 +10,7 @@ import { trainingApi, WorkoutSession } from '../../../app/Providers/training/api
 import authAxios from '../../../app/Providers/auth/authAxios';
 import { DumbbellSpinner } from '../../../app/Shared/components/ui/DumbbellSpinner';
 
-// ─── Paleta ────────────────────────────────────────────────────────────────────
+//Paleta 
 const C = {
   bg:       '#0A0A0A',
   surface:  '#1C1C1E',
@@ -26,7 +26,7 @@ const C = {
 
 const CHART_W = Dimensions.get('window').width - 32;
 
-// ─── Tipos ────────────────────────────────────────────────────────────────────
+//Tipos
 type MetricEntry = {
   id: string;
   recordedAt: string;
@@ -35,7 +35,7 @@ type MetricEntry = {
   bodyFatPercentage: number | null;
 };
 
-// ─── Utilidades ────────────────────────────────────────────────────────────────
+//Utilidades
 function dateToDMY(d: Date): string {
   const dd = String(d.getDate()).padStart(2, '0');
   const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -93,7 +93,7 @@ function safeLabels(labels: string[], values: number[]): string[] {
   return labels;
 }
 
-// ─── Configuración base de gráficos ───────────────────────────────────────────
+//Configuración base de gráficos
 const baseChartConfig = {
   backgroundColor:                   C.bg,
   backgroundGradientFrom:            C.bg,
@@ -109,7 +109,7 @@ const baseChartConfig = {
   },
 };
 
-// ─── Gráfico 1: Peso Corporal (naranja) ───────────────────────────────────────
+//Gráfico 1: Peso Corporal (naranja)
 function PesoChart({ metrics }: { metrics: MetricEntry[] }) {
   const points = metrics
     .filter(m => m.weightKg != null && Number(m.weightKg) > 0 && !isNaN(Number(m.weightKg)))
@@ -152,7 +152,6 @@ function PesoChart({ metrics }: { metrics: MetricEntry[] }) {
   );
 }
 
-// ─── Gráfico 2: Récord de Fuerza (verde) ─────────────────────────────────────
 function FuerzaChart({ sessions }: { sessions: WorkoutSession[] }) {
   // Peso máximo por sesión — soporta dos estructuras de API:
   //   • session.exercises[].sets[].weight_used_kg  (estructura real del backend)
@@ -231,7 +230,7 @@ const ch = StyleSheet.create({
   emptyTxt: { color: C.soft, fontSize: 12, textAlign: 'center', paddingHorizontal: 20 },
 });
 
-// ─── Paleta rotativa para el PieChart ─────────────────────────────────────────
+//Paleta rotativa para el PieChart
 const PIE_COLORS = [
   '#38BDF8', // celeste
   '#FF5E00', // naranja
@@ -243,7 +242,7 @@ const PIE_COLORS = [
   '#7B8794', // gris
 ];
 
-// ─── Gráfico 3: Distribución de Actividades (PieChart) ───────────────────────
+//Gráfico 3: Distribución de Actividades (PieChart) 
 function ActividadesChart({ sessions }: { sessions: WorkoutSession[] }) {
   // Agrupar por nombre de rutina o sportType
   const grouped = sessions.reduce<Record<string, number>>((acc, s) => {
@@ -312,7 +311,7 @@ const pie = StyleSheet.create({
   legendCount: { color: C.text, fontSize: 12, fontWeight: '700', minWidth: 48, textAlign: 'right' },
 });
 
-// ─── Tarjeta de sesión (timeline) ─────────────────────────────────────────────
+//Tarjeta de sesión (timeline) 
 function SessionCard({ session }: { session: WorkoutSession }) {
   const isCompleted = session.status === 'COMPLETED' || session.status === 'COMPLETADA';
 
@@ -405,7 +404,7 @@ const card = StyleSheet.create({
   footerTxt: { fontSize: 11, color: C.soft },
 });
 
-// ─── Pantalla principal ────────────────────────────────────────────────────────
+//Pantalla principal 
 export const CuadroDeMandoClienteScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const [sessions,          setSessions]          = useState<WorkoutSession[]>([]);
@@ -420,7 +419,7 @@ export const CuadroDeMandoClienteScreen: React.FC = () => {
   const [customStartStr, setCustomStartStr] = useState(() => dateToDMY(new Date(Date.now() - 30 * 86400_000)));
   const [customEndStr,   setCustomEndStr]   = useState(() => dateToDMY(new Date()));
 
-  // ── Fetch paralelo ─────────────────────────────────────────────────────────
+  //Fetch paralelo 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -452,7 +451,7 @@ export const CuadroDeMandoClienteScreen: React.FC = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // ── Estadísticas de resumen ────────────────────────────────────────────────
+  //Estadísticas de resumen
   const { totalSesiones, totalMinutos, totalKcal, volumenTotal, lastWeight } = useMemo(() => {
     if (!sessions || sessions.length === 0) {
       const w = metrics && metrics.length > 0 
