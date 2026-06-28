@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ForbiddenException,
   BadRequestException,
@@ -47,6 +48,8 @@ function isGymOpenNow(schedules: GymSchedule[]): boolean {
 
 @Injectable({ scope: Scope.REQUEST })
 export class GymsService {
+  private readonly logger = new Logger(GymsService.name);
+
   constructor(
     @InjectRepository(Gym) private gymsRepo: Repository<Gym>,
     @InjectRepository(GymLocation) private locRepo: Repository<GymLocation>,
@@ -94,7 +97,7 @@ export class GymsService {
 
       // Si falta un dato vital, reventar la petición para exponer el bug de formato, NO silenciarlo.
       if (!day || !open || !close) {
-        console.error('[CRÍTICO] Formato de horario irreconocible en el payload:', JSON.stringify(curr));
+        this.logger.error(`[CRÍTICO] Formato de horario irreconocible en el payload: ${JSON.stringify(curr)}`);
         throw new BadRequestException(
           'Error de integridad: falta el día o la hora en el payload de horarios. Revisa la consola del backend.',
         );

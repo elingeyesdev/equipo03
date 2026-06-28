@@ -98,7 +98,7 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Token inválido o ausente' })
   async getMe(
     @Request()
-    req: { user: { userId: number; role: string | null; gymId: number | null } },
+    req: { user: { userId: number; role: string | null; gymId: number | null; brandId?: number | null } },
   ) {
     try {
       const user = await this.usersService.findOne(req.user.userId);
