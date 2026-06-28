@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import {View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, Platform, Keyboard, KeyboardAvoidingView, Modal, Image} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, Platform, Keyboard, KeyboardAvoidingView, Modal, Image, ActivityIndicator} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';

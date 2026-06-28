@@ -44,10 +44,11 @@ export const useNotifications = () => {
     const socket = io(SOCKET_URL, {
       path: '/socket.io',
       transports: ['websocket', 'polling'],
-      // withCredentials envía la cookie HttpOnly al servidor en el handshake WS
       withCredentials: true,
-      reconnectionAttempts: 5,
+      reconnection: true,
+      reconnectionAttempts: Infinity,   // nunca rendirse — el backend puede tardar >10 s en reiniciar
       reconnectionDelay: 2000,
+      reconnectionDelayMax: 15000,      // backoff exponencial capped en 15 s
       autoConnect: false,
     });
 

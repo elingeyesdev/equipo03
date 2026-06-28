@@ -1,8 +1,3 @@
-/**
- * Interfaces y tipos estrictos para el Módulo de Reservas
- * Sincronizados con el modelo real de la API de GymSync.
- */
-
 export interface SubscriptionStatus {
   status: 'ACTIVO' | 'VENCIDO' | 'PAUSADO';
   planName: string;
@@ -10,8 +5,6 @@ export interface SubscriptionStatus {
   isActive: boolean;
 }
 
-// Días de la semana tal como los almacena el backend
-// Acepta tanto nombre completo (LUNES) como abreviación (LUN) por resiliencia
 export type DayOfWeek =
   | 'LUNES'    | 'MARTES'  | 'MIERCOLES' | 'JUEVES' | 'VIERNES' | 'SABADO'    | 'DOMINGO'
   | 'LUN'      | 'MAR'     | 'MIE'       | 'JUE'    | 'VIE'     | 'SAB'       | 'DOM';

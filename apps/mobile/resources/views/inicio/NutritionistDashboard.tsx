@@ -52,7 +52,7 @@ export const NutritionistDashboard = () => {
     data: requestsRaw, isLoading: loadingReqs, refetch: refetchReqs,
   } = useQuery({
     queryKey: ['nutritionist-pending-requests'],
-    queryFn:  staffApi.getPendingTrainerRequests,
+    queryFn:  () => staffApi.getPendingTrainerRequests(),
     staleTime: 30_000,
     retry: 1,
   });
@@ -64,7 +64,7 @@ export const NutritionistDashboard = () => {
     data: adviseesRaw, isLoading: loadingAdvisees, refetch: refetchAdvisees,
   } = useQuery({
     queryKey: ['nutritionist-active-advisees'],
-    queryFn:  staffApi.getActiveAdvisees,
+    queryFn:  () => staffApi.getActiveAdvisees(),
     staleTime: 60_000,
     retry: 1,
   });

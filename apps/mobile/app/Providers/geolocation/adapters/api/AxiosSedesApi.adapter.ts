@@ -1,13 +1,3 @@
-/**
- * AxiosSedesApiAdapter — Adaptador real de API para sedes.
- * 
- * Implementa ISedesApiService usando Axios para comunicarse con el backend NestJS.
- * Se usará cuando el backend esté disponible.
- * 
- * NOTA: El interceptor de sedes.api.config.ts desempaqueta automáticamente
- * el envelope { success, data }, por lo que aquí recibimos directamente los datos.
- */
-
 import { AxiosInstance } from 'axios';
 import { ISedesApiService, SedesQueryParams } from '@gymsync/core';
 import { Either, left, right } from '@gymsync/core';

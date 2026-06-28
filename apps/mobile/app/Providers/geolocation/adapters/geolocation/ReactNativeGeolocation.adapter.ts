@@ -1,10 +1,3 @@
-/**
- * ReactNativeGeolocationAdapter — Adaptador de geolocalización usando expo-location.
- * 
- * Implementa el puerto IGeolocationService utilizando la API de Expo Location,
- * que es compatible con Expo EAS Build y no requiere linking nativo manual.
- */
-
 import * as Location from 'expo-location';
 import { IGeolocationService, GeolocationOptions } from '@gymsync/core';
 import { Either, left, right } from '@gymsync/core';

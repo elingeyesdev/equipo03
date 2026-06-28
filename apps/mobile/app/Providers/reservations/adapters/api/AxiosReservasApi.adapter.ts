@@ -1,10 +1,3 @@
-/**
- * AxiosReservasApiAdapter — Adaptador de persistencia.
- * 
- * Implementa IReservasApiService comunicándose con el cliente Axios real
- * y traduciendo las llamadas a la estructura requerida por el backend relacional NestJS.
- */
-
 import { IReservasApiService, CrearReservaParams, Reserva } from '@gymsync/core';
 import { Either, left, right } from '@gymsync/core';
 import { reservationApi } from '../../api/reservation.api';

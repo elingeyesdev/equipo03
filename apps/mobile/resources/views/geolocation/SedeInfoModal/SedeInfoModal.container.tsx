@@ -1,7 +1,3 @@
-/**
- * SedeInfoModal Container — Lógica de negocio del modal.
- */
-
 import React from 'react';
 import { Sede } from '@gymsync/core';
 import { Distancia } from '@gymsync/core';

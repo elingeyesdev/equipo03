@@ -11,7 +11,6 @@ export const useSubscriptionGuard = () => {
   const today = new Date();
   const endDate = subscription?.endDate ? new Date(subscription.endDate) : null;
   
-  // Regla de Negocio: La suscripción debe estar ACTIVA y no vencida
   const isActive = 
     subscription?.status === 'ACTIVO' && 
     !!endDate && 

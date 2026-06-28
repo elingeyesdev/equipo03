@@ -1,10 +1,3 @@
-/**
- * MapScreen Container — Componente contenedor con lógica de negocio.
- *
- * Patrón Container/View: este componente maneja la inyección de
- * dependencias y la conexión con los casos de uso. La View es "tonta".
- */
-
 import React, { useCallback, useEffect, useRef } from 'react';
 import { useDependencyInjection } from '../../../../app/Shared/hooks/useDependencyInjection';
 import { MapScreenView } from './MapScreen.view';

@@ -1,6 +1,3 @@
-/**
- * Cliente Axios para el Módulo de Usuarios
- */
 import axios from 'axios';
 import { Env } from '../../geolocation/config/environment';
 import { AuthService } from '../../auth/AuthService';

@@ -130,9 +130,11 @@ export const trainingApi = {
     }
   },
 
-  getGymLocations: async (params?: { limit?: number; offset?: number }): Promise<PaginatedResponse<GymLocationItem>> => {
-    const response = await trainingClient.get('/api/gyms/locations', { params });
-    return response.data;
+  getGymLocations: async (): Promise<GymLocationItem[]> => {
+    const response = await trainingClient.get('/api/gyms/locations');
+    const data = response.data;
+    if (Array.isArray(data)) return data;
+    return data?.data ?? [];
   },
 
   startRoutineSession: async (data: {
@@ -156,6 +158,8 @@ export const trainingApi = {
     setNumber:          number;
     repsCompleted?:     number;
     weightUsedKg?:      number;
+    durationSeconds?:   number;
+    distanceMeters?:    number;
   }): Promise<void> => {
     await trainingClient.post(`/api/training/sessions/${sessionId}/sets`, data);
   },

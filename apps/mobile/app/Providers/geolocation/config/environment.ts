@@ -1,13 +1,3 @@
-/**
- * Environment — Variables de entorno tipadas con validación Zod.
- * 
- * Valida en runtime que todas las variables necesarias estén presentes,
- * evitando errores silenciosos por configuración incompleta.
- */
-
-// En Expo, las variables de entorno se manejan diferente.
-// Usamos valores por defecto para desarrollo.
-
 const getApiBaseUrl = (): string => {
   if (process.env.EXPO_PUBLIC_API_BASE_URL) {
     return process.env.EXPO_PUBLIC_API_BASE_URL;

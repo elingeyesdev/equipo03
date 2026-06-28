@@ -1,13 +1,3 @@
-/**
- * AuthService — Servicio de autenticación para la app móvil
- * 
- * Maneja:
- * - Login/Logout
- * - Almacenamiento de token en SecureStore (encriptado)
- * - Decodificación de JWT
- * - Extracción de rol y gym_id
- */
-
 import * as SecureStore from 'expo-secure-store';
 import type { AutenticacionContext, UserRole } from '@gymsync/core';
 

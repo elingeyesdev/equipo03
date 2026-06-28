@@ -7,11 +7,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { userApi } from '../users/api/user.api';
 
 // getExpoPushTokenAsync hangs in Expo Go (SDK 53+) — skip all remote push logic there.
-// Check both the current and deprecated APIs for maximum compatibility.
 const IS_EXPO_GO =
   (Constants as any).executionEnvironment === 'storeClient' ||
   (Constants as any).appOwnership === 'expo' ||
-  (Constants as any).expoVersion != null; // set only in Expo Go, undefined in standalone/bare
+  (Constants as any).expoVersion != null; 
 
 const PROJECT_ID = '05dedde2-39f5-4da2-9bbb-a805f06fa281';
 

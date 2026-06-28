@@ -1,7 +1,3 @@
-/**
- * LoadingOverlay — Indicador de carga de pantalla completa.
- */
-
 import React from 'react';
 import {View, Text, StyleSheet} from 'react-native';
 import { DumbbellSpinner } from '../../../../../app/Shared/components/ui/DumbbellSpinner';

@@ -270,7 +270,7 @@ const RoleAvatar = ({ rol, nombre }: { rol?: string; nombre: string }) => {
 
 //Panel de Accesos
 const AccesosPanel = () => {
-  const { user } = useAuth();
+  const { user, refreshSession } = useAuth();
   const [accesos,      setAccesos]      = useState<Acceso[]>([]);
   const [filtroSede,   setFiltroSede]   = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
@@ -280,10 +280,14 @@ const AccesosPanel = () => {
   const [page,         setPage]         = useState(1);
   const [hasMore,      setHasMore]      = useState(true);
   const [loading,      setLoading]      = useState(false);
-  const [errorAcceso,  setErrorAcceso]  = useState<string | null>(null);
   const [refreshKey,   setRefreshKey]   = useState(0);
   const [showScanner,  setShowScanner]  = useState(false);
   const [gyms,         setGyms]         = useState<{ id: number; name: string }[]>([]);
+  const [isRetrying,   setIsRetrying]   = useState(false);
+
+  const level = user?.level ?? 0;
+  const hasValidJurisdiction = level >= 10 || !!user?.gymId || !!user?.brandId;
+
 
   useEffect(() => {
     if ((user?.level ?? 0) < 10) return;
@@ -295,10 +299,21 @@ const AccesosPanel = () => {
       .catch(() => {});
   }, [user?.level]);
 
+  // Auto-recuperación: reintenta /auth/me cada 3 s mientras falte la jurisdicción.
+  // Cuando refreshSession devuelve true (backend respondió con datos completos),
+  // incrementa refreshKey para forzar recarga explícita de la tabla de accesos.
+  useEffect(() => {
+    if (hasValidJurisdiction) return;
+    const interval = setInterval(async () => {
+      const recovered = await refreshSession();
+      if (recovered) setRefreshKey(k => k + 1);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [hasValidJurisdiction, refreshSession]);
+
   const cargarAccesos = useCallback(async (resetPage = false) => {
     if (!user) return;
     setLoading(true);
-    setErrorAcceso(null);
 
     // Cuando hay filtro de tiempo activo, cargar todos los registros de una vez
     const timeFilterActive = Boolean(filtroTiempo);
@@ -329,7 +344,6 @@ const AccesosPanel = () => {
       setAccesos(prev => (resetPage || timeFilterActive) ? data : [...prev, ...data]);
       setHasMore(!timeFilterActive && data.length > 0 && (currentPage * 20) < total);
     } else {
-      setErrorAcceso(result.value.message);
       setAccesos([]);
       setHasMore(false);
     }
@@ -375,6 +389,28 @@ const AccesosPanel = () => {
 
     return list;
   }, [accesos, filtroTiempo, fechaDesde, fechaHasta]);
+
+  const handleManualRetry = async () => {
+    setIsRetrying(true);
+    await refreshSession();
+    setIsRetrying(false);
+  };
+
+  if (user && !hasValidJurisdiction) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-4">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#f05b22]" />
+        <p className="text-gray-400 text-sm">Sincronizando datos de jurisdicción con el servidor...</p>
+        <button
+          onClick={handleManualRetry}
+          disabled={isRetrying}
+          className="mt-2 px-4 py-2 bg-[#111111] border border-[#2A2A2D] text-white rounded hover:bg-[#222] transition-colors text-sm disabled:opacity-50"
+        >
+          {isRetrying ? 'Conectando...' : 'Reintentar Ahora'}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="auditoria-view">
@@ -468,13 +504,7 @@ const AccesosPanel = () => {
         </div>
       </div>
 
-      {errorAcceso ? (
-        <div className="error-panel">
-          <h3>Error de Seguridad (RBAC)</h3>
-          <p>{errorAcceso}</p>
-        </div>
-      ) : (
-        <div className="bg-white dark:bg-bg-surface border border-gray-200 dark:border-bg-deep rounded-xl overflow-x-auto mt-4">
+      <div className="bg-white dark:bg-bg-surface border border-gray-200 dark:border-bg-deep rounded-xl overflow-x-auto mt-4">
           <table className="w-full text-left border-collapse">
             <thead className="bg-gray-50 dark:bg-bg-deep border-b border-gray-200 dark:border-bg-deep text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">
               <tr>
@@ -570,7 +600,6 @@ const AccesosPanel = () => {
             </div>
           )}
         </div>
-      )}
     </div>
   );
 };
